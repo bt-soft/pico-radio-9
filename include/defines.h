@@ -47,6 +47,9 @@
 #define DEBUG(fmt, ...) // Üres makró, ha __DEBUG nincs definiálva
 #endif
 
+//--- Radio EEPROM Size ---
+#define RADIO_EEPROM_SIZE_IN_KB 3 // EEPROM méret KB-ban (512-4096 között módosítható)
+
 // Feszültségmérés
 #define VBUS_DIVIDER_R1 10.0f // Ellenállás VBUS és A0 között (kOhm)
 #define VBUS_DIVIDER_R2 15.0f // Ellenállás A0 és GND között (kOhm)

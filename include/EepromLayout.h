@@ -1,9 +1,9 @@
 #pragma once
 
-#include "ConfigData.h"  // Config_t struktúra
-#include "StationData.h" // FmStationList_t, AmStationList_t struktúrák
-#include "StoreEepromBase.h"
-#include "defines.h" // BANDTABLE_SIZE konstanshoz
+#include "ConfigData.h"      // Config_t struktúra
+#include "StationData.h"     // FmStationList_t, AmStationList_t struktúrák
+#include "StoreEepromBase.h" // StoreEepromBase sablon
+#include "defines.h"         // BANDTABLE_SIZE konstanshoz
 
 // Forward deklaráció a BandStoreData_t-hez
 struct BandStoreData_t;
@@ -65,4 +65,4 @@ constexpr size_t EEPROM_FREE_SPACE = EEPROM_SIZE - EEPROM_TOTAL_USED;
 // ============================================
 
 /** Fordítási idejű ellenőrzés az EEPROM méretére */
-static_assert(EEPROM_TOTAL_USED <= EEPROM_SIZE, "EEPROM layout exceeds available space! Increase EEPROM_SIZE or reduce data structures.");
+static_assert(EEPROM_TOTAL_USED <= EEPROM_SIZE, "Az EEPROM kiosztás meghaladja a rendelkezésre álló helyet! Növeld az EEPROM_SIZE értékét vagy csökkentsd az adatstruktúrák méretét.");

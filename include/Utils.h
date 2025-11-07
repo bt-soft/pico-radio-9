@@ -7,7 +7,7 @@
 namespace Utils {
 
 /**
- * @brief  Formáz egy lebegőpontos számot stringgé, a tizedesjegyek számát paraméterként adva meg.
+ * @brief  Egy lebegőpontos számot formáz stringgé, a tizedesjegyek számát paraméterként adva meg.
  * @param value A lebegőpontos szám értéke
  * @param decimalPlaces A tizedesjegyek száma (alapértelmezett: 2)
  */
@@ -54,7 +54,7 @@ template <typename T, size_t N> void safeStrCpy(T (&dest)[N], const T *src) {
 }
 
 /**
- * Tömb elemei nullák?
+ * A tömb elemei nullák?
  */
 template <typename T, size_t N> bool isZeroArray(T (&arr)[N]) {
     for (size_t i = 0; i < N; ++i) {
@@ -67,6 +67,8 @@ template <typename T, size_t N> bool isZeroArray(T (&arr)[N]) {
 
 /**
  * Várakozás a soros port megnyitására
+ * Leblokkolja a programot, amíg a soros port készen nem áll
+ *
  * @param pTft a TFT kijelző példánya
  */
 void debugWaitForSerial(TFT_eSPI &tft);
@@ -79,6 +81,7 @@ void displayException(TFT_eSPI &tft, const char *msg);
  * @brief TFT háttérvilágítás beállítása DC/PWM módban
  * 255-ös értéknél ténylegesen DC-t ad ki (digitalWrite HIGH),
  * más értékeknél PWM-et használ (analogWrite)
+ *
  * @param brightness Fényerő érték (0-255)
  */
 void setTftBacklight(uint8_t brightness);
@@ -177,6 +180,7 @@ void trimSpaces(char *str);
  * @return Számított CRC16 érték
  */
 uint16_t calcCRC16(const uint8_t *data, size_t length);
+
 /**
  * @brief CRC16 számítás típusos wrapper
  *

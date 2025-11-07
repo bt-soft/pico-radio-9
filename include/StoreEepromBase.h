@@ -7,7 +7,7 @@
 #include "defines.h"
 
 #ifndef EEPROM_SIZE
-#define EEPROM_SIZE (3 * 1024) // Alapértelmezett 3K méret (512-4096 között módosítható)
+#define EEPROM_SIZE (RADIO_EEPROM_SIZE_IN_KB * 1024) // Alapértelmezett 3K méret (512-4096 között módosítható)
 #endif
 
 /**

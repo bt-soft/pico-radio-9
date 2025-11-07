@@ -3,7 +3,7 @@
 #include <cstdint>
 
 /**
- *
+ * Futássi idejű változók a rádió működéséhez
  */
 namespace rtv {
 
