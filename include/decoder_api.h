@@ -24,28 +24,27 @@ enum DecoderId : uint32_t {
 };
 
 /**
- * @brief Parancskódok a core0 -> core1 kommunikációhoz
+ * @brief RP2040 Parancskódok a core0 -> core1 kommunikációhoz
  */
-enum CommandCode : uint32_t {
+enum RP2040CommandCode : uint32_t {
     CMD_NOP = 0,
     CMD_STOP = 1,
     CMD_SET_CONFIG = 2,
-    CMD_GET_CONFIG = 3,
-    CMD_PING = 4,
+    // CMD_GET_CONFIG = 3,
+    // CMD_PING = 4,
     CMD_GET_DATA_BLOCK = 5,   //  megosztott adatblokk indexének lekérésére
     CMD_GET_SAMPLING_RATE = 6 //  mintavételezési sebesség lekérésére
 };
 
 /**
- * @brief Válaszkódok a core1 -> core0 üzenetekre
+ * @brief RP2040 FIFO Válaszkódok a core1 -> core0 üzenetekre
  */
-enum ResponseCode : uint32_t {
-    RESP_NOP = 0,
-    RESP_DOM_FREQ = 100, // Elavult
+enum RP2040ResponseCode : uint32_t {
+    // RESP_NOP = 0,
     RESP_ACK = 200,
     RESP_NACK = 201,
-    RESP_ACTUAL_RATE = 202,
-    RESP_CONFIG = 203,
+    // RESP_ACTUAL_RATE = 202,
+    // RESP_CONFIG = 203,
     RESP_DATA_BLOCK = 204,   // az aktív puffer indexét tartalmazza
     RESP_SAMPLING_RATE = 205 // a mintavételezési sebességhez tartozó válasz
 };

@@ -180,7 +180,7 @@ void processFifoCommands() {
     uint32_t command = rp2040.fifo.pop();
     switch (command) {
 
-        case CMD_SET_CONFIG: {
+        case RP2040CommandCode::CMD_SET_CONFIG: {
             DecoderConfig decoderConfig;
             decoderConfig.decoderId = (DecoderId)rp2040.fifo.pop();
             decoderConfig.sampleCount = rp2040.fifo.pop();
@@ -232,32 +232,33 @@ void processFifoCommands() {
             // hogy a dekóder objektumok (pl. SSTV) megkapják az Fs-et, ha szükségük van rá.
             decoderConfig.samplingRate = finalRate;
 
-            // FFT-et használunk csak azokban a módokban, ahol spektrum vagy FFT-alapú dekódolás szükséges.
+            // FFT-t csak azokban a módokban használunk, ahol spektrum vagy FFT-alapú dekódolás szükséges.
             // SSTV: Nincs FFT (saját decode_sstv könyvtár használja)
             // WEFAX: Nincs FFT (FM dekódolás)
             // CW, RTTY, DomFreq: FFT-alapú feldolgozás (AudioProcessor Q15 FFT)
             bool useFFT = (decoderConfig.decoderId != ID_DECODER_SSTV && decoderConfig.decoderId != ID_DECODER_WEFAX);
 
-            // DMA mód beállítása dekóder típus szerint:
+            // DMA mód beállítása dekóder típusa szerint:
             // - SSTV és WEFAX: BLOKKOLÓ mód (garantált teljes blokk szükséges a pixel-pontos dekódoláshoz)
             // - CW, RTTY, DomFreq: NEM-BLOKKOLÓ mód (kisebb késleltetés, minta-alapú feldolgozás)
             bool useBlockingDma = (decoderConfig.decoderId == ID_DECODER_SSTV || decoderConfig.decoderId == ID_DECODER_WEFAX);
 
+            // DMA és audio processzor inicializálása
             audioProc.initialize(adcDmaConfig, useFFT, useBlockingDma);
             audioProc.reconfigureAudioSampling(adcDmaConfig.sampleCount, adcDmaConfig.samplingRate, decoderConfig.bandwidthHz);
 
-            // Dekóderek vezérlése
+            // Dekóder indítása
             decoderController(decoderConfig);
 
             // Publikáljuk a futási megjelenítési javaslatokat a Core0 számára (Spectrum UI)
             updateDisplayHints(decoderConfig);
 
             // Válasz a Core 0 felé
-            rp2040.fifo.push(RESP_ACK);
+            rp2040.fifo.push(RP2040ResponseCode::RESP_ACK);
             break;
         }
 
-        case CMD_STOP: {
+        case RP2040CommandCode::CMD_STOP: {
             audioProc.stop();    // Audio feldolgozás leállítása
             stopActiveDecoder(); // Dekóder leállítása
 
@@ -268,20 +269,20 @@ void processFifoCommands() {
             decodedData.cwCurrentWpm = 0;
 
             // Válasz a Core 0 felé
-            rp2040.fifo.push(RESP_ACK);
+            rp2040.fifo.push(RP2040ResponseCode::RESP_ACK);
             break;
         }
 
-        case CMD_GET_DATA_BLOCK: {
+        case RP2040CommandCode::CMD_GET_DATA_BLOCK: {
             // Válasz a Core 0 felé
-            rp2040.fifo.push(RESP_DATA_BLOCK);
+            rp2040.fifo.push(RP2040ResponseCode::RESP_DATA_BLOCK);
             rp2040.fifo.push(activeSharedDataIndex);
             break;
         }
 
-        case CMD_GET_SAMPLING_RATE: {
+        case RP2040CommandCode::CMD_GET_SAMPLING_RATE: {
             // Válasz a Core 0 felé
-            rp2040.fifo.push(RESP_SAMPLING_RATE);
+            rp2040.fifo.push(RP2040ResponseCode::RESP_SAMPLING_RATE);
             rp2040.fifo.push(audioProc.getSamplingRate());
             break;
         }
@@ -328,8 +329,6 @@ void setup1() {
 
     delay(1500);
     DEBUG("core-1: System clock: %u Hz\n", (unsigned)clock_get_hz(clk_sys));
-
-    pinMode(LED_BUILTIN, OUTPUT);
     memset(sharedData, 0, sizeof(sharedData));
 }
 

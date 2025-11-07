@@ -13,7 +13,7 @@
 void AudioController::setDecoder(DecoderId id, uint32_t sampleCount, uint32_t bandwidthHz, uint32_t cwCenterFreqHz, uint32_t rttyMarkFreqHz, uint32_t rttySpaceFreqHz, float rttyBaud) {
 
     // Küldjük a dekóder ID-t, a puffer méretet és a kívánt AF sávszélességet a Core1-nek.
-    rp2040.fifo.push(CMD_SET_CONFIG);
+    rp2040.fifo.push(RP2040CommandCode::CMD_SET_CONFIG);
     rp2040.fifo.push((uint32_t)id);
     rp2040.fifo.push(sampleCount);
     rp2040.fifo.push(bandwidthHz);
@@ -35,7 +35,7 @@ void AudioController::setDecoder(DecoderId id, uint32_t sampleCount, uint32_t ba
  * @brief Leállítja a dekódert a Core 1-en.
  */
 void AudioController::stop() {
-    rp2040.fifo.push(CMD_STOP);
+    rp2040.fifo.push(RP2040CommandCode::CMD_STOP);
     (void)rp2040.fifo.pop(); // ACK
 }
 
@@ -45,10 +45,10 @@ void AudioController::stop() {
  */
 uint32_t AudioController::getSamplingRate() {
 
-    rp2040.fifo.push(CMD_GET_SAMPLING_RATE);
+    rp2040.fifo.push(RP2040CommandCode::CMD_GET_SAMPLING_RATE);
 
     uint32_t response_code = rp2040.fifo.pop();
-    if (response_code == RESP_SAMPLING_RATE) {
+    if (response_code == RP2040ResponseCode::RESP_SAMPLING_RATE) {
         uint32_t samplingRate = rp2040.fifo.pop();
         return samplingRate;
     } else {
@@ -66,10 +66,10 @@ uint32_t AudioController::getSamplingRate() {
  */
 int8_t AudioController::getActiveSharedDataIndex() {
 
-    rp2040.fifo.push(CMD_GET_DATA_BLOCK);
+    rp2040.fifo.push(RP2040CommandCode::CMD_GET_DATA_BLOCK);
 
     uint32_t response_code = rp2040.fifo.pop();
-    if (response_code == RESP_DATA_BLOCK) {
+    if (response_code == RP2040ResponseCode::RESP_DATA_BLOCK) {
         uint32_t activeSharedDataIndex = rp2040.fifo.pop();
         return static_cast<int8_t>(activeSharedDataIndex);
     } else {
