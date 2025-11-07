@@ -160,7 +160,7 @@ void setup() {
     // Splash screen megjelenítése progress bar-ral    // Lépés 1: I2C inicializálás
     splash->updateProgress(1, 9, "Initializing I2C...");
     //
-    // FIGYELEM!!! Az si473x (Nem a default I2C lábakon [4,5] van!!!)
+    // FIGYELEM!!! Az si473x (Nem a default I2C lábakon [4,5] van, hanem az PIN_SI4735_I2C_SDA és az PIN_SI4735_I2C_SCL lábakon !!!)
     //
     Wire.setSDA(PIN_SI4735_I2C_SDA); // I2C for SI4735 SDA
     Wire.setSCL(PIN_SI4735_I2C_SCL); // I2C for SI4735 SCL
