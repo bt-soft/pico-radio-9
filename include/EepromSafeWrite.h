@@ -1,5 +1,6 @@
 #pragma once
 
+// Core1 audio mintavételezés indítása, leállítása és állapot lekérdezése
 void startAudioSamplingC1();
 void stopAudioSamplingC1();
 bool isAudioSamplingRunningC1();
@@ -12,24 +13,26 @@ bool isAudioSamplingRunningC1();
  */
 class EepromSafeWrite {
   private:
-    static inline bool was_audio_active = false;
+    static inline bool wasAudioActive = false;
 
   public:
     /**
      * @brief EEPROM biztonságos írás indítása
+     * Ha fut az audio feldolgozás, leállítja azt.
      */
     static void begin() {
-        was_audio_active = isAudioSamplingRunningC1();
-        if (was_audio_active) {
+        wasAudioActive = isAudioSamplingRunningC1();
+        if (wasAudioActive) {
             stopAudioSamplingC1();
         }
     }
 
     /**
      * @brief EEPROM biztonságos írás befejezése
+     * Ha futott az audio feldolgozás, újraindítja azt.
      */
     static void end() {
-        if (was_audio_active) {
+        if (wasAudioActive) {
             startAudioSamplingC1();
         }
     }
