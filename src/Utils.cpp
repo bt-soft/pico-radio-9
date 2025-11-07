@@ -1,3 +1,10 @@
+/**
+ * @file Utils.cpp
+ * @brief Általános segédfüggvények implementációja
+ * @author BT-Soft (https://github.com/bt-soft, https://electrodiy.blog.hu/)
+ * @project Pico Radio
+ */
+
 #include "Utils.h"
 #include "Config.h"
 #include "defines.h"

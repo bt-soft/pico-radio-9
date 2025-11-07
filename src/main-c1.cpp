@@ -1,3 +1,9 @@
+/**
+ * @file main-c1.cpp
+ * @brief Pico Radio Core-1 fő programfájlja
+ * @author BT-Soft (https://github.com/bt-soft, https://electrodiy.blog.hu/)
+ * @project Pico Radio
+ */
 #include <Arduino.h>
 #include <algorithm>
 #include <cstring>

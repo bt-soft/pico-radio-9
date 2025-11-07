@@ -1,3 +1,9 @@
+/**
+ * @file BandStore.cpp
+ * @brief BandStore osztály implementációja
+ * @author BT-Soft (https://github.com/bt-soft, https://electrodiy.blog.hu/)
+ * @project Pico Radio
+ */
 #include "BandStore.h"
 #include "Band.h" // BandTable struktúra definíciójához
 

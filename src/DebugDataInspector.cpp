@@ -1,3 +1,9 @@
+/**
+ * @file DebugDataInspector.cpp
+ * @brief DebugDataInspector osztály implementációja
+ * @author BT-Soft (https://github.com/bt-soft, https://electrodiy.blog.hu/)
+ * @project Pico Radio
+ */
 #include "DebugDataInspector.h"
 #include "BandStore.h"
 #include "Config.h"

@@ -1,3 +1,9 @@
+/**
+ * @file AdcDma-c1.cpp
+ * @brief ADC-DMA osztály implementációja a Core-1 számára
+ * @author BT-Soft (https://github.com/bt-soft, https://electrodiy.blog.hu/)
+ * @project Pico Radio
+ */
 #include <pico/stdlib.h>
 
 #include "AdcDma-c1.h"

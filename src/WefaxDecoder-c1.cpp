@@ -1,3 +1,10 @@
+/**
+ * @file WefaxDecoder-c1.cpp
+ * @brief WEFAX dekóder implementációja Core-1 számára
+ * @project Pico Radio
+ * @author BT-Soft (https://github.com/bt-soft, https://electrodiy.blog.hu/)
+ * @project Pico Radio
+ */
 #include <cmath>
 #include <cstring>
 

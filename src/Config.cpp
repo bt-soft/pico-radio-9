@@ -1,3 +1,9 @@
+/**
+ * @file Config.cpp
+ * @brief Konfigurációs adatok implementációja
+ * @author BT-Soft (https://github.com/bt-soft, https://electrodiy.blog.hu/)
+ * @project Pico Radio
+ */
 #include "Config.h"
 
 /**

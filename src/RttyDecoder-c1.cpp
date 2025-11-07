@@ -1,3 +1,10 @@
+/**
+ * @file RttyDecoder-c1.cpp
+ * @brief RTTY dekóder implementációja Core-1 számára
+ * @author BT-Soft (https://github.com/bt-soft, https://electrodiy.blog.hu/)
+ * @project Pico Radio
+ */
+
 // test decoding: https://www.youtube.com/watch?v=-4UWeo-wSmA
 
 #include <cmath>

@@ -1,3 +1,9 @@
+/**
+ * @file CwDecoder-c1.cpp
+ * @brief CW dekóder implementációja Core-1 számára
+ * @author BT-Soft (https://github.com/bt-soft, https://electrodiy.blog.hu/)
+ * @project Pico Radio
+ */
 #include <algorithm>
 #include <cmath>
 #include <cstring>

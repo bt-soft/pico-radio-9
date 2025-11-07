@@ -1,3 +1,9 @@
+/**
+ * @file AudioProcessor-c1.cpp
+ * @brief AudioProcessorC1 osztály implementációja a Core-1 számára
+ * @author BT-Soft (https://github.com/bt-soft, https://electrodiy.blog.hu/)
+ * @project Pico Radio
+ */
 #include <Arduino.h>
 #include <algorithm>
 #include <cmath>

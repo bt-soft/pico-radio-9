@@ -1,3 +1,11 @@
+/**
+ * @file SstvDecoder-c1.cpp
+ * @brief SSTV dekóder implementációja Core-1 számára
+ * @author BT-Soft (https://github.com/bt-soft, https://electrodiy.blog.hu/)
+ * @project Pico Radio
+ *
+ * inspired by: 1001 things, https://github.com/dawsonjon/PicoSSTV
+ */
 #include <cstring>
 
 #include "SstvDecoder-c1.h"
