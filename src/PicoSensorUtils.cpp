@@ -14,7 +14,7 @@ namespace PicoSensorUtils {
 #define V_REFERENCE 3.3f
 #define CONVERSION_FACTOR (1 << AD_RESOLUTION)
 
-// Külső feszültségosztó ellenállásai a VBUS méréshez (A0-ra kötve)
+// Külső feszültségosztó ellenállásai a VBUS méréshez
 #define EXTERNAL_VBUSDIVIDER_RATIO ((VBUS_DIVIDER_R1 + VBUS_DIVIDER_R2) / VBUS_DIVIDER_R2) // Feszültségosztó aránya
 
 /**

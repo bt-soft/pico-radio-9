@@ -4,6 +4,7 @@
  * @author BT-Soft (https://github.com/bt-soft, https://electrodiy.blog.hu/)
  * @project Pico Radio
  */
+#include <Arduino.h>
 
 #include "PicoMemoryInfo.h"
 
