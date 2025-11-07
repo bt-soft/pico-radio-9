@@ -10,6 +10,19 @@
 #include "PicoSensorUtils.h"
 #include "SplashScreen.h"
 
+//------------------ TFT
+#include <TFT_eSPI.h>
+TFT_eSPI tft;
+uint16_t SCREEN_W;
+uint16_t SCREEN_H;
+
+//------------------- Rotary Encoder
+#include <RPi_Pico_TimerInterrupt.h>
+RPI_PICO_Timer rotaryTimer(0); // 0-ás timer használata
+#include "RotaryEncoder.h"
+RotaryEncoder rotaryEncoder = RotaryEncoder(PIN_ENCODER_CLK, PIN_ENCODER_DT, PIN_ENCODER_SW, ROTARY_ENCODER_STEPS_PER_NOTCH);
+#define ROTARY_ENCODER_SERVICE_INTERVAL_IN_MSEC 1 // 1msec
+
 //-------------------- Config
 #include "BandStore.h"
 #include "Config.h"
@@ -21,18 +34,10 @@ extern FmStationStore fmStationStore;
 extern AmStationStore amStationStore;
 extern BandStore bandStore;
 
-//------------------- Rotary Encoder
-#include <RPi_Pico_TimerInterrupt.h>
-RPI_PICO_Timer rotaryTimer(0); // 0-ás timer használata
-#include "RotaryEncoder.h"
-RotaryEncoder rotaryEncoder = RotaryEncoder(PIN_ENCODER_CLK, PIN_ENCODER_DT, PIN_ENCODER_SW, ROTARY_ENCODER_STEPS_PER_NOTCH);
-#define ROTARY_ENCODER_SERVICE_INTERVAL_IN_MSEC 1 // 1msec
-
-//------------------ TFT
-#include <TFT_eSPI.h>
-TFT_eSPI tft;
-uint16_t SCREEN_W;
-uint16_t SCREEN_H;
+//------------------ SI4735
+#include "Band.h" // Band típusok konstansaihoz
+#include "Si4735Manager.h"
+Si4735Manager *pSi4735Manager = nullptr; // Si4735Manager: NEM lehet (hardware inicializálás miatt) statikus, mert HW inicializálások is vannak benne
 
 /**
  * @brief  Hardware timer interrupt service routine a rotaryhoz
@@ -166,6 +171,46 @@ void setup() {
     Wire.setSCL(PIN_SI4735_I2C_SCL); // I2C for SI4735 SCL
     Wire.begin();
     delay(300);
+
+    // Si4735Manager inicializálása itt
+    splash->updateProgress(2, 9, "Initializing SI4735 Manager...");
+    if (pSi4735Manager == nullptr) {
+        pSi4735Manager = new Si4735Manager();
+        // BandStore beállítása a Si4735Manager-ben
+        pSi4735Manager->setBandStore(&bandStore);
+    }
+
+    // KRITIKUS: Band tábla dinamikus adatainak EGYSZERI inicializálása RÖGTÖN a Si4735Manager létrehozása után!
+    pSi4735Manager->initializeBandTableData(true); // forceReinit = true az első inicializálásnál
+
+    // Si4735 inicializálása
+    splash->updateProgress(3, 9, "Detecting SI4735...");
+    int16_t si4735Addr = pSi4735Manager->getDeviceI2CAddress();
+    if (si4735Addr == 0) {
+        Utils::beepError();
+        tft.fillScreen(TFT_BLACK);
+        tft.setTextColor(TFT_RED, TFT_BLACK);
+        tft.setTextSize(2);
+        tft.setTextDatum(MC_DATUM);
+        tft.drawString("SI4735 NOT DETECTED!", tft.width() / 2, tft.height() / 2);
+        DEBUG("Si4735 not detected");
+        while (true) // nem megyünk tovább
+            ;
+    }
+
+    // Lépés 4: SI4735 konfigurálás
+    splash->updateProgress(4, 6, "Configuring SI4735...");
+    pSi4735Manager->setDeviceI2CAddress(si4735Addr == 0x11 ? 0 : 1); // Sets the I2C Bus Address, erre is szükség van...
+    splash->drawSI4735Info(pSi4735Manager->getSi4735());
+
+    delay(300);
+
+    // Lépés 5: Frekvencia beállítások
+    splash->updateProgress(4, 9, "Setting up radio...");
+    pSi4735Manager->init(true);
+    pSi4735Manager->getSi4735().setVolume(config.data.currVolume); // Hangerő visszaállítása
+
+    delay(100);
 
     //-----------------------------------------------------------------------------------------------
 

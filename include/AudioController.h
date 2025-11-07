@@ -1,9 +1,10 @@
 #pragma once
 
+#include <stdint.h>
+
 #include "arm_math.h"
 #include "decoder_api.h"
 #include "defines.h"
-#include <stdint.h>
 
 /**
  * @brief AudioController osztály a Core1 dekóder vezérléséhez.
