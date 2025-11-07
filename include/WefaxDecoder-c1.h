@@ -5,7 +5,7 @@
 #include "defines.h"
 
 /**
- * @brief WEFAX dekóder osztály - core1 számára
+ * @brief WEFAX dekóder osztály - Core1 számára
  */
 class WefaxDecoderC1 : public IDecoder {
   public:

@@ -5,6 +5,9 @@
 #include "AdcDma-c1.h"
 #include "decoder_api.h"
 
+/**
+ * @brief Audio feldolgozó osztály a Core1-en.
+ */
 class AudioProcessorC1 {
   public:
     AudioProcessorC1();

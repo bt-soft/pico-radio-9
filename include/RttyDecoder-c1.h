@@ -5,6 +5,9 @@
 #include "RingBuffer.h"
 #include "arm_math.h"
 
+/**
+ * @brief RTTY dekóder Core1-en
+ */
 class RttyDecoderC1 : public IDecoder {
   public:
     RttyDecoderC1();

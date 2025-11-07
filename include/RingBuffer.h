@@ -1,21 +1,20 @@
 #pragma once
 
+#include <atomic>
 #include <cstdint>
-#include <cstring> // For memcpy
-#include <atomic> // For std::atomic
+#include <cstring>
 
 /**
  * @class RingBuffer
  * @brief Egy egyszerű, sablon alapú ring buffer (cirkuláris puffer).
- * 
+ *
  * Ez az implementáció egyetlen "producer" (termelő) és egyetlen "consumer" (fogyasztó) szálra/magra van optimalizálva (SPSC).
  * A head és tail indexek atomi változók, hogy elkerüljük a race condition-t a két mag között anélkül, hogy bonyolultabb zárolásra lenne szükség.
- * 
+ *
  * @tparam T A pufferben tárolt elemek típusa.
  * @tparam Size A puffer mérete (elemekben). Kettő hatványának kell lennie a hatékony indexeléshez.
  */
-template <typename T, size_t Size>
-class RingBuffer {
+template <typename T, size_t Size> class RingBuffer {
   public:
     RingBuffer() : head(0), tail(0) {}
 
@@ -59,16 +58,12 @@ class RingBuffer {
     /**
      * @brief Ellenőrzi, hogy a puffer üres-e.
      */
-    bool isEmpty() const {
-        return head.load(std::memory_order_acquire) == tail.load(std::memory_order_acquire);
-    }
+    bool isEmpty() const { return head.load(std::memory_order_acquire) == tail.load(std::memory_order_acquire); }
 
     /**
      * @brief Ellenőrzi, hogy a puffer tele van-e.
      */
-    bool isFull() const {
-        return ((head.load(std::memory_order_acquire) + 1) & (Size - 1)) == tail.load(std::memory_order_acquire);
-    }
+    bool isFull() const { return ((head.load(std::memory_order_acquire) + 1) & (Size - 1)) == tail.load(std::memory_order_acquire); }
 
     /**
      * @brief Visszaállítja a puffert üres állapotba.

@@ -5,6 +5,10 @@
 #include "defines.h"
 #include <stdint.h>
 
+/**
+ * @brief AudioController osztály a Core1 dekóder vezérléséhez.
+ *
+ */
 class AudioController {
   public:
     AudioController() = default;
