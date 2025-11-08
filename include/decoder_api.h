@@ -4,6 +4,7 @@
 #include "RingBuffer.h" // A ring buffer implementációnk
 #include "defines.h"
 
+#define __CORE1_DEBUG // Core1 általános debug
 // #define __ADCDMA_DEBUG // AdcDma debug
 // #define __ADPROC_DEBUG // AudioProcessor debug
 // #define __CW_DEBUG // CwDecoder debug
@@ -21,6 +22,7 @@ enum DecoderId : uint32_t {
     ID_DECODER_CW = 3,
     ID_DECODER_RTTY = 4,
     ID_DECODER_WEFAX = 5,
+    ID_DECODER_ONLY_FFT = 6, // Nincs dekóder csak FFT feldolgozás
 };
 
 /**

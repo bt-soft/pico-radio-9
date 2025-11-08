@@ -16,6 +16,13 @@
 #include "WefaxDecoder-c1.h"
 #include "defines.h"
 
+// AudioProcessor működés debug engedélyezése de csak DEBUG módban
+#if defined(__DEBUG) && defined(__CORE1_DEBUG)
+#define CORE1_DEBUG(fmt, ...) DEBUG(fmt __VA_OPT__(, ) __VA_ARGS__)
+#else
+#define CORE1_DEBUG(fmt, ...) // Üres makró, ha __DEBUG nincs definiálva
+#endif
+
 // A Core-1-nek stack külön legyen a Core-0-tól
 // https://arduino-pico.readthedocs.io/en/latest/multicore.html#stack-sizes
 bool core1_separate_stack = true;
@@ -87,7 +94,7 @@ static void updateDisplayHints(const DecoderConfig &cfg) {
     if (sharedData[backBufferIndex].displayMinFreqHz != dispMin || sharedData[backBufferIndex].displayMaxFreqHz != dispMax) {
         sharedData[backBufferIndex].displayMinFreqHz = dispMin;
         sharedData[backBufferIndex].displayMaxFreqHz = dispMax;
-        DEBUG("core-1: updateDisplayHints() -> min=%u Hz, max=%u Hz (back=%u)\n", dispMin, dispMax, backBufferIndex);
+        CORE1_DEBUG("core-1: updateDisplayHints() -> min=%u Hz, max=%u Hz (back=%u)\n", dispMin, dispMax, backBufferIndex);
     }
 }
 
@@ -97,7 +104,7 @@ static void updateDisplayHints(const DecoderConfig &cfg) {
 void stopActiveDecoder() {
     if (activeDecoderCore1 != nullptr) {
         activeDecoderCore1->stop();
-        DEBUG("core-1: Dekóder '%s' leállítva\n", activeDecoderCore1->getDecoderName());
+        CORE1_DEBUG("core-1: Dekóder '%s' leállítva\n", activeDecoderCore1->getDecoderName());
         activeDecoderCore1.reset();
         activeDecoderIdCore1 = ID_DECODER_NONE;
     }
@@ -107,9 +114,9 @@ void stopActiveDecoder() {
  * Általános dekóder vezérlő függvény.
  * @param decoderConfig Az új dekóder konfiguráció
  */
-void decoderController(DecoderConfig decoderConfig) {
+void startDecoder(DecoderConfig decoderConfig) {
 
-    // Ha van dekóder, de új ID jönött, akkor leállítjuk a régit
+    // Ha van dekóder, de új ID jött, akkor leállítjuk a régit
     if (decoderConfig.decoderId != activeDecoderIdCore1 && activeDecoderCore1 != nullptr) {
         stopActiveDecoder();
     }
@@ -117,6 +124,7 @@ void decoderController(DecoderConfig decoderConfig) {
     // Ha nem kell dekóder, akkor kilépünk
     if (decoderConfig.decoderId == ID_DECODER_NONE) {
         activeDecoderIdCore1 = ID_DECODER_NONE;
+        CORE1_DEBUG("core-1: Nincs dekóder kiválasztva, kilépés\n");
         return;
     }
 
@@ -128,33 +136,42 @@ void decoderController(DecoderConfig decoderConfig) {
     // Létrehozzuk az új dekódert
     switch (decoderConfig.decoderId) {
 
-        case ID_DECODER_DOMINANT_FREQ:
-            activeDecoderIdCore1 = ID_DECODER_DOMINANT_FREQ;
-            DEBUG("core-1: Dominant Frequency dekóder elindítva\n");
+        // Nincs dekóder csak FFT feldolgozás
+        case ID_DECODER_ONLY_FFT:
+            activeDecoderIdCore1 = ID_DECODER_ONLY_FFT;
+            CORE1_DEBUG("core-1: Csak FFT feldolgozás elindítva\n");
             break;
 
-        case ID_DECODER_CW:
+            // Domináns frekvencia detektor
+        case ID_DECODER_DOMINANT_FREQ:
+            activeDecoderIdCore1 = ID_DECODER_DOMINANT_FREQ;
+            CORE1_DEBUG("core-1: Dominant Frequency dekóder elindítva\n");
+            break;
+
             // CW mód: Goertzel alapú tónus detektálás + Morse dekódolás
+        case ID_DECODER_CW:
             activeDecoderCore1 = std::make_unique<CwDecoderC1>();
             activeDecoderCore1->start(decoderConfig);
             activeDecoderIdCore1 = ID_DECODER_CW;
-            DEBUG("core-1: CW dekóder elindítva (%u Hz, adaptív)\n", decoderConfig.cwCenterFreqHz);
+            CORE1_DEBUG("core-1: CW dekóder elindítva (%u Hz, adaptív)\n", decoderConfig.cwCenterFreqHz);
             break;
 
+            // RTTY mód: Goertzel alapú tone detektálás + Baudot dekódolás
         case ID_DECODER_RTTY:
             activeDecoderCore1 = std::make_unique<RttyDecoderC1>();
             activeDecoderCore1->start(decoderConfig);
             activeDecoderIdCore1 = ID_DECODER_RTTY;
-            DEBUG("core-1: RTTY dekóder elindítva\n");
+            CORE1_DEBUG("core-1: RTTY dekóder elindítva\n");
             break;
 
+            // SSTV mód: kép dekódolás audio mintákból
         case ID_DECODER_SSTV:
-            // Létrehozzuk az SSTV dekódert
             activeDecoderCore1 = std::make_unique<SstvDecoderC1>();
             activeDecoderCore1->start(decoderConfig);
             activeDecoderIdCore1 = ID_DECODER_SSTV;
             break;
 
+            // WEFAX mód: teljes WEFAX FM dekódolás Goertzel-lel
         case ID_DECODER_WEFAX:
             activeDecoderCore1 = std::make_unique<WefaxDecoderC1>();
             activeDecoderCore1->start(decoderConfig);
@@ -162,13 +179,13 @@ void decoderController(DecoderConfig decoderConfig) {
             break;
 
         default:
-            DEBUG("core-1: HIBA - Ismeretlen dekóder ID: %d\n", decoderConfig.decoderId);
+            CORE1_DEBUG("core-1: HIBA - Ismeretlen dekóder ID: %d\n", decoderConfig.decoderId);
             activeDecoderIdCore1 = ID_DECODER_NONE;
             return;
     }
 
     if (activeDecoderCore1 != nullptr) {
-        DEBUG("core-1: Dekóder '%s' elindítva\n", activeDecoderCore1->getDecoderName());
+        CORE1_DEBUG("core-1: Dekóder '%s' elindítva\n", activeDecoderCore1->getDecoderName());
     }
 }
 
@@ -254,7 +271,7 @@ void processFifoCommands() {
             audioProcC1.reconfigureAudioSampling(adcDmaConfig.sampleCount, adcDmaConfig.samplingRate, decoderConfig.bandwidthHz);
 
             // Dekóder indítása
-            decoderController(decoderConfig);
+            startDecoder(decoderConfig);
 
             // Publikáljuk a futási megjelenítési javaslatokat a Core0 számára (Spectrum UI)
             updateDisplayHints(decoderConfig);
@@ -334,7 +351,7 @@ bool isAudioSamplingRunningC1() { return audioProcC1.isRunning(); }
 void setup1() {
 
     delay(1500);
-    DEBUG("core-1: System clock: %u Hz\n", (unsigned)clock_get_hz(clk_sys));
+    CORE1_DEBUG("core-1:setup1(): System clock: %u MHz\n", (unsigned)clock_get_hz(clk_sys) / 1000000u);
     memset(sharedData, 0, sizeof(sharedData));
 }
 
@@ -354,7 +371,7 @@ void loop1() {
 #ifdef __DEBUG
         static uint32_t warnCount = 0;
         if (++warnCount % 1000 == 0) {
-            DEBUG("core-1: processAudioAndDecoding: Inactive\n");
+            CORE1_DEBUG("core-1:loop1(): processAudioAndDecoding: Inactive\n");
         }
 #endif
         sleep_ms(5);

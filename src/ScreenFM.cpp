@@ -79,7 +79,7 @@ void ScreenFM::layoutComponents() {
     // ===================================================================
     // Audio dekóder konfigurálása dekóder nélkül 15kHz sávszélességgel
     // ===================================================================
-    ::audioController.start(DecoderId::ID_DECODER_NONE, FM_AF_RAW_SAMPLES_SIZE, FM_AF_BANDWIDTH_HZ);
+    ::audioController.start(DecoderId::ID_DECODER_ONLY_FFT, FM_AF_RAW_SAMPLES_SIZE, FM_AF_BANDWIDTH_HZ);
 
     // ===================================================================
     // Állapotsor komponens létrehozása (felső sáv)
