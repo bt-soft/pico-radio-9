@@ -50,8 +50,8 @@ const Config_t DEFAULT_CONFIG = {
     .rotaryAccelerationEnabled = true,                 // Rotary gyorsítás engedélyezése
 
     // AudioFft módok
-    .audioFftConfigAm = 0.0f,           // Auto Gain
-    .audioFftConfigFm = 0.0f,           // Auto Gain
+    .audioFftGainConfigAm = 0.0f,       // Auto Gain
+    .audioFftGainConfigFm = 0.0f,       // Auto Gain
     .miniAudioFftConfigAnalyzer = 0.0f, // Analyzerhez alapértelmezetten Auto Gain
     .miniAudioFftConfigRtty = 0.0f,     // RTTY-hez alapértelmezetten Auto Gain
 

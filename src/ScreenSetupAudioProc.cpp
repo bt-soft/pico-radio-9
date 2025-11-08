@@ -29,8 +29,8 @@ void ScreenSetupAudioProc::populateMenuItems() {
     settingItems.push_back(SettingItem("RTTY Shift", String(config.data.rttyShiftHz) + " Hz", static_cast<int>(AudioProcItemAction::RTTY_SHIFT)));
     settingItems.push_back(SettingItem("RTTY Mark Frequency", String(config.data.rttyMarkFrequencyHz) + " Hz", static_cast<int>(AudioProcItemAction::RTTY_MARK_FREQUENCY)));
 
-    settingItems.push_back(SettingItem("FFT Gain AM", decodeFFTGain(config.data.audioFftConfigAm), static_cast<int>(AudioProcItemAction::FFT_GAIN_AM)));
-    settingItems.push_back(SettingItem("FFT Gain FM", decodeFFTGain(config.data.audioFftConfigFm), static_cast<int>(AudioProcItemAction::FFT_GAIN_FM)));
+    settingItems.push_back(SettingItem("FFT Gain AM", decodeFFTGain(config.data.audioFftGainConfigAm), static_cast<int>(AudioProcItemAction::FFT_GAIN_AM)));
+    settingItems.push_back(SettingItem("FFT Gain FM", decodeFFTGain(config.data.audioFftGainConfigFm), static_cast<int>(AudioProcItemAction::FFT_GAIN_FM)));
 
     settingItems.push_back(SettingItem("CW/RTTY LED Debug", String(config.data.cwRttyLedDebugEnabled ? "ON" : "OFF"), static_cast<int>(AudioProcItemAction::CW_RTTY_LED_DEBUG)));
 
@@ -200,7 +200,7 @@ String ScreenSetupAudioProc::decodeFFTGain(float value) {
  */
 void ScreenSetupAudioProc::handleFFTGainDialog(int index, bool isAM) {
 
-    float &currentConfig = isAM ? config.data.audioFftConfigAm : config.data.audioFftConfigFm;
+    float &currentConfig = isAM ? config.data.audioFftGainConfigAm : config.data.audioFftGainConfigFm;
     const char *title = isAM ? "FFT Gain AM" : "FFT Gain FM";
 
     int defaultSelection = 0; // Disabled

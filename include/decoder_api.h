@@ -105,12 +105,12 @@ struct SharedData {
 #define TEXT_BUFFER_SIZE 64 // 64 karakter a CW/RTTY szövegnek (növelve a stabilitás érdekében)
 
 // FM audio sávszélesség
-#define FM_AF_BANDWIDTH_HZ 15000   // FM dekódolt audio sávszélesség (Hz)
-#define FM_AF_RAW_SAMPLES_SIZE 512 // FM módban a minták száma blokkonként
+#define FM_AF_BANDWIDTH_HZ 15000    // FM dekódolt audio sávszélesség (Hz)
+#define FM_AF_RAW_SAMPLES_SIZE 1024 // FM módban a minták száma blokkonként
 
-// FM audio sávszélesség
-#define AM_AF_BANDWIDTH_HZ 6000    // FM dekódolt audio sávszélesség (Hz)
-#define AM_AF_RAW_SAMPLES_SIZE 512 // FM módban a minták száma blokkonként
+// AM audio sávszélesség (Sima Közép Hullámú vagy SW AM demoduláció esetén)
+#define AM_AF_BANDWIDTH_HZ 6000    // AM dekódolt audio sávszélesség (Hz)
+#define AM_AF_RAW_SAMPLES_SIZE 512 // AM módban a minták száma blokkonként
 
 // Dominant Frequency Dekóder paraméterek
 // A mintavételezési frekvenciát a sávszélességből számoljuk (Nyquist + margin),

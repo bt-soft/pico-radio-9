@@ -65,19 +65,19 @@ void DebugDataInspector::printConfigData(const Config_t &configData) {
     DEBUG("  screenSaverTimeoutMinutes: %u\n", configData.screenSaverTimeoutMinutes);
     DEBUG("  beeperEnabled: %s\n", configData.beeperEnabled ? "true" : "false");
     DEBUG("  rotaryAccelerationEnabled: %s\n", configData.rotaryAccelerationEnabled ? "true" : "false");
-    if (configData.audioFftConfigAm == -1.0f) {
-        DEBUG("  audioFftConfigAm: Disabled\n");
-    } else if (configData.audioFftConfigAm == 0.0f) {
-        DEBUG("  audioFftConfigAm: Auto Gain\n");
+    if (configData.audioFftGainConfigAm == -1.0f) {
+        DEBUG("  audioFftGainConfigAm: Disabled\n");
+    } else if (configData.audioFftGainConfigAm == 0.0f) {
+        DEBUG("  audioFftGainConfigAm: Auto Gain\n");
     } else {
-        DEBUG("  audioFftConfigAm: Manual Gain %sx\n", Utils::floatToString(configData.audioFftConfigAm).c_str());
+        DEBUG("  audioFftGainConfigAm: Manual Gain %sx\n", Utils::floatToString(configData.audioFftGainConfigAm).c_str());
     }
-    if (configData.audioFftConfigFm == -1.0f) {
-        DEBUG("  audioFftConfigFm: Disabled\n");
-    } else if (configData.audioFftConfigFm == 0.0f) {
-        DEBUG("  audioFftConfigFm: Auto Gain\n");
+    if (configData.audioFftGainConfigFm == -1.0f) {
+        DEBUG("  audioFftGainConfigFm: Disabled\n");
+    } else if (configData.audioFftGainConfigFm == 0.0f) {
+        DEBUG("  audioFftGainConfigFm: Auto Gain\n");
     } else {
-        DEBUG("  audioFftConfigFm: Manual Gain %sx\n", Utils::floatToString(configData.audioFftConfigFm).c_str());
+        DEBUG("  audioFftGainConfigFm: Manual Gain %sx\n", Utils::floatToString(configData.audioFftGainConfigFm).c_str());
     }
     if (configData.miniAudioFftConfigAnalyzer == -1.0f) {
         DEBUG("  miniAudioFftConfigAnalyzer: Disabled\n");

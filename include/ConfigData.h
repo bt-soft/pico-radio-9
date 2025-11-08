@@ -54,8 +54,8 @@ struct Config_t {
     bool beeperEnabled;                // Hangjelzés engedélyezése
     bool rotaryAccelerationEnabled;    // Rotary gyorsítás engedélyezése
 
-    float audioFftConfigAm; // -1.0f: Disabled, 0.0f: Auto, >0.0f: Manual Gain Factor
-    float audioFftConfigFm; // -1.0f: Disabled, 0.0f: Auto, >0.0f: Manual Gain Factor
+    float audioFftGainConfigAm; // -1.0f: Disabled, 0.0f: Auto, >0.0f: Manual Gain Factor
+    float audioFftGainConfigFm; // -1.0f: Disabled, 0.0f: Auto, >0.0f: Manual Gain Factor
 
     float miniAudioFftConfigAnalyzer; // MiniAudioFft erősítés konfigurációja az Analyzerhez
     float miniAudioFftConfigRtty;     // MiniAudioFft erősítés konfigurációja az RTTY-hez

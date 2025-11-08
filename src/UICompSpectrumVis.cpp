@@ -196,13 +196,22 @@ float UICompSpectrumVis::getAverageFrameMax() const {
  * @return Adaptív skálázási faktor
  */
 float UICompSpectrumVis::getAdaptiveScale(float baseConstant) {
+
     // Auto gain módban az adaptív faktort használjuk
     if (isAutoGainMode()) {
         return baseConstant * adaptiveGainFactor_;
     }
-    // Manual módban a felhasználó által beállított gain faktort használjuk
-    float manualGainFactor = config.data.audioFftConfigAm;
-    return baseConstant * manualGainFactor;
+
+    //-1.0f: Disabled, 0.0f: Auto, >0.0f: Manual Gain Factor
+    float gainfactor = this->radioMode_ == RadioMode::AM ? config.data.audioFftGainConfigAm : config.data.audioFftGainConfigFm;
+
+    // Ha ki van kapcsolva a gain, akkor egyszeres erősítést használunk
+    if (gainfactor == -1.0f) {
+        gainfactor = 1.0f;
+    }
+
+    // Az erősítéssel megszorozzuk a bázis konstans értéket
+    return baseConstant * gainfactor;
 }
 
 /**
@@ -225,8 +234,8 @@ void UICompSpectrumVis::resetAdaptiveGain() {
  * @return True, ha auto gain mód aktív
  */
 bool UICompSpectrumVis::isAutoGainMode() {
-    float currentConfig = config.data.audioFftConfigAm;
-    return (currentConfig == 0.0f); // 0.0f = Auto Gain
+    float currentGainConfig = this->radioMode_ == RadioMode::AM ? config.data.audioFftGainConfigAm : config.data.audioFftGainConfigFm;
+    return (currentGainConfig == 0.0f); // 0.0f = Auto Gain
 }
 
 /**
