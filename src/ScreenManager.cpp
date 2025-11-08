@@ -10,7 +10,7 @@
 // #include "ScreenCwRtty.h"
 #include "ScreenFM.h"
 #include "ScreenMemory.h"
-// #include "ScreenScan.h"
+#include "ScreenScan.h"
 #include "ScreenScreenSaver.h"
 // #include "ScreenSetup.h"
 // #include "ScreenSetupAudioProc.h"
@@ -34,7 +34,7 @@ void ScreenManager::registerDefaultScreenFactories() {
     // registerScreenFactory(SCREEN_NAME_AM, []() { return std::make_shared<ScreenAM>(); });
     registerScreenFactory(SCREEN_NAME_SCREENSAVER, []() { return std::make_shared<ScreenScreenSaver>(); });
     registerScreenFactory(SCREEN_NAME_MEMORY, []() { return std::make_shared<ScreenMemory>(); });
-    // registerScreenFactory(SCREEN_NAME_SCAN, []() { return std::make_shared<ScreenScan>(); });
+    registerScreenFactory(SCREEN_NAME_SCAN, []() { return std::make_shared<ScreenScan>(); });
 
     // // Setup képernyők regisztrálása
     // registerScreenFactory(SCREEN_NAME_SETUP, []() { return std::make_shared<ScreenSetup>(); });
