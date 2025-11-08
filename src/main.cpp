@@ -39,12 +39,85 @@ extern BandStore bandStore;
 #include "Si4735Manager.h"
 Si4735Manager *pSi4735Manager = nullptr; // Si4735Manager: NEM lehet (hardware inicializálás miatt) statikus, mert HW inicializálások is vannak benne
 
+//-------------------- Screens
+// Globális képernyőkezelő pointer - inicializálás a setup()-ban történik
+#include "ScreenManager.h"
+ScreenManager *screenManager = nullptr;
+IScreenManager **iScreenManager = (IScreenManager **)&screenManager; // A UIComponent használja
+
 /**
  * @brief  Hardware timer interrupt service routine a rotaryhoz
  */
 bool rotaryTimerHardwareInterruptHandler(struct repeating_timer *t) {
     rotaryEncoder.service();
     return true;
+}
+
+/**
+ * @brief Rotary encoder események feldolgozása és továbbítása a ScreenManager-nek
+ */
+void processRotaryEncoderEvent() {
+
+    // RotaryEncoder állapotának lekérdezése
+    RotaryEncoder::EncoderState encoderState = rotaryEncoder.read();
+
+    // Ha nem tekergetik vagy nincs gombnyomás, akkor nem csinálunk semmit
+    if (encoderState.direction == RotaryEncoder::Direction::None || encoderState.buttonState == RotaryEncoder::ButtonState::Open) {
+        return;
+    }
+
+    // Rotary tekerés irány lekérdezése
+    RotaryEvent::Direction direction = RotaryEvent::Direction::None;
+    if (encoderState.direction == RotaryEncoder::Direction::Up) {
+        direction = RotaryEvent::Direction::Up;
+    } else if (encoderState.direction == RotaryEncoder::Direction::Down) {
+        direction = RotaryEvent::Direction::Down;
+    }
+
+    // Rotary gomb állapot lekérdezése
+    RotaryEvent::ButtonState buttonState = RotaryEvent::ButtonState::NotPressed;
+    if (encoderState.buttonState == RotaryEncoder::ButtonState::Clicked) {
+        buttonState = RotaryEvent::ButtonState::Clicked;
+    } else if (encoderState.buttonState == RotaryEncoder::ButtonState::DoubleClicked) {
+        buttonState = RotaryEvent::ButtonState::DoubleClicked;
+    }
+
+    // Esemény továbbítása a ScreenManager-nek
+    RotaryEvent rotaryEvent(direction, buttonState, encoderState.value);
+    screenManager->handleRotary(rotaryEvent);
+}
+
+/**
+ * @brief Touch események feldolgozása és továbbítása a ScreenManager-nek
+ */
+void processTouchEvent() {
+
+    static uint16_t lastTouchX = 0;
+    static uint16_t lastTouchY = 0;
+
+    uint16_t touchX, touchY;
+    bool touchedRaw = tft.getTouch(&touchX, &touchY);
+    bool validCoordinates = true;
+    if (touchedRaw) {
+        if (touchX > SCREEN_W || touchY > SCREEN_H) {
+            validCoordinates = false;
+        }
+    }
+    bool touched = touchedRaw && validCoordinates;
+
+    static bool lastTouchState = false;
+    // Touch press event (immediate response)
+    if (touched && !lastTouchState) {
+        TouchEvent touchEvent(touchX, touchY, true);
+        screenManager->handleTouch(touchEvent);
+        lastTouchX = touchX;
+        lastTouchY = touchY;
+    } else if (!touched && lastTouchState) { // Touch release event (immediate response)
+        TouchEvent touchEvent(lastTouchX, lastTouchY, false);
+        screenManager->handleTouch(touchEvent);
+    }
+
+    lastTouchState = touched;
 }
 
 /**
@@ -74,6 +147,7 @@ void setup() {
     SCREEN_H = tft.height();
 
 #ifdef DEBUG_WAIT_FOR_SERIAL
+    // Várakozás a soros port megnyitására hibakereséshez
     Utils::debugWaitForSerial(tft);
 #endif
 
@@ -141,7 +215,7 @@ void setup() {
     // Pico HW Timer1 beállítása a rotaryhoz
     rotaryTimer.attachInterruptInterval(ROTARY_ENCODER_SERVICE_INTERVAL_IN_MSEC * 1000, rotaryTimerHardwareInterruptHandler);
 
-    // Kell kalibrálni a TFT Touch-t?
+    // Kell kalibrálni a TFT Touch-ot?
     if (Utils::isZeroArray(config.data.tftCalibrateData)) {
         Utils::beepError();
         Utils::tftTouchCalibrate(tft, config.data.tftCalibrateData);
@@ -157,34 +231,34 @@ void setup() {
     fmStationStore.load();
     amStationStore.load();
 
-    // ----------------------- Splash screen megjelenítése inicializálás közben --------------------
+    // ----------------------- Splash screen megjelenítése az inicializálás közben --------------------
+#define SPLASH_SCREEN_PROGRESS_BAR_STEPS 6
+    uint8_t splashProgressCnt = 1;
     // Most átváltunk a teljes splash screen-re az SI4735 infókkal
     SplashScreen *splash = new SplashScreen(tft);
-    splash->show(true, 8); // SI4735 init és infók megjelenítése
+    // Splash screen megjelenítése progress bar-ral
+    splash->show(true, SPLASH_SCREEN_PROGRESS_BAR_STEPS); // SI4735 init és infók megjelenítése
 
-    // Splash screen megjelenítése progress bar-ral    // Lépés 1: I2C inicializálás
-    splash->updateProgress(1, 9, "Initializing I2C...");
-    //
+    // --- Lépés 1: I2C inicializálás
+    splash->updateProgress(splashProgressCnt++, SPLASH_SCREEN_PROGRESS_BAR_STEPS, "Initializing SI4735 I2C...");
     // FIGYELEM!!! Az si473x (Nem a default I2C lábakon [4,5] van, hanem az PIN_SI4735_I2C_SDA és az PIN_SI4735_I2C_SCL lábakon !!!)
-    //
     Wire.setSDA(PIN_SI4735_I2C_SDA); // I2C for SI4735 SDA
     Wire.setSCL(PIN_SI4735_I2C_SCL); // I2C for SI4735 SCL
     Wire.begin();
     delay(300);
 
-    // Si4735Manager inicializálása itt
-    splash->updateProgress(2, 9, "Initializing SI4735 Manager...");
+    // --- Lépés 2: SI4735Manager inicializálása itt
+    splash->updateProgress(splashProgressCnt++, SPLASH_SCREEN_PROGRESS_BAR_STEPS, "Initializing SI4735Manager...");
     if (pSi4735Manager == nullptr) {
         pSi4735Manager = new Si4735Manager();
         // BandStore beállítása a Si4735Manager-ben
         pSi4735Manager->setBandStore(&bandStore);
     }
-
     // KRITIKUS: Band tábla dinamikus adatainak EGYSZERI inicializálása RÖGTÖN a Si4735Manager létrehozása után!
     pSi4735Manager->initializeBandTableData(true); // forceReinit = true az első inicializálásnál
 
-    // Si4735 inicializálása
-    splash->updateProgress(3, 9, "Detecting SI4735...");
+    // --- Lépés 3: SI4735 lekérdezése
+    splash->updateProgress(splashProgressCnt++, SPLASH_SCREEN_PROGRESS_BAR_STEPS, "Detecting SI4735...");
     int16_t si4735Addr = pSi4735Manager->getDeviceI2CAddress();
     if (si4735Addr == 0) {
         Utils::beepError();
@@ -198,28 +272,72 @@ void setup() {
             ;
     }
 
-    // Lépés 4: SI4735 konfigurálás
-    splash->updateProgress(4, 6, "Configuring SI4735...");
+    // --- Lépés 4: SI4735 konfigurálás
+    splash->updateProgress(splashProgressCnt++, SPLASH_SCREEN_PROGRESS_BAR_STEPS, "Configuring SI4735...");
     pSi4735Manager->setDeviceI2CAddress(si4735Addr == 0x11 ? 0 : 1); // Sets the I2C Bus Address, erre is szükség van...
     splash->drawSI4735Info(pSi4735Manager->getSi4735());
-
     delay(300);
 
-    // Lépés 5: Frekvencia beállítások
-    splash->updateProgress(4, 9, "Setting up radio...");
+    // --- Lépés 5: Frekvencia beállítások
+    splash->updateProgress(splashProgressCnt++, SPLASH_SCREEN_PROGRESS_BAR_STEPS, "Setting up radio...");
     pSi4735Manager->init(true);
     pSi4735Manager->getSi4735().setVolume(config.data.currVolume); // Hangerő visszaállítása
-
     delay(100);
 
-    //-----------------------------------------------------------------------------------------------
+    // --- Lépés 6: Kezdő képernyőtípus beállítása
+    splash->updateProgress(splashProgressCnt++, SPLASH_SCREEN_PROGRESS_BAR_STEPS, "Preparing display...");
+    const char *startScreenName = pSi4735Manager->getCurrentBandType() == FM_BAND_TYPE ? SCREEN_NAME_FM : SCREEN_NAME_AM;
+    screenManager = new ScreenManager();
+    // screenManager->switchToScreen(startScreenName); // A kezdő képernyőre váltás
+    screenManager->switchToScreen(SCREEN_NAME_TEST); // A kezdő képernyőre váltás
+    delay(100);
 
-    delay(1000);
+    // Splash screen eltűntetése
+    splash->hide();
+    delete splash;
+
+    //-----------------------------------------------------------------------------------------------
     PicoMemoryInfo::MemoryStatus_t memStatus = PicoMemoryInfo::getMemoryStatus();
-    DEBUG("core-0: System clock: %u Hz, Heap: used: %u bytes, free: %u bytes\n", (unsigned)clock_get_hz(clk_sys), memStatus.usedHeap, memStatus.freeHeap);
+    DEBUG("core-0: System clock: %u MHz, Heap: used: %u kB, free: %u kB\n", (unsigned)clock_get_hz(clk_sys) / 1000000, memStatus.usedHeap / 1024, memStatus.freeHeap / 1024);
+
+    // Csippantunk egyet a végén
+    Utils::beepTick();
 }
 
 /**
  * @brief Core0 fő ciklus függvénye
  */
-void loop() {}
+void loop() {
+
+    // EEPROM mentés figyelése
+#define EEPROM_SAVE_CHECK_INTERVAL 1000 * 60 * 5 // 5 perc
+    static uint32_t lastEepromSaveCheck = 0;
+    if (Utils::timeHasPassed(lastEepromSaveCheck, EEPROM_SAVE_CHECK_INTERVAL)) {
+        config.checkSave();         // Config mentése
+        bandStore.checkSave();      // Band adatok mentése
+        fmStationStore.checkSave(); // FM állomások mentése
+        amStationStore.checkSave(); // AM állomások mentése
+        lastEepromSaveCheck = millis();
+    }
+
+    // Memória információk megjelenítése ha engedélyezve van
+#ifdef SHOW_MEMORY_INFO
+    static uint32_t lastDebugMemoryInfo = 0;
+    if (Utils::timeHasPassed(lastDebugMemoryInfo, MEMORY_INFO_INTERVAL)) {
+        PicoMemoryInfo::debugMemoryInfo();
+        lastDebugMemoryInfo = millis();
+    }
+#endif
+
+    // Touch események feldolgozása
+    processTouchEvent();
+
+    // Rotary Encoder események feldolgozása
+    processRotaryEncoderEvent();
+
+    // Képernyő loop-ok, képernyő iterációk, screensaver kezelése
+    screenManager->loop();
+
+    // SI4735 loop hívása, squelch és hardver némítás kezelése
+    pSi4735Manager->loop();
+}
