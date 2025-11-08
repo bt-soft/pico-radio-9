@@ -1,7 +1,11 @@
 
 #include "UISystemInfoDialog.h"
-#include "EepromLayout.h" // EEPROM konstansokhoz
-#include "utils.h"        // DEBUG makróhoz
+#include "EepromLayout.h"
+#include "PicoSensorUtils.h"
+#include "Si4735Manager.h"
+#include "utils.h"
+
+extern Si4735Manager *pSi4735Manager;
 
 /**
  * @brief UISystemInfoDialog konstruktor
@@ -137,8 +141,10 @@ String UISystemInfoDialog::formatMemoryInfo() {
  */
 String UISystemInfoDialog::formatHardwareInfo() {
     String info = "              === Hardware Information ===\n";
-    info += "MCU: RP2040 @ " + String(F_CPU / 1000000) + "MHz\n";
-    info += "Display: TFT " + String(tft.width()) + "x" + String(tft.height()) + "\n\n";
+    info += "MCU            : RP2040 @ " + String(F_CPU / 1000000) + "MHz\n";
+    info += "Display        : TFT " + String(tft.width()) + "x" + String(tft.height()) + "\n\n";
+    info += "CPU Temperature: " + String(PicoSensorUtils::readCoreTemperature()) + "°C\n";
+    info += "Battery Level  : " + String(PicoSensorUtils::readVBusExternal()) + "V\n";
     return info;
 }
 
@@ -152,7 +158,11 @@ String UISystemInfoDialog::formatHardwareInfo() {
 String UISystemInfoDialog::formatSi4735Info() {
     String info = "              === Radio Information ===\n";
     info += "Chip: Si4735\n";
-    info += "Status: (To be implemented)\n";
+    info += "  Part Number  : " + String(pSi4735Manager->getSi4735().getFirmwarePN()) + "\n";
+    info += "  Firmware     : " + String(pSi4735Manager->getSi4735().getFirmwareFWMAJOR()) + "." + String(pSi4735Manager->getSi4735().getFirmwareFWMINOR()) + "\n";
+    info += "  Patch ID     : " + String(pSi4735Manager->getSi4735().getFirmwarePATCHH()) + "." + String(pSi4735Manager->getSi4735().getFirmwarePATCHL()) + "\n";
+    info += "  Component    : " + String(pSi4735Manager->getSi4735().getFirmwareCMPMAJOR()) + "." + String(pSi4735Manager->getSi4735().getFirmwareCMPMINOR()) + "\n";
+    info += "  Chip revision: " + String(pSi4735Manager->getSi4735().getFirmwareCHIPREV()) + "\n";
     return info;
 }
 
