@@ -13,6 +13,7 @@
 #include <memory>
 
 #include "AudioProcessor-c1.h"
+#include "Utils.h"
 #include "defines.h"
 
 // AudioProcessor működés debug engedélyezése de csak DEBUG módban
@@ -58,7 +59,7 @@ void AudioProcessorC1::start() {
     adcDmaC1.initialize(this->adcConfig);
     is_running = true;
 
-    ADPROC_DEBUG("core1: AudioProc start: elindítva, sampleCount=%d, samplingRate=%d, useFFT=%d, is_running=%d\n", adcConfig.sampleCount, adcConfig.samplingRate, useFFT, is_running);
+    ADPROC_DEBUG("core1: AudioProc-c1 start: elindítva, sampleCount=%d, samplingRate=%d Hz, useFFT=%d, is_running=%d\n", adcConfig.sampleCount, adcConfig.samplingRate, useFFT, is_running);
 }
 
 /**
@@ -71,7 +72,7 @@ void AudioProcessorC1::stop() {
     adcDmaC1.finalize();
     is_running = false;
 
-    ADPROC_DEBUG("core1: AudioProc start: leállítva, is_running=%d\n", is_running);
+    ADPROC_DEBUG("core1: AudioProc-c1 stop: leállítva, is_running=%d\n", is_running);
 }
 
 /**
@@ -84,19 +85,19 @@ void AudioProcessorC1::reconfigureAudioSampling(uint16_t sampleCount, uint16_t s
 
     this->stop();
 
-    ADPROC_DEBUG("AudioProc::reconfigureAudioSampling() HÍVÁS - sampleCount=%d, samplingRate=%d, bandwidthHz=%d\n", sampleCount, samplingRate, bandwidthHz);
+    ADPROC_DEBUG("AudioProc-c1::reconfigureAudioSampling() HÍVÁS - sampleCount=%d, samplingRate=%d Hz, bandwidthHz=%d Hz\n", sampleCount, samplingRate, bandwidthHz);
 
     const float oversampleFactor = 1.25f;
     uint32_t finalRate = samplingRate;
     if (bandwidthHz > 0) {
         uint32_t nyquist = bandwidthHz * 2u;
         uint32_t suggested = static_cast<uint32_t>(ceilf(nyquist * oversampleFactor));
-        ADPROC_DEBUG("AudioProc::reconfigureAudioSampling() - nyquist=%d, suggested=%d, finalRate(előtte)=%d\n", nyquist, suggested, finalRate);
+        ADPROC_DEBUG("AudioProc-c1::reconfigureAudioSampling() - nyquist=%d Hz, suggested=%d Hz, finalRate(előtte)=%d Hz\n", nyquist, suggested, finalRate);
         if (finalRate == 0)
             finalRate = suggested;
         else if (finalRate < nyquist)
             finalRate = suggested;
-        ADPROC_DEBUG("AudioProc::reconfigureAudioSampling() - finalRate(utána)=%d\n", finalRate);
+        ADPROC_DEBUG("AudioProc-c1::reconfigureAudioSampling() - finalRate(utána)=%d Hz\n", finalRate);
     }
 
     // A mintavételezési frekvencia (finalRate) mindig egy érvényes, biztonságos tartományban legyen
@@ -129,9 +130,9 @@ void AudioProcessorC1::reconfigureAudioSampling(uint16_t sampleCount, uint16_t s
 
 #ifdef __ADPROC_DEBUG
         // Kiírjuk a FFT-hez kapcsolódó paramétereket
-        uint32_t afBandwidth = bandwidthHz;                                                                                                                   // hangfrekvenciás sávszélesség
-        uint16_t bins = (sampleCount / 2);                                                                                                                    // bin-ek száma
-        ADPROC_DEBUG("AudioProc FFT paraméterek: HF sávszélesség=%u Hz, mintavételi frekvencia=%u Hz, mintaszám=%u, bin_db=%u, egy bin szélessége=%.2f Hz\n", //
+        uint32_t afBandwidth = bandwidthHz;                                                                                           // hangfrekvenciás sávszélesség
+        uint16_t bins = (sampleCount / 2);                                                                                            // bin-ek száma
+        ADPROC_DEBUG("AudioProc-c1 FFT paraméterek: afBandwidth=%u Hz, finalRate=%u Hz, sampleCount=%u, bins=%u, binWidth=%.2f Hz\n", //
                      afBandwidth, finalRate, (unsigned)sampleCount, (unsigned)bins, binWidth);
 #endif
 
@@ -142,7 +143,7 @@ void AudioProcessorC1::reconfigureAudioSampling(uint16_t sampleCount, uint16_t s
     adcConfig.sampleCount = sampleCount;
     adcConfig.samplingRate = static_cast<uint16_t>(finalRate);
 
-    ADPROC_DEBUG("AudioProc::reconfigureAudioSampling() - adcConfig frissítve: sampleCount=%d, samplingRate=%d\n", adcConfig.sampleCount, adcConfig.samplingRate);
+    ADPROC_DEBUG("AudioProc-c1::reconfigureAudioSampling() - adcConfig frissítve: sampleCount=%d, samplingRate=%d Hz\n", adcConfig.sampleCount, adcConfig.samplingRate);
 
     start();
 }
@@ -184,7 +185,7 @@ bool AudioProcessorC1::checkSignalThreshold(SharedData &sharedData) {
     constexpr int32_t RAW_SIGNAL_THRESHOLD = 80; // nyers ADC egységben, hangolandó
     if (maxAbsRaw < RAW_SIGNAL_THRESHOLD) {
         // Ha túl kicsi a jel, rögtön jelezzük
-        ADPROC_DEBUG("AudioProc: nincs audió jel (maxAbsRaw=%d) -- FFT kihagyva\n", (int)maxAbsRaw);
+        ADPROC_DEBUG("AudioProc-c1: nincs audió jel (maxAbsRaw=%d) -- FFT kihagyva\n", (int)maxAbsRaw);
         return false;
     }
 
@@ -212,7 +213,12 @@ bool AudioProcessorC1::processAndFillSharedData(SharedData &sharedData) {
 
     if (completePingPongBufferPtr == nullptr) {
         // Nincs még kész adat (csak nem-blokkoló módban), később próbálkozunk újra
-        ADPROC_DEBUG("AudioProc: DMA még dolgozik (nem-blokkoló mód)\n");
+#define LAST_DMA_WORK_OUTPUT_INTERVAL 1000 * 1 // 1 másodperc
+        static uint32_t lastDmaWorkDebugOutput = 0;
+        if (Utils::timeHasPassed(lastDmaWorkDebugOutput, LAST_DMA_WORK_OUTPUT_INTERVAL)) {
+            ADPROC_DEBUG("AudioProc-c1: DMA még dolgozik (nem-blokkoló mód)\n");
+            lastDmaWorkDebugOutput = millis();
+        }
         return false;
     }
 
@@ -322,7 +328,7 @@ bool AudioProcessorC1::processAndFillSharedData(SharedData &sharedData) {
     uint32_t totalTime = (micros() >= methodStartTime) ? (micros() - methodStartTime) : 0;
 
     // DEBUG kimenet: időmérések olvasható formában
-    ADPROC_DEBUG("AudioProc: Total(micros()-methodStart)=%lu usec, Total(sumParts)=%lu usec, Wait=%lu usec, PreProc=%lu usec, FFT=%lu usec, Copy=%lu usec, DomSearch=%lu usec, maxIndex=%d, amp=%d\n", //
+    ADPROC_DEBUG("AudioProc-c1: Total(micros()-methodStart)=%lu usec, Total(sumParts)=%lu usec, Wait=%lu usec, PreProc=%lu usec, FFT=%lu usec, Copy=%lu usec, DomSearch=%lu usec, maxIndex=%d, amp=%d\n", //
                  totalTime, totalSum, waitTime, preprocTime, fftTime, copyTime, dominantTime, maxIndex, (int)maxValue);
 
 #endif

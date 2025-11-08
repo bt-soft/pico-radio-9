@@ -290,7 +290,7 @@ void setup() {
 
     // --- Lépés 6: AudioController inicializálása
     splash->updateProgress(splashProgressCnt++, SPLASH_SCREEN_PROGRESS_BAR_STEPS, "AudioController initializing...");
-    audioController.stop(); // Alaphelyzetbe állítás
+    audioController.stopAudioController(); // Alaphelyzetbe állítás
     delay(100);
 
     // --- Lépés 7: Kezdő képernyőtípus beállítása
@@ -307,6 +307,8 @@ void setup() {
     //-----------------------------------------------------------------------------------------------
     PicoMemoryInfo::MemoryStatus_t memStatus = PicoMemoryInfo::getMemoryStatus();
     DEBUG("core-0: System clock: %u MHz, Heap: used: %u kB, free: %u kB\n", (unsigned)clock_get_hz(clk_sys) / 1000000u, memStatus.usedHeap / 1024u, memStatus.freeHeap / 1024);
+
+    ::audioController.startAudioController(DecoderId::ID_DECODER_ONLY_FFT, FM_AF_RAW_SAMPLES_SIZE, FM_AF_BANDWIDTH_HZ);
 
     // Csippantunk egyet a végén
     Utils::beepTick();

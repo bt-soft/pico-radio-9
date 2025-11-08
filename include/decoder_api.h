@@ -4,9 +4,9 @@
 #include "RingBuffer.h" // A ring buffer implementációnk
 #include "defines.h"
 
-#define __CORE1_DEBUG // Core1 általános debug
-// #define __ADCDMA_DEBUG // AdcDma debug
-// #define __ADPROC_DEBUG // AudioProcessor debug
+#define __CORE1_DEBUG  // Core1 általános debug
+#define __ADCDMA_DEBUG // AdcDma debug
+#define __ADPROC_DEBUG // AudioProcessor debug
 // #define __CW_DEBUG // CwDecoder debug
 // #define __RTTY_DEBUG // RttyDecoder debug
 // #define __SSTV_DEBUG // SstvDecoder debug
@@ -106,8 +106,12 @@ struct SharedData {
 #define TEXT_BUFFER_SIZE 64 // 64 karakter a CW/RTTY szövegnek (növelve a stabilitás érdekében)
 
 // FM audio sávszélesség
-#define FM_AF_BANDWIDTH_HZ 15000    // FM dekódolt audio sávszélesség (Hz)
-#define FM_AF_RAW_SAMPLES_SIZE 1024 // FM módban a minták száma blokkonként
+#define FM_AF_BANDWIDTH_HZ 15000   // FM dekódolt audio sávszélesség (Hz)
+#define FM_AF_RAW_SAMPLES_SIZE 512 // FM módban a minták száma blokkonként
+
+// FM audio sávszélesség
+#define AM_AF_BANDWIDTH_HZ 6000    // FM dekódolt audio sávszélesség (Hz)
+#define AM_AF_RAW_SAMPLES_SIZE 512 // FM módban a minták száma blokkonként
 
 // Dominant Frequency Dekóder paraméterek
 // A mintavételezési frekvenciát a sávszélességből számoljuk (Nyquist + margin),

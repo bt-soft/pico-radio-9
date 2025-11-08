@@ -77,11 +77,6 @@ ScreenFM::~ScreenFM() {
 void ScreenFM::layoutComponents() {
 
     // ===================================================================
-    // Audio dekóder konfigurálása dekóder nélkül 15kHz sávszélességgel
-    // ===================================================================
-    ::audioController.start(DecoderId::ID_DECODER_ONLY_FFT, FM_AF_RAW_SAMPLES_SIZE, FM_AF_BANDWIDTH_HZ);
-
-    // ===================================================================
     // Állapotsor komponens létrehozása (felső sáv)
     // ===================================================================
     ScreenRadioBase::createStatusLine();
@@ -133,14 +128,20 @@ void ScreenFM::layoutComponents() {
     // ===================================================================
     // Spektrum vizualizáció komponens létrehozása
     // ===================================================================
-    Rect spectrumBounds(255, 40, 150, 80);
-    createSpectrumComponent(spectrumBounds, RadioMode::FM);
+    createSpectrumComponent(Rect(255, 40, 150, 80), RadioMode::FM);
 
     // ===================================================================
     // Gombsorok létrehozása - Event-driven architektúra
     // ===================================================================
     createCommonVerticalButtons();   // ButtonsGroupManager alapú függőleges gombsor egyedi Memo kezelővel
     createCommonHorizontalButtons(); // Alsó közös + FM specifikus vízszintes gombsor
+
+    // ===================================================================
+    // Audio dekóder konfigurálása dekóder nélkül 15kHz sávszélességgel
+    // ===================================================================
+    // DEBUG("ScreenFM::layoutComponents() - AudioController: FM mód dekóder indítása 15kHz sávszélességgel dekóder nélkül\n");
+    //::audioController.startAudioController(DecoderId::ID_DECODER_ONLY_FFT, FM_AF_RAW_SAMPLES_SIZE, FM_AF_BANDWIDTH_HZ);
+    // DEBUG("ScreenFM::layoutComponents() - AudioController: FM mód dekóder indítása befejezve\n");
 }
 
 // ===================================================================

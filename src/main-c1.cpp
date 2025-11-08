@@ -323,6 +323,8 @@ void processAudioAndDecoding() {
     // ADC + DMA műveletek
     if (audioProcC1.processAndFillSharedData(sharedData[backBufferIndex])) {
 
+        CORE1_DEBUG("core-1: processAudioAndDecoding(): Audio feldolgozás kész, SharedData index váltás %u -> %u\n", activeSharedDataIndex, backBufferIndex);
+
         // Sikeres feldolgozás esetén puffert cserélünk
         activeSharedDataIndex = backBufferIndex;
 
@@ -350,9 +352,9 @@ bool isAudioSamplingRunningC1() { return audioProcC1.isRunning(); }
  */
 void setup1() {
 
-    delay(1500);
-    CORE1_DEBUG("core-1:setup1(): System clock: %u MHz\n", (unsigned)clock_get_hz(clk_sys) / 1000000u);
     memset(sharedData, 0, sizeof(sharedData));
+    delay(3000); // Várakozás a Core-0 indulására és inicializálására
+    CORE1_DEBUG("core-1:setup1(): System clock: %u MHz\n", (unsigned)clock_get_hz(clk_sys) / 1000000u);
 }
 
 /**

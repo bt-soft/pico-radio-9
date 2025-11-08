@@ -22,8 +22,8 @@ class AudioController {
     AudioController() = default;
 
     // A mintavételezési frekvencia a sávszélességből számolódik, ezért samplingRate paraméter elhagyva.
-    void start(DecoderId id, uint32_t sampleCount, uint32_t bandwidthHz, uint32_t cwCenterFreqHz = 0, uint32_t rttyMarkFreqHz = 0, uint32_t rttySpaceFreqHz = 0, float rttyBaud = 0.0f);
-    void stop();
+    void startAudioController(DecoderId id, uint32_t sampleCount, uint32_t bandwidthHz, uint32_t cwCenterFreqHz = 0, uint32_t rttyMarkFreqHz = 0, uint32_t rttySpaceFreqHz = 0, float rttyBaud = 0.0f);
+    void stopAudioController();
     uint32_t getSamplingRate();
 
     /**

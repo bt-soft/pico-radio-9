@@ -18,7 +18,10 @@
  * @param bandwidthHz A sávszélesség Hz-ben.
  *
  */
-void AudioController::start(DecoderId id, uint32_t sampleCount, uint32_t bandwidthHz, uint32_t cwCenterFreqHz, uint32_t rttyMarkFreqHz, uint32_t rttySpaceFreqHz, float rttyBaud) {
+void AudioController::startAudioController(DecoderId id, uint32_t sampleCount, uint32_t bandwidthHz, uint32_t cwCenterFreqHz, uint32_t rttyMarkFreqHz, uint32_t rttySpaceFreqHz, float rttyBaud) {
+
+    DEBUG("AudioController: startAudioController() hívás - dekóder Core0-on: %d, sampleCount=%d, bandwidthHz=%d Hz, cwCenterFreqHz=%d Hz, rttyMarkFreqHz=%d Hz, rttySpaceFreqHz=%d Hz, rttyBaud=%.2f\n", (uint32_t)id,
+          sampleCount, bandwidthHz, cwCenterFreqHz, rttyMarkFreqHz, rttySpaceFreqHz, rttyBaud);
 
     // Küldjük a dekóder ID-t, a puffer méretet és a kívánt AF sávszélességet a Core1-nek.
     rp2040.fifo.push(RP2040CommandCode::CMD_SET_CONFIG);
@@ -40,12 +43,17 @@ void AudioController::start(DecoderId id, uint32_t sampleCount, uint32_t bandwid
 
     // Beállítjuk az aktív dekóder mutatót
     activeDecoderCore0 = id;
+
+    DEBUG("AudioController: startAudioController() hívás vége\n");
 }
 
 /**
  * @brief Leállítja a dekódert a Core 1-en.
  */
-void AudioController::stop() {
+void AudioController::stopAudioController() {
+
+    DEBUG("AudioController: stopAudioController() hívás - aktív dekóder Core0-on: %d\n", (uint32_t)activeDecoderCore0);
+
     rp2040.fifo.push(RP2040CommandCode::CMD_STOP);
     (void)rp2040.fifo.pop(); // ACK
 
