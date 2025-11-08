@@ -1,7 +1,7 @@
 #pragma once
 
+#include <Arduino.h>
 #include <RP2040Support.h>
-#include <cstdint>
 
 #include "defines.h"
 #include "utils.h"
