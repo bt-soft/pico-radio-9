@@ -1,5 +1,6 @@
 #pragma once
 
+#include "AudioController.h"
 #include "ScreenFrequDisplayBase.h"
 #include "UICompSMeter.h"
 #include "UICompSpectrumVis.h"

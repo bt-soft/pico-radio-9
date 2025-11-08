@@ -76,7 +76,14 @@ ScreenFM::~ScreenFM() {
  */
 void ScreenFM::layoutComponents() {
 
+    // ===================================================================
+    // Audio dekóder konfigurálása dekóder nélkül 15kHz sávszélességgel
+    // ===================================================================
+    ::audioController.start(DecoderId::ID_DECODER_NONE, FM_AF_RAW_SAMPLES_SIZE, FM_AF_BANDWIDTH_HZ);
+
+    // ===================================================================
     // Állapotsor komponens létrehozása (felső sáv)
+    // ===================================================================
     ScreenRadioBase::createStatusLine();
 
     // ===================================================================
@@ -126,7 +133,7 @@ void ScreenFM::layoutComponents() {
     // ===================================================================
     // Spektrum vizualizáció komponens létrehozása
     // ===================================================================
-    Rect spectrumBounds(255, 80, 150, 80);
+    Rect spectrumBounds(255, 40, 150, 80);
     createSpectrumComponent(spectrumBounds, RadioMode::FM);
 
     // ===================================================================

@@ -10,10 +10,6 @@
 #include "rtVars.h"
 #include "utils.h"
 
-// Shared extern objektumok
-extern AudioController audioController;
-extern SharedData sharedData[2];
-
 namespace AudioProcessorConstants {
 // // Audio input konstansok
 const uint16_t MAX_SAMPLING_FREQUENCY = 30000; // 30kHz mintavételezés a 15kHz Nyquist limithez
@@ -500,7 +496,7 @@ void UICompSpectrumVis::setFftParametersForDisplayMode() {
     // aktuális audio puffer csere előtt. Annak elkerülése érdekében, hogy a UI
     // az aktív régi puffert olvassa, előnyben részesítjük a hátsó puffer tippeit,
     // ha jelen vannak, és visszaesünk az aktív pufferre egyébként.
-    const int8_t activeIdx = audioController.getActiveSharedDataIndex();
+    const int8_t activeIdx = ::audioController.getActiveSharedDataIndex();
     if (activeIdx < 0) {
         // Nem lehet lekérdezni a Core1-et; a meglévő beállítások megtartása
         return;
@@ -508,8 +504,8 @@ void UICompSpectrumVis::setFftParametersForDisplayMode() {
 
     // Lekérdezzük mindkét puffer megosztott adatait
     const int8_t backIdx = 1 - activeIdx;
-    const SharedData &sdActive = sharedData[activeIdx];
-    const SharedData &sdBack = sharedData[backIdx];
+    const SharedData &sdActive = ::sharedData[activeIdx];
+    const SharedData &sdBack = ::sharedData[backIdx];
 
     const SharedData *sdToUse = nullptr;
     // Előnyben részesítjük a hátsó puffert, ha nem nulla nyomokat tartalmaz (frissen írva a Core1 által)
@@ -1769,7 +1765,7 @@ void UICompSpectrumVis::drawSpectrumBar(int band_idx, double magnitude, int actu
  * @brief Core1 spektrum adatok lekérése
  */
 bool UICompSpectrumVis::getCore1SpectrumData(const int16_t **outData, uint16_t *outSize, float *outBinWidth, float *outAutoGain) {
-    int8_t activeSharedDataIndex = audioController.getActiveSharedDataIndex();
+    int8_t activeSharedDataIndex = ::audioController.getActiveSharedDataIndex();
     if (activeSharedDataIndex < 0 || activeSharedDataIndex > 1) {
         // Érvénytelen index a Core1-től - biztonságosan leállunk
         *outData = nullptr;
@@ -1784,7 +1780,7 @@ bool UICompSpectrumVis::getCore1SpectrumData(const int16_t **outData, uint16_t *
         return false;
     }
 
-    const SharedData &data = sharedData[activeSharedDataIndex];
+    const SharedData &data = ::sharedData[activeSharedDataIndex];
 
     *outData = data.fftSpectrumData;
     *outSize = data.fftSpectrumSize;
@@ -1801,7 +1797,7 @@ bool UICompSpectrumVis::getCore1SpectrumData(const int16_t **outData, uint16_t *
  */
 bool UICompSpectrumVis::getCore1OscilloscopeData(const int16_t **outData, uint16_t *outSampleCount) {
     // Core1 oszcilloszkóp adatok lekérése
-    int8_t activeSharedDataIndex = audioController.getActiveSharedDataIndex();
+    int8_t activeSharedDataIndex = ::audioController.getActiveSharedDataIndex();
     if (activeSharedDataIndex < 0 || activeSharedDataIndex > 1) {
         *outData = nullptr;
         *outSampleCount = 0;
@@ -1809,7 +1805,7 @@ bool UICompSpectrumVis::getCore1OscilloscopeData(const int16_t **outData, uint16
         return false;
     }
 
-    const SharedData &data = sharedData[activeSharedDataIndex];
+    const SharedData &data = ::sharedData[activeSharedDataIndex];
 
     *outData = data.rawSampleData;
     *outSampleCount = data.rawSampleCount;

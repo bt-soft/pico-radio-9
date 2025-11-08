@@ -74,7 +74,7 @@ struct DecoderConfig {
 
 // --- Megosztott Adatstruktúrák ---
 
-// 1. Nagy sebességű, pillanatkép-szerű adatokhoz (ping-pong bufferelve)
+// Nagy sebességű, pillanatkép-szerű adatokhoz (ping-pong bufferelve)
 #define SPECTRUM_SIZE 512
 #define MAX_RAW_SAMPLES_SIZE 1024
 //--- Dekóder specifikus paraméterek ---
@@ -100,10 +100,14 @@ struct SharedData {
     uint16_t displayMaxFreqHz; // Javasolt maximális frekvencia megjelenítéshez (Hz)
 };
 
-// 2. Dekódolt, folyam-szerű adatokhoz (ring bufferelve)
+// Dekódolt, stream-szerű text adatokhoz (ring bufferelve)
 #define TEXT_BUFFER_SIZE 64 // 64 karakter a CW/RTTY szövegnek (növelve a stabilitás érdekében)
 
-// Dominant Frequency paraméterek
+// FM audio sávszélesség
+#define FM_AF_BANDWIDTH_HZ 15000    // FM dekódolt audio sávszélesség (Hz)
+#define FM_AF_RAW_SAMPLES_SIZE 1024 // FM módban a minták száma blokkonként
+
+// Dominant Frequency Dekóder paraméterek
 // A mintavételezési frekvenciát a sávszélességből számoljuk (Nyquist + margin),
 // ezért itt csak a nyers minták számát és a sávszélességet tartjuk meg.
 #define DOMINANT_FREQ_AF_BANDWIDTH_HZ 15000 // Dominant Frequency audio sávszélesség

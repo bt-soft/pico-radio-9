@@ -8,6 +8,8 @@
 
 #include "AudioController.h"
 
+//-------------------------------------------------------------------------------------
+
 /**
  * @brief Beállítja a dekódert és a mintavételezési konfigurációt a Core 1-en.
  * @param id A dekóder azonosítója.
@@ -16,7 +18,7 @@
  * @param bandwidthHz A sávszélesség Hz-ben.
  *
  */
-void AudioController::setDecoder(DecoderId id, uint32_t sampleCount, uint32_t bandwidthHz, uint32_t cwCenterFreqHz, uint32_t rttyMarkFreqHz, uint32_t rttySpaceFreqHz, float rttyBaud) {
+void AudioController::start(DecoderId id, uint32_t sampleCount, uint32_t bandwidthHz, uint32_t cwCenterFreqHz, uint32_t rttyMarkFreqHz, uint32_t rttySpaceFreqHz, float rttyBaud) {
 
     // Küldjük a dekóder ID-t, a puffer méretet és a kívánt AF sávszélességet a Core1-nek.
     rp2040.fifo.push(RP2040CommandCode::CMD_SET_CONFIG);
@@ -27,7 +29,7 @@ void AudioController::setDecoder(DecoderId id, uint32_t sampleCount, uint32_t ba
     // opcionális: CW cél frekvencia
     rp2040.fifo.push(cwCenterFreqHz);
 
-    // RTTY paraméterek
+    // opcionális: RTTY paraméterek
     rp2040.fifo.push(rttyMarkFreqHz);
     rp2040.fifo.push(rttySpaceFreqHz);
     uint32_t baudBits; // Float átalakítás FIFO-ra (uint32_t bit pattern)
@@ -35,6 +37,9 @@ void AudioController::setDecoder(DecoderId id, uint32_t sampleCount, uint32_t ba
     rp2040.fifo.push(baudBits);
 
     (void)rp2040.fifo.pop(); // ACK
+
+    // Beállítjuk az aktív dekóder mutatót
+    activeDecoderCore0 = id;
 }
 
 /**
@@ -43,6 +48,9 @@ void AudioController::setDecoder(DecoderId id, uint32_t sampleCount, uint32_t ba
 void AudioController::stop() {
     rp2040.fifo.push(RP2040CommandCode::CMD_STOP);
     (void)rp2040.fifo.pop(); // ACK
+
+    // Alaphelyzetbe állítjuk az aktív dekóder mutatót
+    activeDecoderCore0 = ID_DECODER_NONE;
 }
 
 /**

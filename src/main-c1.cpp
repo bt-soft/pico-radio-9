@@ -21,9 +21,9 @@
 bool core1_separate_stack = true;
 
 //-------------------------------------------------------------------------------------
-//  Osztott memóriaterületek a Core-0 és Core-1 között
+//  Globális osztott memóriaterületek a Core-0 és Core-1 között
 //-------------------------------------------------------------------------------------
-// A megosztott adatpufferek Core-0 és Core-1 között
+// Osztott adatpufferek Core-0 és Core-1 között
 // A két elemű sharedData[2] tömb azért van, hogy a két mag (Core 0 és Core 1) között
 // biztonságosan lehessen adatot cserélni, "ping-pong" vagy "double-buffering" technikával.
 SharedData sharedData[2];
@@ -34,7 +34,7 @@ DecodedData decodedData;
 //-------------------------------------------------------------------------------------
 
 // Audio feldolgozó példányja
-static AudioProcessorC1 audioProc;
+static AudioProcessorC1 audioProcC1; // Static -> global instance
 
 // Előre deklarálás a segédfüggvényhez, amely frissíti és publikálja a kijelzőre vonatkozó frekvencia-javaslatokat
 static void updateDisplayHints(const DecoderConfig &cfg);
@@ -250,8 +250,8 @@ void processFifoCommands() {
             bool useBlockingDma = (decoderConfig.decoderId == ID_DECODER_SSTV || decoderConfig.decoderId == ID_DECODER_WEFAX);
 
             // DMA és audio processzor inicializálása
-            audioProc.initialize(adcDmaConfig, useFFT, useBlockingDma);
-            audioProc.reconfigureAudioSampling(adcDmaConfig.sampleCount, adcDmaConfig.samplingRate, decoderConfig.bandwidthHz);
+            audioProcC1.initialize(adcDmaConfig, useFFT, useBlockingDma);
+            audioProcC1.reconfigureAudioSampling(adcDmaConfig.sampleCount, adcDmaConfig.samplingRate, decoderConfig.bandwidthHz);
 
             // Dekóder indítása
             decoderController(decoderConfig);
@@ -265,7 +265,7 @@ void processFifoCommands() {
         }
 
         case RP2040CommandCode::CMD_STOP: {
-            audioProc.stop();    // Audio feldolgozás leállítása
+            audioProcC1.stop();  // Audio feldolgozás leállítása
             stopActiveDecoder(); // Dekóder leállítása
 
             // Pufferek törlése
@@ -289,7 +289,7 @@ void processFifoCommands() {
         case RP2040CommandCode::CMD_GET_SAMPLING_RATE: {
             // Válasz a Core 0 felé
             rp2040.fifo.push(RP2040ResponseCode::RESP_SAMPLING_RATE);
-            rp2040.fifo.push(audioProc.getSamplingRate());
+            rp2040.fifo.push(audioProcC1.getSamplingRate());
             break;
         }
     }
@@ -304,7 +304,7 @@ void processAudioAndDecoding() {
     uint8_t backBufferIndex = 1 - activeSharedDataIndex;
 
     // ADC + DMA műveletek
-    if (audioProc.processAndFillSharedData(sharedData[backBufferIndex])) {
+    if (audioProcC1.processAndFillSharedData(sharedData[backBufferIndex])) {
 
         // Sikeres feldolgozás esetén puffert cserélünk
         activeSharedDataIndex = backBufferIndex;
@@ -320,11 +320,11 @@ void processAudioAndDecoding() {
 }
 
 //--- EEprom safe Writer segédfüggvények -------------------------------------------------------------------------------------
-void startAudioSamplingC1() { audioProc.start(); }
+void startAudioSamplingC1() { audioProcC1.start(); }
 
-void stopAudioSamplingC1() { audioProc.stop(); }
+void stopAudioSamplingC1() { audioProcC1.stop(); }
 
-bool isAudioSamplingRunningC1() { return audioProc.isRunning(); }
+bool isAudioSamplingRunningC1() { return audioProcC1.isRunning(); }
 
 //--- Core-1 Arduino belépési pontok -----------------------------------------------------------------------------------------
 

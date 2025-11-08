@@ -236,7 +236,7 @@ void setup() {
     amStationStore.load();
 
     // ----------------------- Splash screen megjelenítése az inicializálás közben --------------------
-#define SPLASH_SCREEN_PROGRESS_BAR_STEPS 6
+#define SPLASH_SCREEN_PROGRESS_BAR_STEPS 7
     uint8_t splashProgressCnt = 1;
     // Most átváltunk a teljes splash screen-re az SI4735 infókkal
     SplashScreen *splash = new SplashScreen(tft);
@@ -288,7 +288,12 @@ void setup() {
     pSi4735Manager->getSi4735().setVolume(config.data.currVolume); // Hangerő visszaállítása
     delay(100);
 
-    // --- Lépés 6: Kezdő képernyőtípus beállítása
+    // --- Lépés 6: AudioController inicializálása
+    splash->updateProgress(splashProgressCnt++, SPLASH_SCREEN_PROGRESS_BAR_STEPS, "AudioController initializing...");
+    audioController.stop(); // Alaphelyzetbe állítás
+    delay(100);
+
+    // --- Lépés 7: Kezdő képernyőtípus beállítása
     splash->updateProgress(splashProgressCnt++, SPLASH_SCREEN_PROGRESS_BAR_STEPS, "Preparing display...");
     const char *startScreenName = pSi4735Manager->getCurrentBandType() == FM_BAND_TYPE ? SCREEN_NAME_FM : SCREEN_NAME_AM;
     screenManager = new ScreenManager();
