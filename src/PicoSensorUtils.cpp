@@ -38,6 +38,7 @@ void init() {
  */
 float readVBusExternal() {
     // Core1 által mért értéket visszaadjuk
+    DEBUG("PicoSensorUtils: readVBusExternal() = %.2f V\n", ::core1_VbusVoltage);
     return ::core1_VbusVoltage;
 }
 
@@ -54,6 +55,7 @@ float readVBusExternal() {
 float readCoreTemperature() {
 
     // Core1 által mért értéket visszaadjuk
+    DEBUG("PicoSensorUtils: readCoreTemperature() = %.2f °C\n", ::core1_CpuTemperature);
     return ::core1_CpuTemperature;
 }
 

@@ -127,7 +127,7 @@ class UIComponent {
      * @brief Segédfüggvény a képernyőkezelő ellenőrzésére, hogy van-e aktív dialog
      * @return true, ha van aktív dialog a jelenlegi képernyőn
      */
-    bool iscurrentScreenDialogActive() {
+    bool isCurrentScreenDialogActive() {
         // Segédfüggvény a dialog állapot ellenőrzéséhez
         if (::iScreenManager == nullptr || *::iScreenManager == nullptr) {
             return false; // Ha nincs képernyőkezelő, akkor nincs aktív dialog

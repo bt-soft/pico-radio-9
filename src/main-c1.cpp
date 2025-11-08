@@ -76,11 +76,8 @@ static void readSensorsOnCore1() {
     bool wasRunning = audioProcC1.isRunning();
     if (wasRunning) {
         audioProcC1.stop();
-        delay(5); // Várunk, hogy a DMA biztosan leálljon
+        delay(1); // Várunk, hogy a DMA biztosan leálljon
     }
-
-    // ADC felbontás beállítása 12-bitre (mint az audio DMA)
-    analogReadResolution(CORE1_ADC_RESOLUTION);
 
     // VBUS feszültség mérése 12-bit ADC olvasással
     float voltageOut = (analogRead(PIN_VBUS_EXTERNAL_MEASURE_INPUT) * CORE1_V_REFERENCE) / CORE1_CONVERSION_FACTOR;
@@ -405,10 +402,16 @@ bool isAudioSamplingRunningC1() { return audioProcC1.isRunning(); }
  */
 void setup1() {
 
+    // ADC felbontás beállítása 12-bitre (mint az audio DMA)
+    analogReadResolution(CORE1_ADC_RESOLUTION);
+
     // Shared területek inicializálása
     memset(sharedData, 0, sizeof(sharedData));
     core1_VbusVoltage = 0.0f;
     core1_CpuTemperature = 0.0f;
+
+    // Az első szenzor olvasás
+    readSensorsOnCore1();
 
     delay(3000); // Várakozás a Core-0 indulására és inicializálására
     CORE1_DEBUG("core-1:setup1(): System clock: %u MHz\n", (unsigned)clock_get_hz(clk_sys) / 1000000u);
