@@ -52,6 +52,12 @@ ScreenFM::~ScreenFM() {
         rdsComponent.reset();
     }
 
+    if (spectrumComp) {
+        DEBUG("ScreenFM::~ScreenFM() - SpectrumComponent cleanup\n");
+        removeChild(spectrumComp);
+        spectrumComp.reset();
+    }
+
     DEBUG("ScreenFM::~ScreenFM() - Destruktor befejezve - memória felszabadítva\n");
 }
 
@@ -116,6 +122,12 @@ void ScreenFM::layoutComponents() {
     currentY += 24 + 5;
     Rect smeterBounds(2, currentY, SMeterConstants::SMETER_WIDTH, 60);
     createSMeterComponent(smeterBounds);
+
+    // ===================================================================
+    // Spektrum vizualizáció komponens létrehozása
+    // ===================================================================
+    Rect spectrumBounds(255, 80, 150, 80);
+    createSpectrumComponent(spectrumBounds, RadioMode::FM);
 
     // ===================================================================
     // Gombsorok létrehozása - Event-driven architektúra
@@ -239,6 +251,11 @@ void ScreenFM::drawContent() {
     // S-Meter statikus skála kirajzolása (egyszer, a kezdetekkor)
     if (smeterComp) {
         smeterComp->drawSmeterScale();
+    }
+
+    // Spektrum vizualizáció komponens border frissítése
+    if (spectrumComp) {
+        spectrumComp->setBorderDrawn();
     }
 }
 

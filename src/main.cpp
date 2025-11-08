@@ -45,6 +45,10 @@ Si4735Manager *pSi4735Manager = nullptr; // Si4735Manager: NEM lehet (hardware i
 ScreenManager *screenManager = nullptr;
 IScreenManager **iScreenManager = (IScreenManager **)&screenManager; // A UIComponent használja
 
+//-------------------- AudioController
+#include "AudioController.h"
+AudioController audioController;
+
 /**
  * @brief  Hardware timer interrupt service routine a rotaryhoz
  */

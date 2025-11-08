@@ -8,7 +8,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
-#include <cstring> // For memcpy
+#include <cstring>
 #include <hardware/uart.h>
 #include <memory>
 
@@ -262,7 +262,7 @@ bool AudioProcessorC1::processAndFillSharedData(SharedData &sharedData) {
     uint32_t preprocTime = micros() - start;
 #endif
 
-    // FFT futtatása a nyers mintákon, a SpectrumVisualizationComponent számára
+    // FFT futtatása a nyers mintákon, a UICompSpectrumVis számára
     // 4. FFT futtatása
 #ifdef __ADPROC_DEBUG
     start = micros();

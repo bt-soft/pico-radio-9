@@ -2,6 +2,7 @@
 
 #include "ScreenFrequDisplayBase.h"
 #include "UICompSMeter.h"
+#include "UICompSpectrumVis.h"
 #include "UICompStatusLine.h"
 #include "UIHorizontalButtonBar.h"
 
@@ -185,6 +186,24 @@ class ScreenRadioBase : public ScreenFrequDisplayBase {
      * Belső változás detektálással - csak szükség esetén rajzol újra
      */
     void updateSMeter(bool isFMMode);
+
+    // ===================================================================
+    // Spektrum vizualizáció komponens kezelés
+    // ===================================================================
+
+    /// Spektrum vizualizáció komponens - audio spektrum, oszcilloszkóp, hangolássegédek
+    std::shared_ptr<UICompSpectrumVis> spectrumComp;
+
+    /**
+     * @brief Létrehozza a spektrum vizualizáció komponenst
+     * @param spectrumBounds A spektrum komponens határai
+     * @param radioMode Rádió mód (AM/FM)
+     */
+    inline void createSpectrumComponent(const Rect &spectrumBounds, RadioMode radioMode) {
+        spectrumComp = std::make_shared<UICompSpectrumVis>(spectrumBounds.x, spectrumBounds.y, spectrumBounds.width, spectrumBounds.height, radioMode);
+        spectrumComp->loadModeFromConfig(); // AM/FM mód betöltése config-ból
+        addChild(spectrumComp);
+    }
 
     // ===================================================================
     // Seek (automatikus állomáskeresés) infrastruktúra
