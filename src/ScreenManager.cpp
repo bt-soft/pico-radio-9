@@ -8,7 +8,7 @@
 
 // #include "ScreenAM.h"
 // #include "ScreenCwRtty.h"
-// #include "ScreenFM.h"
+#include "ScreenFM.h"
 // #include "ScreenMemory.h"
 // #include "ScreenScan.h"
 // #include "ScreenScreenSaver.h"
@@ -17,27 +17,49 @@
 // #include "ScreenSetupSi4735.h"
 // #include "ScreenSetupSystem.h"
 
-#include "ScreenEmpty.h"
-#include "ScreenTest.h"
+// Fejlesztői képernyők
+// #include "ScreenEmpty.h"
+// #include "ScreenTest.h"
 
+/**
+ * @brief Konstruktor - regisztrálja az alapértelmezett képernyő factory-kat
+ */
 ScreenManager::ScreenManager() : previousScreenName(nullptr), lastActivityTime(millis()) { registerDefaultScreenFactories(); }
 
-// Aktuális képernyő lekérdezése
+/**
+ * @brief Aktuális képernyő lekérdezése
+ * @return Aktuális UIScreen shared_ptr
+ */
 std::shared_ptr<UIScreen> ScreenManager::getCurrentScreen() const { return currentScreen; }
 
-// Előző képernyő neve
+/**
+ * @brief Előző képernyő neve
+ * @return Előző képernyő neve
+ */
 String ScreenManager::getPreviousScreenName() const { return previousScreenName; }
 
-// Képernyő factory regisztrálása
+/**
+ * @brief Képernyő factory regisztrálása
+ * @param screenName A képernyő egyedi neve
+ * @param factory A képernyő létrehozó függvénye
+ */
 void ScreenManager::registerScreenFactory(const char *screenName, ScreenFactory factory) { screenFactories[screenName] = factory; }
 
-// Deferred képernyő váltás - biztonságos váltás eseménykezelés közben
+/**
+ * @brief Deferred képernyő váltás - biztonságos váltás eseménykezelés közben
+ * @param screenName A cél képernyő neve
+ * @param params Opcionális paraméterek a képernyőnek
+ */
 void ScreenManager::deferSwitchToScreen(const char *screenName, void *params) { deferredActions.push(DeferredAction(DeferredAction::SwitchScreen, screenName, params)); }
 
-// Deferred vissza váltás
+/**
+ * @brief Deferred vissza váltás
+ */
 void ScreenManager::deferGoBack() { deferredActions.push(DeferredAction(DeferredAction::GoBack)); }
 
-// Deferred actions feldolgozása - a main loop-ban hívandó
+/**
+ * @brief Deferred actions feldolgozása - a main loop-ban hívandó
+ */
 void ScreenManager::processDeferredActions() {
 
     while (!deferredActions.empty()) {
@@ -53,7 +75,12 @@ void ScreenManager::processDeferredActions() {
     }
 }
 
-// Képernyő váltás név alapján - biztonságos verzió - IScreenManager
+/**
+ * @brief Képernyő váltás név alapján - biztonságos verzió - IScreenManager
+ * @param screenName A cél képernyő neve
+ * @param params Opcionális paraméterek a képernyőnek
+ * @return true, ha a váltás sikeres volt, false egyébként
+ */
 bool ScreenManager::switchToScreen(const char *screenName, void *params) {
     if (processingEvents) {
         // Eseménykezelés közben - halasztott váltás
@@ -65,7 +92,13 @@ bool ScreenManager::switchToScreen(const char *screenName, void *params) {
     }
 }
 
-// Azonnali képernyő váltás - csak biztonságos kontextusban hívható
+/**
+ * @brief Azonnali képernyő váltás - csak biztonságos kontextusban hívható
+ * @param screenName A cél képernyő neve
+ * @param params Opcionális paraméterek a képernyőnek
+ * @param isBackNavigation Vissza navigációs jelző
+ * @return true, ha a váltás sikeres volt, false egyébként
+ */
 bool ScreenManager::immediateSwitch(const char *screenName, void *params, bool isBackNavigation) {
 
     // Ha már ez a képernyő aktív, nem csinálunk semmit
@@ -137,7 +170,10 @@ bool ScreenManager::immediateSwitch(const char *screenName, void *params, bool i
     return false;
 }
 
-// Vissza az előző képernyőre - biztonságos verzió - IScreenManager
+/**
+ * @brief Vissza az előző képernyőre - biztonságos verzió - IScreenManager
+ * @return true, ha a váltás sikeres volt, false egyébként
+ */
 bool ScreenManager::goBack() {
     if (processingEvents) {
         // Eseménykezelés közben - halasztott váltás
@@ -149,7 +185,10 @@ bool ScreenManager::goBack() {
     }
 }
 
-// Azonnali visszaváltás - csak biztonságos kontextusban hívható
+/**
+ * @brief Azonnali visszaváltás - csak biztonságos kontextusban hívható
+ * @return true, ha a váltás sikeres volt, false egyébként
+ */
 bool ScreenManager::immediateGoBack() {
     // Speciális kezelés: ha screensaver-ből jövünk vissza
     if (currentScreen && STREQ(currentScreen->getName(), SCREEN_NAME_SCREENSAVER)) {
@@ -175,7 +214,11 @@ bool ScreenManager::immediateGoBack() {
     return false;
 }
 
-// Touch esemény kezelése
+/**
+ * @brief Touch esemény kezelése
+ * @param event TouchEvent referencia
+ * @return true, ha az eseményt kezelte a képernyő, false egyébként
+ */
 bool ScreenManager::handleTouch(const TouchEvent &event) {
     if (currentScreen) {
         if (!STREQ(currentScreen->getName(), SCREEN_NAME_SCREENSAVER)) {
@@ -260,7 +303,7 @@ bool ScreenManager::isCurrentScreenDialogActive() {
  * @brief Alapértelmezett képernyő factory-k regisztrálása
  */
 void ScreenManager::registerDefaultScreenFactories() {
-    // registerScreenFactory(SCREEN_NAME_FM, []() { return std::make_shared<ScreenFM>(); });
+    registerScreenFactory(SCREEN_NAME_FM, []() { return std::make_shared<ScreenFM>(); });
     // registerScreenFactory(SCREEN_NAME_AM, []() { return std::make_shared<ScreenAM>(); });
     // registerScreenFactory(SCREEN_NAME_SCREENSAVER, []() { return std::make_shared<ScreenScreenSaver>(); });
     // registerScreenFactory(SCREEN_NAME_MEMORY, []() { return std::make_shared<ScreenMemory>(); });
@@ -275,6 +318,6 @@ void ScreenManager::registerDefaultScreenFactories() {
     // registerScreenFactory(SCREEN_NAME_CW_RTTY, []() { return std::make_shared<ScreenCwRtty>(); });
 
     // Teszt képernyők regisztrálása
-    registerScreenFactory(SCREEN_NAME_TEST, []() { return std::make_shared<ScreenTest>(); });
-    registerScreenFactory(SCREEN_NAME_EMPTY, []() { return std::make_shared<ScreenEmpty>(); });
+    // registerScreenFactory(SCREEN_NAME_TEST, []() { return std::make_shared<ScreenTest>(); });
+    // registerScreenFactory(SCREEN_NAME_EMPTY, []() { return std::make_shared<ScreenEmpty>(); });
 }

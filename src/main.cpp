@@ -62,7 +62,7 @@ void processRotaryEncoderEvent() {
     RotaryEncoder::EncoderState encoderState = rotaryEncoder.read();
 
     // Ha nem tekergetik vagy nincs gombnyomás, akkor nem csinálunk semmit
-    if (encoderState.direction == RotaryEncoder::Direction::None || encoderState.buttonState == RotaryEncoder::ButtonState::Open) {
+    if (encoderState.direction == RotaryEncoder::Direction::None && encoderState.buttonState == RotaryEncoder::ButtonState::Open) {
         return;
     }
 
