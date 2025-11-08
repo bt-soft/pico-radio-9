@@ -288,8 +288,7 @@ void setup() {
     splash->updateProgress(splashProgressCnt++, SPLASH_SCREEN_PROGRESS_BAR_STEPS, "Preparing display...");
     const char *startScreenName = pSi4735Manager->getCurrentBandType() == FM_BAND_TYPE ? SCREEN_NAME_FM : SCREEN_NAME_AM;
     screenManager = new ScreenManager();
-    // screenManager->switchToScreen(startScreenName); // A kezdő képernyőre váltás
-    screenManager->switchToScreen(SCREEN_NAME_TEST); // A kezdő képernyőre váltás
+    screenManager->switchToScreen(startScreenName); // A kezdő képernyőre váltás
     delay(100);
 
     // Splash screen eltűntetése
