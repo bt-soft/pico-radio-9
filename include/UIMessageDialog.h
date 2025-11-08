@@ -1,9 +1,9 @@
 #pragma once
 
-#include "ButtonsGroupManager.h" // Hozzáadva
+#include "UIButtonsGroupManager.h"
 #include "UIDialogBase.h"
 
-class MessageDialog : public UIDialogBase, public ButtonsGroupManager<MessageDialog> {
+class UIMessageDialog : public UIDialogBase, public UIButtonsGroupManager<UIMessageDialog> {
   public:
     enum class ButtonsType { Ok, OkCancel, YesNo, YesNoCancel, UserDefined };
 
@@ -13,7 +13,7 @@ class MessageDialog : public UIDialogBase, public ButtonsGroupManager<MessageDia
     bool _okClosesDialog; // Új flag: az OK/Yes gomb bezárja-e a dialógust
 
     std::vector<std::shared_ptr<UIButton>> _buttonsList; // Megmarad a létrehozott gombok tárolására és eltávolítására
-    std::vector<ButtonGroupDefinition> _buttonDefs;      // Gombdefiníciók tárolására
+    std::vector<UIButtonGroupDefinition> _buttonDefs;    // Gombdefiníciók tárolására
 
     // For UserDefined buttons
     const char *const *_userOptions = nullptr;
@@ -32,12 +32,12 @@ class MessageDialog : public UIDialogBase, public ButtonsGroupManager<MessageDia
      * @brief Visszaadja az összes dialógus gombot (kivéve a bezáró X gombot).
      * @return A gombok listája shared_ptr-ekben.
      * @details Felülírja a UIDialogBase virtuális metódusát, hogy visszaadja
-     * az összes MessageDialog gombját a _buttonsList-ből.
+     * az összes UIMessageDialog gombját a _buttonsList-ből.
      */
     virtual std::vector<std::shared_ptr<UIButton>> getButtonsList() const override { return _buttonsList; }
 
     /**
-     * @brief MessageDialog konstruktor alapértelmezett gombokkal (OK, OK/Cancel, Yes/No, Yes/No/Cancel).
+     * @brief UIMessageDialog konstruktor alapértelmezett gombokkal (OK, OK/Cancel, Yes/No, Yes/No/Cancel).
      *
      * @param parentScreen A szülő UIScreen.
      * @param title A dialógus címe.
@@ -47,11 +47,11 @@ class MessageDialog : public UIDialogBase, public ButtonsGroupManager<MessageDia
      * @param cs Színséma. Opcionális, alapértelmezett: ColorScheme::defaultScheme().
      * @param okClosesDialog Meghatározza, hogy az "OK" típusú gombok bezárják-e a dialógust. Opcionális, alapértelmezett: true.
      */
-    MessageDialog(UIScreen *parentScreen, const char *title, const char *message, ButtonsType buttonsType = ButtonsType::Ok, const Rect &bounds = {-1, -1, 0, 0}, const ColorScheme &cs = ColorScheme::defaultScheme(),
-                  bool okClosesDialog = true);
+    UIMessageDialog(UIScreen *parentScreen, const char *title, const char *message, ButtonsType buttonsType = ButtonsType::Ok, const Rect &bounds = {-1, -1, 0, 0}, const ColorScheme &cs = ColorScheme::defaultScheme(),
+                    bool okClosesDialog = true);
 
     /**
-     * @brief MessageDialog konstruktor felhasználó által definiált gombokkal.
+     * @brief UIMessageDialog konstruktor felhasználó által definiált gombokkal.
      *
      * @param parentScreen A szülő UIScreen.
      * @param title A dialógus címe.
@@ -64,9 +64,9 @@ class MessageDialog : public UIDialogBase, public ButtonsGroupManager<MessageDia
      * @param okClosesDialog Meghatározza, hogy az "OK" típusú gombok bezárják-e a dialógust. UserDefined esetén kevésbé releváns, mert minden gombválasztás bezárja. Opcionális,
      * alapértelmezett: true.
      */
-    MessageDialog(UIScreen *parentScreen, const char *title, const char *message, const char *const *options, uint8_t numOptions, DialogCallback userDialogCb = nullptr, const Rect &bounds = {-1, -1, 0, 0},
-                  const ColorScheme &cs = ColorScheme::defaultScheme(), bool okClosesDialog = true);
-    virtual ~MessageDialog() override = default;
+    UIMessageDialog(UIScreen *parentScreen, const char *title, const char *message, const char *const *options, uint8_t numOptions, DialogCallback userDialogCb = nullptr, const Rect &bounds = {-1, -1, 0, 0},
+                    const ColorScheme &cs = ColorScheme::defaultScheme(), bool okClosesDialog = true);
+    virtual ~UIMessageDialog() override = default;
 
     int getClickedUserButtonIndex() const { return _clickedUserButtonIndex; }
     const char *getClickedUserButtonLabel() const { return _clickedUserButtonLabel; }

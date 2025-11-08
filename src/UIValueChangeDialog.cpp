@@ -1,5 +1,5 @@
 
-#include "ValueChangeDialog.h"
+#include "UIValueChangeDialog.h"
 #include "UIColorPalette.h"
 #include "UIScreen.h"
 #include "defines.h"
@@ -19,10 +19,10 @@
  * @param cs Színséma
  * @note Ez a konstruktor integer típusú értékekhez készült, amely egész számokat kezel.
  */
-ValueChangeDialog::ValueChangeDialog(UIScreen *parentScreen, const char *title, const char *message, int *valuePtr, int minValue, int maxValue, int stepValue,
-                                     ValueChangeCallback callback, DialogCallback userDialogCb, const Rect &bounds, const ColorScheme &cs)
-    : MessageDialog(parentScreen, title, message, MessageDialog::ButtonsType::OkCancel, bounds, cs, true /*okClosesDialog*/), _valueType(ValueType::Integer), _intPtr(valuePtr),
-      _minInt(minValue), _maxInt(maxValue), _stepInt(stepValue), _valueCallback(callback), _userDialogCallback(userDialogCb) { // Eredeti érték mentése
+UIValueChangeDialog::UIValueChangeDialog(UIScreen *parentScreen, const char *title, const char *message, int *valuePtr, int minValue, int maxValue, int stepValue, ValueChangeCallback callback,
+                                         DialogCallback userDialogCb, const Rect &bounds, const ColorScheme &cs)
+    : UIMessageDialog(parentScreen, title, message, UIMessageDialog::ButtonsType::OkCancel, bounds, cs, true /*okClosesDialog*/), _valueType(ValueType::Integer), _intPtr(valuePtr), _minInt(minValue), _maxInt(maxValue),
+      _stepInt(stepValue), _valueCallback(callback), _userDialogCallback(userDialogCb) { // Eredeti érték mentése
     if (_intPtr) {
         _originalIntValue = *_intPtr;
     }
@@ -31,12 +31,12 @@ ValueChangeDialog::ValueChangeDialog(UIScreen *parentScreen, const char *title, 
 
     // Callback beállítása az OK/Cancel események kezelésére
     setDialogCallback([this](UIDialogBase *sender, DialogResult result) {
-        if (result == MessageDialog::DialogResult::Accepted) {
+        if (result == UIMessageDialog::DialogResult::Accepted) {
             // Hívjuk meg a _valueCallback-et a végleges, elfogadott értékkel.
             notifyValueChange();
             if (_userDialogCallback)
                 _userDialogCallback(sender, result);
-        } else if (result == MessageDialog::DialogResult::Rejected) {
+        } else if (result == UIMessageDialog::DialogResult::Rejected) {
             restoreOriginalValue(); // Ez most már tartalmazza a notifyValueChange() hívást is.
             if (_userDialogCallback)
                 _userDialogCallback(sender, result);
@@ -60,10 +60,10 @@ ValueChangeDialog::ValueChangeDialog(UIScreen *parentScreen, const char *title, 
  * @param cs Színséma
  * @note Ez a konstruktor float típusú értékekhez készült, amely lebegőpontos számokat kezel.
  */
-ValueChangeDialog::ValueChangeDialog(UIScreen *parentScreen, const char *title, const char *message, float *valuePtr, float minValue, float maxValue, float stepValue,
-                                     ValueChangeCallback callback, DialogCallback userDialogCb, const Rect &bounds, const ColorScheme &cs)
-    : MessageDialog(parentScreen, title, message, MessageDialog::ButtonsType::OkCancel, bounds, cs, true /*okClosesDialog*/), _valueType(ValueType::Float), _floatPtr(valuePtr),
-      _minFloat(minValue), _maxFloat(maxValue), _stepFloat(stepValue), _valueCallback(callback), _userDialogCallback(userDialogCb) { // Eredeti érték mentése
+UIValueChangeDialog::UIValueChangeDialog(UIScreen *parentScreen, const char *title, const char *message, float *valuePtr, float minValue, float maxValue, float stepValue, ValueChangeCallback callback,
+                                         DialogCallback userDialogCb, const Rect &bounds, const ColorScheme &cs)
+    : UIMessageDialog(parentScreen, title, message, UIMessageDialog::ButtonsType::OkCancel, bounds, cs, true /*okClosesDialog*/), _valueType(ValueType::Float), _floatPtr(valuePtr), _minFloat(minValue),
+      _maxFloat(maxValue), _stepFloat(stepValue), _valueCallback(callback), _userDialogCallback(userDialogCb) { // Eredeti érték mentése
     if (_floatPtr) {
         _originalFloatValue = *_floatPtr;
     }
@@ -73,12 +73,12 @@ ValueChangeDialog::ValueChangeDialog(UIScreen *parentScreen, const char *title, 
 
     // Callback beállítása az OK/Cancel események kezelésére
     setDialogCallback([this](UIDialogBase *sender, DialogResult result) {
-        if (result == MessageDialog::DialogResult::Accepted) {
+        if (result == UIMessageDialog::DialogResult::Accepted) {
             // Hívjuk meg a _valueCallback-et a végleges, elfogadott értékkel.
             notifyValueChange();
             if (_userDialogCallback)
                 _userDialogCallback(sender, result);
-        } else if (result == MessageDialog::DialogResult::Rejected) {
+        } else if (result == UIMessageDialog::DialogResult::Rejected) {
             restoreOriginalValue(); // Ez most már tartalmazza a notifyValueChange() hívást is.
             if (_userDialogCallback)
                 _userDialogCallback(sender, result);
@@ -98,10 +98,10 @@ ValueChangeDialog::ValueChangeDialog(UIScreen *parentScreen, const char *title, 
  * @param cs Színséma
  * @note Ez a konstruktor boolean típusú értékekhez készült, amely TRUE/FALSE értékeket kezel.
  */
-ValueChangeDialog::ValueChangeDialog(UIScreen *parentScreen, const char *title, const char *message, bool *valuePtr, ValueChangeCallback callback, DialogCallback userDialogCb,
-                                     const Rect &bounds, const ColorScheme &cs)
-    : MessageDialog(parentScreen, title, message, MessageDialog::ButtonsType::OkCancel, bounds, cs, true /*okClosesDialog*/), _valueType(ValueType::Boolean), _boolPtr(valuePtr),
-      _valueCallback(callback), _userDialogCallback(userDialogCb) { // Eredeti érték mentése
+UIValueChangeDialog::UIValueChangeDialog(UIScreen *parentScreen, const char *title, const char *message, bool *valuePtr, ValueChangeCallback callback, DialogCallback userDialogCb, const Rect &bounds,
+                                         const ColorScheme &cs)
+    : UIMessageDialog(parentScreen, title, message, UIMessageDialog::ButtonsType::OkCancel, bounds, cs, true /*okClosesDialog*/), _valueType(ValueType::Boolean), _boolPtr(valuePtr), _valueCallback(callback),
+      _userDialogCallback(userDialogCb) { // Eredeti érték mentése
     if (_boolPtr) {
         _originalBoolValue = *_boolPtr;
     }
@@ -111,12 +111,12 @@ ValueChangeDialog::ValueChangeDialog(UIScreen *parentScreen, const char *title, 
 
     // Callback beállítása az OK/Cancel események kezelésére
     setDialogCallback([this](UIDialogBase *sender, DialogResult result) {
-        if (result == MessageDialog::DialogResult::Accepted) {
+        if (result == UIMessageDialog::DialogResult::Accepted) {
             // Hívjuk meg a _valueCallback-et a végleges, elfogadott értékkel.
             notifyValueChange();
             if (_userDialogCallback)
                 _userDialogCallback(sender, result);
-        } else if (result == MessageDialog::DialogResult::Rejected) {
+        } else if (result == UIMessageDialog::DialogResult::Rejected) {
             restoreOriginalValue(); // Ez most már tartalmazza a notifyValueChange() hívást is.
             if (_userDialogCallback)
                 _userDialogCallback(sender, result);
@@ -139,10 +139,10 @@ ValueChangeDialog::ValueChangeDialog(UIScreen *parentScreen, const char *title, 
  * @param cs Színséma
  * @note Ez a konstruktor uint8_t típusú értékekhez készült, amely 0-255 közötti értékeket kezel.
  */
-ValueChangeDialog::ValueChangeDialog(UIScreen *parentScreen, const char *title, const char *message, uint8_t *valuePtr, uint8_t minValue, uint8_t maxValue, uint8_t stepValue,
-                                     ValueChangeCallback callback, DialogCallback userDialogCb, const Rect &bounds, const ColorScheme &cs)
-    : MessageDialog(parentScreen, title, message, MessageDialog::ButtonsType::OkCancel, bounds, cs, true /*okClosesDialog*/), _valueType(ValueType::UInt8), _uint8Ptr(valuePtr),
-      _minUint8(minValue), _maxUint8(maxValue), _stepUint8(stepValue), _valueCallback(callback), _userDialogCallback(userDialogCb) {
+UIValueChangeDialog::UIValueChangeDialog(UIScreen *parentScreen, const char *title, const char *message, uint8_t *valuePtr, uint8_t minValue, uint8_t maxValue, uint8_t stepValue, ValueChangeCallback callback,
+                                         DialogCallback userDialogCb, const Rect &bounds, const ColorScheme &cs)
+    : UIMessageDialog(parentScreen, title, message, UIMessageDialog::ButtonsType::OkCancel, bounds, cs, true /*okClosesDialog*/), _valueType(ValueType::UInt8), _uint8Ptr(valuePtr), _minUint8(minValue),
+      _maxUint8(maxValue), _stepUint8(stepValue), _valueCallback(callback), _userDialogCallback(userDialogCb) {
     if (_uint8Ptr) {
         _originalUint8Value = *_uint8Ptr;
     }
@@ -151,18 +151,18 @@ ValueChangeDialog::ValueChangeDialog(UIScreen *parentScreen, const char *title, 
 
     // Callback beállítása az OK/Cancel események kezelésére
     setDialogCallback([this](UIDialogBase *sender, DialogResult result) {
-        if (result == MessageDialog::DialogResult::Accepted) {
+        if (result == UIMessageDialog::DialogResult::Accepted) {
             // Hívjuk meg a _valueCallback-et a végleges, elfogadott értékkel.
             // A _valueCallback int-et vár a variantban, ezért castolunk.
             notifyValueChange();
             if (_userDialogCallback)
                 _userDialogCallback(sender, result);
-        } else if (result == MessageDialog::DialogResult::Rejected) {
+        } else if (result == UIMessageDialog::DialogResult::Rejected) {
             restoreOriginalValue(); // Ez most már tartalmazza a notifyValueChange() hívást is.
             if (_userDialogCallback)
                 _userDialogCallback(sender, result);
         }
-        // A MessageDialog maga kezeli a close() hívást az _okClosesDialog alapján
+        // A UIMessageDialog maga kezeli a close() hívást az _okClosesDialog alapján
     });
 }
 
@@ -172,7 +172,7 @@ ValueChangeDialog::ValueChangeDialog(UIScreen *parentScreen, const char *title, 
  * A gombok eseménykezelői frissítik az értéket és újrarajzolják az érték területet.
  * A boolean típus esetén a gombok TRUE/FALSE értékeket állítanak be, és frissítik az állapotukat.
  */
-void ValueChangeDialog::createDialogContent() {
+void UIValueChangeDialog::createDialogContent() {
 
     constexpr uint8_t BUTTON_DECREASE_ID = 3; // Csökkentő gomb ID
     constexpr uint8_t BUTTON_INCREASE_ID = 4; // Növelő gomb ID
@@ -181,51 +181,47 @@ void ValueChangeDialog::createDialogContent() {
     // Itt csak az érték-specifikus gombokat kell létrehozni.    // Érték módosító gombok (csak integer és float esetén)
     if (_valueType == ValueType::Integer || _valueType == ValueType::Float || _valueType == ValueType::UInt8) {
         // Csökkentő gomb (-)
-        _decreaseButton = std::make_shared<UIButton>(BUTTON_DECREASE_ID, Rect(0, 0, SMALL_BUTTON_WIDTH, BUTTON_HEIGHT), "-", UIButton::ButtonType::Pushable,
-                                                     [this](const UIButton::ButtonEvent &event) {
-                                                         if (event.state == UIButton::EventButtonState::Clicked) {
-                                                             decrementValue();
-                                                             // A decrementValue már hívja a validateAndClampValue-t és a notifyValueChange-t.
-                                                             // Az érték terület újrarajzolása itt továbbra is szükséges.
-                                                             redrawValueArea();
-                                                         }
-                                                     });
+        _decreaseButton = std::make_shared<UIButton>(BUTTON_DECREASE_ID, Rect(0, 0, SMALL_BUTTON_WIDTH, BUTTON_HEIGHT), "-", UIButton::ButtonType::Pushable, [this](const UIButton::ButtonEvent &event) {
+            if (event.state == UIButton::EventButtonState::Clicked) {
+                decrementValue();
+                // A decrementValue már hívja a validateAndClampValue-t és a notifyValueChange-t.
+                // Az érték terület újrarajzolása itt továbbra is szükséges.
+                redrawValueArea();
+            }
+        });
         _decreaseButton->setUseMiniFont(true);
         addChild(_decreaseButton);
 
         // Növelő gomb (+)
-        _increaseButton = std::make_shared<UIButton>(BUTTON_INCREASE_ID, Rect(0, 0, SMALL_BUTTON_WIDTH, BUTTON_HEIGHT), "+", UIButton::ButtonType::Pushable,
-                                                     [this](const UIButton::ButtonEvent &event) {
-                                                         if (event.state == UIButton::EventButtonState::Clicked) {
-                                                             incrementValue();
-                                                             // Az incrementValue már hívja a validateAndClampValue-t és a notifyValueChange-t.
-                                                             redrawValueArea();
-                                                         }
-                                                     });
+        _increaseButton = std::make_shared<UIButton>(BUTTON_INCREASE_ID, Rect(0, 0, SMALL_BUTTON_WIDTH, BUTTON_HEIGHT), "+", UIButton::ButtonType::Pushable, [this](const UIButton::ButtonEvent &event) {
+            if (event.state == UIButton::EventButtonState::Clicked) {
+                incrementValue();
+                // Az incrementValue már hívja a validateAndClampValue-t és a notifyValueChange-t.
+                redrawValueArea();
+            }
+        });
         _increaseButton->setUseMiniFont(true);
         addChild(_increaseButton);
 
     } else {
         // Boolean esetén FALSE/TRUE gombok létrehozása
-        _decreaseButton = std::make_shared<UIButton>(BUTTON_DECREASE_ID, Rect(0, 0, SMALL_BUTTON_WIDTH + 10, BUTTON_HEIGHT), "FALSE", UIButton::ButtonType::Pushable,
-                                                     [this](const UIButton::ButtonEvent &event) {
-                                                         if (event.state == UIButton::EventButtonState::Clicked) {
-                                                             decrementValue(); // FALSE-ra állítás a decrementValue() függvényen keresztül
-                                                             // A decrementValue már hívja a notifyValueChange-t.
-                                                             redrawValueTextOnly();
-                                                         }
-                                                     });
+        _decreaseButton = std::make_shared<UIButton>(BUTTON_DECREASE_ID, Rect(0, 0, SMALL_BUTTON_WIDTH + 10, BUTTON_HEIGHT), "FALSE", UIButton::ButtonType::Pushable, [this](const UIButton::ButtonEvent &event) {
+            if (event.state == UIButton::EventButtonState::Clicked) {
+                decrementValue(); // FALSE-ra állítás a decrementValue() függvényen keresztül
+                // A decrementValue már hívja a notifyValueChange-t.
+                redrawValueTextOnly();
+            }
+        });
         _decreaseButton->setUseMiniFont(true);
         addChild(_decreaseButton);
 
-        _increaseButton = std::make_shared<UIButton>(BUTTON_INCREASE_ID, Rect(0, 0, SMALL_BUTTON_WIDTH + 10, BUTTON_HEIGHT), "TRUE", UIButton::ButtonType::Pushable,
-                                                     [this](const UIButton::ButtonEvent &event) {
-                                                         if (event.state == UIButton::EventButtonState::Clicked) {
-                                                             incrementValue(); // TRUE-ra állítás a incrementValue() függvényen keresztül
-                                                             // Az incrementValue már hívja a notifyValueChange-t.
-                                                             redrawValueTextOnly();
-                                                         }
-                                                     });
+        _increaseButton = std::make_shared<UIButton>(BUTTON_INCREASE_ID, Rect(0, 0, SMALL_BUTTON_WIDTH + 10, BUTTON_HEIGHT), "TRUE", UIButton::ButtonType::Pushable, [this](const UIButton::ButtonEvent &event) {
+            if (event.state == UIButton::EventButtonState::Clicked) {
+                incrementValue(); // TRUE-ra állítás a incrementValue() függvényen keresztül
+                // Az incrementValue már hívja a notifyValueChange-t.
+                redrawValueTextOnly();
+            }
+        });
         _increaseButton->setUseMiniFont(true);
         addChild(_increaseButton);
     }
@@ -245,7 +241,7 @@ void ValueChangeDialog::createDialogContent() {
  * A gombok a dialógus alján, az érték pedig a dialógus közepén jelenik meg.
  * A gombok elrendezése a MessageDialog ősosztály által kezelt ButtonsGroupManager segítségével történik.
  */
-void ValueChangeDialog::layoutDialogContent() {
+void UIValueChangeDialog::layoutDialogContent() {
     const Rect contentBounds = bounds;
     const int16_t centerX = contentBounds.x + contentBounds.width / 2;
 
@@ -281,7 +277,7 @@ void ValueChangeDialog::layoutDialogContent() {
  * @brief Dialógus teljes kirajzolása
  * Kirajzolja a dialógus keretét, üzenetet és az aktuális értéket
  */
-void ValueChangeDialog::drawSelf() {
+void UIValueChangeDialog::drawSelf() {
     // 1. Az UIDialogBase kirajzolja a keretet és a fejlécet.
     UIDialogBase::drawSelf();
 
@@ -327,7 +323,7 @@ void ValueChangeDialog::drawSelf() {
  * @param event A forgójeladó esemény
  * @return true ha az eseményt kezelte, false egyébként
  */
-bool ValueChangeDialog::handleRotary(const RotaryEvent &event) {
+bool UIValueChangeDialog::handleRotary(const RotaryEvent &event) {
     // Érték változtatás kezelése görgetéssel
     if (event.direction == RotaryEvent::Direction::Up) {
         if (canIncrement()) {
@@ -346,14 +342,14 @@ bool ValueChangeDialog::handleRotary(const RotaryEvent &event) {
     // Ha a forgatógombot megnyomták (Clicked), azt a MessageDialog (UIDialogBase) kezeli
     // "OK"-ként, ami meghívja a setDialogCallback-ben beállított logikánkat.
     // Ezért itt csak a görgetést kezeljük, a többit az ősosztályra bízzuk.
-    return MessageDialog::handleRotary(event); // Fontos, hogy az ősosztály is kezelhesse (pl. OK/Cancel gombnyomás)
+    return UIMessageDialog::handleRotary(event); // Fontos, hogy az ősosztály is kezelhesse (pl. OK/Cancel gombnyomás)
 }
 
 /**
  * @brief Aktuális érték szöveges formában
  * @return Az aktuális érték string reprezentációja
  */
-String ValueChangeDialog::getCurrentValueAsString() const {
+String UIValueChangeDialog::getCurrentValueAsString() const {
     switch (_valueType) {
         case ValueType::Integer:
             return _intPtr ? String(*_intPtr) : "N/A";
@@ -386,7 +382,7 @@ String ValueChangeDialog::getCurrentValueAsString() const {
  * @brief Érték növelése a lépésközzel
  * Növeli az értéket a megadott lépésközzel, ha nem lépi túl a maximumot
  */
-void ValueChangeDialog::incrementValue() {
+void UIValueChangeDialog::incrementValue() {
     bool valueChanged = false;
     switch (_valueType) {
         case ValueType::Integer:
@@ -425,7 +421,7 @@ void ValueChangeDialog::incrementValue() {
  * @brief Érték csökkentése a lépésközzel
  * Csökkenti az értéket a megadott lépésközzel, ha nem megy a minimum alá
  */
-void ValueChangeDialog::decrementValue() {
+void UIValueChangeDialog::decrementValue() {
     bool valueChanged = false;
     switch (_valueType) {
         case ValueType::Integer:
@@ -464,7 +460,7 @@ void ValueChangeDialog::decrementValue() {
  * @brief Eredeti érték visszaállítása (Cancel esetén)
  * Visszaállítja az értéket a dialógus megnyitásakori eredeti értékre
  */
-void ValueChangeDialog::restoreOriginalValue() {
+void UIValueChangeDialog::restoreOriginalValue() {
     switch (_valueType) {
         case ValueType::Integer:
             if (_intPtr) {
@@ -497,7 +493,7 @@ void ValueChangeDialog::restoreOriginalValue() {
  * @brief Érték validálása és határok közé szorítása
  * Ellenőrzi és korrigálja az értéket, ha kívül esik a megengedett tartományon
  */
-void ValueChangeDialog::validateAndClampValue() {
+void UIValueChangeDialog::validateAndClampValue() {
     switch (_valueType) {
         case ValueType::Integer:
             if (_intPtr) {
@@ -533,7 +529,7 @@ void ValueChangeDialog::validateAndClampValue() {
  * @brief Értesítés küldése az érték változásáról
  * Meghívja a callback függvényt az aktuális értékkel
  */
-void ValueChangeDialog::notifyValueChange() {
+void UIValueChangeDialog::notifyValueChange() {
     if (_valueCallback) {
         switch (_valueType) {
             case ValueType::Integer:
@@ -566,7 +562,7 @@ void ValueChangeDialog::notifyValueChange() {
  * @brief Érték terület újrarajzolása
  * Újrarajzolja az érték szöveget és frissíti a gombok állapotát
  */
-void ValueChangeDialog::redrawValueArea() {
+void UIValueChangeDialog::redrawValueArea() {
     const Rect contentBounds = bounds;
     const int16_t centerX = contentBounds.x + contentBounds.width / 2;
 
@@ -608,7 +604,7 @@ void ValueChangeDialog::redrawValueArea() {
  * @brief Ellenőrzi, hogy az aktuális érték megegyezik-e az eredetivel
  * @return true ha az aktuális érték megegyezik az eredetivel, false egyébként
  */
-bool ValueChangeDialog::isCurrentValueOriginal() const {
+bool UIValueChangeDialog::isCurrentValueOriginal() const {
     switch (_valueType) {
         case ValueType::Integer:
             return _intPtr && (*_intPtr == _originalIntValue);
@@ -627,7 +623,7 @@ bool ValueChangeDialog::isCurrentValueOriginal() const {
  * @brief Ellenőrzi, hogy növelhető-e az érték
  * @return true ha az érték növelhető (nem éri el a maximumot), false egyébként
  */
-bool ValueChangeDialog::canIncrement() const {
+bool UIValueChangeDialog::canIncrement() const {
     switch (_valueType) {
         case ValueType::Integer:
             if (_intPtr) {
@@ -660,7 +656,7 @@ bool ValueChangeDialog::canIncrement() const {
  * @brief Ellenőrzi, hogy csökkenthető-e az érték
  * @return true ha az érték csökkenthető (nem éri el a minimumot), false egyébként
  */
-bool ValueChangeDialog::canDecrement() const {
+bool UIValueChangeDialog::canDecrement() const {
     switch (_valueType) {
         case ValueType::Integer:
             if (_intPtr) {
@@ -693,7 +689,7 @@ bool ValueChangeDialog::canDecrement() const {
  * @brief Csak az érték szöveg újrarajzolása (optimalizált)
  * Újrarajzolja csak az érték szöveget anélkül, hogy a gombokat is frissítené
  */
-void ValueChangeDialog::redrawValueTextOnly() {
+void UIValueChangeDialog::redrawValueTextOnly() {
     const Rect contentBounds = bounds;
     const int16_t centerX = contentBounds.x + contentBounds.width / 2;
     const int16_t headerHeight = getHeaderHeight();

@@ -1,15 +1,15 @@
 #pragma once
 
-#include "ButtonsGroupManager.h"
-#include "MessageDialog.h"
+#include "UIButtonsGroupManager.h"
+#include "UIMessageDialog.h"
 #include "UIScreen.h"
-#include "ValueChangeDialog.h"
+#include "UIValueChangeDialog.h"
 
 /**
  * @file ScreenTest.h
- * @brief Test képernyő osztály, amely használja a ButtonsGroupManager-t
+ * @brief Test képernyő osztály, amely használja a UIButtonsGroupManager-t
  */
-class ScreenTest : public UIScreen, public ButtonsGroupManager<ScreenTest> {
+class ScreenTest : public UIScreen, public UIButtonsGroupManager<ScreenTest> {
 
   public:
     /**
@@ -79,7 +79,7 @@ class ScreenTest : public UIScreen, public ButtonsGroupManager<ScreenTest> {
     }
 
   private:
-    // Tagváltozók a ValueChangeDialog teszteléséhez
+    // Tagváltozók a UIValueChangeDialog teszteléséhez
     bool _testBool;
     int _testInt;
     float _testFloat;
@@ -94,7 +94,7 @@ class ScreenTest : public UIScreen, public ButtonsGroupManager<ScreenTest> {
 
         // Vízszintes gombok tesztelése (alsó sor)
         // Meglévő gombok + új dialógus indító gombok
-        std::vector<ButtonGroupDefinition> horizontalButtonDefs;
+        std::vector<UIButtonGroupDefinition> horizontalButtonDefs;
         for (size_t i = 0; i < numHorizontalButtons; ++i) {
             horizontalButtonDefs.push_back(
                 {static_cast<uint8_t>(i + 1), // ID
@@ -116,16 +116,16 @@ class ScreenTest : public UIScreen, public ButtonsGroupManager<ScreenTest> {
                          }
 
                          // Dialógusok indítása az új gombokkal
-                         MessageDialog::ButtonsType dialogType = MessageDialog::ButtonsType::Ok;
+                         UIMessageDialog::ButtonsType dialogType = UIMessageDialog::ButtonsType::Ok;
                          const char *dialogMessage = "Default message";
                          bool showSpecificDialog = true;
 
                          if (STREQ(event.label, "Msg Ok")) {
-                             dialogType = MessageDialog::ButtonsType::Ok;
+                             dialogType = UIMessageDialog::ButtonsType::Ok;
                              dialogMessage = "This is an OK dialog.";
 
                          } else if (STREQ(event.label, "MsgOkCancel")) {
-                             dialogType = MessageDialog::ButtonsType::OkCancel;
+                             dialogType = UIMessageDialog::ButtonsType::OkCancel;
                              dialogMessage = "This is an OK/Cancel dialog.";
 
                          } else if (STREQ(event.label, "NestedDlg")) {
@@ -136,9 +136,9 @@ class ScreenTest : public UIScreen, public ButtonsGroupManager<ScreenTest> {
                              auto showDialog3 = [this]() {
                                  Rect dlg3Bounds(90, 110, 200, 0);
                                  auto dialog3 =
-                                     std::make_shared<MessageDialog>(this, "Dialog 3/3", "Final. Click OK.", MessageDialog::ButtonsType::Ok, dlg3Bounds, ColorScheme::defaultScheme(), true /*okClosesDialog=true*/);
-                                 dialog3->setDialogCallback([this](UIDialogBase *sender, MessageDialog::DialogResult result) {
-                                     if (result == MessageDialog::DialogResult::Accepted) {
+                                     std::make_shared<UIMessageDialog>(this, "Dialog 3/3", "Final. Click OK.", UIMessageDialog::ButtonsType::Ok, dlg3Bounds, ColorScheme::defaultScheme(), true /*okClosesDialog=true*/);
+                                 dialog3->setDialogCallback([this](UIDialogBase *sender, UIMessageDialog::DialogResult result) {
+                                     if (result == UIMessageDialog::DialogResult::Accepted) {
                                          DEBUG("Dialog 3 OK. Closing Dialog 3.\n");
                                      }
                                  });
@@ -148,15 +148,15 @@ class ScreenTest : public UIScreen, public ButtonsGroupManager<ScreenTest> {
                              // Ennek az "OK" (Next) gombja nem zárja be, csak a callback-et hívja
                              auto showDialog2 = [this, showDialog3]() {
                                  Rect dlg2Bounds(60, 70, 200, 0);
-                                 auto dialog2 =
-                                     std::make_shared<MessageDialog>(this, "Dialog 2/3", "Next or Cancel.", MessageDialog::ButtonsType::OkCancel, dlg2Bounds, ColorScheme::defaultScheme(), false /*okClosesDialog=false*/);
-                                 dialog2->setDialogCallback([this, showDialog3](UIDialogBase *sender, MessageDialog::DialogResult result) {
-                                     if (result == MessageDialog::DialogResult::Accepted) {
+                                 auto dialog2 = std::make_shared<UIMessageDialog>(this, "Dialog 2/3", "Next or Cancel.", UIMessageDialog::ButtonsType::OkCancel, dlg2Bounds, ColorScheme::defaultScheme(),
+                                                                                  false /*okClosesDialog=false*/);
+                                 dialog2->setDialogCallback([this, showDialog3](UIDialogBase *sender, UIMessageDialog::DialogResult result) {
+                                     if (result == UIMessageDialog::DialogResult::Accepted) {
                                          DEBUG("Dialog 2 Next. Showing Dialog 3.\n");
                                          showDialog3();
-                                     } else if (result == MessageDialog::DialogResult::Rejected) {
+                                     } else if (result == UIMessageDialog::DialogResult::Rejected) {
                                          DEBUG("Dialog 2 Cancel. Closing Dialog 2.\n");
-                                         // A MessageDialog "Cancel" gombja automatikusan hívja a close()-t,
+                                         // A UIMessageDialog "Cancel" gombja automatikusan hívja a close()-t,
                                          // ami az onDialogClosed-ot triggereli.
                                      }
                                  });
@@ -166,12 +166,12 @@ class ScreenTest : public UIScreen, public ButtonsGroupManager<ScreenTest> {
                              // Ennek az "OK" (Next) gombja nem zárja be, csak a callback-et hívja
                              Rect dlg1Bounds(30, 30, 200, 0);
                              auto dialog1 =
-                                 std::make_shared<MessageDialog>(this, "Dialog 1/3", "Next or Cancel.", MessageDialog::ButtonsType::OkCancel, dlg1Bounds, ColorScheme::defaultScheme(), false /*okClosesDialog=false*/);
-                             dialog1->setDialogCallback([this, showDialog2](UIDialogBase *sender, MessageDialog::DialogResult result) {
-                                 if (result == MessageDialog::DialogResult::Accepted) {
+                                 std::make_shared<UIMessageDialog>(this, "Dialog 1/3", "Next or Cancel.", UIMessageDialog::ButtonsType::OkCancel, dlg1Bounds, ColorScheme::defaultScheme(), false /*okClosesDialog=false*/);
+                             dialog1->setDialogCallback([this, showDialog2](UIDialogBase *sender, UIMessageDialog::DialogResult result) {
+                                 if (result == UIMessageDialog::DialogResult::Accepted) {
                                      DEBUG("Dialog 1 Next. Showing Dialog 2.\n");
                                      showDialog2();
-                                 } else if (result == MessageDialog::DialogResult::Rejected) {
+                                 } else if (result == UIMessageDialog::DialogResult::Rejected) {
                                      DEBUG("Dialog 1 Cancel. Closing Dialog 1.\n");
                                  }
                              });
@@ -180,7 +180,7 @@ class ScreenTest : public UIScreen, public ButtonsGroupManager<ScreenTest> {
 
                          } else if (STREQ(event.label, "Bool Dlg")) {
                              Rect dlgBounds(-1, -1, 280, 0); // Auto-magasság
-                             auto boolDialog = std::make_shared<ValueChangeDialog>(
+                             auto boolDialog = std::make_shared<UIValueChangeDialog>(
                                  this, "Boolean Test", "Change boolean value:", &_testBool,
                                  [this](const std::variant<int, float, bool> &newValue) {
                                      if (std::holds_alternative<bool>(newValue)) {
@@ -194,7 +194,7 @@ class ScreenTest : public UIScreen, public ButtonsGroupManager<ScreenTest> {
 
                          } else if (STREQ(event.label, "Int Dlg")) {
                              Rect dlgBounds(-1, -1, 280, 0); // Auto-magasság
-                             auto intDialog = std::make_shared<ValueChangeDialog>(
+                             auto intDialog = std::make_shared<UIValueChangeDialog>(
                                  this, "Integer Test", "Change integer value:", &_testInt, 0, 100, 5,
                                  [this](const std::variant<int, float, bool> &newValue) {
                                      if (std::holds_alternative<int>(newValue)) {
@@ -208,7 +208,7 @@ class ScreenTest : public UIScreen, public ButtonsGroupManager<ScreenTest> {
 
                          } else if (STREQ(event.label, "Float Dlg")) {
                              Rect dlgBounds(-1, -1, 280, 0); // Auto-magasság
-                             auto floatDialog = std::make_shared<ValueChangeDialog>(
+                             auto floatDialog = std::make_shared<UIValueChangeDialog>(
                                  this, "Float Test", "Change float value:", &_testFloat, 0.0f, 50.0f, 0.5f,
                                  [this](const std::variant<int, float, bool> &newValue) {
                                      if (std::holds_alternative<float>(newValue)) {
@@ -226,16 +226,16 @@ class ScreenTest : public UIScreen, public ButtonsGroupManager<ScreenTest> {
 
                          if (showSpecificDialog) {
                              Rect dialogBounds(-1, -1, 300, 0); // Centered X, auto Y, width 180, auto-height
-                             auto dialog = std::make_shared<MessageDialog>(this, "Test Dialog", dialogMessage, dialogType, dialogBounds, ColorScheme::defaultScheme(), true /*okClosesDialog=true alapértelmezetten*/);
-                             dialog->setDialogCallback([this, label = event.label](UIDialogBase *sender, MessageDialog::DialogResult result) {
+                             auto dialog = std::make_shared<UIMessageDialog>(this, "Test Dialog", dialogMessage, dialogType, dialogBounds, ColorScheme::defaultScheme(), true /*okClosesDialog=true alapértelmezetten*/);
+                             dialog->setDialogCallback([this, label = event.label](UIDialogBase *sender, UIMessageDialog::DialogResult result) {
                                  const char *resultStr = "Unknown";
-                                 if (result == MessageDialog::DialogResult::Accepted)
+                                 if (result == UIMessageDialog::DialogResult::Accepted)
                                      resultStr = "Accepted";
-                                 else if (result == MessageDialog::DialogResult::Rejected)
+                                 else if (result == UIMessageDialog::DialogResult::Rejected)
                                      resultStr = "Rejected";
-                                 else if (result == MessageDialog::DialogResult::Dismissed)
+                                 else if (result == UIMessageDialog::DialogResult::Dismissed)
                                      resultStr = "Dismissed";
-                                 DEBUG("ScreenTest: Dialog from '%s' closed with: %s\n", label, resultStr);
+                                 DEBUG("ScreenTest: UIMessageDialog from '%s' closed with: %s\n", label, resultStr);
                              });
                              this->showDialog(dialog);
                          }
@@ -244,7 +244,7 @@ class ScreenTest : public UIScreen, public ButtonsGroupManager<ScreenTest> {
                  UIButton::ButtonState::Off});
         }
 
-        // A layoutHorizontalButtonGroup a ButtonsGroupManager-ből öröklődik
+        // A layoutHorizontalButtonGroup a UIButtonsGroupManager-ből öröklődik
         layoutHorizontalButtonGroup(horizontalButtonDefs);
 
         // Előre definiált feliratok a függőleges gombokhoz
@@ -252,7 +252,7 @@ class ScreenTest : public UIScreen, public ButtonsGroupManager<ScreenTest> {
         constexpr size_t numVerticalButtons = ARRAY_ITEM_COUNT(verticalLabels);
 
         // Függőleges gombok tesztelése (jobb oldali oszlop)
-        std::vector<ButtonGroupDefinition> verticalButtonDefs;
+        std::vector<UIButtonGroupDefinition> verticalButtonDefs;
         for (size_t i = 0; i < numVerticalButtons; ++i) {
             verticalButtonDefs.push_back({
                 static_cast<uint8_t>(100 + i + 1), // Eltérő ID tartomány

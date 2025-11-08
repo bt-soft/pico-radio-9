@@ -10,7 +10,7 @@
 
 // Struktúra a gombok definíciójához a csoportos elrendezéshez
 // Ezt a struktúrát használják a layout metódusok.
-struct ButtonGroupDefinition {
+struct UIButtonGroupDefinition {
     uint8_t id;                                                      // Gomb egyedi azonosítója
     const char *label;                                               // Gomb felirata
     UIButton::ButtonType type;                                       // Gomb típusa (Pushable, Toggleable)
@@ -21,13 +21,13 @@ struct ButtonGroupDefinition {
     bool initiallyDisabled = false;                                  // Kezdetben le van-e tiltva
 };
 
-template <typename DerivedContainer> // Curiously Recurring Template Pattern (CRTP): A DerivedContainer lesz a konkrét UIContainerComponent alapú osztály
-class ButtonsGroupManager {
+template <typename UIDerivedContainer> // Curiously Recurring Template Pattern (CRTP): A UIDerivedContainer lesz a konkrét UIContainerComponent alapú osztály
+class UIButtonsGroupManager {
   protected:
     // A konstruktor és destruktor lehet default, mivel ez az osztály
     // elsősorban metódusokat biztosít.
-    ButtonsGroupManager() = default;
-    virtual ~ButtonsGroupManager() = default;
+    UIButtonsGroupManager() = default;
+    virtual ~UIButtonsGroupManager() = default;
 
     /**
      * @brief Gombokat rendez el függőlegesen, a képernyő jobb széléhez igazítva.
@@ -48,7 +48,7 @@ class ButtonsGroupManager {
      * std::vector<std::shared_ptr<UIButton>> createdVerticalButtons
      * layoutVerticalButtonGroup(horizontalButtonDefs, &createdVerticalButtons);
      */
-    void layoutVerticalButtonGroup(const std::vector<ButtonGroupDefinition> &buttonDefs, std::vector<std::shared_ptr<UIButton>> *out_createdButtons = nullptr,
+    void layoutVerticalButtonGroup(const std::vector<UIButtonGroupDefinition> &buttonDefs, std::vector<std::shared_ptr<UIButton>> *out_createdButtons = nullptr,
                                    int16_t marginRight = 5,                                          //
                                    int16_t marginTop = 5,                                            //
                                    int16_t marginBottom = 5,                                         //
@@ -57,13 +57,13 @@ class ButtonsGroupManager {
                                    int16_t columnGap = 3,                                            //
                                    int16_t buttonGap = 3) {
 
-        DerivedContainer *self = static_cast<DerivedContainer *>(this);
+        UIDerivedContainer *self = static_cast<UIDerivedContainer *>(this);
 
         if (buttonDefs.empty()) {
             return;
         }
 
-        // A 'self->tft' a DerivedContainer (pl. TestScreen, MessageDialog) UIComponent ősosztályából
+        // A 'self->tft' a UIDerivedContainer (pl. TestScreen, MessageDialog) UIComponent ősosztályából
         // (pontosabban UIComponent-ből) örökölt 'tft' referenciája lesz.
         // Az 'self->addChild' pedig az UIContainerComponent public metódusa.
         const int16_t screenHeight = ::SCREEN_H;
@@ -75,9 +75,9 @@ class ButtonsGroupManager {
         }
 
         // --- Előfeldolgozási fázis: Oszlopok struktúrájának és méreteinek meghatározása ---
-        std::vector<std::vector<ButtonGroupDefinition>> colsOfButtons;
+        std::vector<std::vector<UIButtonGroupDefinition>> colsOfButtons;
         std::vector<int16_t> colMaxWidhtsList;
-        std::vector<ButtonGroupDefinition> currentBuildingColButtons;
+        std::vector<UIButtonGroupDefinition> currentBuildingColButtons;
         int16_t currentY_build = marginTop;
         int16_t currentBuildingColMaxW = 0;
 
@@ -203,7 +203,7 @@ class ButtonsGroupManager {
      * layoutHorizontalButtonGroup(horizontalButtonDefs, &createdHorizontalButtons);
      *
      */
-    void layoutHorizontalButtonGroup(const std::vector<ButtonGroupDefinition> &buttonDefs, std::vector<std::shared_ptr<UIButton>> *out_createdButtons = nullptr,
+    void layoutHorizontalButtonGroup(const std::vector<UIButtonGroupDefinition> &buttonDefs, std::vector<std::shared_ptr<UIButton>> *out_createdButtons = nullptr,
                                      int16_t marginLeft = 5,                                           //
                                      int16_t marginRight = 5,                                          //
                                      int16_t marginBottom = 5,                                         //
@@ -213,7 +213,7 @@ class ButtonsGroupManager {
                                      int16_t buttonGap = 3,                                            //
                                      bool centerHorizontally = false) {
 
-        DerivedContainer *self = static_cast<DerivedContainer *>(this);
+        UIDerivedContainer *self = static_cast<UIDerivedContainer *>(this);
 
         if (buttonDefs.empty()) {
             return;
@@ -225,9 +225,9 @@ class ButtonsGroupManager {
         }
 
         // --- Előfeldolgozási fázis: Sorok struktúrájának és méreteinek meghatározása ---
-        std::vector<std::vector<ButtonGroupDefinition>> rowsOfButtons;
+        std::vector<std::vector<UIButtonGroupDefinition>> rowsOfButtons;
         std::vector<int16_t> rowMaxHeightsList;
-        std::vector<ButtonGroupDefinition> currentBuildingRowButtons;
+        std::vector<UIButtonGroupDefinition> currentBuildingRowButtons;
         int16_t currentX_build = marginLeft;
         int16_t currentBuildingRowMaxH = 0;
 

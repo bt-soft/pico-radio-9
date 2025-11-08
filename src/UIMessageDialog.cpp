@@ -1,10 +1,10 @@
 
 #include <vector>
 
-#include "MessageDialog.h"
+#include "UIMessageDialog.h"
 
 /**
- * @brief MessageDialog konstruktor
+ * @brief UIMessageDialog konstruktor
  * @param parentScreen A szülő UIScreen, amely megjeleníti ezt a dialógust
  * @param title A dialógus címe (nullptr, ha nincs cím)
  * @param message Az üzenet szövege, amely megjelenik a dialógusban
@@ -14,8 +14,7 @@
  * @details A dialógus automatikusan méreteződik, ha a bounds.height 0.
  *          A gombok típusa meghatározza, hogy milyen gombok jelennek meg a dialógusban.
  */
-MessageDialog::MessageDialog(UIScreen *parentScreen, const char *title, const char *message, ButtonsType buttonsType, const Rect &initialInputBounds, const ColorScheme &cs,
-                             bool okClosesDialog)
+UIMessageDialog::UIMessageDialog(UIScreen *parentScreen, const char *title, const char *message, ButtonsType buttonsType, const Rect &initialInputBounds, const ColorScheme &cs, bool okClosesDialog)
     : UIDialogBase(parentScreen, title, initialInputBounds, cs), message(message), buttonsType(buttonsType), _okClosesDialog(okClosesDialog) {
 
     // Dialógus tartalmának létrehozása és elrendezése
@@ -73,7 +72,7 @@ MessageDialog::MessageDialog(UIScreen *parentScreen, const char *title, const ch
 }
 
 /**
- * @brief MessageDialog konstruktor felhasználó által definiált gombokkal.
+ * @brief UIMessageDialog konstruktor felhasználó által definiált gombokkal.
  *
  * @param parentScreen A szülő UIScreen.
  * @param title A dialógus címe.
@@ -85,17 +84,16 @@ MessageDialog::MessageDialog(UIScreen *parentScreen, const char *title, const ch
  * @param cs Színséma.
  * @param okClosesDialog Meghatározza, hogy az "OK" típusú gombok bezárják-e a dialógust.
  */
-MessageDialog::MessageDialog(UIScreen *parentScreen, const char *title, const char *message, const char *const *options, uint8_t numOptions, DialogCallback userDialogCb,
-                             const Rect &ctorInputBounds, const ColorScheme &cs, bool okClosesDialog)
+UIMessageDialog::UIMessageDialog(UIScreen *parentScreen, const char *title, const char *message, const char *const *options, uint8_t numOptions, DialogCallback userDialogCb, const Rect &ctorInputBounds,
+                                 const ColorScheme &cs, bool okClosesDialog)
     : UIDialogBase(parentScreen, title, ctorInputBounds, cs), // UIDialogBase kezeli a kezdeti x,y,w,h alapértelmezéseket
-      message(message), buttonsType(ButtonsType::UserDefined), _okClosesDialog(okClosesDialog), _userOptions(options), _numUserOptions(numOptions),
-      _userDialogCallback(userDialogCb) {
+      message(message), buttonsType(ButtonsType::UserDefined), _okClosesDialog(okClosesDialog), _userOptions(options), _numUserOptions(numOptions), _userDialogCallback(userDialogCb) {
 
     // Dialógus tartalmának létrehozása és elrendezése
     createDialogContent(); // Előkészíti a _buttonDefs-et
 
     // A UIDialogBase beállította a this->bounds értékét. Most, ha a ctorInputBounds.height 0 volt,
-    // finomítjuk a magasságot a MessageDialog tartalma alapján.
+    // finomítjuk a magasságot a UIMessageDialog tartalma alapján.
     if (ctorInputBounds.height == 0) {
         Rect refinedBounds = this->bounds; // Azzal kezdünk, amit a UIDialogBase kalkulált
 
@@ -137,7 +135,7 @@ MessageDialog::MessageDialog(UIScreen *parentScreen, const char *title, const ch
  * @brief Létrehozza a dialógus tartalmát, beleértve a gombokat.
  * @details A gombok típusa alapján hozza létre a megfelelő gombokat és azok eseménykezelőit.
  */
-void MessageDialog::createDialogContent() {
+void UIMessageDialog::createDialogContent() {
     _buttonDefs.clear();
     uint8_t buttonIdCounter = 1;
 
@@ -252,7 +250,7 @@ void MessageDialog::createDialogContent() {
 /**
  * @brief Elrendezi a dialógus gombjait a megadott elrendezési szabályok szerint.
  */
-void MessageDialog::layoutDialogContent() {
+void UIMessageDialog::layoutDialogContent() {
     // Korábbi gombok eltávolítása
     for (const auto &btn : _buttonsList) {
         removeChild(btn);
@@ -297,7 +295,7 @@ void MessageDialog::layoutDialogContent() {
  * @brief Rajzolja a dialógus hátterét, fejlécét és az üzenetet.
  * @details A dialógus háttere és kerete rajzolódik, majd az üzenet szövege jelenik meg a középső területen.
  */
-void MessageDialog::drawSelf() {
+void UIMessageDialog::drawSelf() {
     UIDialogBase::drawSelf(); // Alap dialógus keret és fejléc rajzolása
 
     if (message) {
@@ -310,9 +308,8 @@ void MessageDialog::drawSelf() {
         Rect textArea;
         textArea.x = bounds.x + UIDialogBase::PADDING + 2; // Kis extra margó
         textArea.y = bounds.y + headerH + UIDialogBase::PADDING;
-        textArea.width = bounds.width - (2 * (UIDialogBase::PADDING + 2)); // Szélességben is figyelembe vesszük a 2px extra margót
-        textArea.height =
-            bounds.height - headerH - UIButton::DEFAULT_BUTTON_HEIGHT - (4 * UIDialogBase::PADDING); // Header, PADDING_alatta, text, PADDING_alatta, gombok, 2*PADDING_alatta
+        textArea.width = bounds.width - (2 * (UIDialogBase::PADDING + 2));                                         // Szélességben is figyelembe vesszük a 2px extra margót
+        textArea.height = bounds.height - headerH - UIButton::DEFAULT_BUTTON_HEIGHT - (4 * UIDialogBase::PADDING); // Header, PADDING_alatta, text, PADDING_alatta, gombok, 2*PADDING_alatta
 
         if (textArea.width > 0 && textArea.height > 0) {
             // Többsoros szöveg kezelése - sorok felosztása \n karakterek alapján
