@@ -84,7 +84,6 @@ struct DecoderConfig {
 
 // Audio feldolgozó által kitöltött adatok
 struct SharedData {
-
     // RAW audio minták
     uint16_t rawSampleCount;
     int16_t rawSampleData[MAX_RAW_SAMPLES_SIZE];

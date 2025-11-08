@@ -7,6 +7,7 @@
 #include <Arduino.h>
 #include <algorithm>
 #include <cstring>
+#include <hardware/adc.h> // ADC hardware hozzáférés Core1 szenzor mérésekhez
 #include <memory>
 
 #include "AudioProcessor-c1.h"
@@ -38,17 +39,69 @@ volatile uint8_t activeSharedDataIndex = 0; // Aktív SharedData index (0 vagy 1
 
 // A dekódolt adatok globális példánya, ezt éri el a Core-0 is
 DecodedData decodedData;
+
+// CORE1 szenzor adatok (Core1 olvassa az ADC-t, Core0 csak kijelzi!)
+volatile float core1_VbusVoltage;    // VBUS feszültség (Volt) - Core1 méri ADC1-ről
+volatile float core1_CpuTemperature; // CPU hőmérséklet (Celsius) - Core1 méri ADC4-ről
+
 //-------------------------------------------------------------------------------------
 
 // Audio feldolgozó példányja
 static AudioProcessorC1 audioProcC1; // Static -> global instance
 
-// Előre deklarálás a segédfüggvényhez, amely frissíti és publikálja a kijelzőre vonatkozó frekvencia-javaslatokat
-static void updateDisplayHints(const DecoderConfig &cfg);
-
 // Core-1 aktív dekóder azonosítója
 static DecoderId activeDecoderIdCore1 = ID_DECODER_NONE;
 std::unique_ptr<IDecoder> activeDecoderCore1 = nullptr;
+
+// ADC konstansok (Core1 szenzor olvasáshoz)
+// Az RP2040 ADC hardware 12-bit, és az audio DMA is 12-bittel dolgozik!
+#define CORE1_ADC_RESOLUTION 12
+#define CORE1_V_REFERENCE 3.3f
+#define CORE1_CONVERSION_FACTOR (1 << CORE1_ADC_RESOLUTION) // 4096
+#define CORE1_VBUSDIVIDER_RATIO ((VBUS_DIVIDER_R1 + VBUS_DIVIDER_R2) / VBUS_DIVIDER_R2)
+
+/**
+ * @brief Core1 szenzor mérések - VBUS feszültség és CPU hőmérséklet
+ * @details Ez a függvény a Core1-en fut, így TELJES KONTROLLJA van az ADC felett.
+ * BIZTONSÁGOS MÉRÉSI STRATÉGIA:
+ * 1. Audio DMA SZÜNETEL a mérés alatt (ez FONTOS!)
+ * 2. Arduino analogRead() / analogReadTemp() wrapper használata
+ * 3. ADC csatorna visszaállítás ADC0-ra
+ * 4. Audio DMA FOLYTATÁSA
+ */
+static void readSensorsOnCore1() {
+
+    // KRITIKUS: Audio DMA SZÜNETELTETÉSE a mérés alatt!
+    // Ez biztosítja, hogy az ADC csatorna váltás NEM zavarja meg a DMA-t.
+    bool wasRunning = audioProcC1.isRunning();
+    if (wasRunning) {
+        audioProcC1.stop();
+        delay(5); // Várunk, hogy a DMA biztosan leálljon
+    }
+
+    // ADC felbontás beállítása 12-bitre (mint az audio DMA)
+    analogReadResolution(CORE1_ADC_RESOLUTION);
+
+    // VBUS feszültség mérése 12-bit ADC olvasással
+    float voltageOut = (analogRead(PIN_VBUS_EXTERNAL_MEASURE_INPUT) * CORE1_V_REFERENCE) / CORE1_CONVERSION_FACTOR;
+    core1_VbusVoltage = voltageOut * CORE1_VBUSDIVIDER_RATIO;
+
+    // CPU hőmérséklet mérése (analogReadTemp() is 12-bit az RP2040-en)
+    core1_CpuTemperature = analogReadTemp();
+
+    // KRITIKUS: ADC csatorna VISSZAÁLLÍTÁSA az audio bemenetre (ADC0)!
+    adc_select_input(0); // ADC0 (GPIO26 = A0)
+
+    // Audio DMA ÚJRAINDÍTÁSA (ha futott korábban)
+    if (wasRunning) {
+        audioProcC1.start();
+    }
+
+    CORE1_DEBUG("core-1: Sensors: VBUS=%.2fV, Temp=%.1f°C - (DMA was %s)\n", //
+                core1_VbusVoltage,                                           //
+                core1_CpuTemperature,                                        //
+                wasRunning ? "paused" : "stopped");
+}
 
 /**
  * @brief Frissíti a megjelenítési javaslatokat a megadott dekóder konfiguráció alapján.
@@ -323,7 +376,7 @@ void processAudioAndDecoding() {
     // ADC + DMA műveletek
     if (audioProcC1.processAndFillSharedData(sharedData[backBufferIndex])) {
 
-        CORE1_DEBUG("core-1: processAudioAndDecoding(): Audio feldolgozás kész, SharedData index váltás %u -> %u\n", activeSharedDataIndex, backBufferIndex);
+        // CORE1_DEBUG("core-1: processAudioAndDecoding(): Audio feldolgozás kész, SharedData index váltás %u -> %u\n", activeSharedDataIndex, backBufferIndex);
 
         // Sikeres feldolgozás esetén puffert cserélünk
         activeSharedDataIndex = backBufferIndex;
@@ -352,7 +405,11 @@ bool isAudioSamplingRunningC1() { return audioProcC1.isRunning(); }
  */
 void setup1() {
 
+    // Shared területek inicializálása
     memset(sharedData, 0, sizeof(sharedData));
+    core1_VbusVoltage = 0.0f;
+    core1_CpuTemperature = 0.0f;
+
     delay(3000); // Várakozás a Core-0 indulására és inicializálására
     CORE1_DEBUG("core-1:setup1(): System clock: %u MHz\n", (unsigned)clock_get_hz(clk_sys) / 1000000u);
 }
@@ -364,6 +421,14 @@ void loop1() {
 
     // Parancsok kezelése a Core 0-tól
     processFifoCommands();
+
+// --- Core1 Szenzor Mérések Konstansok ---
+#define CORE1_SENSOR_READ_INTERVAL_MS 30000 // 30 másodperc szenzor frissítési időköz
+    static uint32_t lastSensorRead = 0;
+    if (millis() - lastSensorRead > CORE1_SENSOR_READ_INTERVAL_MS) {
+        readSensorsOnCore1();
+        lastSensorRead = millis();
+    }
 
     // Audio feldolgozás és dekódolás
     if (activeDecoderIdCore1 != ID_DECODER_NONE) {

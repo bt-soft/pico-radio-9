@@ -7,7 +7,10 @@
 namespace PicoSensorUtils {
 
 // Cache konstans
-#define PICO_SENSORS_CACHE_TIMEOUT_MS (5 * 1000) // 5 másodperc a cache idő
+// KRITIKUS: A PicoSensorUtils analogRead() hívásai megzavarják a Core1 audio ADC DMA-t!
+// Ezért HOSSZÚ cache időt használunk (30 sec), hogy RITKÁN olvassuk a szenzorokat.
+// Így az audio feldolgozás nem szakad meg az ADC csatorna váltások miatt.
+#define PICO_SENSORS_CACHE_TIMEOUT_MS (30 * 1000) // 30 másodperc a cache idő (volt: 5 sec)
 
 // Cache struktúra
 struct SensorCache {
@@ -51,18 +54,5 @@ float readVBusExternal();
  * @return processzor hőmérséklete Celsius fokban
  */
 float readCoreTemperature();
-
-/**
- * Cache törlése - következő olvasásnál új mérést fog végezni
- */
-void clearCache();
-
-/**
- * Cache státusz lekérdezése
- * @param vBusExtValid kimeneti paraméter - VBUS KÜLSŐ cache érvényessége
- * @param vBusIntValid kimeneti paraméter - VBUS BELSŐ cache érvényessége
- * @param temperatureValid kimeneti paraméter - hőmérséklet cache érvényessége
- */
-void inline getCacheStatus(bool &vBusExtValid, bool &vBusIntValid, bool &temperatureValid);
 
 }; // namespace PicoSensorUtils

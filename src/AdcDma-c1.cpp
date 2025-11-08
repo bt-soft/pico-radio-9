@@ -94,6 +94,12 @@ void AdcDmaC1::initialize(const CONFIG &config) {
     channel_config_set_write_increment(&dmaConfig, true);           // Puffer cím növekszik
     channel_config_set_dreq(&dmaConfig, DREQ_ADC);                  // ADC DREQ használata
 
+    // DMA interrupt prioritás beállítása - magasabb prioritás az audio feldolgozáshoz!
+    // Az RP2040-en a DMA IRQ0 és IRQ1 külön prioritást kaphat.
+    // Alacsonyabb szám = magasabb prioritás (0-255, default 128)
+    // Így az audio DMA nem blokkolódik a TFT SPI műveletektől
+    irq_set_priority(DMA_IRQ_0, 0x40); // Magasabb prioritás mint az SPI (default 0x80)
+
     // ADC beállítása a mintavételezéshez
     ADCDMA_DEBUG("AdcDmaC1::initialize - ADC bemenet konfigurálása\n");
     adc_select_input(captureChannel);

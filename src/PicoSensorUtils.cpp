@@ -1,89 +1,60 @@
 /**
  * @file PicoSensorUtils.cpp
- * @brief Pico érzékelő  funkciók implementációja
+ * @brief Pico érzékelő funkciók implementációja - CORE1 ALAPÚ MÉRÉSEK
  * @author BT-Soft (https://github.com/bt-soft, https://electrodiy.blog.hu/)
  * @project Pico Radio
+ *
+ * Változások a korábbi verziókhoz képest:
+ *  Az ADC méréseket TELJES EGÉSZÉBEN a Core1 végzi (main-c1.cpp / readSensorsOnCore1()).
+ *  A core0-core1 nem képes osztozni az ADC-ken, így elkerüljük a csatornaváltás problémáit.
  */
 
 #include "PicoSensorUtils.h"
+#include "AudioController.h" // SharedData eléréshez (Core1 szenzor adatok)
+
+// CORE1 szenzor adatok (Core1 írja az ADC-t, Core0 csak olvassa + kijelzi!)
+extern volatile float core1_VbusVoltage;    // VBUS feszültség (Volt) - Core1 méri ADC1-ről
+extern volatile float core1_CpuTemperature; // CPU hőmérséklet (Celsius) - Core1 méri ADC4-ről
 
 namespace PicoSensorUtils {
-
-// --- Konstansok ---
-#define AD_RESOLUTION 12 // 12 bites az ADC
-#define V_REFERENCE 3.3f
-#define CONVERSION_FACTOR (1 << AD_RESOLUTION)
-
-// Külső feszültségosztó ellenállásai a VBUS méréshez
-#define EXTERNAL_VBUSDIVIDER_RATIO ((VBUS_DIVIDER_R1 + VBUS_DIVIDER_R2) / VBUS_DIVIDER_R2) // Feszültségosztó aránya
 
 /**
  * AD inicializálása
  */
-void init() { analogReadResolution(AD_RESOLUTION); }
+void init() {
+    // MEGJEGYZÉS: Az ADC méréseket TELJES EGÉSZÉBEN a Core1 végzi!
+    // Core0 CSAK OLVASSA a SharedData-ból az értékeket, NEM mér!
+    // Ez a függvény most üres, de megtartjuk a kompatibilitás kedvéért.
+}
 
 /**
  * ADC olvasás és VBUS feszültség kiszámítása KÜLSŐ osztóval
  * @return A VBUS mért feszültsége Voltban.
+ *
+ * ÚJ IMPLEMENTÁCIÓ - CORE1 ALAPÚ:
+ * A Core1 30 másodpercenként méri a VBUS feszültséget az ADC1-ről (GPIO27).
+ * Az értéket a SharedData struktúrában tárolja.
+ * Core0 CSAK OLVASSA az értéket, NEM mér!
  */
 float readVBusExternal() {
-    unsigned long currentTime = millis();
-
-    // Ellenőrizzük, hogy a cache még érvényes-e
-    if (sensorCache.vBusExtValid && (currentTime - sensorCache.vBusExtLastRead < PICO_SENSORS_CACHE_TIMEOUT_MS)) {
-        return sensorCache.vBusExtValue;
-    }
-
-    // Cache lejárt vagy nem érvényes, új mérés
-    float voltageOut = (analogRead(PIN_VBUS_EXTERNAL_MEASURE_INPUT) * V_REFERENCE) / CONVERSION_FACTOR;
-    float vBusExtVoltage = voltageOut * EXTERNAL_VBUSDIVIDER_RATIO;
-
-    // Cache frissítése
-    sensorCache.vBusExtValue = vBusExtVoltage;
-    sensorCache.vBusExtLastRead = currentTime;
-    sensorCache.vBusExtValid = true;
-
-    return vBusExtVoltage;
+    // Core1 által mért értéket visszaadjuk
+    return ::core1_VbusVoltage;
 }
 
 /**
  * @brief Kiolvassa a processzor hőmérsékletét
- * @details A hőmérsékletet az ADC0 bemeneten keresztül olvassa, és cache-eli az értéket.
+ * @details A hőmérsékletet az ADC4 bemeneten keresztül olvassa, és cache-eli az értéket.
  * @return A processzor hőmérséklete Celsius fokban
+ *
+ * ÚJ IMPLEMENTÁCIÓ - CORE1 ALAPÚ:
+ * A Core1 30 másodpercenként méri a CPU hőmérsékletet az ADC4-ről (beépített szenzor).
+ * Az értéket a SharedData struktúrában tárolja.
+ * Core0 CSAK OLVASSA az értéket, NEM mér!
  */
 float readCoreTemperature() {
-    unsigned long currentTime = millis();
-    if (sensorCache.temperatureValid && (currentTime - sensorCache.temperatureLastRead < PICO_SENSORS_CACHE_TIMEOUT_MS)) {
-        return sensorCache.temperatureValue;
-    }
-    float temperature = analogReadTemp(); // A4
-    sensorCache.temperatureValue = temperature;
-    sensorCache.temperatureLastRead = currentTime;
-    sensorCache.temperatureValid = true;
-    return temperature;
-}
 
-/**
- * @brief Cache törlése
- * @details A következő olvasásnál új mérést fog végezni
- */
-void clearCache() {
-    sensorCache.temperatureValid = false;
-    sensorCache.vBusExtValid = false;
-    sensorCache.vBusIntValid = false;
-}
-
-/**
- * Cache státusz lekérdezése
- * @param vBusExtValid kimeneti paraméter - VBUS KÜLSŐ cache érvényessége
- * @param vBusIntValid kimeneti paraméter - VBUS BELSŐ cache érvényessége
- * @param temperatureValid kimeneti paraméter - hőmérséklet cache érvényessége
- */
-void getCacheStatus(bool &vBusExtValid, bool &vBusIntValid, bool &temperatureValid) {
-    unsigned long currentTime = millis();
-    vBusExtValid = sensorCache.vBusExtValid && (currentTime - sensorCache.vBusExtLastRead < PICO_SENSORS_CACHE_TIMEOUT_MS);
-    vBusIntValid = sensorCache.vBusIntValid && (currentTime - sensorCache.vBusIntLastRead < PICO_SENSORS_CACHE_TIMEOUT_MS);
-    temperatureValid = sensorCache.temperatureValid && (currentTime - sensorCache.temperatureLastRead < PICO_SENSORS_CACHE_TIMEOUT_MS);
+    // Core1 által mért értéket visszaadjuk
+    return ::core1_CpuTemperature;
 }
 
 } // namespace PicoSensorUtils

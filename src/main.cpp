@@ -308,8 +308,6 @@ void setup() {
     PicoMemoryInfo::MemoryStatus_t memStatus = PicoMemoryInfo::getMemoryStatus();
     DEBUG("core-0: System clock: %u MHz, Heap: used: %u kB, free: %u kB\n", (unsigned)clock_get_hz(clk_sys) / 1000000u, memStatus.usedHeap / 1024u, memStatus.freeHeap / 1024);
 
-    ::audioController.startAudioController(DecoderId::ID_DECODER_ONLY_FFT, FM_AF_RAW_SAMPLES_SIZE, FM_AF_BANDWIDTH_HZ);
-
     // Csippantunk egyet a végén
     Utils::beepTick();
 }

@@ -327,9 +327,13 @@ bool AudioProcessorC1::processAndFillSharedData(SharedData &sharedData) {
     uint32_t totalSum = waitTime + preprocTime + fftTime + copyTime + dominantTime;
     uint32_t totalTime = (micros() >= methodStartTime) ? (micros() - methodStartTime) : 0;
 
-    // DEBUG kimenet: időmérések olvasható formában
-    ADPROC_DEBUG("AudioProc-c1: Total(micros()-methodStart)=%lu usec, Total(sumParts)=%lu usec, Wait=%lu usec, PreProc=%lu usec, FFT=%lu usec, Copy=%lu usec, DomSearch=%lu usec, maxIndex=%d, amp=%d\n", //
-                 totalTime, totalSum, waitTime, preprocTime, fftTime, copyTime, dominantTime, maxIndex, (int)maxValue);
+    // DEBUG kimenet: időmérések olvasható formában - RITKÍTVA (minden 100. iterációban)
+    static uint32_t debugCounter = 0;
+    if (++debugCounter >= 100) {
+        ADPROC_DEBUG("AudioProc-c1: Total(micros()-methodStart)=%lu usec, Total(sumParts)=%lu usec, Wait=%lu usec, PreProc=%lu usec, FFT=%lu usec, Copy=%lu usec, DomSearch=%lu usec, maxIndex=%d, amp=%d\n", //
+                     totalTime, totalSum, waitTime, preprocTime, fftTime, copyTime, dominantTime, maxIndex, (int)maxValue);
+        debugCounter = 0;
+    }
 
 #endif
 
