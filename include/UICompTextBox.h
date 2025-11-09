@@ -20,7 +20,7 @@ class UICompTextBox : public UIComponent {
      * @param h Magasság
      * @param tft TFT_eSPI instance
      */
-    UICompTextBox(int x, int y, int w, int h, TFT_eSPI *tft);
+    UICompTextBox(int x, int y, int w, int h, TFT_eSPI &tft);
 
     /**
      * @brief Destruktor
@@ -61,7 +61,7 @@ class UICompTextBox : public UIComponent {
     inline int getHeight() const { return bounds.height; }
 
   private:
-    TFT_eSPI *tft_;
+    TFT_eSPI &tft_;
 
     // Border paraméterek
     static constexpr int BORDER_WIDTH = 2;

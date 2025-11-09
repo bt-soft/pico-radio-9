@@ -301,14 +301,14 @@ void UICompSpectrumVis::draw() {
     lastFrameTime_ = currentTime;
 
 #ifdef __DEBUG
-    // AGC logolás 1mpént
-    static uint32_t lastAgcLogTime = 0;
-    if (Utils::timeHasPassed(lastAgcLogTime, 1000)) {
-        float avgFrameMax = getAverageFrameMax();
-        bool agc = isAutoGainMode();
-        DEBUG("[UICompSpectrumVis][AGC] mode=%d agc=%d gain=%.3f avgFrameMax=%.1f\n", (int)currentMode_, agc ? 1 : 0, adaptiveGainFactor_, avgFrameMax);
-        lastAgcLogTime = currentTime;
-    }
+    // // AGC logolás 1mpént
+    // static uint32_t lastAgcLogTime = 0;
+    // if (Utils::timeHasPassed(lastAgcLogTime, 1000)) {
+    //     float avgFrameMax = getAverageFrameMax();
+    //     bool agc = isAutoGainMode();
+    //      DEBUG("[UICompSpectrumVis][AGC] mode=%d agc=%d gain=%.3f avgFrameMax=%.1f\n", (int)currentMode_, agc ? 1 : 0, adaptiveGainFactor_, avgFrameMax);
+    //     lastAgcLogTime = currentTime;
+    // }
 #endif
 
     // Ha Mute állapotban vagyunk

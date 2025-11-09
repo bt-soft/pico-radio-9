@@ -3,7 +3,7 @@
 #include "UIMultiButtonDialog.h"
 
 namespace ScreenAMHorizontalButtonIDs {
-static constexpr uint8_t DIGIT_BUTTON = 75; ///< CW/RTTY
+static constexpr uint8_t DECODER_BUTTON = 75; ///< CW/RTTY
 } // namespace ScreenAMHorizontalButtonIDs
 
 // =====================================================================
@@ -119,10 +119,8 @@ void ScreenAM::layoutComponents() {
     // Frekvencia kijelző pozicionálás
     uint16_t FreqDisplayY = 20;
     Rect sevenSegmentFreqBounds(0, FreqDisplayY, UICompSevenSegmentFreq::SEVEN_SEGMENT_FREQ_WIDTH, UICompSevenSegmentFreq::SEVEN_SEGMENT_FREQ_HEIGHT + 10);
-
     // S-Meter komponens pozícionálása
     Rect smeterBounds(2, FreqDisplayY + UICompSevenSegmentFreq::SEVEN_SEGMENT_FREQ_HEIGHT, SMeterConstants::SMETER_WIDTH, 70);
-
     // Szülő osztály layout meghívása (állapotsor, frekvencia, S-Meter)
     ScreenAMRadioBase::layoutComponents(sevenSegmentFreqBounds, smeterBounds);
 
@@ -164,15 +162,15 @@ void ScreenAM::addSpecificHorizontalButtons(std::vector<UIHorizontalButtonBar::B
              handleStepButton(event);                 //
          }});
 
-    // Step - CW/RTTY gomb hozzáadása
+    // Decoder választó gomb hozzáadása
     buttonConfigs.push_back(                          //
         {                                             //
-         ScreenAMHorizontalButtonIDs::DIGIT_BUTTON,   //
-         "Digit",                                     //
+         ScreenAMHorizontalButtonIDs::DECODER_BUTTON, //
+         "Decod",                                     //
          UIButton::ButtonType::Pushable,              //
          UIButton::ButtonState::Off,                  //
          [this](const UIButton::ButtonEvent &event) { //
-             getScreenManager()->switchToScreen(SCREEN_NAME_CW_RTTY);
+             handleDecoderButton(event);
          }});
 }
 
@@ -291,4 +289,51 @@ void ScreenAM::handleStepButton(const UIButton::ButtonEvent &event) {
     );
 
     this->showDialog(stepDialog);
+}
+
+/**
+ * @brief Digit gomb eseménykezelő - Decoder választó dialógus
+ * @param event Gomb esemény (Clicked)
+ * @details Megnyitja a dekóder választó dialógust (CW, RTTY, SSTV, HF WeFax)
+ */
+void ScreenAM::handleDecoderButton(const UIButton::ButtonEvent &event) {
+    if (event.state != UIButton::EventButtonState::Clicked) {
+        return;
+    }
+
+    // Dekóder választó gombok
+    static const char *decoderOptions[] = {"CW", "RTTY", "SSTV", "HF WeFax"};
+    static constexpr uint8_t numDecoders = 4;
+
+    auto decoderDialog = std::make_shared<UIMultiButtonDialog>(
+        this,                                                                           // Képernyő referencia
+        "Select Decoder", "",                                                           // Dialógus címe és üzenete
+        decoderOptions, numDecoders,                                                    // Gombok feliratai és számuk
+        [this](int buttonIndex, const char *buttonLabel, UIMultiButtonDialog *dialog) { // Gomb kattintás kezelése
+            // Dekóder kiválasztása alapján átírányítás a megfelelő képernyőre
+            switch (buttonIndex) {
+                case 0: // CW
+                    getScreenManager()->switchToScreen(SCREEN_NAME_DECODER_CW);
+                    break;
+                case 1: // RTTY
+                    // TODO: RTTY képernyő implementálása
+                    DEBUG("RTTY dekóder - még nincs implementálva\n");
+                    break;
+                case 2: // SSTV
+                    // TODO: SSTV képernyő implementálása
+                    DEBUG("SSTV dekóder - még nincs implementálva\n");
+                    break;
+                case 3: // HF WeFax
+                    // TODO: HF WeFax képernyő implementálása
+                    DEBUG("HF WeFax dekóder - még nincs implementálva\n");
+                    break;
+            }
+        },
+        true,                  // Automatikusan bezárja-e a dialógust gomb kattintáskor
+        -1,                    // Nincs alapértelmezett gomb
+        true,                  // Alapértelmezett gomb letiltva
+        Rect(-1, -1, 250, 200) // Dialógus mérete: x/y automatikusan középre igazítva
+    );
+
+    this->showDialog(decoderDialog);
 }

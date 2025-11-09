@@ -105,4 +105,11 @@ class ScreenAM : public ScreenAMRadioBase, public UICommonVerticalButtons::Mixin
      * @details AM specifikus funkcionalitás
      */
     void handleStepButton(const UIButton::ButtonEvent &event);
+
+    /**
+     * @brief Digit gomb eseménykezelő - Decoder választó
+     * @param event Gomb esemény (Clicked)
+     * @details Megnyitja a dekóder választó dialógust
+     */
+    void handleDecoderButton(const UIButton::ButtonEvent &event);
 };

@@ -84,7 +84,20 @@ void ScreenMemory::createHorizontalButtonBar() {
     uint16_t backButtonX = ::SCREEN_W - backButtonWidth - margin;
     Rect backButtonRect(backButtonX, buttonY, backButtonWidth, buttonHeight);
 
-    backButton = std::make_shared<UIButton>(BACK_BUTTON, backButtonRect, "Back", UIButton::ButtonType::Pushable, UIButton::ButtonState::Off, [this](const UIButton::ButtonEvent &event) { handleBackButton(event); });
+    backButton = std::make_shared<UIButton>(         //
+        BACK_BUTTON,                                 //
+        backButtonRect,                              //
+        "Back",                                      //
+        UIButton::ButtonType::Pushable,              //
+        UIButton::ButtonState::Off,                  //
+        [this](const UIButton::ButtonEvent &event) { //
+            if (event.state == UIButton::EventButtonState::Clicked) {
+                // Visszatérés az előző képernyőre
+                if (getScreenManager()) {
+                    getScreenManager()->goBack();
+                }
+            }
+        });
     addChild(backButton);
 }
 
@@ -386,15 +399,6 @@ void ScreenMemory::handleEditButton(const UIButton::ButtonEvent &event) {
 void ScreenMemory::handleDeleteButton(const UIButton::ButtonEvent &event) {
     if (event.state == UIButton::EventButtonState::Clicked && selectedIndex >= 0) {
         showDeleteConfirmDialog();
-    }
-}
-
-void ScreenMemory::handleBackButton(const UIButton::ButtonEvent &event) {
-    if (event.state == UIButton::EventButtonState::Clicked) {
-        // Visszatérés az előző képernyőre
-        if (getScreenManager()) {
-            getScreenManager()->goBack();
-        }
     }
 }
 

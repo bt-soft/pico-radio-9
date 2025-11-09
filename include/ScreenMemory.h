@@ -70,7 +70,8 @@ class ScreenMemory : public UIScreen, public IScrollableListDataSource {
     void handleAddCurrentButton(const UIButton::ButtonEvent &event);
     void handleEditButton(const UIButton::ButtonEvent &event);
     void handleDeleteButton(const UIButton::ButtonEvent &event);
-    void handleBackButton(const UIButton::ButtonEvent &event); // Dialógus kezelők
+
+    // Dialógus megjelenítők
     void showAddStationDialog();
     void showEditStationDialog();
     void showDeleteConfirmDialog();

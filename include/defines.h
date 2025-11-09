@@ -26,6 +26,11 @@
 #define SCREEN_NAME_MEMORY "ScreenMemory"
 #define SCREEN_NAME_SCAN "ScreenScan"
 
+#define SCREEN_NAME_DECODER_CW "ScreenCwDecoder"
+#define SCREEN_NAME_DECODER_RTTY "ScreenRttyDecoder"
+#define SCREEN_NAME_DECODER_SSTV "ScreenSstvDecoder"
+#define SCREEN_NAME_DECODER_HF_WEFAX "ScreenHfWefaxDecoder"
+
 #define SCREEN_NAME_TEST "TestScreen"
 #define SCREEN_NAME_EMPTY "EmptyScreen"
 
