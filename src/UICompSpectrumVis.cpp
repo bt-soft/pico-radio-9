@@ -48,7 +48,7 @@ namespace SensitivityConstants {
 constexpr float AMPLITUDE_SCALE = 0.8f; // Spektrum bar-ok amplitúdó skálázása
 
 // Oszcilloszkóp mód - nagyobb érték = nagyobb érzékenység
-constexpr float OSCI_SENSITIVITY_FACTOR = 10.0f; // Oszcilloszkóp jel erősítése
+constexpr float OSCI_SENSITIVITY_FACTOR = 1.0f; // Oszcilloszkóp jel erősítése
 
 // Envelope mód - nagyobb érték = nagyobb amplitúdó
 constexpr float ENVELOPE_INPUT_GAIN = 3.0f; // Envelope amplitúdó erősítése

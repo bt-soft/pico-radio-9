@@ -26,7 +26,16 @@
 /**
  * @brief AudioProcessorC1 konstruktor.
  */
-AudioProcessorC1::AudioProcessorC1() : useFFT(false), is_running(false), useBlockingDma(true) {}
+AudioProcessorC1::AudioProcessorC1()
+    : useFFT(false), is_running(false), useBlockingDma(true),
+      // AGC alapértelmezett értékek inicializálása
+      agcLevel_(2000.0f), agcAlpha_(0.02f), agcTargetPeak_(20000.0f), agcMinGain_(0.1f), agcMaxGain_(50.0f), // 20.0 -> 50.0 (gyenge jel kompenzálás)
+      currentAgcGain_(1.0f), useAgc_(true),                                                                  // Alapértelmezetten AGC bekapcsolva
+      manualGain_(1.0f),
+      // Zajszűrés alapértelmezett értékek
+      useNoiseReduction_(true), // Alapértelmezetten zajszűrés bekapcsolva
+      smoothingPoints_(0)       // NINCS simítás alapértelmezetten (CW/RTTY miatt!)
+{}
 
 /**
  * @brief AudioProcessorC1 destruktor.
@@ -194,6 +203,159 @@ bool AudioProcessorC1::checkSignalThreshold(SharedData &sharedData) {
 }
 
 /**
+ * @brief DC komponens eltávolítása és zajszűrés mozgó átlaggal
+ * @param input Bemeneti nyers ADC minták (uint16_t)
+ * @param output Kimeneti DC-mentes minták zajszűréssel (int16_t)
+ * @param count Minták száma
+ *
+ * Ez a metódus három dolgot végez:
+ * 1. DC offset eltávolítása (ADC_MIDPOINT levonása)
+ * 2. Opcionális mozgó átlagos simítás (0=nincs, 3 vagy 5 pont)
+ * 3. uint16_t -> int16_t konverzió
+ *
+ * FONTOS: A mozgó átlag NEM csökkenti a minták számát, csak simítja őket!
+ *
+ * Dekóder-specifikus javaslatok:
+ * - CW/RTTY: smoothingPoints_ = 0 vagy 3 (az FFT-n alapuló detektálás esetén nincs szükség simításra!)
+ * - SSTV/WEFAX: smoothingPoints_ = 5 (erősebb zajszűrés, nincs frekvencia felbontási igény)
+ * - FFT megjelenítés: smoothingPoints_ = 3 (enyhe simítás)
+ */
+void AudioProcessorC1::removeDcAndSmooth(const uint16_t *input, int16_t *output, uint16_t count) {
+    if (!useNoiseReduction_ || smoothingPoints_ == 0) {
+        // Zajszűrés kikapcsolva - csak DC offset eltávolítás (gyors)
+        arm_offset_q15((q15_t *)input, -ADC_MIDPOINT, (q15_t *)output, count);
+        return;
+    }
+
+    // Zajszűrés bekapcsolva - mozgó átlag simítás
+    if (smoothingPoints_ == 5) {
+        // 5-pontos mozgó átlag (erősebb simítás)
+        // Figyelem: Ez szélesíti az FFT bin-eket! CW/RTTY-nél NEM ajánlott!
+        for (uint16_t i = 0; i < count; i++) {
+            int32_t sum = (int32_t)input[i] - ADC_MIDPOINT;
+            uint8_t divisor = 1;
+
+            // Előző 2 minta
+            if (i >= 2) {
+                sum += (int32_t)input[i - 2] - ADC_MIDPOINT;
+                divisor++;
+            }
+            if (i >= 1) {
+                sum += (int32_t)input[i - 1] - ADC_MIDPOINT;
+                divisor++;
+            }
+
+            // Következő 2 minta
+            if (i < count - 1) {
+                sum += (int32_t)input[i + 1] - ADC_MIDPOINT;
+                divisor++;
+            }
+            if (i < count - 2) {
+                sum += (int32_t)input[i + 2] - ADC_MIDPOINT;
+                divisor++;
+            }
+
+            output[i] = (int16_t)(sum / divisor);
+        }
+    } else {
+        // 3-pontos mozgó átlag (gyorsabb, enyhébb simítás)
+        // Ez is enyhén szélesíti az FFT bin-eket, de elfogadható CW/RTTY-nél
+        for (uint16_t i = 0; i < count; i++) {
+            int32_t sum = (int32_t)input[i] - ADC_MIDPOINT;
+            uint8_t divisor = 1;
+
+            if (i > 0) {
+                sum += (int32_t)input[i - 1] - ADC_MIDPOINT;
+                divisor++;
+            }
+            if (i < count - 1) {
+                sum += (int32_t)input[i + 1] - ADC_MIDPOINT;
+                divisor++;
+            }
+
+            output[i] = (int16_t)(sum / divisor);
+        }
+    }
+}
+
+/**
+ * @brief Automatikus Erősítésszabályozás (AGC) vagy manuális gain alkalmazása
+ * @param samples Bemeneti/kimeneti minták (in-place feldolgozás)
+ * @param count Minták száma
+ *
+ * Két üzemmód:
+ * 1. AGC mód (useAgc_ = true): Automatikus erősítés attack/release karakterisztikával
+ * 2. Manuális mód (useAgc_ = false): Fix erősítési tényező alkalmazása
+ *
+ * Az AGC algoritmus:
+ * - Exponenciális mozgó átlag a jel szintjére
+ * - Gyors attack (0.3) / lassú release (0.01) válasz
+ * - Cél amplitúdó: ~60% a q15 tartományból (20000 / 32768)
+ * - Gain tartomány: 0.1x - 20x
+ */
+void AudioProcessorC1::applyAgc(int16_t *samples, uint16_t count) {
+    if (!useAgc_) {
+        // Manuális erősítés mód
+        if (manualGain_ != 1.0f) {
+            for (uint16_t i = 0; i < count; i++) {
+                int32_t val = (int32_t)(samples[i] * manualGain_);
+                samples[i] = (int16_t)constrain(val, -32768, 32767);
+            }
+        }
+        return;
+    }
+
+    // AGC mód - 1. Maximum keresése a blokkban
+    int32_t maxAbs = 0;
+    for (uint16_t i = 0; i < count; i++) {
+        int32_t abs_val = abs(samples[i]);
+        if (abs_val > maxAbs) {
+            maxAbs = abs_val;
+        }
+    }
+
+    // 2. AGC szint frissítése (exponenciális mozgó átlag)
+    agcLevel_ += agcAlpha_ * (maxAbs - agcLevel_);
+
+    // 3. Cél erősítés számítása
+    float targetGain = 1.0f;
+    if (agcLevel_ > 10.0f) { // Nullával osztás és túl kis jelek elkerülése
+        targetGain = agcTargetPeak_ / agcLevel_;
+        targetGain = constrain(targetGain, agcMinGain_, agcMaxGain_);
+    }
+
+    // 4. Simított erősítés számítása (attack/release karakterisztika)
+    constexpr float ATTACK_COEFF = 0.3f;   // Gyors attack (jel erősödik)
+    constexpr float RELEASE_COEFF = 0.01f; // Lassú release (jel csillapodik)
+
+    if (targetGain < currentAgcGain_) {
+        // Jel erősödött -> gyorsabb attack (erősítés csökkentése)
+        currentAgcGain_ += ATTACK_COEFF * (targetGain - currentAgcGain_);
+    } else {
+        // Jel gyengült -> lassabb release (erősítés növelése)
+        currentAgcGain_ += RELEASE_COEFF * (targetGain - currentAgcGain_);
+    }
+
+    // Biztonsági határ ellenőrzés
+    currentAgcGain_ = constrain(currentAgcGain_, agcMinGain_, agcMaxGain_);
+
+    // 5. Erősítés alkalmazása a mintákra
+    for (uint16_t i = 0; i < count; i++) {
+        int32_t val = (int32_t)(samples[i] * currentAgcGain_);
+        samples[i] = (int16_t)constrain(val, -32768, 32767);
+    }
+
+#ifdef __ADPROC_DEBUG
+    // Debug kimenet ritkítva (minden 100. blokkban)
+    static uint32_t agcDebugCounter = 0;
+    if (++agcDebugCounter >= 100) {
+        ADPROC_DEBUG("AudioProcessorC1::applyAgc: maxAbs=%d, agcLevel=%.1f, targetGain=%.2f, currentGain=%.2f, mode=%s\n", (int)maxAbs, agcLevel_, targetGain, currentAgcGain_, useAgc_ ? "AUTO" : "MANUAL");
+        agcDebugCounter = 0;
+    }
+#endif
+}
+
+/**
  * @brief Feldolgozza a legfrissebb audio blokkot és feltölti a megadott SharedData struktúrát.
  * SSTV és WEFAX módban csak a nyers mintákat másoljuk, FFT nélkül.
  * Más módokban lefuttatja az FFT-t, kiszámolja a spektrumot és a domináns frekvenciát.
@@ -229,14 +391,16 @@ bool AudioProcessorC1::processAndFillSharedData(SharedData &sharedData) {
     uint32_t waitTime = (start >= methodStartTime) ? (start - methodStartTime) : 0;
 #endif
 
-    // 1. A nyers minták másolása a megosztott pufferbe, a DC komponens (fél táp) eltávolításával
+    // 1. A nyers minták feldolgozása: DC offset eltávolítás + zajszűrés
     sharedData.rawSampleCount = std::min((uint16_t)adcConfig.sampleCount, (uint16_t)MAX_RAW_SAMPLES_SIZE); // Biztonsági ellenőrzés
 
-    arm_offset_q15((q15_t *)completePingPongBufferPtr, // bemenet
-                   -ADC_MIDPOINT,                      // offset (negatív, hogy kivonjon)
-                   (q15_t *)sharedData.rawSampleData,  // kimenet
-                   sharedData.rawSampleCount           // mintaszám
-    );
+    // DC komponens eltávolítása és opcionális zajszűrés (mozgó átlag simítás)
+    // Ez NEM csökkenti a minták számát!
+    removeDcAndSmooth(completePingPongBufferPtr, sharedData.rawSampleData, sharedData.rawSampleCount);
+
+    // 2. AGC (Automatikus Erősítésszabályozás) vagy manuális gain alkalmazása
+    // Ez javítja a dinamikát gyenge jelek esetén, és véd a túlvezéreléstől
+    applyAgc(sharedData.rawSampleData, sharedData.rawSampleCount);
 
     // Ha nem kell FFT (pl. SSTV), akkor nem megyünk tovább
     if (!useFFT) {
@@ -252,7 +416,7 @@ bool AudioProcessorC1::processAndFillSharedData(SharedData &sharedData) {
         return false;
     }
 
-    // 2. Bemenet előkészítése a CFFT-hez a tagváltozó pufferbe
+    // 3. Bemenet előkészítése a CFFT-hez a tagváltozó pufferbe
     // A CMSIS CFFT várt bemeneti formátuma: [Re0, Im0, Re1, Im1, ...].
     for (int i = 0; i < adcConfig.sampleCount; i++) {
         // Shifteljük 12 bites ADC értéket 15 bites q15 formátumra
@@ -261,7 +425,7 @@ bool AudioProcessorC1::processAndFillSharedData(SharedData &sharedData) {
         this->fftInput[2 * i + 1] = 0; // Im
     }
 
-    // 3. Hanning ablak (opcionális - CW/RTTY-hez hasznos, WEFAX-nál nem befolyásolja a domináns frekvenciát jelentősen)
+    // 4. Hanning ablak (opcionális - CW/RTTY-hez hasznos, WEFAX-nál nem befolyásolja a domináns frekvenciát jelentősen)
     applyHanningWindow(this->fftInput.data(), adcConfig.sampleCount);
 
 #ifdef __ADPROC_DEBUG
@@ -269,7 +433,7 @@ bool AudioProcessorC1::processAndFillSharedData(SharedData &sharedData) {
 #endif
 
     // FFT futtatása a nyers mintákon, a UICompSpectrumVis számára
-    // 4. FFT futtatása
+    // 5. FFT futtatása
 #ifdef __ADPROC_DEBUG
     start = micros();
 #endif
@@ -283,7 +447,7 @@ bool AudioProcessorC1::processAndFillSharedData(SharedData &sharedData) {
     uint32_t fftTime = micros() - start;
 #endif
 
-    // 5. Spektrum számítása és másolása a megosztott pufferbe
+    // 6. Spektrum számítása és másolása a megosztott pufferbe
 #ifdef __ADPROC_DEBUG
     start = micros();
 #endif
@@ -306,7 +470,7 @@ bool AudioProcessorC1::processAndFillSharedData(SharedData &sharedData) {
     // Az aktuális FFT bin szélesség beállítása a sharedData-ban
     sharedData.fftBinWidthHz = this->currentBinWidthHz;
 
-    // 6. Domináns frekvencia keresése
+    // 7. Domináns frekvencia keresése
 #ifdef __ADPROC_DEBUG
     start = micros();
 #endif

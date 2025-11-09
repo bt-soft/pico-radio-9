@@ -42,6 +42,8 @@ class AudioProcessorC1 {
   private:
     void applyHanningWindow(q15_t *data, int size);
     bool checkSignalThreshold(SharedData &sharedData);
+    void applyAgc(int16_t *samples, uint16_t count);
+    void removeDcAndSmooth(const uint16_t *input, int16_t *output, uint16_t count);
 
     AdcDmaC1 adcDmaC1;
     AdcDmaC1::CONFIG adcConfig;
@@ -56,4 +58,39 @@ class AudioProcessorC1 {
 
     // Az aktuális FFT bin szélesség, amelyet a konfiguráció során számoltunk ki (Hz)
     float currentBinWidthHz = 0.0f;
+
+    // AGC (Automatikus Erősítésszabályozás) paraméterek
+    float agcLevel_;       // AGC mozgó átlag szint
+    float agcAlpha_;       // AGC szűrési állandó (exponenciális mozgó átlag)
+    float agcTargetPeak_;  // Cél amplitúdó q15 formátumban
+    float agcMinGain_;     // Minimum erősítés
+    float agcMaxGain_;     // Maximum erősítés
+    float currentAgcGain_; // Aktuális erősítési faktor
+    bool useAgc_;          // AGC be/ki kapcsoló (true = auto AGC, false = manuális gain)
+    float manualGain_;     // Manuális erősítés (ha useAgc_ = false)
+
+    // Zajszűrés paraméterek
+    bool useNoiseReduction_;  // Zajszűrés be/ki kapcsoló
+    uint8_t smoothingPoints_; // Mozgó átlag simítás pontok száma (0=nincs, 3 vagy 5)
+
+  public:
+    // AGC és zajszűrés beállítási metódusok
+    void setAgcEnabled(bool enabled) { useAgc_ = enabled; }
+    void setManualGain(float gain) { manualGain_ = constrain(gain, agcMinGain_, agcMaxGain_); }
+    void setNoiseReductionEnabled(bool enabled) { useNoiseReduction_ = enabled; }
+    void setSmoothingPoints(uint8_t points) {
+        // Csak 0 (nincs simítás), 3 vagy 5 engedélyezett
+        if (points == 0)
+            smoothingPoints_ = 0;
+        else if (points >= 5)
+            smoothingPoints_ = 5;
+        else
+            smoothingPoints_ = 3;
+    }
+
+    // AGC állapot lekérdezése
+    bool isAgcEnabled() const { return useAgc_; }
+    float getCurrentAgcGain() const { return currentAgcGain_; }
+    float getManualGain() const { return manualGain_; }
+    bool isNoiseReductionEnabled() const { return useNoiseReduction_; }
 };

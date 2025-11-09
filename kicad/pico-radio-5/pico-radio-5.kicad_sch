@@ -11020,7 +11020,7 @@
 				)
 			)
 		)
-		(property "Value" "22k"
+		(property "Value" "1k"
 			(at 184.15 133.35 90)
 			(effects
 				(font
@@ -12970,7 +12970,7 @@
 				)
 			)
 		)
-		(property "Value" "100nF"
+		(property "Value" "22nF"
 			(at 196.85 137.16 90)
 			(effects
 				(font
@@ -14348,7 +14348,7 @@
 				)
 			)
 		)
-		(property "Value" "22k"
+		(property "Value" "1k"
 			(at 184.15 143.51 90)
 			(effects
 				(font
