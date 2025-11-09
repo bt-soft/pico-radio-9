@@ -135,7 +135,7 @@ void ScreenAM::layoutComponents() {
     // ===================================================================
     // Spektrum vizualizáció komponens létrehozása
     // ===================================================================
-    ScreenRadioBase::createSpectrumComponent(Rect(255, 60, 150, 80), RadioMode::AM);
+    ScreenRadioBase::createSpectrumComponent(Rect(255, 70, 150, 80), RadioMode::AM);
 
     // ===================================================================
     // Audio dekóder konfigurálása dekóder nélkül (csak FFT lesz) 6kHz sávszélességgel, 1024-es mintavételi mérettel

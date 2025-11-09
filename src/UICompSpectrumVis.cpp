@@ -295,10 +295,21 @@ void UICompSpectrumVis::draw() {
     // FPS limitálás - az FPS értéke makróval állítható
     constexpr uint32_t FRAME_TIME_MS = 1000 / FftDisplayConstants::SPECTRUM_FPS;
     uint32_t currentTime = millis();
-    if (currentTime - lastFrameTime_ < FRAME_TIME_MS) { // FPS limit
+    if (!Utils::timeHasPassed(lastFrameTime_, FRAME_TIME_MS)) {
         return;
     }
     lastFrameTime_ = currentTime;
+
+#ifdef __DEBUG
+    // AGC logolás 1mpént
+    static uint32_t lastAgcLogTime = 0;
+    if (Utils::timeHasPassed(lastAgcLogTime, 1000)) {
+        float avgFrameMax = getAverageFrameMax();
+        bool agc = isAutoGainMode();
+        DEBUG("[UICompSpectrumVis][AGC] mode=%d agc=%d gain=%.3f avgFrameMax=%.1f\n", (int)currentMode_, agc ? 1 : 0, adaptiveGainFactor_, avgFrameMax);
+        lastAgcLogTime = currentTime;
+    }
+#endif
 
     // Ha Mute állapotban vagyunk
     if (rtv::muteStat) {
@@ -406,7 +417,6 @@ void UICompSpectrumVis::draw() {
  */
 bool UICompSpectrumVis::handleTouch(const TouchEvent &touch) {
     if (touch.pressed && isPointInside(touch.x, touch.y)) {
-
         if (!Utils::timeHasPassed(lastTouchTime_, 500)) {
             return false;
         }
