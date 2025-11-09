@@ -251,25 +251,6 @@ UICompSpectrumVis::DisplayMode UICompSpectrumVis::configValueToDisplayMode(uint8
 }
 
 /**
- * @brief DisplayMode konvertálása config értékre
- */
-uint8_t UICompSpectrumVis::displayModeToConfigValue(DisplayMode mode) {
-    //
-    return static_cast<uint8_t>(mode);
-}
-
-/**
- * @brief Beállítja az aktuális audio módot a megfelelő rádió mód alapján.
- *
- */
-void UICompSpectrumVis::setCurrentModeToConfig() {
-
-    // Config-ba mentjük az aktuális audio módot a megfelelő rádió mód alapján
-    uint8_t modeValue = displayModeToConfigValue(currentMode_);
-    config.data.audioModeAM = modeValue;
-}
-
-/**
  * Waterfall színpaletta RGB565 formátumban
  */
 const uint16_t UICompSpectrumVis::WATERFALL_COLORS[16] = {0x0000, 0x000F, 0x001F, 0x081F, 0x0810, 0x0800, 0x0C00, 0x1C00, 0xFC00, 0xFDE0, 0xFFE0, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF};
@@ -578,43 +559,25 @@ void UICompSpectrumVis::setFftParametersForDisplayMode() {
  */
 void UICompSpectrumVis::cycleThroughModes() {
 
-    int nextMode = static_cast<int>(currentMode_) + 1;
+    uint8_t nextMode = static_cast<uint8_t>(currentMode_) + 1;
 
     // FM módban kihagyjuk a CW, RTTY és SNR hangolási segéd módokat
     if (radioMode_ == RadioMode::FM) {
-        if (nextMode == static_cast<int>(DisplayMode::CWWaterfall)) {
-            nextMode = static_cast<int>(DisplayMode::Off); // Ugrás az Off módra, mert FM-en nincs CW
-        } else if (nextMode == static_cast<int>(DisplayMode::RTTYWaterfall)) {
-            nextMode = static_cast<int>(DisplayMode::Off); // Ugrás az Off módra
-        } else if (nextMode == static_cast<int>(DisplayMode::CwSnrCurve)) {
-            nextMode = static_cast<int>(DisplayMode::Off); // Ugrás az Off módra
-        } else if (nextMode == static_cast<int>(DisplayMode::RttySnrCurve)) {
-            nextMode = static_cast<int>(DisplayMode::Off); // Ugrás az Off módra
-        } else if (nextMode > static_cast<int>(DisplayMode::Waterfall)) {
-            nextMode = static_cast<int>(DisplayMode::Off);
+        if (nextMode > static_cast<uint8_t>(DisplayMode::Waterfall)) {
+            nextMode = static_cast<uint8_t>(DisplayMode::Off);
         }
     } else {
         // AM módban minden mód elérhető
-        if (nextMode > static_cast<int>(DisplayMode::RttySnrCurve)) {
-            nextMode = static_cast<int>(DisplayMode::Off);
+        if (nextMode > static_cast<uint8_t>(DisplayMode::RttySnrCurve)) {
+            nextMode = static_cast<uint8_t>(DisplayMode::Off);
         }
     }
 
-    // Előző mód megőrzése a tisztításhoz
-    lastRenderedMode_ = currentMode_;
-    currentMode_ = static_cast<DisplayMode>(nextMode);
+    // Új mód beállítása
+    setCurrentMode(static_cast<DisplayMode>(nextMode));
 
-    // FFT paraméterek beállítása az új módhoz
-    setFftParametersForDisplayMode();
-
-    // Mód indikátor indítása
-    startShowModeIndicator();
-
-    // Sprite előkészítése az új módhoz
-    manageSpriteForMode(currentMode_);
-
-    // Config mentése
-    setCurrentModeToConfig();
+    // Config-ba is beállítjuk (mentésre) az aktuális módot
+    config.data.audioModeAM = nextMode;
 }
 
 /**
@@ -643,15 +606,28 @@ void UICompSpectrumVis::loadModeFromConfig() {
         configMode = DisplayMode::Waterfall; // Alapértelmezés FM módban
     }
 
-    currentMode_ = configMode;
+    // Beállítjuk a betöltött módot a config alapján
+    setCurrentMode(configMode);
+}
+
+/**
+ * @brief Beállítja a jelenlegi megjelenítési módot
+ * @param mode A beállítandó megjelenítési mód
+ */
+void UICompSpectrumVis::setCurrentMode(DisplayMode newMode) {
+
+    // Előző mód megőrzése a tisztításhoz
+    lastRenderedMode_ = currentMode_;
+    currentMode_ = newMode;
 
     // FFT paraméterek beállítása az új módhoz
     setFftParametersForDisplayMode();
 
+    // Mód indikátor indítása
+    startShowModeIndicator();
+
     // Sprite előkészítése az új módhoz
     manageSpriteForMode(currentMode_);
-
-    needBorderDrawn = true; // Kényszerítjük a keret újrarajzolását
 }
 
 /**

@@ -120,7 +120,6 @@ class UICompSpectrumVis : public UIComponent {
     inline void refreshFrequencyLabels() {
         // Töröljük a felirat területet és engedélyezzük az újrarajzolást
         frequencyLabelsDrawn_ = true;
-        // A területtörlés a renderFrequencyLabels-ben történik
     }
 
     /**
@@ -136,6 +135,12 @@ class UICompSpectrumVis : public UIComponent {
      * @return A jelenlegi megjelenítési mód
      */
     inline DisplayMode getCurrentMode() { return currentMode_; }
+
+    /**
+     * @brief Beállítja a jelenlegi megjelenítési módot
+     * @param mode A beállítandó megjelenítési mód
+     */
+    void setCurrentMode(DisplayMode mode);
 
   private:
     RadioMode radioMode_;
@@ -257,8 +262,6 @@ class UICompSpectrumVis : public UIComponent {
      * @brief Config konverziós függvények
      */
     DisplayMode configValueToDisplayMode(uint8_t configValue);
-    uint8_t displayModeToConfigValue(DisplayMode mode);
-    void setCurrentModeToConfig();
 
     /**
      * @brief Kiírja a spektrum terület közepére, hogy "-- Muted --"

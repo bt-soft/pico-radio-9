@@ -61,6 +61,8 @@ void ScreenAMCW::layoutComponents() {
     // Spektrum vizualizáció komponens létrehozása
     // ===================================================================
     ScreenRadioBase::createSpectrumComponent(Rect(255, 70, 150, 80), RadioMode::AM);
+    // Induláskor beállítjuk a CwSnrCurve megjelenítési módot
+    ScreenRadioBase::spectrumComp->setCurrentMode(UICompSpectrumVis::DisplayMode::CwSnrCurve);
 
     // ===================================================================
     // Audio dekóder konfigurálása CW dekóderrel 1.5kHz sávszélességgel, 128-as mintavételi mérettel
@@ -105,17 +107,6 @@ void ScreenAMCW::deactivate() {
 }
 
 /**
- * @brief Folyamatos loop hívás
- */
-void ScreenAMCW::handleOwnLoop() {
-    // Szülő osztály loop kezelése (S-Meter frissítés, stb.)
-    ScreenAMRadioBase::handleOwnLoop();
-
-    // CW dekódolt szöveg frissítése
-    this->checkDecodedData();
-}
-
-/**
  * @brief CW dekódolt szöveg ellenőrzése és frissítése
  */
 void ScreenAMCW::checkDecodedData() {
@@ -155,4 +146,15 @@ void ScreenAMCW::checkDecodedData() {
             cwTextBox->addCharacter(ch);
         }
     }
+}
+
+/**
+ * @brief Folyamatos loop hívás
+ */
+void ScreenAMCW::handleOwnLoop() {
+    // Szülő osztály loop kezelése (S-Meter frissítés, stb.)
+    ScreenAMRadioBase::handleOwnLoop();
+
+    // CW dekódolt szöveg frissítése
+    this->checkDecodedData();
 }
