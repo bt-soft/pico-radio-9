@@ -127,10 +127,20 @@ void ScreenAM::layoutComponents() {
     ScreenAMRadioBase::layoutComponents(sevenSegmentFreqBounds, smeterBounds);
 
     // Függőleges gombok létrehozása
-    Mixin::createCommonVerticalButtons();
+    Mixin::createCommonVerticalButtons(); // UICommonVerticalButtons-ban definiált UIButtonsGroupManager alapú függőleges gombsor egyedi Memo kezelővel
 
     // Alsó közös + AM specifikus vízszintes gombsor az őstől
     ScreenRadioBase::createCommonHorizontalButtons();
+
+    // ===================================================================
+    // Spektrum vizualizáció komponens létrehozása
+    // ===================================================================
+    ScreenRadioBase::createSpectrumComponent(Rect(255, 60, 150, 80), RadioMode::AM);
+
+    // ===================================================================
+    // Audio dekóder konfigurálása dekóder nélkül (csak FFT lesz) 6kHz sávszélességgel, 1024-es mintavételi mérettel
+    // ===================================================================
+    ::audioController.startAudioController(DecoderId::ID_DECODER_ONLY_FFT, AM_AF_RAW_SAMPLES_SIZE, AM_AF_BANDWIDTH_HZ);
 }
 
 /**

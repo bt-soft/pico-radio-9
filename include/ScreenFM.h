@@ -113,17 +113,12 @@ class ScreenFM : public ScreenRadioBase, public UICommonVerticalButtons::Mixin<S
      * - Vízszintes gombsor (alul)
      */
     void layoutComponents();
-    //
-    /**
-     *@brief Vízszintes gombsor létrehozása - Alsó navigációs gombok
-     *@details Közös gombok + FM specifikus gombok(Seek -, Seek +)
-     */
-    void createHorizontalButtonBar();
+
     /**
      * @brief Egyedi függőleges gombok létrehozása - Memo gomb override-dal
      * @details Felülírja a UICommonVerticalButtons alapértelmezett Memo kezelőjét
      */
-    void createCommonVerticalButtons();
+    void createExtendedCommonVerticalButtons();
 
     // ===================================================================
     // Event-driven gombállapot szinkronizálás

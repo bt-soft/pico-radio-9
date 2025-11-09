@@ -123,21 +123,21 @@ void ScreenFM::layoutComponents() {
     // ===================================================================
     currentY += 24 + 5;
     Rect smeterBounds(2, currentY, SMeterConstants::SMETER_WIDTH, 60);
-    createSMeterComponent(smeterBounds);
+    ScreenRadioBase::createSMeterComponent(smeterBounds);
 
     // ===================================================================
     // Spektrum vizualizáció komponens létrehozása
     // ===================================================================
-    createSpectrumComponent(Rect(255, 40, 150, 80), RadioMode::FM);
+    ScreenRadioBase::createSpectrumComponent(Rect(255, 40, 150, 80), RadioMode::FM);
 
     // ===================================================================
     // Gombsorok létrehozása - Event-driven architektúra
     // ===================================================================
-    createCommonVerticalButtons();   // ButtonsGroupManager alapú függőleges gombsor egyedi Memo kezelővel
-    createCommonHorizontalButtons(); // Alsó közös + FM specifikus vízszintes gombsor
+    this->createExtendedCommonVerticalButtons();      // Saját ButtonsGroupManager alapú függőleges gombsor egyedi Memo kezelővel
+    ScreenRadioBase::createCommonHorizontalButtons(); // Alsó közös + FM specifikus vízszintes gombsor
 
     // ===================================================================
-    // Audio dekóder konfigurálása dekóder nélkül 15kHz sávszélességgel
+    // Audio dekóder konfigurálása dekóder nélkül  (csak FFT lesz) 15kHz sávszélességgel, 512-es mintavételi mérettel
     // ===================================================================
     ::audioController.startAudioController(DecoderId::ID_DECODER_ONLY_FFT, FM_AF_RAW_SAMPLES_SIZE, FM_AF_BANDWIDTH_HZ);
 }
@@ -453,9 +453,10 @@ void ScreenFM::handleMemoButton(const UIButton::ButtonEvent &event) {
 
 /**
  * @brief Egyedi függőleges gombok létrehozása - Memo gomb override-dal
- * @details Felülírja a CommonVerticalButtons alapértelmezett Memo kezelőjét
+ * @details Felülírja a CommonVerticalButtons alapértelmezett Memo kezelőjét,
+ * mert FM módban - ha van - átadjuk az RDS állomásnevet is a MemoryScreen-nek
  */
-void ScreenFM::createCommonVerticalButtons() {
+void ScreenFM::createExtendedCommonVerticalButtons() {
 
     // Alapértelmezett gombdefiníciók lekérése
     const auto &baseDefs = UICommonVerticalButtons::getButtonDefinitions();
@@ -468,13 +469,15 @@ void ScreenFM::createCommonVerticalButtons() {
     for (const auto &def : baseDefs) {
         std::function<void(const UIButton::ButtonEvent &)> callback;
 
-        // Memo gomb speciális kezelése
+        // Memo gomb speciális kezelése az RDS állomásnév átadásának logikájához
         if (def.id == VerticalButtonIDs::MEMO) {
             // Egyedi Memo handler használata
             callback = [this](const UIButton::ButtonEvent &e) { this->handleMemoButton(e); };
+
         } else if (def.handler != nullptr) {
-            // Többi gomb: eredeti handler használata
+            // A többi gombnál az eredeti handlerek használata
             callback = [screen = this, handler = def.handler](const UIButton::ButtonEvent &e) { handler(e, screen); };
+
         } else {
             // No-op callback üres handlerekhez
             callback = [](const UIButton::ButtonEvent &e) { /* no-op */ };
