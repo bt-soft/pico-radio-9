@@ -307,7 +307,8 @@ void ScreenAM::handleDecoderButton(const UIButton::ButtonEvent &event) {
 
     auto decoderDialog = std::make_shared<UIMultiButtonDialog>(
         this,                                                                           // Képernyő referencia
-        "Select Decoder", "",                                                           // Dialógus címe és üzenete
+        "Select Decoder screen",                                                        // Dialógus címe
+        "",                                                                             // Üzenete
         decoderOptions, numDecoders,                                                    // Gombok feliratai és számuk
         [this](int buttonIndex, const char *buttonLabel, UIMultiButtonDialog *dialog) { // Gomb kattintás kezelése
             // Dekóder kiválasztása alapján átírányítás a megfelelő képernyőre
@@ -332,7 +333,7 @@ void ScreenAM::handleDecoderButton(const UIButton::ButtonEvent &event) {
         true,                  // Automatikusan bezárja-e a dialógust gomb kattintáskor
         -1,                    // Nincs alapértelmezett gomb
         true,                  // Alapértelmezett gomb letiltva
-        Rect(-1, -1, 250, 200) // Dialógus mérete: x/y automatikusan középre igazítva
+        Rect(-1, -1, 350, 150) // Automatikusan középre igazítva, szélesebb dialógus -> gombok 2 sorba rendeződnek
     );
 
     this->showDialog(decoderDialog);

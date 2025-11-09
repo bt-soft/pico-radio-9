@@ -67,7 +67,7 @@ void ScreenAMCW::layoutComponents() {
     // ===================================================================
     // Audio dekóder konfigurálása CW dekóderrel 1.5kHz sávszélességgel, 128-as mintavételi mérettel
     // ===================================================================
-    ::audioController.startAudioController(DecoderId::ID_DECODER_CW, CW_AF_BANDWIDTH_HZ, CW_AF_BANDWIDTH_HZ, config.data.cwToneFrequencyHz);
+    ::audioController.startAudioController(DecoderId::ID_DECODER_CW, CW_RAW_SAMPLES_SIZE, CW_AF_BANDWIDTH_HZ, config.data.cwToneFrequencyHz);
 
     // TextBox hozzáadása (a S-Meter alatt)
     constexpr uint16_t TEXTBOX_HEIGHT = 150;
