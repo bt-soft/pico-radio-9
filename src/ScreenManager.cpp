@@ -7,7 +7,7 @@
 #include "ScreenManager.h"
 
 // Rádió képernyők
-//  #include "ScreenAM.h"
+#include "ScreenAM.h"
 #include "ScreenFM.h"
 #include "ScreenMemory.h"
 #include "ScreenScan.h"
@@ -36,7 +36,7 @@ ScreenManager::ScreenManager() : previousScreenName(nullptr), lastActivityTime(m
  */
 void ScreenManager::registerDefaultScreenFactories() {
     registerScreenFactory(SCREEN_NAME_FM, []() { return std::make_shared<ScreenFM>(); });
-    // registerScreenFactory(SCREEN_NAME_AM, []() { return std::make_shared<ScreenAM>(); });
+    registerScreenFactory(SCREEN_NAME_AM, []() { return std::make_shared<ScreenAM>(); });
     registerScreenFactory(SCREEN_NAME_SCREENSAVER, []() { return std::make_shared<ScreenScreenSaver>(); });
     registerScreenFactory(SCREEN_NAME_MEMORY, []() { return std::make_shared<ScreenMemory>(); });
     registerScreenFactory(SCREEN_NAME_SCAN, []() { return std::make_shared<ScreenScan>(); });
