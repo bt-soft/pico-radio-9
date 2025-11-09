@@ -5,7 +5,7 @@
 /**
  * @brief ScreenAMCW konstruktor
  */
-ScreenAMCW::ScreenAMCW() : ScreenAMRadioBase(SCREEN_NAME_DECODER_CW) {
+ScreenAMCW::ScreenAMCW() : ScreenAMRadioBase(SCREEN_NAME_DECODER_CW), lastPublishedCwWpm(0), lastPublishedCwFreq(0.0f) {
     // UI komponensek létrehozása és elhelyezése
     layoutComponents();
 }
@@ -37,9 +37,9 @@ void ScreenAMCW::layoutComponents() {
     // ScreenRadioBase::createCommonHorizontalButtons();
 
     // Back gomb külön, jobb alsó sarokhoz igazítva (ugyanakkora mint a vertikális gombok: 60x32)
-    constexpr uint16_t VERTICAL_BUTTON_WIDTH = 60;
-    constexpr uint16_t VERTICAL_BUTTON_HEIGHT = 32;
-    Rect backButtonRect(::SCREEN_W - VERTICAL_BUTTON_WIDTH, ::SCREEN_H - VERTICAL_BUTTON_HEIGHT, VERTICAL_BUTTON_WIDTH, VERTICAL_BUTTON_HEIGHT);
+    constexpr uint16_t BACK_BUTTON_WIDTH = 70;
+    constexpr uint16_t BACK_BUTTON_HEIGHT = 32;
+    Rect backButtonRect(::SCREEN_W - BACK_BUTTON_WIDTH, ::SCREEN_H - BACK_BUTTON_HEIGHT, BACK_BUTTON_WIDTH, BACK_BUTTON_HEIGHT);
 
     constexpr uint8_t BACK_BUTTON = 80;              ///< Vissza az AM képernyőre
     auto backButton = std::make_shared<UIButton>(    //
@@ -68,12 +68,13 @@ void ScreenAMCW::layoutComponents() {
     ::audioController.startAudioController(DecoderId::ID_DECODER_CW, CW_AF_BANDWIDTH_HZ, CW_AF_BANDWIDTH_HZ, config.data.cwToneFrequencyHz);
 
     // TextBox hozzáadása (a S-Meter alatt)
-    cwTextBox = std::make_shared<UICompTextBox>(   //
-        5,                                         // x
-        smeterBounds.y + smeterBounds.height + 20, // y
-        400,                                       // width
-        150,                                       // height
-        tft                                        // TFT instance
+    constexpr uint16_t TEXTBOX_HEIGHT = 150;
+    cwTextBox = std::make_shared<UICompTextBox>( //
+        5,                                       // x
+        ::SCREEN_H - TEXTBOX_HEIGHT,             // y
+        400,                                     // width
+        TEXTBOX_HEIGHT,                          // height
+        tft                                      // TFT instance
     );
 
     // Komponens hozzáadása a képernyőhöz
@@ -93,9 +94,6 @@ void ScreenAMCW::drawContent() {
 void ScreenAMCW::activate() {
     // Szülő osztály aktiválása
     ScreenAMRadioBase::activate();
-
-    // CW specifikus gombok frissítése
-    updateHorizontalButtonStates();
 }
 
 /**
@@ -113,13 +111,48 @@ void ScreenAMCW::handleOwnLoop() {
     // Szülő osztály loop kezelése (S-Meter frissítés, stb.)
     ScreenAMRadioBase::handleOwnLoop();
 
-    // CW dekódolt szöveg frissítése (TODO: dekóder implementáció)
+    // CW dekódolt szöveg frissítése
+    this->checkDecodedData();
 }
 
 /**
- * @brief CW specifikus gombok állapotának frissítése
+ * @brief CW dekódolt szöveg ellenőrzése és frissítése
  */
-void ScreenAMCW::updateHorizontalButtonStates() {
-    // Jelenleg nincs CW specifikus gombállapot frissítés
-    // A Back gomb mindig aktív
+void ScreenAMCW::checkDecodedData() {
+
+    static unsigned long lastCwDisplayUpdate = 0;
+    uint16_t currentWpm = ::decodedData.cwCurrentWpm;
+    float currentFreq = ::decodedData.cwCurrentFreq;
+
+    // Csak akkor frissítjük a kijelzőt, ha jelentős változás történt ÉS eltelt már legalább 1 másodperc
+    bool wpmChanged = (lastPublishedCwWpm == 0 && currentWpm != 0) || (abs((int)currentWpm - (int)lastPublishedCwWpm) >= 3);
+    bool freqChanged = (lastPublishedCwFreq == 0.0f && currentFreq > 0.0f) || (abs(currentFreq - lastPublishedCwFreq) >= 50.0f);
+    if (Utils::timeHasPassed(lastCwDisplayUpdate, 1000) && (wpmChanged || freqChanged)) {
+        lastPublishedCwWpm = currentWpm;
+        lastPublishedCwFreq = currentFreq;
+        lastCwDisplayUpdate = millis();
+
+        // A textbox komponens fölött, balra igazítva jelenjen meg a kiírás
+        constexpr uint16_t labelH = 18;
+        constexpr uint16_t labelX = 5;
+        uint16_t labelY = cwTextBox->getBounds().y - labelH; // 18px magas sáv
+        constexpr uint16_t labelW = 100;
+
+        tft.fillRect(labelX, labelY, labelW, labelH, TFT_BLACK); // előző kiírás törlése
+        tft.setCursor(labelX, labelY + 2);
+        tft.setTextSize(1);
+        tft.setTextColor(TFT_CYAN, TFT_BLACK);
+        if (currentFreq > 0.0f && currentWpm > 0) {
+            tft.printf("%u Hz / %.0f Hz / %u WPM", (uint16_t)config.data.cwToneFrequencyHz, currentFreq, currentWpm);
+        } else {
+            tft.print("-- Hz / -- Hz / -- WPM");
+        }
+    }
+
+    char ch;
+    while (::decodedData.textBuffer.get(ch)) {
+        if (cwTextBox) {
+            cwTextBox->addCharacter(ch);
+        }
+    }
 }

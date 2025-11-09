@@ -11,7 +11,6 @@
 class ScreenAMCW : public ScreenAMRadioBase, public UICommonVerticalButtons::Mixin<ScreenAMCW> {
 
   public:
-
     /**
      * @brief Konstruktor
      */
@@ -48,11 +47,14 @@ class ScreenAMCW : public ScreenAMRadioBase, public UICommonVerticalButtons::Mix
      */
     void layoutComponents();
 
-    /**
-     * @brief CW specifikus gombok állapotának frissítése
-     */
-    void updateHorizontalButtonStates();
-
   private:
     std::shared_ptr<UICompTextBox> cwTextBox; ///< CW dekódolt szöveg megjelenítése
+
+    /**
+     * @brief CW dekódolt szöveg ellenőrzése és frissítése
+     */
+    void checkDecodedData();
+
+    uint16_t lastPublishedCwWpm;
+    float lastPublishedCwFreq;
 };
