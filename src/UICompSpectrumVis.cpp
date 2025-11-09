@@ -84,6 +84,8 @@ UICompSpectrumVis::UICompSpectrumVis(int x, int y, int w, int h, RadioMode radio
       modeIndicatorVisible_(false),                    //
       modeIndicatorDrawn_(false),                      //
       frequencyLabelsDrawn_(false),                    //
+      needBorderDrawn(true),                           //
+      wasDialogActive_(false),                         //
       modeIndicatorHideTime_(0),                       //
       lastTouchTime_(0),                               //
       lastFrameTime_(0),                               //
@@ -277,8 +279,16 @@ const uint16_t UICompSpectrumVis::WATERFALL_COLORS[16] = {0x0000, 0x000F, 0x001F
  */
 void UICompSpectrumVis::draw() {
 
+    // Dialog állapot változásának detektálása
+    bool isDialogActive = UIComponent::isCurrentScreenDialogActive();
+    if (wasDialogActive_ && !isDialogActive) {
+        // Dialog épp eltűnt - újra kell rajzolni a keretet
+        needBorderDrawn = true;
+    }
+    wasDialogActive_ = isDialogActive;
+
     // Ha van aktív dialog a képernyőn, ne rajzoljunk semmit
-    if (UIComponent::isCurrentScreenDialogActive()) {
+    if (isDialogActive) {
         return;
     }
 
@@ -312,8 +322,13 @@ void UICompSpectrumVis::draw() {
         return;
     }
 
-    // Biztonsági ellenőrzés: FM módban CW/RTTY/SNR módok nem engedélyezettek
-    if (radioMode_ == RadioMode::FM && (currentMode_ == DisplayMode::CWWaterfall || currentMode_ == DisplayMode::RTTYWaterfall || currentMode_ == DisplayMode::CwSnrCurve || currentMode_ == DisplayMode::RttySnrCurve)) {
+    // Biztonsági ellenőrzés: FM módban CW/RTTY és az SNR hangolássegéd módok nem engedélyezettek
+    if (radioMode_ == RadioMode::FM &&                 //
+        (currentMode_ == DisplayMode::CWWaterfall      //
+         || currentMode_ == DisplayMode::RTTYWaterfall //
+         || currentMode_ == DisplayMode::CwSnrCurve    //
+         || currentMode_ == DisplayMode::RttySnrCurve) //
+    ) {
         currentMode_ = DisplayMode::Waterfall; // Automatikus váltás Waterfall módra
     }
 
@@ -820,7 +835,7 @@ void UICompSpectrumVis::renderSpectrumLowRes() {
     sprite_->pushSprite(bounds.x, bounds.y);
 
     // Frekvencia feliratok rajzolása, ha még nem történt meg
-    renderFrequencyLabels(AnalyzerConstants::ANALYZER_MIN_FREQ_HZ, maxDisplayFrequencyHz_);
+    renderFrequencyRangeLabels(AnalyzerConstants::ANALYZER_MIN_FREQ_HZ, maxDisplayFrequencyHz_);
 }
 
 /**
@@ -919,7 +934,7 @@ void UICompSpectrumVis::renderSpectrumHighRes() {
     sprite_->pushSprite(bounds.x, bounds.y);
 
     // Frekvencia feliratok rajzolása, ha még nem történt meg
-    renderFrequencyLabels(AnalyzerConstants::ANALYZER_MIN_FREQ_HZ, maxDisplayFrequencyHz_);
+    renderFrequencyRangeLabels(AnalyzerConstants::ANALYZER_MIN_FREQ_HZ, maxDisplayFrequencyHz_);
 }
 
 /**
@@ -1252,7 +1267,7 @@ void UICompSpectrumVis::renderWaterfall() {
 
     // Frekvencia feliratok rajzolása, ha még nem történt meg és nincs aktív mód indicator
     if (!modeIndicatorVisible_) {
-        renderFrequencyLabels(AnalyzerConstants::ANALYZER_MIN_FREQ_HZ, maxDisplayFrequencyHz_);
+        renderFrequencyRangeLabels(AnalyzerConstants::ANALYZER_MIN_FREQ_HZ, maxDisplayFrequencyHz_);
     }
 }
 
@@ -1487,7 +1502,7 @@ void UICompSpectrumVis::renderCwOrRttyTuningAid() {
     updateFrameBasedGain(maxMagnitude);
 
     // Frekvencia feliratok rajzolása, ha még nem történt meg
-    renderFrequencyLabels(min_freq_displayed, max_freq_displayed);
+    renderFrequencyRangeLabels(min_freq_displayed, max_freq_displayed);
 }
 
 /**
@@ -1708,7 +1723,7 @@ void UICompSpectrumVis::renderSnrCurve() {
     updateFrameBasedGain(maxMagnitude);
 
     // Frekvencia feliratok rajzolása alsó részen
-    renderFrequencyLabels(static_cast<uint16_t>(MIN_FREQ_HZ), static_cast<uint16_t>(MAX_FREQ_HZ));
+    renderFrequencyRangeLabels(static_cast<uint16_t>(MIN_FREQ_HZ), static_cast<uint16_t>(MAX_FREQ_HZ));
 }
 
 /**
@@ -1970,9 +1985,12 @@ void UICompSpectrumVis::renderModeIndicator() {
 }
 
 /**
- * @brief Frekvencia címkék renderelése a mode indikátor helyére
+ * @brief A látható frekvencia tartomány alsó és felső címkéinek kirajzolása
+ * a mode indikátor helyére amikor az eltűnik
+ * @param minDisplayFrequencyHz Az aktuálisan megjelenített minimum frekvencia Hz-ben
+ * @param maxDisplayFrequencyHz Az aktuálisan megjelenített maximum frekvencia Hz-ben
  */
-void UICompSpectrumVis::renderFrequencyLabels(uint16_t minDisplayFrequencyHz, uint16_t maxDisplayFrequencyHz) {
+void UICompSpectrumVis::renderFrequencyRangeLabels(uint16_t minDisplayFrequencyHz, uint16_t maxDisplayFrequencyHz) {
 
     if (!frequencyLabelsDrawn_) {
         return;
@@ -2034,11 +2052,12 @@ void UICompSpectrumVis::renderFrequencyLabels(uint16_t minDisplayFrequencyHz, ui
         if (currentMode_ == DisplayMode::RTTYWaterfall || currentMode_ == DisplayMode::CWWaterfall) {
             // Bal oldali felirat: befelé tolva 15 pixellel
             tft.setTextDatum(BL_DATUM);
-            tft.drawString(Utils::formatFrequencyString(minDisplayFrequencyHz), bounds.x + 15, indicatorY + indicatorH);
+            tft.drawString(Utils::formatFrequencyString(minDisplayFrequencyHz), bounds.x /*+ 15*/, indicatorY + indicatorH);
 
             // Jobb oldali felirat: befelé tolva 15 pixellel
             tft.setTextDatum(BR_DATUM);
-            tft.drawString(Utils::formatFrequencyString(maxDisplayFrequencyHz), bounds.x + bounds.width - 15, indicatorY + indicatorH);
+            tft.drawString(Utils::formatFrequencyString(maxDisplayFrequencyHz), bounds.x + bounds.width /*- 15*/, indicatorY + indicatorH);
+
         } else {
             // Normál spektrum módokban balra/jobbra igazított elrendezés
             // Balra igazított min frekvencia

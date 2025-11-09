@@ -145,6 +145,7 @@ class UICompSpectrumVis : public UIComponent {
     bool modeIndicatorDrawn_;   // Flag to avoid redrawing the indicator unnecessarily
     bool frequencyLabelsDrawn_; // Flag to avoid redrawing frequency labels unnecessarily
     bool needBorderDrawn;       // Flag to indicate if the border needs to be redrawn
+    bool wasDialogActive_;      // Track previous dialog state to detect dialog dismissal
     uint32_t modeIndicatorHideTime_;
     uint32_t lastTouchTime_;
     uint32_t lastFrameTime_; // FPS limitáláshoz
@@ -197,7 +198,7 @@ class UICompSpectrumVis : public UIComponent {
     void renderEnvelope();
     void renderSnrCurve();
     void renderModeIndicator();
-    void renderFrequencyLabels(uint16_t minDisplayFrequencyHz, uint16_t maxDisplayFrequencyHz);
+    void renderFrequencyRangeLabels(uint16_t minDisplayFrequencyHz, uint16_t maxDisplayFrequencyHz);
 
     void startShowModeIndicator();
 
