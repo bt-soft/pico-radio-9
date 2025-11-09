@@ -503,11 +503,11 @@ int UICompSpectrumVis::getEffectiveHeight() const {
  */
 void UICompSpectrumVis::setFftParametersForDisplayMode() {
 
-    if (currentMode_ == DisplayMode::CWWaterfall) {
-        // Alapértelmezett módok esetén a CW dekóder használata
+    if (currentMode_ == DisplayMode::CWWaterfall || currentMode_ == DisplayMode::CwSnrCurve) {
+        // CW módok esetén a CW tuning aid használata
         setTuningAidType(TuningAidType::CW_TUNING);
-    } else if (currentMode_ == DisplayMode::RTTYWaterfall) {
-        // RTTY waterfall esetén a CW dekóder nem szükséges
+    } else if (currentMode_ == DisplayMode::RTTYWaterfall || currentMode_ == DisplayMode::RttySnrCurve) {
+        // RTTY módok esetén a RTTY tuning aid használata
         setTuningAidType(TuningAidType::RTTY_TUNING);
     }
 
