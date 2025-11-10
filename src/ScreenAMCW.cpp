@@ -5,7 +5,7 @@
 /**
  * @brief ScreenAMCW konstruktor
  */
-ScreenAMCW::ScreenAMCW() : ScreenAMRadioBase(SCREEN_NAME_DECODER_CW), lastPublishedCwWpm(0), lastPublishedCwFreq(0.0f) {
+ScreenAMCW::ScreenAMCW() : ScreenAMRadioBase(SCREEN_NAME_DECODER_CW), lastPublishedCwWpm(0), lastPublishedCwFreq(0) {
     // UI komponensek létrehozása és elhelyezése
     layoutComponents();
 }
@@ -42,29 +42,9 @@ void ScreenAMCW::layoutComponents() {
     // Függőleges gombok létrehozása
     Mixin::createCommonVerticalButtons(); // UICommonVerticalButtons-ban definiált UIButtonsGroupManager alapú függőleges gombsor egyedi Memo kezelővel
 
-    // Alsó közös + AM specifikus vízszintes gombsor az őstől
-    // ScreenRadioBase::createCommonHorizontalButtons();
-
-    // Back gomb külön, jobb alsó sarokhoz igazítva (ugyanakkora mint a vertikális gombok: 60x32)
-    constexpr uint16_t BACK_BUTTON_WIDTH = 70;
-    constexpr uint16_t BACK_BUTTON_HEIGHT = 32;
-    Rect backButtonRect(::SCREEN_W - BACK_BUTTON_WIDTH, ::SCREEN_H - BACK_BUTTON_HEIGHT, BACK_BUTTON_WIDTH, BACK_BUTTON_HEIGHT);
-
-    constexpr uint8_t BACK_BUTTON = 80;              ///< Vissza az AM képernyőre
-    auto backButton = std::make_shared<UIButton>(    //
-        BACK_BUTTON,                                 //
-        backButtonRect,                              //
-        "Back",                                      //
-        UIButton::ButtonType::Pushable,              //
-        UIButton::ButtonState::Off,                  //
-        [this](const UIButton::ButtonEvent &event) { //
-            if (event.state != UIButton::EventButtonState::Clicked) {
-                return;
-            }
-            // Visszalépés az AM képernyőre
-            getScreenManager()->goBack();
-        });
-    addChild(backButton);
+    // Alsó vízszintes gombsor - CSAK az AM specifikus 4 gomb (BFO, AFBW, ANTCAP, DEMOD)
+    // addDefaultButtons = false -> NEM rakja be a HAM, Band, Scan gombokat
+    ScreenRadioBase::createCommonHorizontalButtons(false);
 
     // ===================================================================
     // Spektrum vizualizáció komponens létrehozása
@@ -88,6 +68,37 @@ void ScreenAMCW::layoutComponents() {
 
     // Komponens hozzáadása a képernyőhöz
     children.push_back(cwTextBox);
+}
+
+/**
+ * @brief CW specifikus gombok hozzáadása a közös AM gombokhoz
+ * @param buttonConfigs A már meglévő gomb konfigurációk vektora
+ * @details Felülírja az ős metódusát, hogy hozzáadja a CW-specifikus gombokat
+ */
+void ScreenAMCW::addSpecificHorizontalButtons(std::vector<UIHorizontalButtonBar::ButtonConfig> &buttonConfigs) {
+
+    // Szülő osztály (ScreenAMRadioBase) közös AM gombjainak hozzáadása
+    // Ez tartalmazza: BFO, AFBW, ANTCAP, DEMOD gombokat
+    ScreenAMRadioBase::addSpecificHorizontalButtons(buttonConfigs);
+
+    // Itt később hozzáadhatsz CW-specifikus gombokat, például:
+    // - WPM beállítás
+    // - Speed beállítás
+    // - Decoder mode váltás
+    // - stb.
+
+    // Példa CW-specifikus gombra (jelenleg nincs implementálva):
+    /*
+    buttonConfigs.push_back({
+        CW_WPM_BUTTON,
+        "WPM",
+        UIButton::ButtonType::Pushable,
+        UIButton::ButtonState::Off,
+        [this](const UIButton::ButtonEvent &event) {
+            handleWpmButton(event);
+        }
+    });
+    */
 }
 
 /**
@@ -151,9 +162,9 @@ void ScreenAMCW::checkDecodedData() {
         tft.fillRect(labelX, labelY, labelW, labelH, TFT_BLACK); // előző kiírás törlése
         tft.setCursor(labelX, labelY + 6);
         tft.setTextSize(1);
-        tft.setTextColor(TFT_BROWN, TFT_SILVER);
-        if (currentFreq > 0.0f && currentWpm > 0) {
-            tft.printf("%u Hz / %.0f Hz / %u WPM", (uint16_t)config.data.cwToneFrequencyHz, currentFreq, currentWpm);
+        tft.setTextColor(TFT_SILVER, TFT_BLACK);
+        if (currentFreq > 0 && currentWpm > 0) {
+            tft.printf("%u Hz / %u Hz / %u WPM", (uint16_t)config.data.cwToneFrequencyHz, currentFreq, currentWpm);
         } else {
             tft.print("-- Hz / -- Hz / -- WPM");
         }

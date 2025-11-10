@@ -42,6 +42,13 @@ class ScreenAMCW : public ScreenAMRadioBase, public UICommonVerticalButtons::Mix
      */
     void layoutComponents();
 
+    /**
+     * @brief CW specifikus gombok hozzáadása a közös AM gombokhoz
+     * @param buttonConfigs A már meglévő gomb konfigurációk vektora
+     * @details Hozzáadja a CW-specifikus gombokat (pl. WPM, Speed, stb.)
+     */
+    virtual void addSpecificHorizontalButtons(std::vector<UIHorizontalButtonBar::ButtonConfig> &buttonConfigs) override;
+
   private:
     std::shared_ptr<UICompTextBox> cwTextBox; ///< CW dekódolt szöveg megjelenítése
 
