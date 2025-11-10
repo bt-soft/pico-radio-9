@@ -127,10 +127,19 @@ void ScreenAMRadioBase::updateSevenSegmentFreqWidth() {
  */
 bool ScreenAMRadioBase::handleRotary(const RotaryEvent &event) {
 
-    // Biztonsági ellenőrzés: csak aktív dialógus nélkül és nem klikk eseménykor
-    if (isDialogActive() || event.buttonState == RotaryEvent::ButtonState::Clicked) {
-        // Nem kezeltük az eseményt, továbbítjuk a szülő osztálynak (dialógusokhoz)
+    // Biztonsági ellenőrzés: Ha van dialóg, akkor nem kezeljük az eseményt itt
+    if (UIScreen::isDialogActive()) {
+        // Nem kezeltük az eseményt, továbbítjuk a szülő osztálynak (végső soron majd a dialógusokhoz)
         return UIScreen::handleRotary(event);
+    }
+
+    // Rotary klikk esemény kezelése - frekvencia lépés ciklus változtatása
+    if (event.buttonState == RotaryEvent::ButtonState::Clicked) {
+        if (sevenSegmentFreq) {
+            sevenSegmentFreq->cycleFreqStep(); // Léptetjük a frekvencia lépés értékét
+            // kilépünk, mert a tekergetés a klikk közben nem fogadjuk el
+            return true;
+        }
     }
 
     uint16_t newFreq;

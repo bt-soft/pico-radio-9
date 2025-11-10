@@ -190,4 +190,9 @@ class UICompSevenSegmentFreq : public UIComponent {
     // === UIComponent felülírt metódusok ===
     virtual void draw() override;
     virtual bool handleTouch(const TouchEvent &event) override;
+
+    /**
+     * @brief Kezeli a frekvencia lépés ciklusát
+     */
+    void cycleFreqStep();
 };

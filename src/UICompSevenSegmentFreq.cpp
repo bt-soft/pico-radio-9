@@ -568,6 +568,29 @@ bool UICompSevenSegmentFreq::handleTouch(const TouchEvent &event) {
 }
 
 /**
+ * @brief Kezeli a frekvencia lépés ciklusát
+ */
+void UICompSevenSegmentFreq::cycleFreqStep() {
+
+    // 0: 1kHz, 1: 100Hz, 2: 10Hz
+    rtv::freqstepnr = (rtv::freqstepnr + 1) % 3;
+    switch (rtv::freqstepnr) {
+        case 0:
+            rtv::freqstep = 1000;
+            break;
+        case 1:
+            rtv::freqstep = 100;
+            break;
+        case 2:
+            rtv::freqstep = 10;
+            break;
+    }
+
+    // Kérünk egy újrarajzolást majd
+    markForRedraw();
+}
+
+/**
  * @brief Visszaadja egy karakter szélességét konstansok alapján
  */
 int UICompSevenSegmentFreq::getCharacterWidth(char c) {
