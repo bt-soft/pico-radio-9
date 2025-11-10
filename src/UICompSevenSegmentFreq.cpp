@@ -15,7 +15,7 @@ constexpr static int CHAR_WIDTH_DOT = 3;    // '.' karakter szélessége
 constexpr static int CHAR_WIDTH_SPACE = 1;  // ' ' karakter szélessége
 constexpr static int CHAR_WIDTH_DASH = 23;  // '-' karakter szélessége
 
-constexpr static uint16_t CLEAR_AREA_WIDTH = 260; // Törlési terület szélessége (frekvencia + mértékegység)
+constexpr static uint16_t CLEAR_AREA_WIDTH = 250; // Törlési terület szélessége (frekvencia + mértékegység)
 
 /**
  * @brief UICompSevenSegmentFreq konstruktor - inicializálja a frekvencia kijelző komponenst
