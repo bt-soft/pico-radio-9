@@ -55,9 +55,6 @@ void UICompTextBox::onDialogDismissed() {
  * @brief Kurzor rajzolása vagy törlése
  */
 void UICompTextBox::draw() {
-    // Dialog állapot ellenőrzése (ősosztály metódus)
-    checkDialogState();
-
     // Ha van aktív dialog a képernyőn, ne rajzoljunk semmit
     if (isCurrentScreenDialogActive()) {
         return;

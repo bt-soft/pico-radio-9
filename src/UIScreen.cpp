@@ -277,6 +277,19 @@ void UIScreen::showDialog(std::shared_ptr<UIDialogBase> dialog) {
 void UIScreen::onDialogClosed(UIDialogBase *closedDialog) {
 
     // ===============================
+    // 0. UIComponent értesítése a dialógus bezárásáról
+    // ===============================
+    // Ez meghívja a saját onDialogDismissed() metódusát
+    onDialogDismissed();
+
+    // Rekurzívan értesítjük az összes gyerek komponenst is
+    for (auto &child : children) {
+        if (child) {
+            child->onDialogDismissed();
+        }
+    }
+
+    // ===============================
     // 1. Aktuális dialógus referencia cleanup
     // ===============================
     if (currentDialog.get() == closedDialog) {

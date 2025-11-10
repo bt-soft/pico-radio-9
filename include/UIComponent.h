@@ -61,9 +61,6 @@ class UIComponent {
     uint32_t lastClickTime = 0;                             // Utolsó érvényes kattintás ideje
     static constexpr uint32_t DEFAULT_DEBOUNCE_DELAY = 200; // ms - Alapértelmezett debounce idő
 
-    // Dialog állapot követés - minden komponens számára
-    bool wasDialogActive_ = false; // Előző rajzoláskor volt-e aktív dialog
-
     /**
      * @brief Debounce delay getter
      * @return A debounce delay értéke (alapértelmezett 200 ms)
@@ -138,31 +135,21 @@ class UIComponent {
         return (*::iScreenManager)->isCurrentScreenDialogActive();
     }
 
+  public:
     /**
      * @brief Virtuális metódus, amelyet meghívunk, ha a dialog eltűnt
      * @details A származtatott osztályok felülírhatják ezt a metódust,
      * hogy speciális kezelést biztosítsanak a dialog eltűnésekor
-     * (pl. keret újrarajzolása, címkék frissítése)
+     * (pl. keret újrarajzolása, címkék frissítése).
+     *
+     * Ez a metódus automatikusan meghívódik az UIScreen::onDialogClosed() callback-ben,
+     * amikor egy dialógus bezáródik.
      */
     virtual void onDialogDismissed() {
         // Alapértelmezett viselkedés: újrarajzolás kérése
         markForRedraw();
     }
 
-    /**
-     * @brief Ellenőrzi a dialog állapotot és meghívja az onDialogDismissed()-et, ha szükséges
-     * @details Ezt a metódust a származtatott osztályok draw() metódusának elején hívhatják meg
-     */
-    void checkDialogState() {
-        bool isDialogActive = isCurrentScreenDialogActive();
-        if (wasDialogActive_ && !isDialogActive) {
-            // Dialog épp eltűnt - értesítjük a komponenst
-            onDialogDismissed();
-        }
-        wasDialogActive_ = isDialogActive;
-    }
-
-  public:
     /**
      * @brief Konstruktor
      * @param bounds A komponens határai (Rect)
