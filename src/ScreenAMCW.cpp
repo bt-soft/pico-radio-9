@@ -153,14 +153,17 @@ void ScreenAMCW::checkDecodedData() {
         lastPublishedCwFreq = currentFreq;
         lastCwDisplayUpdate = millis();
 
-        // A textbox komponens fölött, balra igazítva jelenjen meg a kiírás
+        // A textbox komponens fölött, jobbra igazítva jelenjen meg a kiírás
+        // textSize(1) betűmagasság: 8px
         constexpr uint16_t labelW = 140;
-        constexpr uint16_t labelH = 20;
+        constexpr uint8_t textHeight = 8; // textSize(1) font magassága
+        constexpr uint8_t gap = 2;        // Távolság a textbox tetejétől
         uint16_t labelX = 260;
-        uint16_t labelY = cwTextBox->getBounds().y - labelH; // 18px magas sáv
+        uint16_t textBoxTop = cwTextBox->getBounds().y;
+        uint16_t labelY = textBoxTop - gap - textHeight; // Szöveg alja 2px-re a textbox teteje fölött
 
-        tft.fillRect(labelX, labelY, labelW, labelH, TFT_BLACK); // előző kiírás törlése
-        tft.setCursor(labelX, labelY + 6);
+        tft.fillRect(labelX, labelY, labelW, textHeight, TFT_BLACK); // Csak a szöveg magasságát töröljük
+        tft.setCursor(labelX, labelY);
         tft.setTextSize(1);
         tft.setTextColor(TFT_SILVER, TFT_BLACK);
         if (currentFreq > 0 && currentWpm > 0) {
