@@ -298,11 +298,6 @@ void ScreenFM::drawContent() {
     if (smeterComp) {
         smeterComp->drawSmeterScale();
     }
-
-    // Spektrum vizualizáció komponens border frissítése
-    if (spectrumComp) {
-        spectrumComp->setBorderDrawn();
-    }
 }
 
 /**

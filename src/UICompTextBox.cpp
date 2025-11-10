@@ -42,9 +42,27 @@ void UICompTextBox::calculateDimensions() {
 }
 
 /**
+ * @brief Dialog eltűnésekor meghívódó metódus
+ */
+void UICompTextBox::onDialogDismissed() {
+    // Dialog épp eltűnt - újra kell rajzolni a bordert
+    borderDrawn_ = false;
+    needsRedraw_ = true;
+    UIComponent::onDialogDismissed(); // Hívjuk meg az ősosztály implementációját (markForRedraw)
+}
+
+/**
  * @brief Kurzor rajzolása vagy törlése
  */
 void UICompTextBox::draw() {
+    // Dialog állapot ellenőrzése (ősosztály metódus)
+    checkDialogState();
+
+    // Ha van aktív dialog a képernyőn, ne rajzoljunk semmit
+    if (isCurrentScreenDialogActive()) {
+        return;
+    }
+
     if (needsRedraw_) {
         redrawAll();
         needsRedraw_ = false;

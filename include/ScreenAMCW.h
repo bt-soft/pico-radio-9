@@ -22,11 +22,6 @@ class ScreenAMCW : public ScreenAMRadioBase, public UICommonVerticalButtons::Mix
     virtual ~ScreenAMCW() override;
 
     /**
-     * @brief Statikus képernyő tartalom kirajzolása
-     */
-    virtual void drawContent() override;
-
-    /**
      * @brief Képernyő aktiválása
      */
     virtual void activate() override;

@@ -184,12 +184,13 @@ void ScreenSetupAudioProc::handleRttyMarkFrequencyDialog(int index) {
  * @return Olvasható string reprezentáció
  */
 String ScreenSetupAudioProc::decodeFFTGain(float value) {
-    if (value == -1.0f)
+    if (value == -1.0f) {
         return "Disabled";
-    else if (value == 0.0f)
+    } else if (value == 0.0f) {
         return "Auto Gain";
-    else
-        return "Manual: " + String(value, 1) + "x";
+    } else {
+        return "Manual: x " + Utils::floatToString(value, 3);
+    }
 }
 
 /**
@@ -203,7 +204,7 @@ void ScreenSetupAudioProc::handleFFTGainDialog(int index, bool isAM) {
     float &currentConfig = isAM ? config.data.audioFftGainConfigAm : config.data.audioFftGainConfigFm;
     const char *title = isAM ? "FFT Gain AM" : "FFT Gain FM";
 
-    int defaultSelection = 0; // Disabled
+    uint8_t defaultSelection = 0; // Disabled
     if (currentConfig == 0.0f) {
         defaultSelection = 1; // Auto Gain
     } else if (currentConfig > 0.0f) {

@@ -71,6 +71,13 @@ class UICompSpectrumVis : public UIComponent {
     void draw() override;
     bool handleTouch(const TouchEvent &touch) override;
 
+  protected:
+    /**
+     * @brief Dialog eltűnésekor meghívódik (ősosztályból örökölt)
+     */
+    void onDialogDismissed() override;
+
+  public:
     /**
      * @brief Keret rajzolása
      */
@@ -98,11 +105,11 @@ class UICompSpectrumVis : public UIComponent {
      */
     bool isModeAvailable(DisplayMode mode) const;
 
-    /**
-     * @brief Beállítja, hogy a keret rajzolása szükséges-e
-     * @param drawn true ha a keretet rajzolni kell, false ha nem
-     */
-    inline void setBorderDrawn() { needBorderDrawn = true; }
+    // /**
+    //  * @brief Beállítja, hogy a keret rajzolása szükséges-e
+    //  * @param drawn true ha a keretet rajzolni kell, false ha nem
+    //  */
+    // inline void setBorderDrawn() { needBorderDrawn = true; }
 
     /**
      * @brief Frissíti a maximális megjelenítési frekvenciát
@@ -150,7 +157,6 @@ class UICompSpectrumVis : public UIComponent {
     bool modeIndicatorDrawn_;   // Flag to avoid redrawing the indicator unnecessarily
     bool frequencyLabelsDrawn_; // Flag to avoid redrawing frequency labels unnecessarily
     bool needBorderDrawn;       // Flag to indicate if the border needs to be redrawn
-    bool wasDialogActive_;      // Track previous dialog state to detect dialog dismissal
     uint32_t modeIndicatorHideTime_;
     uint32_t lastTouchTime_;
     uint32_t lastFrameTime_; // FPS limitáláshoz

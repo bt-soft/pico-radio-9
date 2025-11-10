@@ -190,9 +190,7 @@ uint16_t *AdcDmaC1::getCompletePingPongBufferPtr(bool blocking) {
 
     // A DMA végzett, a legutóbb írt puffer most már a "teli" puffer.
     // Visszaadjuk a pointerét, és elindítjuk a DMA-t a másik, "üres" pufferre.
-
     uint16_t *completed_buffer_ptr;
-
     if (isPingActive) {
         // A Ping puffer telt meg. Visszaadjuk a pointerét.
         completed_buffer_ptr = pingBuffer.data();

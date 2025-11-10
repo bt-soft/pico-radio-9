@@ -74,7 +74,7 @@ void ScreenAMCW::layoutComponents() {
     ScreenRadioBase::spectrumComp->setCurrentMode(UICompSpectrumVis::DisplayMode::CwSnrCurve);
 
     // MEGJEGYZÉS: Az audioController indítása az activate() metódusban történik
-    // hogy képernyőváltáskor megfelelően le- és újrainduljon
+    // hogy képernyőváltáskor megfelelően leálljon és újrainduljon
 
     // TextBox hozzáadása (a S-Meter alatt)
     constexpr uint16_t TEXTBOX_HEIGHT = 150;
@@ -88,13 +88,6 @@ void ScreenAMCW::layoutComponents() {
 
     // Komponens hozzáadása a képernyőhöz
     children.push_back(cwTextBox);
-}
-
-/**
- * @brief Statikus képernyő tartalom kirajzolása
- */
-void ScreenAMCW::drawContent() {
-    // CW specifikus statikus tartalom (ha szükséges)
 }
 
 /**
@@ -134,7 +127,6 @@ void ScreenAMCW::deactivate() {
  */
 void ScreenAMCW::checkDecodedData() {
 
-    static unsigned long lastCwDisplayUpdate = 0;
     uint16_t currentWpm = ::decodedData.cwCurrentWpm;
     float currentFreq = ::decodedData.cwCurrentFreq;
 
@@ -144,6 +136,7 @@ void ScreenAMCW::checkDecodedData() {
     bool freqChanged = (lastPublishedCwFreq == 0.0f && currentFreq > 0.0f) || (abs(currentFreq - lastPublishedCwFreq) >= 50.0f);
 
     // FIX: Csak 2 másodpercenként frissítünk, és csak ha TÉNYLEG változott az adat
+    static unsigned long lastCwDisplayUpdate = 0;
     if (Utils::timeHasPassed(lastCwDisplayUpdate, 2000) && (wpmChanged || freqChanged)) {
         lastPublishedCwWpm = currentWpm;
         lastPublishedCwFreq = currentFreq;

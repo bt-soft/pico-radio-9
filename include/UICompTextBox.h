@@ -31,6 +31,13 @@ class UICompTextBox : public UIComponent {
     void draw() override;
     bool handleTouch(const TouchEvent &touch) override;
 
+  protected:
+    /**
+     * @brief Dialog eltűnésekor meghívódik (ősosztályból örökölt)
+     */
+    void onDialogDismissed() override;
+
+  public:
     /**
      * @brief Karakter hozzáadása a textboxhoz
      * @param c Karakter

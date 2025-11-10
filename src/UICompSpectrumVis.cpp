@@ -85,7 +85,6 @@ UICompSpectrumVis::UICompSpectrumVis(int x, int y, int w, int h, RadioMode radio
       modeIndicatorDrawn_(false),                      //
       frequencyLabelsDrawn_(false),                    //
       needBorderDrawn(true),                           //
-      wasDialogActive_(false),                         //
       modeIndicatorHideTime_(0),                       //
       lastTouchTime_(0),                               //
       lastFrameTime_(0),                               //
@@ -256,21 +255,25 @@ UICompSpectrumVis::DisplayMode UICompSpectrumVis::configValueToDisplayMode(uint8
 const uint16_t UICompSpectrumVis::WATERFALL_COLORS[16] = {0x0000, 0x000F, 0x001F, 0x081F, 0x0810, 0x0800, 0x0C00, 0x1C00, 0xFC00, 0xFDE0, 0xFFE0, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF};
 
 /**
+ * @brief Dialog eltűnésekor meghívódó metódus
+ */
+void UICompSpectrumVis::onDialogDismissed() {
+    // Dialog épp eltűnt - újra kell rajzolni a keretet és a frekvencia feliratokat is
+    needBorderDrawn = true;           // Rajzoljuk újra a keretet
+    frequencyLabelsDrawn_ = true;     // Frissítsük a frekvencia feliratokat is
+    UIComponent::onDialogDismissed(); // Hívjuk meg az ősosztály implementációját (markForRedraw)
+}
+
+/**
  * @brief UIComponent draw implementáció
  */
 void UICompSpectrumVis::draw() {
 
-    // Dialog állapot változásának detektálása
-    bool isDialogActive = UIComponent::isCurrentScreenDialogActive();
-    if (wasDialogActive_ && !isDialogActive) {
-        // Dialog épp eltűnt - újra kell rajzolni a keretet és a frekvencia feliratokat is
-        needBorderDrawn = true;       // Rajzoljuk újra a keretet
-        frequencyLabelsDrawn_ = true; // Frissítsük a frekvencia feliratokat is
-    }
-    wasDialogActive_ = isDialogActive;
+    // Dialog állapot ellenőrzése (ősosztály metódus)
+    checkDialogState();
 
     // Ha van aktív dialog a képernyőn, ne rajzoljunk semmit
-    if (isDialogActive) {
+    if (isCurrentScreenDialogActive()) {
         return;
     }
 
