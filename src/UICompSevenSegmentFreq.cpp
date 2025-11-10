@@ -422,11 +422,9 @@ void UICompSevenSegmentFreq::drawFineTuningUnderline(int freqSpriteX, int freqSp
 
     // Az aláhúzás digit pozíciói relatívan a sprite bal szélétől:
     // A maszk "88 888.88" esetén az utolsó 3 digit pozíciói
-    // FONTOS: A sprite-ban 10 pixel LEFT_PADDING van (calculateFixedSpriteWidth-ben)
-    constexpr int LEFT_PADDING = 10;
-    int digit1kHz_offset = 138 + LEFT_PADDING;  // 1kHz digit (5. pozíció a maszkban)
-    int digit100Hz_offset = 170 + LEFT_PADDING; // 100Hz digit (7. pozíció a maszkban)
-    int digit10Hz_offset = 196 + LEFT_PADDING;  // 10Hz digit (8. pozíció a maszkban)
+    int digit1kHz_offset = 138;  // 1kHz digit (5. pozíció a maszkban)
+    int digit100Hz_offset = 170; // 100Hz digit (7. pozíció a maszkban)
+    int digit10Hz_offset = 196;  // 10Hz digit (8. pozíció a maszkban)
     int digitPositions[3] = {freqSpriteX + digit1kHz_offset, freqSpriteX + digit100Hz_offset, freqSpriteX + digit10Hz_offset};
 
     int digitWidth = 25; // Ismert DSEG7 digit szélesség

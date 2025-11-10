@@ -99,6 +99,20 @@ void ScreenAMCW::addSpecificHorizontalButtons(std::vector<UIHorizontalButtonBar:
         }
     });
     */
+
+    constexpr uint8_t BACK_BUTTON = 100;
+    buttonConfigs.push_back(             //
+        {                                //
+         BACK_BUTTON,                    //
+         "Back",                         //
+         UIButton::ButtonType::Pushable, //
+         UIButton::ButtonState::Off,     //
+         [this](const UIButton::ButtonEvent &event) {
+             if (getScreenManager()) {
+                 getScreenManager()->goBack();
+             }
+         }} //
+    );
 }
 
 /**
