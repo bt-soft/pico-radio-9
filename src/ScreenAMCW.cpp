@@ -154,9 +154,8 @@ void ScreenAMCW::checkDecodedData() {
         lastCwDisplayUpdate = millis();
 
         // A textbox komponens fölött, jobbra igazítva jelenjen meg a kiírás
-        // textSize(1) betűmagasság: 8px
         constexpr uint16_t labelW = 140;
-        constexpr uint8_t textHeight = 8; // textSize(1) font magassága
+        constexpr uint8_t textHeight = 8; // textSize(1) betűmagasság: 8px
         constexpr uint8_t gap = 2;        // Távolság a textbox tetejétől
         uint16_t labelX = 260;
         uint16_t textBoxTop = cwTextBox->getBounds().y;
