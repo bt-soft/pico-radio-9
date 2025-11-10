@@ -93,9 +93,9 @@ bool RttyDecoderC1::start(const DecoderConfig &decoderConfig) {
     resetDecoder();
 
     // Publikáljuk a paramétereket a DecodedData-ba
-    decodedData.rttyMarkFreq = markFreq;
-    decodedData.rttySpaceFreq = spaceFreq;
-    decodedData.rttyBaudRate = baudRate;
+    decodedData.rttyMarkFreq = static_cast<uint16_t>(markFreq);
+    decodedData.rttySpaceFreq = static_cast<uint16_t>(spaceFreq);
+    decodedData.rttyBaudRate = static_cast<uint16_t>(baudRate);
 
     RTTY_DEBUG("RTTY dekóder elindítva: Mark=%.1f Hz, Space=%.1f Hz, Shift=%.1f Hz, Baud=%.2f, Fs=%.0f Hz, ToneBlock=%u, BinSpacing=%.1f Hz\n", markFreq, spaceFreq, fabsf(markFreq - spaceFreq), baudRate, samplingRate,
                TONE_BLOCK_SIZE, BIN_SPACING_HZ);
@@ -103,9 +103,9 @@ bool RttyDecoderC1::start(const DecoderConfig &decoderConfig) {
 }
 
 void RttyDecoderC1::stop() {
-    decodedData.rttyMarkFreq = 0.0f;
-    decodedData.rttySpaceFreq = 0.0f;
-    decodedData.rttyBaudRate = 0.0f;
+    decodedData.rttyMarkFreq = 0;
+    decodedData.rttySpaceFreq = 0;
+    decodedData.rttyBaudRate = 0;
     RTTY_DEBUG("RTTY dekóder leállítva.\n");
 }
 

@@ -447,11 +447,12 @@ void UIScreen::performDialogCleanupWithoutDraw(UIDialogBase *closedDialog) {
     // Saját újrarajzolási flag beállítása
     markForRedraw();
 
-    // Összes gyerek komponens újrarajzolási flag beállítása
+    // Összes gyerek komponens újrarajzolási flag beállítása ÉS onDialogDismissed propagálása
     for (auto &child : children) {
         if (child) {
             auto uiComponent = std::static_pointer_cast<UIComponent>(child);
             uiComponent->markForRedraw();
+            uiComponent->onDialogDismissed(); // FONTOS: Propagáljuk az eseményt minden gyereknek
         }
     }
 

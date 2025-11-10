@@ -65,7 +65,7 @@ class CwDecoderC1 : public IDecoder {
     unsigned long toneMin_;        // Legrövidebb tónus (ms)
     unsigned long toneMax_;        // Leghosszabb tónus (ms)
     unsigned long lastElement_;    // Előző tónus hossza (dit-dah pár validációhoz)
-    uint16_t currentWpm_;          // Aktuális WPM
+    uint8_t currentWpm_;           // Aktuális WPM
 
     // --- Dekódolás ---
     static constexpr size_t MAX_TONES = 6; // Max 6 dit/dah egy karakterben
@@ -74,12 +74,14 @@ class CwDecoderC1 : public IDecoder {
 
     // Statisztikák a stabilabb méréshez
     static constexpr size_t WPM_HISTORY_SIZE = 5;
-    uint16_t wpmHistory_[WPM_HISTORY_SIZE];
+    uint8_t wpmHistory_[WPM_HISTORY_SIZE];
     uint8_t wpmHistoryIndex_;
+
     static constexpr size_t FREQ_HISTORY_SIZE = 20; // Max tónus blokk egy karakterben
     uint8_t freqHistory_[FREQ_HISTORY_SIZE];
     uint8_t freqHistoryCount_;
-    uint16_t lastPublishedWpm_;
+
+    uint8_t lastPublishedWpm_;
     float lastPublishedFreq_;
 
     /*

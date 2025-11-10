@@ -62,7 +62,7 @@ bool CwDecoderC1::start(const DecoderConfig &decoderConfig) {
     resetDecoder();
 
     // Publikáljuk a kezdő állapotot
-    decodedData.cwCurrentFreq = scanFrequencies_[currentFreqIndex_];
+    decodedData.cwCurrentFreq = static_cast<uint16_t>(scanFrequencies_[currentFreqIndex_]);
     decodedData.cwCurrentWpm = 0;
 
     CW_DEBUG("CW: Dekóder sikeresen elindítva\n");
@@ -76,7 +76,7 @@ void CwDecoderC1::stop() {
     CW_DEBUG("CW: Dekóder leállítva\n");
     resetDecoder();
     decodedData.cwCurrentWpm = 0;
-    decodedData.cwCurrentFreq = 0.0f;
+    decodedData.cwCurrentFreq = 0;
 }
 
 /**
@@ -408,7 +408,7 @@ bool CwDecoderC1::decodeSymbol() {
                 // A mért frekvencia publikálása, ha változott
                 float newFreq = scanFrequencies_[modeIndex];
                 if (newFreq != lastPublishedFreq_) {
-                    decodedData.cwCurrentFreq = newFreq;
+                    decodedData.cwCurrentFreq = static_cast<uint16_t>(newFreq);
                     lastPublishedFreq_ = newFreq;
                     CW_DEBUG("CW: Freq PUBLISHED: %.1f Hz\n", newFreq);
                 }
@@ -416,7 +416,7 @@ bool CwDecoderC1::decodeSymbol() {
             } else {
                 // Fallback, ha nincs frekvencia előzmény
                 if (lastPublishedFreq_ != scanFrequencies_[currentFreqIndex_]) {
-                    decodedData.cwCurrentFreq = scanFrequencies_[currentFreqIndex_];
+                    decodedData.cwCurrentFreq = static_cast<uint16_t>(scanFrequencies_[currentFreqIndex_]);
                     lastPublishedFreq_ = decodedData.cwCurrentFreq;
                 }
             }
@@ -453,7 +453,7 @@ bool CwDecoderC1::decodeSymbol() {
 void CwDecoderC1::calculateWpm(unsigned long letterDuration) {
     if (symbolCount_ > 1 && letterDuration > 0) {
         // WPM = (szimbólumok * 1200) / időtartam
-        uint16_t wpm = ((symbolCount_ - 1) * 1200) / letterDuration;
+        uint8_t wpm = ((symbolCount_ - 1) * 1200) / letterDuration;
 
         // Korlátok ellenőrzése
         if (wpm >= minWpm_ && wpm <= maxWpm_) {
@@ -462,7 +462,7 @@ void CwDecoderC1::calculateWpm(unsigned long letterDuration) {
             wpmHistoryIndex_ = (wpmHistoryIndex_ + 1) % WPM_HISTORY_SIZE;
 
             // Medián számítása (robosztusabb WPM)
-            uint16_t sorted[WPM_HISTORY_SIZE];
+            uint8_t sorted[WPM_HISTORY_SIZE];
             memcpy(sorted, wpmHistory_, sizeof(sorted));
             std::sort(sorted, sorted + WPM_HISTORY_SIZE);
             uint8_t valid = 0;
@@ -559,7 +559,7 @@ void CwDecoderC1::resetDecoder() {
     lastPublishedWpm_ = 0;
     lastPublishedFreq_ = 0.0f;
     decodedData.cwCurrentWpm = 0;
-    decodedData.cwCurrentFreq = 0.0f;
+    decodedData.cwCurrentFreq = 0;
 
     initGoertzel();
 }

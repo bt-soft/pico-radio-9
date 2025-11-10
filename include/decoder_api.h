@@ -181,11 +181,11 @@ struct DecodedData {
     volatile uint8_t currentMode;  // Aktuális SSTV/WEFAX mód ID (c_sstv_decoder::e_mode)
 
     // CW-specifikus státuszok (Core1 írja, Core0 olvassa)
-    volatile uint16_t cwCurrentWpm; // Utolsó becsült WPM érték
-    volatile float cwCurrentFreq;   // Aktuálisan detektált CW frekvencia (Hz)
+    volatile uint8_t cwCurrentWpm;   // Utolsó becsült WPM érték
+    volatile uint16_t cwCurrentFreq; // Aktuálisan detektált CW frekvencia (Hz)
 
     // RTTY-specifikus státuszok (Core1 írja, Core0 olvassa)
-    volatile float rttyMarkFreq;  // Mark frekvencia (Hz)
-    volatile float rttySpaceFreq; // Space frekvencia (Hz)
-    volatile float rttyBaudRate;  // Baud sebesség (beállított)
+    volatile uint16_t rttyMarkFreq;  // Mark frekvencia (Hz)
+    volatile uint16_t rttySpaceFreq; // Space frekvencia (Hz)
+    volatile uint16_t rttyBaudRate;  // Baud sebesség (beállított)
 };

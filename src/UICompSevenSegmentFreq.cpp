@@ -232,7 +232,9 @@ void UICompSevenSegmentFreq::drawText(const String &text, int x, int y, int text
  * @brief Megjeleníti az FM/AM/LW stílusú frekvencia kijelzőt (balra igazított frekvencia)
  */
 void UICompSevenSegmentFreq::drawFmAmLwStyle(const FrequencyDisplayData &data) {
-    const FreqSegmentColors &colors = getSegmentColors(); // 1. Frekvencia sprite pozicionálása: keret bal szélénél
+    const FreqSegmentColors &colors = getSegmentColors();
+
+    // 1. Frekvencia sprite pozicionálása: keret bal szélénél
     // Sprite szélesség: rögzített szélesség a konzisztens megjelenéshez
     tft.setFreeFont(&DSEG7_Classic_Mini_Regular_34);
 
@@ -247,14 +249,14 @@ void UICompSevenSegmentFreq::drawFmAmLwStyle(const FrequencyDisplayData &data) {
     spr.setTextPadding(0);
     spr.setFreeFont(&DSEG7_Classic_Mini_Regular_34);
 
-    // Inaktív számjegyek rajzolása (ha engedélyezve van) - JOBBRA igazítva a maszkhoz
+    // Inaktív számjegyek rajzolása (ha engedélyezve van) - JOBBRA igazítva
     if (config.data.tftDigitLight) {
         spr.setTextColor(colors.inactive);
         spr.setTextDatum(BR_DATUM);                                       // Jobb alsó sarokhoz igazítás
         spr.drawString(data.mask, freqSpriteWidth, FREQ_7SEGMENT_HEIGHT); // Jobb szélre igazítva
     }
 
-    // Aktív frekvencia számok rajzolása - JOBBRA igazítva a maszkhoz
+    // Aktív frekvencia számok rajzolása - JOBBRA igazítva (így egymásra kerül a maszkkal)
     spr.setTextColor(colors.active);
     spr.setTextDatum(BR_DATUM);                                          // Jobb alsó sarokhoz igazítás
     spr.drawString(data.freqStr, freqSpriteWidth, FREQ_7SEGMENT_HEIGHT); // Jobb szélre igazítva
@@ -285,8 +287,8 @@ void UICompSevenSegmentFreq::drawSsbCwStyle(const FrequencyDisplayData &data) {
         return;
     }
 
-    // 1. Frekvencia sprite pozicionálása: keret bal szélénél
-    int freqSpriteX = bounds.x + 5; // 5 pixel margin a bal szélétől
+    // 1. Frekvencia sprite pozicionálása: keret bal szélénél (padding a sprite-ban van)
+    int freqSpriteX = bounds.x; // nincs extra margin - padding a sprite-ban
     int freqSpriteWidth = calculateFixedSpriteWidth(data.mask);
     int freqSpriteY = bounds.y;
 
@@ -361,47 +363,52 @@ int UICompSevenSegmentFreq::calculateSpriteWidthWithSpaces(const char *mask) {
  * @short Inkább bedrótozott értékeket használunk a különböző maszkokhoz
  *
  */
-int UICompSevenSegmentFreq::calculateFixedSpriteWidth(const String &mask) { // Konstans értékek a különböző maszkokhoz - ezek nem változnak futás közben
+int UICompSevenSegmentFreq::calculateFixedSpriteWidth(const String &mask) {
+
+    // Konstans értékek a különböző maszkokhoz - ezek nem változnak futás közben
     if (mask == "188.88") {
-        return 130; // FM: "188.88"
+        return 125; // FM: "188.88"
     } else if (mask == "8888") {
-        return 100; // MW/LW: "8888"
+        return 100 + 10; // MW/LW: "8888"
     } else if (mask == "88.888") {
-        return 150; // SW AM: "88.888" (CB és 30MHz sávokhoz)
+        return 140; // SW AM: "88.888"
     } else if (mask == "88 888.88") {
         return 208; // SSB/CW normál: "88 888.88"
     } else if (mask == "88 888") {
-        return 150; // SSB/CW képernyővédő: "88 888" (5 digit + space, extra margin)
+        return 150; // SSB/CW képernyővédő: "88 888"
     } else if (mask == "-888") {
-        return 100; // BFO: "-888" (-999...+999 tartomány)
+        return 100; // BFO: "-888"
     }
 
-    // Fallback: számítás konstansokkal
-    return calculateSpriteWidthWithSpaces(mask.c_str());
+    // Fallback: számítás konstansokkal + padding
+    return calculateSpriteWidthWithSpaces(mask.c_str()) + 10;
 }
 
 /**
  * @brief Megjeleníti a frekvencia sprite-ot space karakterekkel
  */
 void UICompSevenSegmentFreq::drawFrequencySpriteWithSpaces(const FrequencyDisplayData &data, int x, int y, int width) {
-    const FreqSegmentColors &colors = getSegmentColors(); // Sprite létrehozása
-    spr.createSprite(width, FREQ_7SEGMENT_HEIGHT);
+    const FreqSegmentColors &colors = getSegmentColors();
+
+    // Sprite létrehozása padding nélkül
+    int spriteWidth = width;
+    spr.createSprite(spriteWidth, FREQ_7SEGMENT_HEIGHT);
     spr.fillSprite(this->colors.background);
     spr.setTextSize(1);
     spr.setTextPadding(0);
     spr.setFreeFont(&DSEG7_Classic_Mini_Regular_34);
 
-    // Inaktív számjegyek rajzolása (ha engedélyezve van) - JOBBRA igazítva a maszkhoz
+    // Inaktív számjegyek rajzolása (ha engedélyezve van) - JOBBRA igazítva
     if (config.data.tftDigitLight) {
         spr.setTextColor(colors.inactive);
-        spr.setTextDatum(BR_DATUM);                             // Jobb alsó sarokhoz igazítás
-        spr.drawString(data.mask, width, FREQ_7SEGMENT_HEIGHT); // Jobb szélre igazítva
+        spr.setTextDatum(BR_DATUM);                                   // Jobb alsó sarokhoz igazítás
+        spr.drawString(data.mask, spriteWidth, FREQ_7SEGMENT_HEIGHT); // Jobb szélre igazítva
     }
 
-    // Aktív frekvencia számok rajzolása - JOBBRA igazítva a maszkhoz
+    // Aktív frekvencia számok rajzolása - JOBBRA igazítva (így egymásra kerül a maszkkal)
     spr.setTextColor(colors.active);
-    spr.setTextDatum(BR_DATUM);                                // Jobb alsó sarokhoz igazítás
-    spr.drawString(data.freqStr, width, FREQ_7SEGMENT_HEIGHT); // Jobb szélre igazítva
+    spr.setTextDatum(BR_DATUM);                                      // Jobb alsó sarokhoz igazítás
+    spr.drawString(data.freqStr, spriteWidth, FREQ_7SEGMENT_HEIGHT); // Jobb szélre igazítva
 
     // Sprite kirajzolása és memória felszabadítása
     spr.pushSprite(x, y);
@@ -413,11 +420,13 @@ void UICompSevenSegmentFreq::drawFrequencySpriteWithSpaces(const FrequencyDispla
  */
 void UICompSevenSegmentFreq::drawFineTuningUnderline(int freqSpriteX, int freqSpriteWidth) {
 
-    // Az aláhúzás digit pozíciói relatívan a sprite bal szélétől (balra igazított sprite miatt):
-    // A maszk "88 888.88" esetén az utolsó 3 digit pozíciói a bal széltől számítva
-    int digit1kHz_offset = 138;  // 1kHz digit (5. pozíció a maszkban)
-    int digit100Hz_offset = 170; // 100Hz digit (7. pozíció a maszkban)
-    int digit10Hz_offset = 196;  // 10Hz digit (8. pozíció a maszkban)
+    // Az aláhúzás digit pozíciói relatívan a sprite bal szélétől:
+    // A maszk "88 888.88" esetén az utolsó 3 digit pozíciói
+    // FONTOS: A sprite-ban 10 pixel LEFT_PADDING van (calculateFixedSpriteWidth-ben)
+    constexpr int LEFT_PADDING = 10;
+    int digit1kHz_offset = 138 + LEFT_PADDING;  // 1kHz digit (5. pozíció a maszkban)
+    int digit100Hz_offset = 170 + LEFT_PADDING; // 100Hz digit (7. pozíció a maszkban)
+    int digit10Hz_offset = 196 + LEFT_PADDING;  // 10Hz digit (8. pozíció a maszkban)
     int digitPositions[3] = {freqSpriteX + digit1kHz_offset, freqSpriteX + digit100Hz_offset, freqSpriteX + digit10Hz_offset};
 
     int digitWidth = 25; // Ismert DSEG7 digit szélesség
@@ -445,11 +454,12 @@ void UICompSevenSegmentFreq::drawFineTuningUnderline(int freqSpriteX, int freqSp
  * @brief Kiszámítja az SSB/CW frekvencia érintési területeket
  */
 void UICompSevenSegmentFreq::calculateSsbCwTouchAreas(int freqSpriteX, int freqSpriteWidth) {
-    // EGYSZERŰSÍTETT MEGOLDÁS: Ugyanazok a hard-coded relatív pozíciók, mint a finomhangolásban
-
-    int digit1kHz_offset = 135;  // 1kHz digit (5. pozíció a maszkban)
-    int digit100Hz_offset = 170; // 100Hz digit (7. pozíció a maszkban)
-    int digit10Hz_offset = 193;  // 10Hz digit (8. pozíció a maszkban)
+    // Touch területek ugyanazok a hard-coded relatív pozíciók, mint a finomhangolásban
+    // FONTOS: A sprite-ban 10 pixel LEFT_PADDING van (calculateFixedSpriteWidth-ben)
+    constexpr int LEFT_PADDING = 10;
+    int digit1kHz_offset = 135 + LEFT_PADDING;  // 1kHz digit (5. pozíció a maszkban)
+    int digit100Hz_offset = 170 + LEFT_PADDING; // 100Hz digit (7. pozíció a maszkban)
+    int digit10Hz_offset = 193 + LEFT_PADDING;  // 10Hz digit (8. pozíció a maszkban)
 
     int digitPositions[3] = {freqSpriteX + digit1kHz_offset, freqSpriteX + digit100Hz_offset, freqSpriteX + digit10Hz_offset};
 

@@ -50,6 +50,6 @@ class ScreenAMCW : public ScreenAMRadioBase, public UICommonVerticalButtons::Mix
      */
     void checkDecodedData();
 
-    uint16_t lastPublishedCwWpm;
-    float lastPublishedCwFreq;
+    uint8_t lastPublishedCwWpm;
+    uint16_t lastPublishedCwFreq;
 };

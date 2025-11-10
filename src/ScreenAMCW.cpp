@@ -69,7 +69,7 @@ void ScreenAMCW::layoutComponents() {
     // ===================================================================
     // Spektrum vizualizáció komponens létrehozása
     // ===================================================================
-    ScreenRadioBase::createSpectrumComponent(Rect(255, 70, 150, 80), RadioMode::AM);
+    ScreenRadioBase::createSpectrumComponent(Rect(255, 40, 150, 80), RadioMode::AM);
     // Induláskor beállítjuk a CwSnrCurve megjelenítési módot
     ScreenRadioBase::spectrumComp->setCurrentMode(UICompSpectrumVis::DisplayMode::CwSnrCurve);
 
@@ -77,10 +77,10 @@ void ScreenAMCW::layoutComponents() {
     // hogy képernyőváltáskor megfelelően leálljon és újrainduljon
 
     // TextBox hozzáadása (a S-Meter alatt)
-    constexpr uint16_t TEXTBOX_HEIGHT = 150;
+    constexpr uint16_t TEXTBOX_HEIGHT = 130;
     cwTextBox = std::make_shared<UICompTextBox>( //
         5,                                       // x
-        ::SCREEN_H - TEXTBOX_HEIGHT,             // y
+        150,                                     //::SCREEN_H - TEXTBOX_HEIGHT,             // y
         400,                                     // width
         TEXTBOX_HEIGHT,                          // height
         tft                                      // TFT instance
@@ -127,13 +127,13 @@ void ScreenAMCW::deactivate() {
  */
 void ScreenAMCW::checkDecodedData() {
 
-    uint16_t currentWpm = ::decodedData.cwCurrentWpm;
-    float currentFreq = ::decodedData.cwCurrentFreq;
+    uint8_t currentWpm = ::decodedData.cwCurrentWpm;
+    uint16_t currentFreq = ::decodedData.cwCurrentFreq;
 
     // Csak akkor frissítjük a kijelzőt, ha jelentős változás történt ÉS eltelt már legalább 2 másodperc
     // NÖVELT INTERVALLUM: 1000ms -> 2000ms a TFT terhelés csökkentésére
     bool wpmChanged = (lastPublishedCwWpm == 0 && currentWpm != 0) || (abs((int)currentWpm - (int)lastPublishedCwWpm) >= 3);
-    bool freqChanged = (lastPublishedCwFreq == 0.0f && currentFreq > 0.0f) || (abs(currentFreq - lastPublishedCwFreq) >= 50.0f);
+    bool freqChanged = (lastPublishedCwFreq == 0 && currentFreq > 0) || (abs((int)currentFreq - (int)lastPublishedCwFreq) >= 50);
 
     // FIX: Csak 2 másodpercenként frissítünk, és csak ha TÉNYLEG változott az adat
     static unsigned long lastCwDisplayUpdate = 0;
@@ -143,16 +143,15 @@ void ScreenAMCW::checkDecodedData() {
         lastCwDisplayUpdate = millis();
 
         // A textbox komponens fölött, balra igazítva jelenjen meg a kiírás
-        constexpr uint16_t labelH = 18;
-        constexpr uint16_t labelX = 5;
+        constexpr uint16_t labelW = 140;
+        constexpr uint16_t labelH = 20;
+        uint16_t labelX = 260;
         uint16_t labelY = cwTextBox->getBounds().y - labelH; // 18px magas sáv
-        constexpr uint16_t labelW = 100;
 
-        // FIX: TFT műveletek egyetlen tranzakcióban
         tft.fillRect(labelX, labelY, labelW, labelH, TFT_BLACK); // előző kiírás törlése
-        tft.setCursor(labelX, labelY + 2);
+        tft.setCursor(labelX, labelY + 6);
         tft.setTextSize(1);
-        tft.setTextColor(TFT_CYAN, TFT_BLACK);
+        tft.setTextColor(TFT_BROWN, TFT_SILVER);
         if (currentFreq > 0.0f && currentWpm > 0) {
             tft.printf("%u Hz / %.0f Hz / %u WPM", (uint16_t)config.data.cwToneFrequencyHz, currentFreq, currentWpm);
         } else {
