@@ -1,9 +1,9 @@
 #pragma once
 
-//Modulok debug beállításai
+// Modulok debug beállításai
 
-// #define __CORE1_DEBUG  // Core1 általános debug
-// #define __ADCDMA_DEBUG // AdcDma debug
+#define __CORE1_DEBUG  // Core1 általános debug
+#define __ADCDMA_DEBUG // AdcDma debug
 // #define __ADPROC_DEBUG // AudioProcessor debug
 
 // #define __CW_DEBUG // CwDecoder debug

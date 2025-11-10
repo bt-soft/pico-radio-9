@@ -34,6 +34,8 @@ void AdcDmaC1::configureDmaTransfer(uint16_t *buffer) {
  * @param config A használni kívánt konfigurációs beállítások.
  */
 void AdcDmaC1::initialize(const CONFIG &config) {
+    ADCDMA_DEBUG("AdcDmaC1::initialize - KEZDÉS - dmaChannel=%d\n", dmaChannel);
+
     // Konfiguráció mentése
     // Robosztus pin->ADC konverzió:
     // Ha config.audioPin >= 26, akkor GPIO számot várunk (26..28)
@@ -125,15 +127,33 @@ void AdcDmaC1::initialize(const CONFIG &config) {
  * le szeretnénk állítani a mintavételezést.
  */
 void AdcDmaC1::finalize() {
-    if (dma_channel_is_claimed(dmaChannel)) {
-        dma_channel_abort(dmaChannel);
-        dma_channel_unclaim(dmaChannel);
-        ADCDMA_DEBUG("AdcDmaC1::finalize - DMA csatorna (%d) leállítva és felszabadítva.\n", dmaChannel);
-    }
-
-    adc_run(false);   // ADC leállítása
+    // KRITIKUS: ADC-t ELŐSZÖR leállítjuk, hogy ne generáljon több DREQ-et a DMA-nak
+    adc_run(false);
     adc_fifo_drain(); // ADC FIFO kiürítése
-    ADCDMA_DEBUG("AdcDmaC1::finalize - ADC leállítva.\n");
+    ADCDMA_DEBUG("AdcDmaC1::finalize - ADC leállítva és FIFO kiürítve.\n");
+
+    // Ellenőrizzük, hogy van-e érvényes DMA csatorna
+    if (dmaChannel < NUM_DMA_CHANNELS && dma_channel_is_claimed(dmaChannel)) {
+        ADCDMA_DEBUG("AdcDmaC1::finalize - DMA csatorna %d leállítása...\n", dmaChannel);
+
+        dma_channel_abort(dmaChannel);
+
+        // KRITIKUS: Várunk, amíg a DMA tényleg leáll
+        // A dma_channel_abort() nem blokkoló, így explicit várakozás kell
+        uint32_t timeout = 0;
+        while (dma_channel_is_busy(dmaChannel) && timeout < 10000) {
+            tight_loop_contents();
+            timeout++;
+        }
+
+        dma_channel_unclaim(dmaChannel);
+        ADCDMA_DEBUG("AdcDmaC1::finalize - DMA csatorna (%d) leállítva és felszabadítva (timeout=%d).\n", dmaChannel, timeout);
+
+        // Jelezzük, hogy nincs érvényes DMA csatorna
+        dmaChannel = 255;
+    } else {
+        ADCDMA_DEBUG("AdcDmaC1::finalize - Nincs érvényes DMA csatorna (dmaChannel=%d).\n", dmaChannel);
+    }
 
     // A statikus pufferek memóriáját nem kell felszabadítani,
     // az az objektum életciklusához van kötve.

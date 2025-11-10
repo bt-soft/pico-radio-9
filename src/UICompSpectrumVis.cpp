@@ -263,8 +263,9 @@ void UICompSpectrumVis::draw() {
     // Dialog állapot változásának detektálása
     bool isDialogActive = UIComponent::isCurrentScreenDialogActive();
     if (wasDialogActive_ && !isDialogActive) {
-        // Dialog épp eltűnt - újra kell rajzolni a keretet
-        needBorderDrawn = true;
+        // Dialog épp eltűnt - újra kell rajzolni a keretet és a frekvencia feliratokat is
+        needBorderDrawn = true;       // Rajzoljuk újra a keretet
+        frequencyLabelsDrawn_ = true; // Frissítsük a frekvencia feliratokat is
     }
     wasDialogActive_ = isDialogActive;
 
@@ -280,6 +281,12 @@ void UICompSpectrumVis::draw() {
         return;
     }
     lastFrameTime_ = currentTime;
+
+    static bool renderOnce = true;
+    if (renderOnce) {
+        // DEBUG("UICompSpectrumVis::render() - ELSŐ HÍVÁS - currentMode_=%d\n", static_cast<int>(currentMode_));
+        renderOnce = false;
+    }
 
 #ifdef __DEBUG
     // // AGC logolás 1mpént
@@ -325,6 +332,8 @@ void UICompSpectrumVis::draw() {
     }
 
     // Renderelés módjának megfelelően
+    // DEBUG("UICompSpectrumVis::render() - switch előtt, currentMode_=%d\n", static_cast<int>(currentMode_));
+
     switch (currentMode_) {
 
         case DisplayMode::Off:
@@ -358,6 +367,7 @@ void UICompSpectrumVis::draw() {
 
         case DisplayMode::CwSnrCurve:
         case DisplayMode::RttySnrCurve:
+            // DEBUG("UICompSpectrumVis::render() - SNR Curve mód, renderSnrCurve() hívás\n");
             renderSnrCurve();
             break;
     }
@@ -448,8 +458,9 @@ void UICompSpectrumVis::manageSpriteForMode(DisplayMode modeToPrepareFor) {
             spriteCreated_ = sprite_->createSprite(bounds.width, graphH);
             if (spriteCreated_) {
                 sprite_->fillSprite(TFT_BLACK); // Kezdeti törlés
+                // DEBUG("UICompSpectrumVis: Sprite létrehozva, méret: %dx%d, bounds.width=%d\n", sprite_->width(), sprite_->height(), bounds.width);
             } else {
-                DEBUG("UICompSpectrumVis: Sprite létrehozása sikertelen, mód: %d (szélesség:%d, grafikon magasság:%d)\n", static_cast<int>(modeToPrepareFor), bounds.width, graphH);
+                // DEBUG("UICompSpectrumVis: Sprite létrehozása sikertelen, mód: %d (szélesség:%d, grafikon magasság:%d)\n", static_cast<int>(modeToPrepareFor), bounds.width, graphH);
             }
         }
     }
@@ -1499,9 +1510,6 @@ void UICompSpectrumVis::renderSnrCurve() {
 
     int graphH = getGraphHeight();
     if (!spriteCreated_ || bounds.width == 0 || graphH <= 0) {
-        if (!spriteCreated_) {
-            DEBUG("UICompSpectrumVis::renderSnrCurve - Sprite nincs létrehozva\n");
-        }
         return;
     }
 
@@ -1540,7 +1548,7 @@ void UICompSpectrumVis::renderSnrCurve() {
     if (MIN_FREQ_HZ == 0 || MAX_FREQ_HZ == 0 || MIN_FREQ_HZ >= MAX_FREQ_HZ) {
         static unsigned long lastSnrErrorDebugTime = 0;
         if (Utils::timeHasPassed(lastSnrErrorDebugTime, 10000)) {
-            DEBUG("UICompSpectrumVis::renderSnrCurve - Érvénytelen frekvencia határok: MIN=%.2f, MAX=%.2f, automatikus javítás!\n", MIN_FREQ_HZ, MAX_FREQ_HZ);
+            // DEBUG("UICompSpectrumVis::renderSnrCurve - Érvénytelen frekvencia határok: MIN=%.2f, MAX=%.2f, automatikus javítás!\n", MIN_FREQ_HZ, MAX_FREQ_HZ);
             lastSnrErrorDebugTime = millis();
         }
         // Állítsuk be az alapértelmezett határokat
@@ -1548,13 +1556,6 @@ void UICompSpectrumVis::renderSnrCurve() {
         currentTuningAidMaxFreqHz_ = maxDisplayFrequencyHz_;
         // Frissítsük a lokális változatokat is
         // (ezek const-ként vannak deklarálva, de a további kód már a member változatokat használja)
-    }
-
-    // Debugging: Ellenőrizzük a frekvenciahatárok aktuális értékeit csak egyszer
-    static bool debugOnce = true;
-    if (debugOnce) {
-        DEBUG("UICompSpectrumVis::renderSnrCurve - Aktuális frekvenciahatárok: MIN=%.2f, MAX=%.2f\n", MIN_FREQ_HZ, MAX_FREQ_HZ);
-        debugOnce = false;
     }
 
     const int min_bin = std::max(2, static_cast<int>(std::round(MIN_FREQ_HZ / currentBinWidthHz)));
@@ -1575,8 +1576,10 @@ void UICompSpectrumVis::renderSnrCurve() {
     int prevX = -1;
     int prevY = -1;
 
+    // WORKAROUND: Az utolsó oszlop (x=width-1) sprite műveletei lefagyást okoznak
+    // Audio DMA és sprite memória írás közötti race condition miatt
     // Minden pixel oszlophoz kiszámítjuk az SNR értéket interpolációval
-    for (int x = 0; x < bounds.width; x++) {
+    for (int x = 0; x < bounds.width - 1; x++) { // width-1 hogy ne fagy le az utolsó pixelnél
         // X koordináta frekvenciává konvertálása (lebegőpontos bin index)
         float ratio = (bounds.width <= 1) ? 0.0f : (static_cast<float>(x) / (bounds.width - 1));
         float exact_bin_index = min_bin + ratio * (num_bins - 1);
@@ -1644,28 +1647,46 @@ void UICompSpectrumVis::renderSnrCurve() {
 
                 int w = sprite_->textWidth(freqStr);
                 // Töröljük a hátteret 1px margóval, MC_DATUM-hoz igazítva
+                // DEBUG("UICompSpectrumVis::renderSnrCurve - ELŐTTE sprite_->fillRect (CW bg)\n");
                 sprite_->fillRect(line_x_cw - w / 2 - 1, LABEL_Y_POS - 1, w + 2, labelHeight + 2, TFT_BLACK);
+                // DEBUG("UICompSpectrumVis::renderSnrCurve - UTÁNA sprite_->fillRect (CW bg)\n");
 
+                // DEBUG("UICompSpectrumVis::renderSnrCurve - ELŐTTE sprite_->drawString (CW)\n");
                 sprite_->setTextColor(TUNING_AID_CW_TARGET_COLOR, TFT_BLACK); // Szöveg színe és háttérszín
                 sprite_->drawString(freqStr, line_x_cw, LABEL_Y_POS);
+                // DEBUG("UICompSpectrumVis::renderSnrCurve - UTÁNA sprite_->drawString (CW)\n");
 
                 // TextDatum visszaállítása alapértelmezett
                 sprite_->setTextDatum(TL_DATUM);
+                // DEBUG("UICompSpectrumVis::renderSnrCurve - CW vonal és felirat kész\n");
             }
 
         } else if (currentMode_ == DisplayMode::RttySnrCurve) {
+            // DEBUG("UICompSpectrumVis::renderSnrCurve - RTTY mód\n");
             // RTTY módban mark és space vonalak
             uint16_t f_mark = config.data.rttyMarkFrequencyHz;
             uint16_t f_space = f_mark - config.data.rttyShiftHz;
 
+            // DEBUG("UICompSpectrumVis::renderSnrCurve - RTTY freq: mark=%d, space=%d\n", f_mark, f_space);
+
             // Space vonal (cyan) + címke
             if (f_space >= min_freq_displayed && f_space <= max_freq_displayed) {
+                // DEBUG("UICompSpectrumVis::renderSnrCurve - RTTY Space vonal rajzolása\n");
+                // DEBUG("UICompSpectrumVis::renderSnrCurve - f_space=%d, min=%d, span=%d\n", f_space, min_freq_displayed, displayed_span_hz);
+
                 float ratio_space = (static_cast<float>(f_space) - min_freq_displayed) / displayed_span_hz;
+                // DEBUG("UICompSpectrumVis::renderSnrCurve - ratio_space=%.4f\n", ratio_space);
+
                 uint16_t line_x_space = static_cast<uint16_t>(std::round(ratio_space * (bounds.width - 1)));
+                // DEBUG("UICompSpectrumVis::renderSnrCurve - line_x_space (előtte constrain)=%d\n", line_x_space);
+
                 line_x_space = constrain(line_x_space, 0, bounds.width - 1);
+                // DEBUG("UICompSpectrumVis::renderSnrCurve - line_x_space (utána constrain)=%d\n", line_x_space);
 
                 // Először a teljes vonal kirajzolása
+                // DEBUG("UICompSpectrumVis::renderSnrCurve - ELŐTTE sprite_->drawFastVLine (RTTY Space)\n");
                 sprite_->drawFastVLine(line_x_space, 0, graphH, TUNING_AID_RTTY_SPACE_COLOR);
+                // DEBUG("UICompSpectrumVis::renderSnrCurve - UTÁNA sprite_->drawFastVLine (RTTY Space)\n");
 
                 // Space frekvencia kiírása a vonal közepére
                 snprintf(freqStr, sizeof(freqStr), "%dHz", f_space);
@@ -1674,19 +1695,27 @@ void UICompSpectrumVis::renderSnrCurve() {
                 int w = sprite_->textWidth(freqStr);
 
                 // Töröljük a hátteret 1px margóval
+                // DEBUG("UICompSpectrumVis::renderSnrCurve - ELŐTTE sprite_->fillRect (RTTY Space bg)\n");
                 sprite_->fillRect(line_x_space - 5 - w - 1, LABEL_Y_POS - 1, w + 2, labelHeight + 2, TFT_BLACK);
+                // DEBUG("UICompSpectrumVis::renderSnrCurve - UTÁNA sprite_->fillRect (RTTY Space bg)\n");
+
+                // DEBUG("UICompSpectrumVis::renderSnrCurve - ELŐTTE sprite_->drawString (RTTY Space)\n");
                 sprite_->setTextColor(TUNING_AID_RTTY_SPACE_COLOR, TFT_BLACK);
                 sprite_->drawString(freqStr, line_x_space - 5, LABEL_Y_POS);
+                // DEBUG("UICompSpectrumVis::renderSnrCurve - UTÁNA sprite_->drawString (RTTY Space)\n");
             }
 
             // Mark vonal (yellow) + címke
             if (f_mark >= min_freq_displayed && f_mark <= max_freq_displayed) {
+                // DEBUG("UICompSpectrumVis::renderSnrCurve - RTTY Mark vonal rajzolása\n");
                 float ratio_mark = (static_cast<float>(f_mark) - min_freq_displayed) / displayed_span_hz;
                 uint16_t line_x_mark = static_cast<uint16_t>(std::round(ratio_mark * (bounds.width - 1)));
                 line_x_mark = constrain(line_x_mark, 0, bounds.width - 1);
 
                 // Először a teljes vonal kirajzolása
+                // DEBUG("UICompSpectrumVis::renderSnrCurve - ELŐTTE sprite_->drawFastVLine (RTTY Mark)\n");
                 sprite_->drawFastVLine(line_x_mark, 0, graphH, TUNING_AID_RTTY_MARK_COLOR);
+                // DEBUG("UICompSpectrumVis::renderSnrCurve - UTÁNA sprite_->drawFastVLen (RTTY Mark)\n");
 
                 // Mark frekvencia kiírása a vonal közepére
                 snprintf(freqStr, sizeof(freqStr), "%dHz", f_mark);
@@ -1695,15 +1724,24 @@ void UICompSpectrumVis::renderSnrCurve() {
                 int w = sprite_->textWidth(freqStr);
 
                 // Töröljük a hátteret 1px margóval
+                // DEBUG("UICompSpectrumVis::renderSnrCurve - ELŐTTE sprite_->fillRect (RTTY Mark bg)\n");
                 sprite_->fillRect(line_x_mark + 5 - 1, LABEL_Y_POS - 1, w + 2, labelHeight + 2, TFT_BLACK);
+                // DEBUG("UICompSpectrumVis::renderSnrCurve - UTÁNA sprite_->fillRect (RTTY Mark bg)\n");
+
+                // DEBUG("UICompSpectrumVis::renderSnrCurve - ELŐTTE sprite_->drawString (RTTY Mark)\n");
                 sprite_->setTextColor(TUNING_AID_RTTY_MARK_COLOR, TFT_BLACK);
                 sprite_->drawString(freqStr, line_x_mark + 5, LABEL_Y_POS);
+                // DEBUG("UICompSpectrumVis::renderSnrCurve - UTÁNA sprite_->drawString (RTTY Mark)\n");
             }
         }
     }
 
+    // DEBUG("UICompSpectrumVis::renderSnrCurve - UTÁNA hangolási vonalak\n");
+
+    // DEBUG("UICompSpectrumVis::renderSnrCurve - ELŐTTE sprite_->pushSprite()\n");
     // Sprite kirakása a képernyőre
     sprite_->pushSprite(bounds.x, bounds.y);
+    // DEBUG("UICompSpectrumVis::renderSnrCurve - UTÁNA sprite_->pushSprite()\n");
 
     // Adaptív autogain frissítése
     updateFrameBasedGain(maxMagnitude);
@@ -1978,26 +2016,37 @@ void UICompSpectrumVis::renderModeIndicator() {
  */
 void UICompSpectrumVis::renderFrequencyRangeLabels(uint16_t minDisplayFrequencyHz, uint16_t maxDisplayFrequencyHz) {
 
+    // DEBUG("UICompSpectrumVis::renderFrequencyRangeLabels() - KEZDÉS\n");
+
     if (!frequencyLabelsDrawn_) {
+        // DEBUG("UICompSpectrumVis::renderFrequencyRangeLabels() - frequencyLabelsDrawn_ = false, kilépés\n");
         return;
     }
 
     uint16_t indicatorH = 10;
     uint16_t indicatorY = bounds.y + bounds.height; // Közvetlenül a keret alatt kezdődik
 
+    // DEBUG("UICompSpectrumVis::renderFrequencyRangeLabels() - ELŐTTE tft.fillRect()\n");
     // Felirat terület törlése a teljes szélességben
     tft.fillRect(bounds.x, indicatorY, bounds.width, indicatorH + 2, TFT_BLACK);
+    // DEBUG("UICompSpectrumVis::renderFrequencyRangeLabels() - UTÁNA tft.fillRect()\n");
 
     tft.setFreeFont();
     tft.setTextSize(1);
     tft.setTextColor(TFT_YELLOW, TFT_BLACK);
 
+    // DEBUG("UICompSpectrumVis::renderFrequencyRangeLabels() - Waterfall ellenőrzés...\n");
+
     // Waterfall módban alul/felül középre igazított a freki címkék elrendezése
     if (currentMode_ == DisplayMode::Waterfall) {
+        // DEBUG("UICompSpectrumVis::renderFrequencyRangeLabels() - WATERFALL mód, MIN felirat\n");
         // Min frekvencia a spektrum alatt középen
         tft.setTextDatum(BC_DATUM); // Bottom center
+        // DEBUG("UICompSpectrumVis::renderFrequencyRangeLabels() - ELŐTTE tft.drawString() Waterfall MIN\n");
         tft.drawString(Utils::formatFrequencyString(minDisplayFrequencyHz), bounds.x + bounds.width / 2, indicatorY + indicatorH);
+        // DEBUG("UICompSpectrumVis::renderFrequencyRangeLabels() - UTÁNA tft.drawString() Waterfall MIN\n");
 
+        // DEBUG("UICompSpectrumVis::renderFrequencyRangeLabels() - WATERFALL mód, MAX felirat\n");
         // Max frekvencia a spektrum felett középen - csak a címke mögötti kis területet töröljük,
         // hogy ne töröljük a teljes felső keretet.
         String topLabel = Utils::formatFrequencyString(maxDisplayFrequencyHz);
@@ -2028,20 +2077,32 @@ void UICompSpectrumVis::renderFrequencyRangeLabels(uint16_t minDisplayFrequencyH
         if (rectY < bounds.y - 20) {
             rectY = bounds.y - 20;
         }
+        // DEBUG("UICompSpectrumVis::renderFrequencyRangeLabels() - ELŐTTE tft.fillRect() Waterfall MAX bg\n");
         tft.fillRect(rectX, rectY, rectW, rectH, TFT_BLACK);
+        // DEBUG("UICompSpectrumVis::renderFrequencyRangeLabels() - UTÁNA tft.fillRect() Waterfall MAX bg\n");
+
+        // DEBUG("UICompSpectrumVis::renderFrequencyRangeLabels() - ELŐTTE tft.drawString() Waterfall MAX\n");
         tft.drawString(topLabel, centerX, bounds.y - 12); // eredeti -10 helyett -12
+        // DEBUG("UICompSpectrumVis::renderFrequencyRangeLabels() - UTÁNA tft.drawString() Waterfall MAX\n");
 
     } else {
+        // DEBUG("UICompSpectrumVis::renderFrequencyRangeLabels() - SPEKTRUM/TUNING mód\n");
         // Spektrum és tuning aid módokban balra/jobbra igazított a freki címkék elrendezése
 
         // Balra igazított min frekvencia
         tft.setTextDatum(BL_DATUM);
+        // DEBUG("UICompSpectrumVis::renderFrequencyRangeLabels() - ELŐTTE tft.drawString() MIN (bal)\n");
         tft.drawString(Utils::formatFrequencyString(minDisplayFrequencyHz), bounds.x, indicatorY + indicatorH);
+        // DEBUG("UICompSpectrumVis::renderFrequencyRangeLabels() - UTÁNA tft.drawString() MIN (bal)\n");
 
         // Jobbra igazított max frekvencia
         tft.setTextDatum(BR_DATUM);
+        // DEBUG("UICompSpectrumVis::renderFrequencyRangeLabels() - ELŐTTE tft.drawString() MAX (jobb)\n");
         tft.drawString(Utils::formatFrequencyString(maxDisplayFrequencyHz), bounds.x + bounds.width, indicatorY + indicatorH);
+        // DEBUG("UICompSpectrumVis::renderFrequencyRangeLabels() - UTÁNA tft.drawString() MAX (jobb)\n");
     }
+
+    // DEBUG("UICompSpectrumVis::renderFrequencyRangeLabels() - VÉGE\n");
 
     frequencyLabelsDrawn_ = false;
 }

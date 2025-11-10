@@ -14,7 +14,16 @@ ScreenAMCW::ScreenAMCW() : ScreenAMRadioBase(SCREEN_NAME_DECODER_CW), lastPublis
  * @brief ScreenAMCW destruktor
  */
 ScreenAMCW::~ScreenAMCW() {
-    // Cleanup ha szükséges
+    DEBUG("ScreenAMCW::~ScreenAMCW() - Destruktor hívása - erőforrások felszabadítása\n");
+
+    // TextBox cleanup
+    if (cwTextBox) {
+        DEBUG("ScreenAMCW::~ScreenAMCW() - TextBox cleanup\n");
+        removeChild(cwTextBox);
+        cwTextBox.reset();
+    }
+
+    DEBUG("ScreenAMCW::~ScreenAMCW() - Destruktor befejezve\n");
 }
 
 /**
@@ -64,10 +73,8 @@ void ScreenAMCW::layoutComponents() {
     // Induláskor beállítjuk a CwSnrCurve megjelenítési módot
     ScreenRadioBase::spectrumComp->setCurrentMode(UICompSpectrumVis::DisplayMode::CwSnrCurve);
 
-    // ===================================================================
-    // Audio dekóder konfigurálása CW dekóderrel 1.5kHz sávszélességgel, 128-as mintavételi mérettel
-    // ===================================================================
-    ::audioController.startAudioController(DecoderId::ID_DECODER_CW, CW_RAW_SAMPLES_SIZE, CW_AF_BANDWIDTH_HZ, config.data.cwToneFrequencyHz);
+    // MEGJEGYZÉS: Az audioController indítása az activate() metódusban történik
+    // hogy képernyőváltáskor megfelelően le- és újrainduljon
 
     // TextBox hozzáadása (a S-Meter alatt)
     constexpr uint16_t TEXTBOX_HEIGHT = 150;
@@ -94,16 +101,32 @@ void ScreenAMCW::drawContent() {
  * @brief Képernyő aktiválása
  */
 void ScreenAMCW::activate() {
+
+    DEBUG("ScreenAMCW::activate() - ELŐTTE - Free heap: %d bytes\n", rp2040.getFreeHeap());
+
     // Szülő osztály aktiválása
     ScreenAMRadioBase::activate();
+
+    // CW audio dekóder indítása
+    ::audioController.startAudioController(DecoderId::ID_DECODER_CW, CW_RAW_SAMPLES_SIZE, CW_AF_BANDWIDTH_HZ, config.data.cwToneFrequencyHz);
+
+    DEBUG("ScreenAMCW::activate() - UTÁNA - Free heap: %d bytes\n", rp2040.getFreeHeap());
 }
 
 /**
  * @brief Képernyő deaktiválása
  */
 void ScreenAMCW::deactivate() {
+
+    DEBUG("ScreenAMCW::deactivate() - ELŐTTE - Free heap: %d bytes\n", rp2040.getFreeHeap());
+
+    // Audio dekóder leállítása
+    ::audioController.stopAudioController();
+
     // Szülő osztály deaktiválása
     ScreenAMRadioBase::deactivate();
+
+    DEBUG("ScreenAMCW::deactivate() - UTÁNA - Free heap: %d bytes\n", rp2040.getFreeHeap());
 }
 
 /**
@@ -115,10 +138,13 @@ void ScreenAMCW::checkDecodedData() {
     uint16_t currentWpm = ::decodedData.cwCurrentWpm;
     float currentFreq = ::decodedData.cwCurrentFreq;
 
-    // Csak akkor frissítjük a kijelzőt, ha jelentős változás történt ÉS eltelt már legalább 1 másodperc
+    // Csak akkor frissítjük a kijelzőt, ha jelentős változás történt ÉS eltelt már legalább 2 másodperc
+    // NÖVELT INTERVALLUM: 1000ms -> 2000ms a TFT terhelés csökkentésére
     bool wpmChanged = (lastPublishedCwWpm == 0 && currentWpm != 0) || (abs((int)currentWpm - (int)lastPublishedCwWpm) >= 3);
     bool freqChanged = (lastPublishedCwFreq == 0.0f && currentFreq > 0.0f) || (abs(currentFreq - lastPublishedCwFreq) >= 50.0f);
-    if (Utils::timeHasPassed(lastCwDisplayUpdate, 1000) && (wpmChanged || freqChanged)) {
+
+    // FIX: Csak 2 másodpercenként frissítünk, és csak ha TÉNYLEG változott az adat
+    if (Utils::timeHasPassed(lastCwDisplayUpdate, 2000) && (wpmChanged || freqChanged)) {
         lastPublishedCwWpm = currentWpm;
         lastPublishedCwFreq = currentFreq;
         lastCwDisplayUpdate = millis();
@@ -129,6 +155,7 @@ void ScreenAMCW::checkDecodedData() {
         uint16_t labelY = cwTextBox->getBounds().y - labelH; // 18px magas sáv
         constexpr uint16_t labelW = 100;
 
+        // FIX: TFT műveletek egyetlen tranzakcióban
         tft.fillRect(labelX, labelY, labelW, labelH, TFT_BLACK); // előző kiírás törlése
         tft.setCursor(labelX, labelY + 2);
         tft.setTextSize(1);
@@ -155,6 +182,6 @@ void ScreenAMCW::handleOwnLoop() {
     // Szülő osztály loop kezelése (S-Meter frissítés, stb.)
     ScreenAMRadioBase::handleOwnLoop();
 
-    // CW dekódolt szöveg frissítése
+    // CW dekódolt szöveg frissítése - RITKÁBBAN (2mp-ként)
     this->checkDecodedData();
 }

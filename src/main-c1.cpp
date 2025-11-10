@@ -71,14 +71,18 @@ std::unique_ptr<IDecoder> activeDecoderCore1 = nullptr;
  */
 static void readSensorsOnCore1() {
 
-    // KRITIKUS: Audio DMA SZÜNETELTETÉSE a mérés alatt!
-    // Ez biztosítja, hogy az ADC csatorna váltás NEM zavarja meg a DMA-t.
-    bool wasRunning = audioProcC1.isRunning();
-    if (wasRunning) {
-        audioProcC1.stop();
-        delay(1); // Várunk, hogy a DMA biztosan leálljon
+    // BIZTONSÁGI ELLENŐRZÉS: Csak akkor mérünk, ha az audio DMA NEM fut
+    // Ha bármilyen audio feldolgozás aktív (FFT, CW, RTTY), NE szakítsuk meg a DMA-t
+    // → race condition elkerülése a Core0 TFT műveletekkel (spectrum rajzolás, stb.)
+    bool isAudioRunning = audioProcC1.isRunning();
+
+    if (isAudioRunning) {
+        // Ha audio DMA fut, NE szakítsuk meg - a cache-olt értékek továbbra is elérhetők
+        // (core1_VbusVoltage, core1_CpuTemperature)
+        return;
     }
 
+    // CSAK akkor mérünk, ha az audio DMA teljesen inaktív (BIZTONSAGOS)
     // VBUS feszültség mérése 12-bit ADC olvasással
     float voltageOut = (analogRead(PIN_VBUS_EXTERNAL_MEASURE_INPUT) * CORE1_V_REFERENCE) / CORE1_CONVERSION_FACTOR;
     core1_VbusVoltage = voltageOut * CORE1_VBUSDIVIDER_RATIO;
@@ -89,15 +93,9 @@ static void readSensorsOnCore1() {
     // KRITIKUS: ADC csatorna VISSZAÁLLÍTÁSA az audio bemenetre (ADC0)!
     adc_select_input(0); // ADC0 (GPIO26 = A0)
 
-    // Audio DMA ÚJRAINDÍTÁSA (ha futott korábban)
-    if (wasRunning) {
-        audioProcC1.start();
-    }
-
-    CORE1_DEBUG("core-1: Sensors: VBUS=%.2fV, Temp=%.1f°C - (DMA was %s)\n", //
-                core1_VbusVoltage,                                           //
-                core1_CpuTemperature,                                        //
-                wasRunning ? "paused" : "stopped");
+    CORE1_DEBUG("core-1: Sensors: VBUS=%.2fV, Temp=%.1f°C - (measured safely, audio was stopped)\n", //
+                core1_VbusVoltage,                                                                   //
+                core1_CpuTemperature);
 }
 
 /**
@@ -157,6 +155,7 @@ void stopActiveDecoder() {
         CORE1_DEBUG("core-1: Dekóder '%s' leállítva\n", activeDecoderCore1->getDecoderName());
         activeDecoderCore1.reset();
         activeDecoderIdCore1 = ID_DECODER_NONE;
+        CORE1_DEBUG("core-1: Dekóder objektum felszabadítva (reset)\n");
     }
 }
 
@@ -254,6 +253,13 @@ void processFifoCommands() {
     switch (command) {
 
         case RP2040CommandCode::CMD_SET_CONFIG: {
+            // KRITIKUS: Először leállítjuk az audioProcC1-et és a dekódert
+            // hogy ne legyen DMA konfliktus újrakonfiguráláskor
+            CORE1_DEBUG("core-1: CMD_SET_CONFIG - DMA és dekóder leállítása...\n");
+            audioProcC1.stop();
+            stopActiveDecoder();
+
+            CORE1_DEBUG("core-1: CMD_SET_CONFIG - Konfiguráció olvasása a FIFO-ból...\n");
             DecoderConfig decoderConfig;
             decoderConfig.decoderId = (DecoderId)rp2040.fifo.pop();
             decoderConfig.sampleCount = rp2040.fifo.pop();
@@ -271,6 +277,8 @@ void processFifoCommands() {
 
             // WEFAX IOC mód automatikusan detektálódik
 
+            // Pufferek törlése új konfiguráció előtt
+            memset(sharedData, 0, sizeof(sharedData));
             decodedData.textBuffer.clear();
             decodedData.lineBuffer.clear();
             decodedData.cwCurrentWpm = 0;
@@ -317,15 +325,19 @@ void processFifoCommands() {
             bool useBlockingDma = (decoderConfig.decoderId == ID_DECODER_SSTV || decoderConfig.decoderId == ID_DECODER_WEFAX);
 
             // DMA és audio processzor inicializálása
+            CORE1_DEBUG("core-1: CMD_SET_CONFIG - AudioProcessor inicializálása (sampleCount=%d, samplingRate=%d, useFFT=%d, blocking=%d)...\n", adcDmaConfig.sampleCount, adcDmaConfig.samplingRate, useFFT,
+                        useBlockingDma);
             audioProcC1.initialize(adcDmaConfig, useFFT, useBlockingDma);
             audioProcC1.reconfigureAudioSampling(adcDmaConfig.sampleCount, adcDmaConfig.samplingRate, decoderConfig.bandwidthHz);
 
             // Dekóder indítása
+            CORE1_DEBUG("core-1: CMD_SET_CONFIG - Dekóder indítása (ID=%d)...\n", (int)decoderConfig.decoderId);
             startDecoder(decoderConfig);
 
             // Publikáljuk a futási megjelenítési javaslatokat a Core0 számára (Spectrum UI)
             updateDisplayHints(decoderConfig);
 
+            CORE1_DEBUG("core-1: CMD_SET_CONFIG - Kész, ACK küldése\n");
             // Válasz a Core 0 felé
             rp2040.fifo.push(RP2040ResponseCode::RESP_ACK);
             break;

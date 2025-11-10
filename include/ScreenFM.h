@@ -80,6 +80,16 @@ class ScreenFM : public ScreenRadioBase, public UICommonVerticalButtons::Mixin<S
     virtual void activate() override;
 
     /**
+     * @brief Képernyő deaktiválása - Audio dekóder leállítása
+     * @details Meghívódik, amikor a felhasználó másik képernyőre vált.
+     *
+     * Biztosítja a proper cleanup-ot:
+     * - Audio dekóder leállítása (DMA, Core1 kommunikáció)
+     * - Megelőzi a memória szivárgást és DMA konfliktusokat
+     */
+    virtual void deactivate() override;
+
+    /**
      * @brief Dialógus bezárásának kezelése - Gombállapot szinkronizálás
      * @details Az utolsó dialógus bezárásakor frissíti a gombállapotokat
      *

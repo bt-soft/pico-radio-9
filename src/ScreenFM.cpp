@@ -136,10 +136,50 @@ void ScreenFM::layoutComponents() {
     this->createExtendedCommonVerticalButtons();      // Saját ButtonsGroupManager alapú függőleges gombsor egyedi Memo kezelővel
     ScreenRadioBase::createCommonHorizontalButtons(); // Alsó közös + FM specifikus vízszintes gombsor
 
-    // ===================================================================
-    // Audio dekóder konfigurálása dekóder nélkül  (csak FFT lesz) 15kHz sávszélességgel, 512-es mintavételi mérettel
-    // ===================================================================
+    // MEGJEGYZÉS: Az audioController indítása az activate() metódusban történik
+    // hogy képernyőváltáskor megfelelően le- és újrainduljon
+}
+
+/**
+ * @brief Képernyő aktiválása - Event-driven gombállapot szinkronizálás
+ * @details Meghívódik, amikor a felhasználó erre a képernyőre vált.
+ *
+ * Ez az EGYETLEN hely, ahol a gombállapotokat szinkronizáljuk a rendszer állapotával:
+ * - Mute gomb szinkronizálása rtv::muteStat-tal
+ * - AM gomb szinkronizálása aktuális band típussal
+ * - További állapotok szinkronizálása (AGC, Attenuator, stb.)
+ */
+void ScreenFM::activate() {
+
+    DEBUG("ScreenFM::activate() - Képernyő aktiválása\n");
+
+    // Szülő osztály aktiválása (ScreenRadioBase -> ScreenFrequDisplayBase -> UIScreen)
+    ScreenRadioBase::activate();
+
+    // StatusLine frissítése
+    checkAndUpdateMemoryStatus();
+
+    // FM audio dekóder indítása (csak FFT, nincs dekóder)
     ::audioController.startAudioController(DecoderId::ID_DECODER_ONLY_FFT, FM_AF_RAW_SAMPLES_SIZE, FM_AF_BANDWIDTH_HZ);
+}
+
+/**
+ * @brief Képernyő deaktiválása - Audio dekóder leállítása
+ * @details Meghívódik, amikor a felhasználó másik képernyőre vált.
+ *
+ * Biztosítja a proper cleanup-ot:
+ * - Audio dekóder leállítása (DMA, Core1 kommunikáció)
+ * - Megelőzi a memória szivárgást és DMA konfliktusokat
+ */
+void ScreenFM::deactivate() {
+
+    DEBUG("ScreenFM::deactivate() - Képernyő deaktiválása\n");
+
+    // Audio dekóder leállítása
+    ::audioController.stopAudioController();
+
+    // Szülő osztály deaktiválása
+    ScreenRadioBase::deactivate();
 }
 
 // ===================================================================
@@ -263,26 +303,6 @@ void ScreenFM::drawContent() {
     if (spectrumComp) {
         spectrumComp->setBorderDrawn();
     }
-}
-
-/**
- * @brief Képernyő aktiválása - Event-driven gombállapot szinkronizálás
- * @details Meghívódik, amikor a felhasználó erre a képernyőre vált.
- *
- * Ez az EGYETLEN hely, ahol a gombállapotokat szinkronizáljuk a rendszer állapotával:
- * - Mute gomb szinkronizálása rtv::muteStat-tal
- * - AM gomb szinkronizálása aktuális band típussal
- * - További állapotok szinkronizálása (AGC, Attenuator, stb.)
- */
-void ScreenFM::activate() {
-
-    DEBUG("ScreenFM::activate() - Képernyő aktiválása\n");
-
-    // Szülő osztály aktiválása (ScreenRadioBase -> ScreenFrequDisplayBase -> UIScreen)
-    ScreenRadioBase::activate();
-
-    // StatusLine frissítése
-    checkAndUpdateMemoryStatus();
 }
 
 /**

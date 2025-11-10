@@ -50,7 +50,7 @@ class AdcDmaC1 {
     /**
      * @brief Az AdcDmaC1 osztály konstruktora.
      */
-    AdcDmaC1() : isPingActive(true) {};
+    AdcDmaC1() : isPingActive(true), dmaChannel(255) {};
 
     /**
      * @brief Az AdcDmaC1 osztály destruktora.

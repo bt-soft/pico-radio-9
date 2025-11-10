@@ -57,6 +57,10 @@ void AudioController::stopAudioController() {
     rp2040.fifo.push(RP2040CommandCode::CMD_STOP);
     (void)rp2040.fifo.pop(); // ACK
 
+    // KRITIKUS: Rövid várakozás a Core1-en történő DMA cleanup befejezéséhez
+    // Ez biztosítja, hogy a DMA tényleg leáll, mielőtt új konfiguráció érkezik
+    delay(20);
+
     // Alaphelyzetbe állítjuk az aktív dekóder mutatót
     activeDecoderCore0 = ID_DECODER_NONE;
 }

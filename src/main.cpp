@@ -316,6 +316,11 @@ void setup() {
  * @brief Core0 fő ciklus függvénye
  */
 void loop() {
+    static bool firstLoop = true;
+    if (firstLoop) {
+        DEBUG("core-0: loop() ELSŐ HÍVÁS\n");
+        firstLoop = false;
+    }
 
     // EEPROM mentés figyelése
 #define EEPROM_SAVE_CHECK_INTERVAL 1000 * 60 * 5 // 5 perc
@@ -343,8 +348,22 @@ void loop() {
     // Rotary Encoder események feldolgozása
     processRotaryEncoderEvent();
 
+    static bool firstScreenManagerLoop = true;
+    if (firstScreenManagerLoop) {
+        DEBUG("core-0: screenManager->loop() ELSŐ HÍVÁS\n");
+        firstScreenManagerLoop = false;
+    }
+
     // Képernyő loop-ok, képernyő iterációk, screensaver kezelése
     screenManager->loop();
+
+    if (firstScreenManagerLoop == false) {
+        static bool loggedAfterFirst = false;
+        if (!loggedAfterFirst) {
+            DEBUG("core-0: screenManager->loop() ELSŐ HÍVÁS VÉGE\n");
+            loggedAfterFirst = true;
+        }
+    }
 
     // SI4735 loop hívása, squelch és hardver némítás kezelése
     pSi4735Manager->loop();
