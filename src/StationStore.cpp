@@ -25,7 +25,7 @@ const FmStationList_t DEFAULT_FM_STATIONS = {{
      9830,           // frequency (98.30 MHz)
      FM_DEMOD_TYPE,  // modulation
      0,              // Auto bandwidth index
-     "Retro"},       // name
+     "HirFM"},       // name
                      //----
     {FM_BAND_TYPE,   // bandIndex
      10550,          // frequency (105.50 MHz)

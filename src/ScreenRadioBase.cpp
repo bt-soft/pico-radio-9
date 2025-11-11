@@ -374,18 +374,19 @@ void ScreenRadioBase::handleScanButton(const UIButton::ButtonEvent &event) {
  * Belső változás detektálással - csak szükség esetén rajzol újra
  */
 void ScreenRadioBase::updateSMeter(bool isFMMode) {
-    static uint32_t lastSmeterUpdate = 0;
-    uint32_t currentTime = millis();
 
     // S-meter frissítés 250ms-enként (4 Hz) - elegendő a vizuális visszajelzéshez
-    if (smeterComp && (currentTime - lastSmeterUpdate >= 250)) {
-        // Cache-elt jelerősség adatok lekérése a Si4735Manager-től
-        SignalQualityData signalCache = pSi4735Manager->getSignalQuality();
-        if (signalCache.isValid) {
-            // RSSI és SNR megjelenítése a megfelelő módban
-            smeterComp->showRSSI(signalCache.rssi, signalCache.snr, isFMMode);
+    if (smeterComp) {
+        static uint32_t lastSmeterUpdate = 0;
+        if (Utils::timeHasPassed(lastSmeterUpdate, 250)) {
+            // Cache-elt jelerősség adatok lekérése a Si4735Manager-től
+            SignalQualityData signalCache = pSi4735Manager->getSignalQuality();
+            if (signalCache.isValid) {
+                // RSSI és SNR megjelenítése a megfelelő módban
+                smeterComp->showRSSI(signalCache.rssi, signalCache.snr, isFMMode);
+            }
+            lastSmeterUpdate = millis();
         }
-        lastSmeterUpdate = currentTime;
     }
 }
 

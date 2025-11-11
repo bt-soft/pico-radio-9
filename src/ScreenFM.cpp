@@ -247,26 +247,24 @@ void ScreenFM::handleOwnLoop() {
     // ===================================================================
     // S-Meter (jelerősség) időzített frissítése - Közös RadioScreen implementáció
     // ===================================================================
-    updateSMeter(true /* FM mód */);
+    // Az S-Meter saját frissítési időzítése van beépítve
+    ScreenRadioBase::updateSMeter(true /* FM mód */);
 
     // ===================================================================
     // RDS adatok valós idejű frissítése
     // ===================================================================
     if (rdsComponent) {
+        // 500ms frissítési időköz az RDS adatokhoz a scroll miatt ilyen sűrűn
         static uint32_t lastRdsCall = 0;
-        uint32_t currentTime = millis();
-
-        // 500ms frissítési időköz az RDS adatokhoz
-        if (currentTime - lastRdsCall >= 500) {
+        if (Utils::timeHasPassed(lastRdsCall, 500)) {
             rdsComponent->updateRDS();
-            lastRdsCall = currentTime;
+            lastRdsCall = millis();
         }
     }
 
-    // Néhány adatot csak ritkábban frissítünk
-#define SCREEN_COMPS_REFRESH_TIME_MSEC 1000 // Frissítési időköz
-    static uint32_t elapsedTimedValues = 0; // Kezdőérték nulla
-    if ((millis() - elapsedTimedValues) >= SCREEN_COMPS_REFRESH_TIME_MSEC) {
+    // A Stereo/Mono jelző frissítése 1 másodpercenként
+    static uint32_t elapsedTimedValues = 0;
+    if (Utils::timeHasPassed(elapsedTimedValues, 1000)) { // 1 másodpercenként frissítjük
 
         // ===================================================================
         // STEREO/MONO jelző frissítése
@@ -276,8 +274,6 @@ void ScreenFM::handleOwnLoop() {
             bool isStereo = ::pSi4735Manager->getSi4735().getCurrentPilot();
             stereoIndicator->setStereo(isStereo);
         }
-
-        // Frissítjük az időbélyeget
         elapsedTimedValues = millis();
     }
 }

@@ -9,7 +9,7 @@
  * @brief UICompRDS konstruktor
  */
 UICompRDS::UICompRDS(const Rect &bounds)
-    : UIComponent(bounds, ColorScheme::defaultScheme()), lastScrollUpdate(0), dataChanged(false), scrollSprite(nullptr), scrollOffset(0), radioTextPixelWidth(0), needsScrolling(false), scrollSpriteCreated(false) {
+    : UIComponent(bounds, ColorScheme::defaultScheme()), lastScrollUpdate(0), scrollSprite(nullptr), scrollOffset(0), radioTextPixelWidth(0), needsScrolling(false), scrollSpriteCreated(false) {
 
     // Alapértelmezett színek beállítása
     stationNameColor = TFT_CYAN;   // Állomásnév - cián
@@ -20,9 +20,6 @@ UICompRDS::UICompRDS(const Rect &bounds)
 
     // Alapértelmezett pozíciók beállítása (a jelenlegi elrendezés alapján)
     calculateDefaultLayout();
-
-    // Kezdetben nincs RDS adat
-    dataChanged = false;
 }
 
 /**
@@ -188,11 +185,12 @@ void UICompRDS::cleanupScrollSprite() {
 
 /**
  * @brief RDS adatok frissítése a Si4735Manager-től
+ * @return true ha az adatok változtak és újrarajzolás szükséges
  */
-void UICompRDS::updateRdsData() {
+bool UICompRDS::updateRdsData() {
 
     // Az Si4735Rds osztály cache funkcionalitását használjuk
-    dataChanged = ::pSi4735Manager->updateRdsDataWithCache(); // Ha változott a radio text, újraszámítjuk a scroll paramétereket
+    bool dataChanged = ::pSi4735Manager->updateRdsDataWithCache(); // Ha változott a radio text, újraszámítjuk a scroll paramétereket
     if (dataChanged) {
         String newRadioText = ::pSi4735Manager->getCachedRadioText();
         if (!newRadioText.isEmpty()) {
@@ -209,6 +207,8 @@ void UICompRDS::updateRdsData() {
             needsScrolling = false;
         }
     }
+
+    return dataChanged;
 }
 
 // ===================================================================
@@ -400,15 +400,6 @@ void UICompRDS::draw() {
     needsRedraw = false;
 }
 
-/**
- * @brief Újrarajzolásra jelölés
- */
-void UICompRDS::markForRedraw(bool markChildren) {
-    UIComponent::markForRedraw(markChildren);
-    // Nem állítjuk be a dataChanged-et automatikusan
-    // Az csak akkor legyen true, ha tényleg változtak az RDS adatok
-}
-
 // ===================================================================
 // Publikus interface
 // ===================================================================
@@ -419,7 +410,7 @@ void UICompRDS::markForRedraw(bool markChildren) {
 void UICompRDS::updateRDS() {
 
     // Adaptív frissítési időköz figyelembevételével frissítjük az RDS adatokat
-    updateRdsData();
+    bool dataChanged = updateRdsData();
 
     // Ha a UIComponent szintjén újrarajzolás szükséges, akkor teljes újrarajzolás
     if (isRedrawNeeded()) {
@@ -470,7 +461,6 @@ void UICompRDS::clearRdsOnFrequencyChange() {
     ::pSi4735Manager->clearRdsCache();
 
     // UI állapot resetelés
-    dataChanged = true;
     needsScrolling = false;
     scrollOffset = 0;
 

@@ -14,6 +14,7 @@
 extern DecodedData decodedData;
 
 // CW működés debug engedélyezése de csak DEBUG módban
+// #define __CW_DEBUG
 #if defined(__DEBUG) && defined(__CW_DEBUG)
 #define CW_DEBUG(fmt, ...) DEBUG(fmt __VA_OPT__(, ) __VA_ARGS__)
 #else

@@ -10,6 +10,7 @@
 #include "defines.h"
 
 // ADC-DMA működés debug engedélyezése de csak DEBUG módban
+#define __ADCDMA_DEBUG
 #if defined(__DEBUG) && defined(__ADCDMA_DEBUG)
 #define ADCDMA_DEBUG(fmt, ...) DEBUG(fmt __VA_OPT__(, ) __VA_ARGS__)
 #else

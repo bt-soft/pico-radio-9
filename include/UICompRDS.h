@@ -31,7 +31,6 @@ class UICompRDS : public UIComponent {
   private:
     // Időzítés és UI kezelés
     uint32_t lastScrollUpdate;
-    bool dataChanged;
 
     // Layout területek
     Rect stationNameArea;
@@ -55,8 +54,9 @@ class UICompRDS : public UIComponent {
 
     /**
      * @brief RDS adatok frissítése a Si4735Manager-től
+     * @return true ha az adatok változtak és újrarajzolás szükséges
      */
-    void updateRdsData();
+    bool updateRdsData();
 
     /**
      * @brief Állomásnév kirajzolása
@@ -117,7 +117,6 @@ class UICompRDS : public UIComponent {
      */
     virtual ~UICompRDS(); // UIComponent interface implementáció
     virtual void draw() override;
-    virtual void markForRedraw(bool markChildren = false);
 
     /**
      * @brief RDS adatok frissítése (loop-ban hívandó)

@@ -12,6 +12,8 @@
 #include "RttyDecoder-c1.h"
 #include "defines.h"
 
+// RTTY működés debug engedélyezése de csak DEBUG módban
+// #define __RTTY_DEBUG
 #if defined(__DEBUG) && defined(__RTTY_DEBUG)
 #define RTTY_DEBUG(fmt, ...) DEBUG(fmt __VA_OPT__(, ) __VA_ARGS__)
 #else

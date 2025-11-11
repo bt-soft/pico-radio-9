@@ -2,7 +2,6 @@
 
 #include <Arduino.h>
 
-#include "debug_defines.h"
 #include "pins.h"
 
 //---- Program Information ------------------------------------------

@@ -17,7 +17,8 @@
 #include "WefaxDecoder-c1.h"
 #include "defines.h"
 
-// AudioProcessor működés debug engedélyezése de csak DEBUG módban
+// Core-1 debug engedélyezése de csak DEBUG módban
+// #define __CORE1_DEBUG
 #if defined(__DEBUG) && defined(__CORE1_DEBUG)
 #define CORE1_DEBUG(fmt, ...) DEBUG(fmt __VA_OPT__(, ) __VA_ARGS__)
 #else
