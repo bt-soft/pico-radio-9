@@ -115,7 +115,7 @@ void ScreenFM::layoutComponents() {
 
     // RDS Radio text
     currentY += 35; // 18px magasság + kisebb hézag
-    rdsComponent->setRadioTextRect(Rect(2, currentY, SMeterConstants::SMETER_WIDTH, 24));
+    rdsComponent->setRadioTextRect(Rect(2, currentY, 300, 24));
     // ===================================================================
     // S-Meter komponens létrehozása - RadioScreen közös implementáció
     // ===================================================================
