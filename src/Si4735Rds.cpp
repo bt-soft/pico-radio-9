@@ -57,8 +57,7 @@ const char *Si4735Rds::RDS_PTY_NAMES[] = {
     "Alarm Test",            // 30
     "Alarm"                  // 31
 };
-
-const uint8_t Si4735Rds::RDS_PTY_COUNT = sizeof(Si4735Rds::RDS_PTY_NAMES) / sizeof(Si4735Rds::RDS_PTY_NAMES[0]);
+const uint8_t Si4735Rds::RDS_PTY_COUNT = ARRAY_ITEM_COUNT(Si4735Rds::RDS_PTY_NAMES);
 
 /**
  * @brief Lekérdezi az RDS állomásnevet (Program Service)

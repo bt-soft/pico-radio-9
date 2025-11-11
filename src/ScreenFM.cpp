@@ -105,19 +105,17 @@ void ScreenFM::layoutComponents() {
 
     // RDS Állomásnév közvetlenül a frekvencia kijelző alatt
     uint16_t currentY = sevenSegmentFreq_Y + UICompSevenSegmentFreq::SEVEN_SEGMENT_FREQ_HEIGHT - 15;
-    rdsComponent->setStationNameArea(Rect(2, currentY, 180, 32));
+    rdsComponent->setStationNameRect(Rect(2, currentY, 180, 32));
 
     // RDS Program típus közvetlenül az állomásnév alatt
-    currentY += 32 + 5; // 18px magasság + 5px kisebb hézag
-    rdsComponent->setProgramTypeArea(Rect(0, currentY, 135, 18));
-
-    // Dátum/idő
-    rdsComponent->setDateTimeArea(Rect(0 + 130 + 5, currentY, 105, 18)); // Ugyanaz az Y pozíció, mint a program típus
+    currentY += 37; // 18px magasság + 5px kisebb hézag
+    rdsComponent->setProgramTypeRect(Rect(0, currentY, 135, 18));
+    // Dátum/idő ugyanazon a soron, mint a program típus, jobbra igazítva
+    rdsComponent->setDateTimeRect(Rect(0 + 130 + 5, currentY, 105, 18)); // Ugyanaz az Y pozíció, mint a program típus
 
     // RDS Radio text
-    currentY += 18 + 5;
-    rdsComponent->setRadioTextArea(Rect(2, currentY, SMeterConstants::SMETER_WIDTH, 24));
-
+    currentY += 35; // 18px magasság + kisebb hézag
+    rdsComponent->setRadioTextRect(Rect(2, currentY, SMeterConstants::SMETER_WIDTH, 24));
     // ===================================================================
     // S-Meter komponens létrehozása - RadioScreen közös implementáció
     // ===================================================================

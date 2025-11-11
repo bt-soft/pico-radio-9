@@ -52,33 +52,33 @@ void UICompRDS::calculateDefaultLayout() {
     const uint16_t stationNameWidth = 200;
 
     // Állomásnév - bal oldal
-    stationNameArea = Rect(margin, defaultY, stationNameWidth, lineHeight);
+    stationNameRect = Rect(margin, defaultY, stationNameWidth, lineHeight);
 
     // Program típus - középen
-    programTypeArea = Rect(220, defaultY, 150, lineHeight);
+    programTypeRect = Rect(220, defaultY, 150, lineHeight);
 
     // Dátum/idő - jobb oldal
-    dateTimeArea = Rect(380, defaultY, dateTimeWidth, lineHeight);
+    dateTimeRect = Rect(380, defaultY, dateTimeWidth, lineHeight);
 
     // Radio text - alsó sor
-    radioTextArea = Rect(margin, defaultY + 20, 460, lineHeight);
+    radioTextRect = Rect(margin, defaultY + 20, 460, lineHeight);
 }
 
 /**
  * @brief Állomásnév területének beállítása
  */
-void UICompRDS::setStationNameArea(const Rect &area) { stationNameArea = area; }
+void UICompRDS::setStationNameRect(const Rect &rect) { stationNameRect = rect; }
 
 /**
  * @brief Program típus területének beállítása
  */
-void UICompRDS::setProgramTypeArea(const Rect &area) { programTypeArea = area; }
+void UICompRDS::setProgramTypeRect(const Rect &rect) { programTypeRect = rect; }
 
 /**
  * @brief Radio text területének beállítása
  */
-void UICompRDS::setRadioTextArea(const Rect &area) {
-    radioTextArea = area;
+void UICompRDS::setRadioTextRect(const Rect &rect) {
+    radioTextRect = rect;
     // Ha változott a terület, újra kell inicializálni a scroll sprite-ot
     if (scrollSpriteCreated) {
         cleanupScrollSprite();
@@ -89,7 +89,7 @@ void UICompRDS::setRadioTextArea(const Rect &area) {
 /**
  * @brief Dátum/idő területének beállítása
  */
-void UICompRDS::setDateTimeArea(const Rect &area) { dateTimeArea = area; }
+void UICompRDS::setDateTimeRect(const Rect &rect) { dateTimeRect = rect; }
 
 /**
  * @brief RDS színek testreszabása
@@ -156,9 +156,9 @@ void UICompRDS::initializeScrollSprite() {
     if (scrollSprite || scrollSpriteCreated) {
         cleanupScrollSprite();
     }
-    if (radioTextArea.width > 0 && radioTextArea.height > 0) {
+    if (radioTextRect.width > 0 && radioTextRect.height > 0) {
         scrollSprite = new TFT_eSprite(&tft);
-        if (scrollSprite->createSprite(radioTextArea.width, radioTextArea.height)) {
+        if (scrollSprite->createSprite(radioTextRect.width, radioTextRect.height)) {
             scrollSprite->setFreeFont(); // Alapértelmezett font
             scrollSprite->setTextSize(2);
             scrollSprite->setTextColor(radioTextColor, backgroundColor);
@@ -208,7 +208,7 @@ bool UICompRDS::updateRdsData() {
             tft.setFreeFont();
             tft.setTextSize(2);
             radioTextPixelWidth = tft.textWidth(processedRadioText);
-            needsScrolling = (radioTextPixelWidth > radioTextArea.width);
+            needsScrolling = (radioTextPixelWidth > radioTextRect.width);
             scrollOffset = 0; // Scroll restart
         } else {
             needsScrolling = false;
@@ -231,11 +231,11 @@ void UICompRDS::drawStationName() {
     String stationName = ::pSi4735Manager->getCachedStationName();
 
     // Terület törlése
-    tft.fillRect(stationNameArea.x, stationNameArea.y, stationNameArea.width, stationNameArea.height, backgroundColor);
+    tft.fillRect(stationNameRect.x, stationNameRect.y, stationNameRect.width, stationNameRect.height, backgroundColor);
 
 #ifdef DRAW_DEBUG_GUI_FRAMES
     // DEBUG KERET - piros
-    tft.drawRect(stationNameArea.x, stationNameArea.y, stationNameArea.width, stationNameArea.height, TFT_RED);
+    tft.drawRect(stationNameRect.x, stationNameRect.y, stationNameRect.width, stationNameRect.height, TFT_RED);
 #endif
 
     if (stationName.isEmpty()) {
@@ -247,8 +247,8 @@ void UICompRDS::drawStationName() {
     tft.setTextDatum(MC_DATUM); // Middle Center - vízszintesen és függőlegesen is középre igazítva
 
     // Szöveg kirajzolása - terület közepére (vízszintes és függőleges központ)
-    int16_t centerX = stationNameArea.x + stationNameArea.width / 2;
-    int16_t centerY = stationNameArea.y + stationNameArea.height / 2;
+    int16_t centerX = stationNameRect.x + stationNameRect.width / 2;
+    int16_t centerY = stationNameRect.y + stationNameRect.height / 2;
     tft.drawString(stationName, centerX, centerY);
 }
 
@@ -259,11 +259,11 @@ void UICompRDS::drawProgramType() {
     String programType = ::pSi4735Manager->getCachedProgramType();
 
     // Terület törlése
-    tft.fillRect(programTypeArea.x, programTypeArea.y, programTypeArea.width, programTypeArea.height, backgroundColor);
+    tft.fillRect(programTypeRect.x, programTypeRect.y, programTypeRect.width, programTypeRect.height, backgroundColor);
 
 #ifdef DRAW_DEBUG_GUI_FRAMES
     // DEBUG KERET - zöld
-    tft.drawRect(programTypeArea.x, programTypeArea.y, programTypeArea.width, programTypeArea.height, TFT_GREEN);
+    tft.drawRect(programTypeRect.x, programTypeRect.y, programTypeRect.width, programTypeRect.height, TFT_GREEN);
 #endif
 
     if (programType.isEmpty()) {
@@ -275,8 +275,8 @@ void UICompRDS::drawProgramType() {
     tft.setTextDatum(MC_DATUM); // Middle Center - vízszintesen és függőlegesen is középre igazítva
 
     // Szöveg kirajzolása - terület közepére (vízszintes és függőleges központ)
-    int16_t centerX = programTypeArea.x + programTypeArea.width / 2;
-    int16_t centerY = programTypeArea.y + programTypeArea.height / 2;
+    int16_t centerX = programTypeRect.x + programTypeRect.width / 2;
+    int16_t centerY = programTypeRect.y + programTypeRect.height / 2;
     tft.drawString(programType, centerX, centerY);
 }
 
@@ -290,11 +290,11 @@ void UICompRDS::drawRadioText() {
     String processedRadioText = normalizeRadioText(radioText);
 
     // Terület törlése
-    tft.fillRect(radioTextArea.x, radioTextArea.y, radioTextArea.width, radioTextArea.height, backgroundColor);
+    tft.fillRect(radioTextRect.x, radioTextRect.y, radioTextRect.width, radioTextRect.height, backgroundColor);
 
 #ifdef DRAW_DEBUG_GUI_FRAMES
     // DEBUG KERET - sárga
-    tft.drawRect(radioTextArea.x, radioTextArea.y, radioTextArea.width, radioTextArea.height, TFT_YELLOW);
+    tft.drawRect(radioTextRect.x, radioTextRect.y, radioTextRect.width, radioTextRect.height, TFT_YELLOW);
 #endif
     if (processedRadioText.isEmpty()) {
         return;
@@ -307,8 +307,8 @@ void UICompRDS::drawRadioText() {
         tft.setTextDatum(ML_DATUM); // Middle Left - függőlegesen középre, balra igazítva
 
         // Szöveg kirajzolása - függőlegesen középre + 1px gap
-        int16_t centerY = radioTextArea.y + radioTextArea.height / 2;
-        tft.drawString(processedRadioText, radioTextArea.x + 5, centerY); // +5px gap a bal oldaltól
+        int16_t centerY = radioTextRect.y + radioTextRect.height / 2;
+        tft.drawString(processedRadioText, radioTextRect.x + 5, centerY); // +5px gap a bal oldaltól
     } else {
         // Scroll esetén sprite használata
         if (!scrollSpriteCreated) {
@@ -328,11 +328,11 @@ void UICompRDS::drawDateTime() {
     String dateTime = ::pSi4735Manager->getCachedDateTime();
 
     // Háttér törlése
-    tft.fillRect(dateTimeArea.x, dateTimeArea.y, dateTimeArea.width, dateTimeArea.height, backgroundColor);
+    tft.fillRect(dateTimeRect.x, dateTimeRect.y, dateTimeRect.width, dateTimeRect.height, backgroundColor);
 
 #ifdef DRAW_DEBUG_GUI_FRAMES
     // DEBUG KERET - kék
-    tft.drawRect(dateTimeArea.x, dateTimeArea.y, dateTimeArea.width, dateTimeArea.height, TFT_BLUE);
+    tft.drawRect(dateTimeRect.x, dateTimeRect.y, dateTimeRect.width, dateTimeRect.height, TFT_BLUE);
 #endif
     if (dateTime.isEmpty()) {
         return;
@@ -343,8 +343,8 @@ void UICompRDS::drawDateTime() {
     tft.setTextDatum(ML_DATUM); // Middle Left - függőlegesen középre, balra igazítva
 
     // Szöveg kirajzolása - függőlegesen középre + 1px gap a bal oldaltól
-    int16_t centerY = dateTimeArea.y + dateTimeArea.height / 2;
-    tft.drawString(dateTime, dateTimeArea.x + 1, centerY); // +1px gap a bal oldaltól
+    int16_t centerY = dateTimeRect.y + dateTimeRect.height / 2;
+    tft.drawString(dateTime, dateTimeRect.x + 1, centerY); // +1px gap a bal oldaltól
 }
 
 /**
@@ -370,15 +370,15 @@ void UICompRDS::handleRadioTextScroll() {
     scrollSprite->drawString(processedRadioText, -scrollOffset, 0);
 
     // Ha szükséges, "újra beúszó" szöveg rajzolása
-    const int gapPixels = radioTextArea.width; // Szóköz a szöveg vége és újrakezdés között
+    const int gapPixels = radioTextRect.width; // Szóköz a szöveg vége és újrakezdés között
     int secondTextX = -scrollOffset + radioTextPixelWidth + gapPixels;
 
-    if (secondTextX < radioTextArea.width) {
+    if (secondTextX < radioTextRect.width) {
         scrollSprite->drawString(processedRadioText, secondTextX, 0);
     }
 
     // Sprite kirakása a képernyőre
-    scrollSprite->pushSprite(radioTextArea.x, radioTextArea.y);
+    scrollSprite->pushSprite(radioTextRect.x, radioTextRect.y);
 
     // Scroll pozíció frissítése
     scrollOffset += SCROLL_STEP_PIXELS;

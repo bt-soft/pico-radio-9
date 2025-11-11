@@ -33,10 +33,10 @@ class UICompRDS : public UIComponent {
     uint32_t lastScrollUpdate;
 
     // Layout területek
-    Rect stationNameArea;
-    Rect programTypeArea;
-    Rect radioTextArea;
-    Rect dateTimeArea;
+    Rect stationNameRect;
+    Rect programTypeRect;
+    Rect radioTextRect;
+    Rect dateTimeRect;
 
     // Radio text scroll kezelés
     TFT_eSprite *scrollSprite;
@@ -151,25 +151,25 @@ class UICompRDS : public UIComponent {
      * @brief Állomásnév területének beállítása
      * @param area Az állomásnév megjelenítési területe
      */
-    void setStationNameArea(const Rect &area);
+    void setStationNameRect(const Rect &area);
 
     /**
      * @brief Program típus területének beállítása
      * @param area A program típus megjelenítési területe
      */
-    void setProgramTypeArea(const Rect &area);
+    void setProgramTypeRect(const Rect &area);
 
     /**
      * @brief Radio text területének beállítása
      * @param area A radio text megjelenítési területe
      */
-    void setRadioTextArea(const Rect &area);
+    void setRadioTextRect(const Rect &area);
 
     /**
      * @brief Dátum/idő területének beállítása
      * @param area A dátum/idő megjelenítési területe
      */
-    void setDateTimeArea(const Rect &area);
+    void setDateTimeRect(const Rect &area);
 
     // Színek beállítása
 
