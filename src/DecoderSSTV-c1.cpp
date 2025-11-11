@@ -8,7 +8,7 @@
  */
 #include <cstring>
 
-#include "SstvDecoder-c1.h"
+#include "DecoderSSTV-c1.h"
 #include "defines.h"
 
 #define __SSTV_DEBUG // SstvDecoder debug
@@ -37,7 +37,7 @@ extern DecodedData decodedData;
 /**
  * @brief Konstruktor
  */
-SstvDecoderC1::SstvDecoderC1() {}
+DecoderSSTV_C1::DecoderSSTV_C1() {}
 
 /**
  * @brief Egy sor pixelt feltol a line ring-be
@@ -45,7 +45,7 @@ SstvDecoderC1::SstvDecoderC1() {}
  * @param y a kirajzoláshoz használatos y koordináta
  * @return true ha sikerült a foglalás+másolás+commit, false ha a ring tele volt
  */
-bool SstvDecoderC1::pushLineToBuffer(const uint16_t *src, uint16_t y) {
+bool DecoderSSTV_C1::pushLineToBuffer(const uint16_t *src, uint16_t y) {
     DecodedLine newLine;
     newLine.lineNum = y;
 
@@ -54,11 +54,11 @@ bool SstvDecoderC1::pushLineToBuffer(const uint16_t *src, uint16_t y) {
 
     // Próbáljuk meg hozzáadni az új sort a közös lineBuffer-hez
     if (!decodedData.lineBuffer.put(newLine)) {
-        SSTV_DEBUG("SstvDecoderC1::pushLineToBuffer - Ring buffer FULL, y=%d\n", y);
+        SSTV_DEBUG("SSTV-C1::pushLineToBuffer - Ring buffer FULL, y=%d\n", y);
         return false;
     }
 
-    SSTV_DEBUG("SstvDecoderC1::pushLineToBuffer - Successfully pushed line y=%d\n", y);
+    SSTV_DEBUG("SSTV-C1::pushLineToBuffer - Successfully pushed line y=%d\n", y);
     return true;
 }
 
@@ -67,7 +67,7 @@ bool SstvDecoderC1::pushLineToBuffer(const uint16_t *src, uint16_t y) {
  * @param decoderConfig A dekóder konfigurációs struktúrája
  * @return true ha sikerült elindítani
  */
-bool SstvDecoderC1::start(const DecoderConfig &decoderConfig) {
+bool DecoderSSTV_C1::start(const DecoderConfig &decoderConfig) {
 
     // Ha van már dekóder, akkor azt töröljük
     if (sstv_decoder != nullptr) {
@@ -75,7 +75,7 @@ bool SstvDecoderC1::start(const DecoderConfig &decoderConfig) {
     }
 
     // Debug: mindig írjuk ki a fontos indítási paramétereket a fő logra
-    DEBUG("core-1: SSTV dekóder inicializálása samplingRate=%u, sampleCount=%u\n", decoderConfig.samplingRate, decoderConfig.sampleCount);
+    DEBUG("SSTV-C1: dekóder inicializálása samplingRate=%u, sampleCount=%u\n", decoderConfig.samplingRate, decoderConfig.sampleCount);
 
     // Létrehozzuk az SSTV dekódert a megadott mintavételezési frekvenciával
     // sstv_decoder = std::make_unique<c_sstv_decoder>(decoderConfig.samplingRate);
@@ -99,7 +99,7 @@ bool SstvDecoderC1::start(const DecoderConfig &decoderConfig) {
 /**
  * @brief Leállítás és takarítás
  */
-void SstvDecoderC1::stop() {
+void DecoderSSTV_C1::stop() {
     // Ha van már dekóder, akkor azt töröljük
     if (sstv_decoder != nullptr) {
         sstv_decoder.reset();
@@ -111,7 +111,7 @@ void SstvDecoderC1::stop() {
  * @param rawAudioSamples A bemeneti audio minták tömbje (SSTV_RAW_SAMPLES_SIZE elem).
  * @param count A minták száma.
  */
-void SstvDecoderC1::processSamples(const int16_t *rawAudioSamples, size_t count) {
+void DecoderSSTV_C1::processSamples(const int16_t *rawAudioSamples, size_t count) {
 
     // Rövid diagnosztika: jelezzük, hogy kaptunk-e adatot a dekódernek
     if (count == 0) {
@@ -129,13 +129,13 @@ void SstvDecoderC1::processSamples(const int16_t *rawAudioSamples, size_t count)
         int16_t frequency;
 
         if (sstv_decoder == nullptr) {
-            DEBUG("SSTV: HIBA - sstv_decoder NULL processSamples közben\n");
+            DEBUG("SSTV-C1: HIBA - sstv_decoder NULL processSamples közben\n");
             return;
         }
 
         if (sstv_decoder->decode_audio(rawSample, pixel_y, pixel_x, pixel_colour, pixel, frequency)) {
             // Debug log minden találatra (lehet sok, de most kell a hibakereséshez)
-            SSTV_DEBUG("SSTV: decode_audio HIT pixel_y=%u pixel_x=%u colour=%u pixel=%u freq=%d\n", (unsigned)pixel_y, (unsigned)pixel_x, (unsigned)pixel_colour, (unsigned)pixel, frequency);
+            SSTV_DEBUG("SSTV-C1: decode_audio HIT pixel_y=%u pixel_x=%u colour=%u pixel=%u freq=%d\n", (unsigned)pixel_y, (unsigned)pixel_x, (unsigned)pixel_colour, (unsigned)pixel, frequency);
 
             c_sstv_decoder::e_mode mode = sstv_decoder->get_mode();
             // Ha a felismerés módban változás történt (beleértve az első felismerést is),
@@ -148,8 +148,8 @@ void SstvDecoderC1::processSamples(const int16_t *rawAudioSamples, size_t count)
                 decodedData.modeChanged = true;
                 decodedData.currentMode = (uint8_t)mode_id_now;
 
-                SSTV_DEBUG("SstvDecoderC1: Módváltozás észlelve, új mode_id=%d, név=%s\n", //
-                           mode_id_now,                                                    //
+                SSTV_DEBUG("SSTV-C1: Módváltozás észlelve, új mode_id=%d, név=%s\n", //
+                           mode_id_now,                                              //
                            c_sstv_decoder::getSstvModeName((c_sstv_decoder::e_mode)mode_id_now));
             }
 
@@ -159,8 +159,8 @@ void SstvDecoderC1::processSamples(const int16_t *rawAudioSamples, size_t count)
             // képterület törlése megtörténjen.
             if ((pixel_y == 0 && last_pixel_y != 0) || (pixel_y == 0 && !first_image_sent)) {
 
-                SSTV_DEBUG("SstvDecoderC1: Új kép kezdődik, pixel_y=0, mode_id=%d, név=%s\n", //
-                           (uint8_t)mode,                                                     //
+                SSTV_DEBUG("SSTV-C1: Új kép kezdődik, pixel_y=0, mode_id=%d, név=%s\n", //
+                           (uint8_t)mode,                                               //
                            c_sstv_decoder::getSstvModeName((c_sstv_decoder::e_mode)mode_id_now));
 
                 // Jelöljük a shared memory-ban hogy új kép kezdődött
@@ -215,7 +215,7 @@ void SstvDecoderC1::processSamples(const int16_t *rawAudioSamples, size_t count)
 
                     // Első pixel-sor commitolása
                     if (!pushLineToBuffer(line_rgb565, scaled_pixel_y * 2)) {
-                        SSTV_DEBUG("SstvDecoderC1: HIBA - Ring buffer tele, nem sikerült elküldeni a PD sort\n");
+                        SSTV_DEBUG("SSTV-C1: HIBA - Ring buffer tele, nem sikerült elküldeni a PD sort\n");
                     }
 
                     for (uint16_t x = 0; x < 320; ++x) {
@@ -246,10 +246,10 @@ void SstvDecoderC1::processSamples(const int16_t *rawAudioSamples, size_t count)
                     }
                     // Két sor commit a ring-be a BW módnál
                     if (!pushLineToBuffer(line_rgb565, last_pixel_y * 2)) {
-                        SSTV_DEBUG("SstvDecoderC1: HIBA - Ring buffer tele (BW0)\n");
+                        SSTV_DEBUG("SSTV-C1: HIBA - Ring buffer tele (BW0)\n");
                     }
                     if (!pushLineToBuffer(line_rgb565, last_pixel_y * 2 + 1)) {
-                        SSTV_DEBUG("SstvDecoderC1: HIBA - Ring buffer tele (BW1)\n");
+                        SSTV_DEBUG("SSTV-C1: HIBA - Ring buffer tele (BW1)\n");
                     }
                 } else if (mode == c_sstv_decoder::robot24 || mode == c_sstv_decoder::robot72) {
                     for (uint16_t x = 0; x < 320; ++x) {
@@ -271,15 +271,15 @@ void SstvDecoderC1::processSamples(const int16_t *rawAudioSamples, size_t count)
                     if (mode == c_sstv_decoder::robot24) {
                         // Robot24: két sor
                         if (!pushLineToBuffer(line_rgb565, last_pixel_y * 2)) {
-                            SSTV_DEBUG("SstvDecoderC1: HIBA - Ring buffer tele (R24_0)\n");
+                            SSTV_DEBUG("SSTV-C1: HIBA - Ring buffer tele (R24_0)\n");
                         }
                         if (!pushLineToBuffer(line_rgb565, last_pixel_y * 2 + 1)) {
-                            SSTV_DEBUG("SstvDecoderC1: HIBA - Ring buffer tele (R24_1)\n");
+                            SSTV_DEBUG("SSTV-C1: HIBA - Ring buffer tele (R24_1)\n");
                         }
                     } else {
                         // Robot72: egy sor
                         if (!pushLineToBuffer(line_rgb565, last_pixel_y)) {
-                            SSTV_DEBUG("SstvDecoderC1: HIBA - Ring buffer tele (R72)\n");
+                            SSTV_DEBUG("SSTV-C1: HIBA - Ring buffer tele (R72)\n");
                         }
                     }
                 } else if (mode == c_sstv_decoder::robot36) {
@@ -317,7 +317,7 @@ void SstvDecoderC1::processSamples(const int16_t *rawAudioSamples, size_t count)
                     }
                     // Robot36: egy sor commit
                     if (!pushLineToBuffer(line_rgb565, last_pixel_y)) {
-                        SSTV_DEBUG("SstvDecoderC1: HIBA - Ring buffer tele (R36)\n");
+                        SSTV_DEBUG("SSTV-C1: HIBA - Ring buffer tele (R36)\n");
                     }
                 } else {
                     for (uint16_t x = 0; x < 320; ++x) {
@@ -325,7 +325,7 @@ void SstvDecoderC1::processSamples(const int16_t *rawAudioSamples, size_t count)
                     }
                     // Általános színes mód: másoljuk át a sor pixeleit a LineBufferRing-be és commitoljuk
                     if (!pushLineToBuffer(line_rgb565, last_pixel_y)) {
-                        SSTV_DEBUG("SstvDecoderC1: HIBA - A Ring buffer tele, sor eldobva:  %d\n", last_pixel_y);
+                        SSTV_DEBUG("SSTV-C1: HIBA - A Ring buffer tele, sor eldobva:  %d\n", last_pixel_y);
                     }
                 }
 

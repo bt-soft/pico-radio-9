@@ -11,10 +11,10 @@
 #include <memory>
 
 #include "AudioProcessor-c1.h"
-#include "CwDecoder-c1.h"
-#include "RttyDecoder-c1.h"
-#include "SstvDecoder-c1.h"
-#include "WefaxDecoder-c1.h"
+#include "DecoderCW-c1.h"
+#include "DecoderRTTY-c1.h"
+#include "DecoderSSTV-c1.h"
+#include "DecoderWeFax-c1.h"
 #include "defines.h"
 
 // Core-1 debug engedélyezése de csak DEBUG módban
@@ -200,7 +200,7 @@ void startDecoder(DecoderConfig decoderConfig) {
 
             // CW mód: Goertzel alapú tónus detektálás + Morse dekódolás
         case ID_DECODER_CW:
-            activeDecoderCore1 = std::make_unique<CwDecoderC1>();
+            activeDecoderCore1 = std::make_unique<DecoderCW_C1>();
             activeDecoderCore1->start(decoderConfig);
             activeDecoderIdCore1 = ID_DECODER_CW;
             CORE1_DEBUG("core-1: CW dekóder elindítva (%u Hz, adaptív)\n", decoderConfig.cwCenterFreqHz);
@@ -208,7 +208,7 @@ void startDecoder(DecoderConfig decoderConfig) {
 
             // RTTY mód: Goertzel alapú tone detektálás + Baudot dekódolás
         case ID_DECODER_RTTY:
-            activeDecoderCore1 = std::make_unique<RttyDecoderC1>();
+            activeDecoderCore1 = std::make_unique<DecoderRTTY_C1>();
             activeDecoderCore1->start(decoderConfig);
             activeDecoderIdCore1 = ID_DECODER_RTTY;
             CORE1_DEBUG("core-1: RTTY dekóder elindítva\n");
@@ -216,14 +216,14 @@ void startDecoder(DecoderConfig decoderConfig) {
 
             // SSTV mód: kép dekódolás audio mintákból
         case ID_DECODER_SSTV:
-            activeDecoderCore1 = std::make_unique<SstvDecoderC1>();
+            activeDecoderCore1 = std::make_unique<DecoderSSTV_C1>();
             activeDecoderCore1->start(decoderConfig);
             activeDecoderIdCore1 = ID_DECODER_SSTV;
             break;
 
             // WEFAX mód: teljes WEFAX FM dekódolás Goertzel-lel
         case ID_DECODER_WEFAX:
-            activeDecoderCore1 = std::make_unique<WefaxDecoderC1>();
+            activeDecoderCore1 = std::make_unique<DecoderWeFax_C1>();
             activeDecoderCore1->start(decoderConfig);
             activeDecoderIdCore1 = ID_DECODER_WEFAX;
             break;

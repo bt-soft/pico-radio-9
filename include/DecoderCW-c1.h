@@ -17,12 +17,11 @@
  * - Morse dekódolás bináris fa alapján
  * - Publikálja a detektált frekvenciát és WPM-et
  */
-class CwDecoderC1 : public IDecoder {
+class DecoderCW_C1 : public IDecoder {
   public:
     uint8_t measuredFreqIndex_ = 4; // Utolsó mért legerősebb frekvencia indexe
-    CwDecoderC1();
-    ~CwDecoderC1() override = default;
-
+    DecoderCW_C1();
+    ~DecoderCW_C1() override = default;
     const char *getDecoderName() const override { return "CW"; };
     bool start(const DecoderConfig &decoderConfig) override;
     void stop() override;

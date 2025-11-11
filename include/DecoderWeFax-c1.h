@@ -7,10 +7,10 @@
 /**
  * @brief WEFAX dekóder osztály - Core1 számára
  */
-class WefaxDecoderC1 : public IDecoder {
+class DecoderWeFax_C1 : public IDecoder {
   public:
-    WefaxDecoderC1();
-    ~WefaxDecoderC1() = default;
+    DecoderWeFax_C1();
+    ~DecoderWeFax_C1() = default;
 
     /**
      * @brief Dekóder neve

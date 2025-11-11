@@ -9,7 +9,7 @@
 
 #include <cmath>
 
-#include "RttyDecoder-c1.h"
+#include "DecoderRTTY-c1.h"
 #include "defines.h"
 
 // RTTY működés debug engedélyezése de csak DEBUG módban
@@ -38,7 +38,7 @@ static constexpr float ENVELOPE_ATTACK = 0.05f; // Gyors felfutás
 static constexpr float ENVELOPE_DECAY = 0.001f; // Lassú lecsengés
 
 // Baudot LTRS (Letters) table - ITA2 standard
-const char RttyDecoderC1::BAUDOT_LTRS_TABLE[32] = {
+const char DecoderRTTY_C1::BAUDOT_LTRS_TABLE[32] = {
     '\0', 'E', '\n', 'A',  ' ', 'S', 'I', 'U', // 0-7
     '\r', 'D', 'R',  'J',  'N', 'F', 'C', 'K', // 8-15
     'T',  'Z', 'L',  'W',  'H', 'Y', 'P', 'Q', // 16-23
@@ -46,7 +46,7 @@ const char RttyDecoderC1::BAUDOT_LTRS_TABLE[32] = {
 };
 
 // Baudot FIGS (Figures) table - ITA2 standard
-const char RttyDecoderC1::BAUDOT_FIGS_TABLE[32] = {
+const char DecoderRTTY_C1::BAUDOT_FIGS_TABLE[32] = {
     '\0', '3', '\n', '-',  ' ', '\'', '8', '7', // 0-7
     '\r', '$', '4',  '\a', ',', '!',  ':', '(', // 8-15
     '5',  '+', ')',  '2',  '#', '6',  '0', '1', // 16-23
@@ -56,7 +56,7 @@ const char RttyDecoderC1::BAUDOT_FIGS_TABLE[32] = {
 /**
  * @brief RTTY dekóder konstruktor - inicializálja az alapértelmezett értékeket
  */
-RttyDecoderC1::RttyDecoderC1()
+DecoderRTTY_C1::DecoderRTTY_C1()
     : currentState(IDLE), markFreq(0.0f), spaceFreq(0.0f), baudRate(45.45f), samplingRate(7500.0f), toneBlockAccumulated(0), lastToneIsMark(true), lastToneConfidence(0.0f), markNoiseFloor(0.0f), spaceNoiseFloor(0.0f),
       markEnvelope(0.0f), spaceEnvelope(0.0f), pllPhase(0.0f), pllFrequency(0.0f), pllDPhase(0.0f), pllAlpha(0.0f), pllBeta(0.0f), pllLocked(false), pllLockCounter(0), bitsReceived(0), currentByte(0), figsShift(false),
       lastDominantMagnitude(0.0f), lastOppositeMagnitude(0.0f) {
@@ -67,13 +67,13 @@ RttyDecoderC1::RttyDecoderC1()
 /**
  * @brief RTTY dekóder destruktora
  */
-RttyDecoderC1::~RttyDecoderC1() {}
+DecoderRTTY_C1::~DecoderRTTY_C1() {}
 
 /**
  * @brief RTTY dekóder indítása a konfigurációval
  * @param decoderConfig Dekóder konfiguráció
  */
-bool RttyDecoderC1::start(const DecoderConfig &decoderConfig) {
+bool DecoderRTTY_C1::start(const DecoderConfig &decoderConfig) {
     markFreq = static_cast<float>(decoderConfig.rttyMarkFreqHz);
     float shiftFreq = static_cast<float>(decoderConfig.rttyShiftFreqHz);
 
@@ -99,24 +99,24 @@ bool RttyDecoderC1::start(const DecoderConfig &decoderConfig) {
     decodedData.rttySpaceFreq = static_cast<uint16_t>(spaceFreq);
     decodedData.rttyBaudRate = static_cast<uint16_t>(baudRate);
 
-    RTTY_DEBUG("RTTY dekóder elindítva: Mark=%.1f Hz, Space=%.1f Hz, Shift=%.1f Hz, Baud=%.2f, Fs=%.0f Hz, ToneBlock=%u, BinSpacing=%.1f Hz\n", markFreq, spaceFreq, fabsf(markFreq - spaceFreq), baudRate, samplingRate,
-               TONE_BLOCK_SIZE, BIN_SPACING_HZ);
+    RTTY_DEBUG("RTTY-C1: RTTY dekóder elindítva: Mark=%.1f Hz, Space=%.1f Hz, Shift=%.1f Hz, Baud=%.2f, Fs=%.0f Hz, ToneBlock=%u, BinSpacing=%.1f Hz\n", markFreq, spaceFreq, fabsf(markFreq - spaceFreq), baudRate,
+               samplingRate, TONE_BLOCK_SIZE, BIN_SPACING_HZ);
     return true;
 }
 
-void RttyDecoderC1::stop() {
+void DecoderRTTY_C1::stop() {
     decodedData.rttyMarkFreq = 0;
     decodedData.rttySpaceFreq = 0;
     decodedData.rttyBaudRate = 0;
-    RTTY_DEBUG("RTTY dekóder leállítva.\n");
+    RTTY_DEBUG("RTTY-C1: RTTY dekóder leállítva.\n");
 }
 
-void RttyDecoderC1::processSamples(const int16_t *samples, size_t count) { processToneBlock(samples, count); }
+void DecoderRTTY_C1::processSamples(const int16_t *samples, size_t count) { processToneBlock(samples, count); }
 
 /**
  * @brief Tone detector inicializálása
  */
-void RttyDecoderC1::initializeToneDetector() {
+void DecoderRTTY_C1::initializeToneDetector() {
     configureToneBins(markFreq, markBins);
     configureToneBins(spaceFreq, spaceBins);
     markNoiseFloor = 0.0f;
@@ -132,7 +132,7 @@ void RttyDecoderC1::initializeToneDetector() {
 /**
  * @brief Konfigurálja a Goertzel bin-eket egy adott középfrekvenciára
  */
-void RttyDecoderC1::configureToneBins(float centerFreq, std::array<GoertzelBin, BINS_PER_TONE> &bins) {
+void DecoderRTTY_C1::configureToneBins(float centerFreq, std::array<GoertzelBin, BINS_PER_TONE> &bins) {
     int centerIndex = BINS_PER_TONE / 2;
     float centre = std::max(centerFreq, 0.0f);
 
@@ -153,7 +153,7 @@ void RttyDecoderC1::configureToneBins(float centerFreq, std::array<GoertzelBin, 
 /**
  * @brief Goertzel állapot visszaállítása
  */
-void RttyDecoderC1::resetGoertzelState() {
+void DecoderRTTY_C1::resetGoertzelState() {
     for (auto &bin : markBins) {
         bin.q1 = bin.q2 = 0.0f;
         bin.magnitude = 0.0f;
@@ -167,7 +167,7 @@ void RttyDecoderC1::resetGoertzelState() {
 /**
  * @brief Tone blokkok feldolgozása és PLL frissítés
  */
-void RttyDecoderC1::processToneBlock(const int16_t *samples, size_t count) {
+void DecoderRTTY_C1::processToneBlock(const int16_t *samples, size_t count) {
     for (size_t i = 0; i < count; ++i) {
         float sample = static_cast<float>(samples[i]);
 
@@ -220,7 +220,7 @@ void RttyDecoderC1::processToneBlock(const int16_t *samples, size_t count) {
  * - Clipping AGC (limitálja a csúcsokat)
  * - Log domain decision (v3 metódus - a legjobb zajos körülmények között)
  */
-bool RttyDecoderC1::detectTone(bool &isMark, float &confidence) {
+bool DecoderRTTY_C1::detectTone(bool &isMark, float &confidence) {
 
     // 1. Goertzel magnitude számítás
 
@@ -329,11 +329,11 @@ bool RttyDecoderC1::detectTone(bool &isMark, float &confidence) {
     if (++debugCounter >= 20 && toneDetected) {
 
 #if ENABLE_AGC
-        RTTY_DEBUG("RTTY: M=%.0f/%.0f, S=%.0f/%.0f, Mc=%.0f, Sc=%.0f, gain=%.2f/%.2f, AGC=%.0f/%.0f, metric=%.3f, %s\n", markPeak, markEnvelope, spacePeak, spaceEnvelope, markClipped, spaceClipped, markGain, spaceGain,
-                   markAgc, spaceAgc, metric, isMark ? "MARK" : "SPACE");
+        RTTY_DEBUG("RTTY-C1: M=%.0f/%.0f, S=%.0f/%.0f, Mc=%.0f, Sc=%.0f, gain=%.2f/%.2f, AGC=%.0f/%.0f, metric=%.3f, %s\n", markPeak, markEnvelope, spacePeak, spaceEnvelope, markClipped, spaceClipped, markGain,
+                   spaceGain, markAgc, spaceAgc, metric, isMark ? "MARK" : "SPACE");
 #else
-        RTTY_DEBUG("RTTY: M=%.0f/%.0f, S=%.0f/%.0f, Mc=%.0f, Sc=%.0f, metric=%.3f, %s (confidence: %.2f)\n", markPeak, markEnvelope, spacePeak, spaceEnvelope, markClipped, spaceClipped, metric, isMark ? "MARK" : "SPACE",
-                   confidence);
+        RTTY_DEBUG("RTTY-C1: M=%.0f/%.0f, S=%.0f/%.0f, Mc=%.0f, Sc=%.0f, metric=%.3f, %s (confidence: %.2f)\n", markPeak, markEnvelope, spacePeak, spaceEnvelope, markClipped, spaceClipped, metric,
+                   isMark ? "MARK" : "SPACE", confidence);
 #endif
         debugCounter = 0;
     }
@@ -345,7 +345,7 @@ bool RttyDecoderC1::detectTone(bool &isMark, float &confidence) {
 /**
  * @brief PLL inicializálása
  */
-void RttyDecoderC1::initializePLL() {
+void DecoderRTTY_C1::initializePLL() {
     // PLL loop filter koefficiensek számítása
     float omega_n = 2.0f * PI * PLL_BANDWIDTH * baudRate / samplingRate;
     pllAlpha = 2.0f * PLL_DAMPING * omega_n;
@@ -363,7 +363,7 @@ void RttyDecoderC1::initializePLL() {
 /**
  * @brief PLL frissítése és bit mintavételezés
  */
-void RttyDecoderC1::updatePLL(bool currentTone, bool &bitSample, bool &bitReady) {
+void DecoderRTTY_C1::updatePLL(bool currentTone, bool &bitSample, bool &bitReady) {
     bitReady = false;
 
     // Él detektálás
@@ -414,7 +414,7 @@ void RttyDecoderC1::updatePLL(bool currentTone, bool &bitSample, bool &bitReady)
 /**
  * @brief Bit feldolgozása az állapotgéppel
  */
-void RttyDecoderC1::processBit(bool bitValue) {
+void DecoderRTTY_C1::processBit(bool bitValue) {
     bool isMark = bitValue;
 
     if (!pllLocked) {
@@ -430,7 +430,7 @@ void RttyDecoderC1::processBit(bool bitValue) {
                 currentState = DATA_BITS;
                 bitsReceived = 0;
                 currentByte = 0;
-                // RTTY_DEBUG("RTTY: Start bit detektálva\n");
+                // RTTY_DEBUG("RTTY-C1: Start bit detektálva\n");
             }
             break;
 
@@ -439,7 +439,7 @@ void RttyDecoderC1::processBit(bool bitValue) {
                 currentByte |= (1 << bitsReceived);
             }
             bitsReceived++;
-            // RTTY_DEBUG("RTTY: Data bit %d = %d, byte=0x%02X\n", bitsReceived, isMark ? 1 : 0, currentByte);
+            // RTTY_DEBUG("RTTY-C1: Data bit %d = %d, byte=0x%02X\n", bitsReceived, isMark ? 1 : 0, currentByte);
 
             if (bitsReceived >= 5) {
                 currentState = STOP_BIT;
@@ -448,12 +448,12 @@ void RttyDecoderC1::processBit(bool bitValue) {
 
         case STOP_BIT: {
             // Stop bit kellene Mark legyen, de toleráljuk ha Space
-            // RTTY_DEBUG("RTTY: Stop bit = %s\n", isMark ? "Mark (OK)" : "Space (tolerálva)");
+            // RTTY_DEBUG("RTTY-C1: Stop bit = %s\n", isMark ? "Mark (OK)" : "Space (tolerálva)");
 
             char decoded = decodeBaudotCharacter(currentByte);
             if (decoded != '\0') {
                 if (!decodedData.textBuffer.put(decoded)) {
-                    RTTY_DEBUG("RTTY: textBuffer tele (karakter='%c')\n", decoded);
+                    RTTY_DEBUG("RTTY-C1: textBuffer tele (karakter='%c')\n", decoded);
                 }
             }
 
@@ -470,7 +470,7 @@ void RttyDecoderC1::processBit(bool bitValue) {
 /**
  * @brief Baudot karakter dekódolása
  */
-char RttyDecoderC1::decodeBaudotCharacter(uint8_t baudotCode) {
+char DecoderRTTY_C1::decodeBaudotCharacter(uint8_t baudotCode) {
     if (baudotCode >= 32) {
         return '\0';
     }
@@ -487,7 +487,7 @@ char RttyDecoderC1::decodeBaudotCharacter(uint8_t baudotCode) {
 
     char result = figsShift ? BAUDOT_FIGS_TABLE[baudotCode] : BAUDOT_LTRS_TABLE[baudotCode];
     if (result != '\0') {
-        // RTTY_DEBUG("RTTY: Dekódolt karakter: '%c' (code=0x%02X, shift=%s)\n", result, baudotCode, figsShift ? "FIGS" : "LTRS");
+        // RTTY_DEBUG("RTTY-C1: Dekódolt karakter: '%c' (code=0x%02X, shift=%s)\n", result, baudotCode, figsShift ? "FIGS" : "LTRS");
     }
     return result;
 }
@@ -495,7 +495,7 @@ char RttyDecoderC1::decodeBaudotCharacter(uint8_t baudotCode) {
 /**
  * @brief Dekóder állapotának visszaállítása
  */
-void RttyDecoderC1::resetDecoder() {
+void DecoderRTTY_C1::resetDecoder() {
     currentState = IDLE;
     bitsReceived = 0;
     currentByte = 0;

@@ -8,10 +8,10 @@
 /**
  * @brief RTTY dekóder Core1-en
  */
-class RttyDecoderC1 : public IDecoder {
+class DecoderRTTY_C1 : public IDecoder {
   public:
-    RttyDecoderC1();
-    ~RttyDecoderC1() override;
+    DecoderRTTY_C1();
+    ~DecoderRTTY_C1() override;
 
     bool start(const DecoderConfig &decoderConfig) override;
     void stop() override;

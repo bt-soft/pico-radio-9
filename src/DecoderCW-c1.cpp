@@ -8,7 +8,7 @@
 #include <cmath>
 #include <cstring>
 
-#include "CwDecoder-c1.h"
+#include "DecoderCW-c1.h"
 #include "defines.h"
 
 extern DecodedData decodedData;
@@ -22,12 +22,12 @@ extern DecodedData decodedData;
 #endif
 
 // Morse szimbólum tömb inicializálása
-constexpr char CwDecoderC1::morseSymbols_[128];
+constexpr char DecoderCW_C1::morseSymbols_[128];
 
 /**
  * @brief CwDecoderC1 konstruktor - inicializálja az alapértelmezett értékeket
  */
-CwDecoderC1::CwDecoderC1()
+DecoderCW_C1::DecoderCW_C1()
     : samplingRate_(0), targetFreq_(800.0f), goertzelCoeff_(0.0f), goertzelQ1_(0.0f), goertzelQ2_(0.0f), threshold_(2000.0f), currentFreqIndex_(4), toneDetected_(false), leadingEdgeTime_(0), trailingEdgeTime_(0),
       startReference_(200), reference_(200), toneMin_(9999), toneMax_(0), lastElement_(0), currentWpm_(0), toneIndex_(0), symbolIndex_(63), symbolOffset_(32), symbolCount_(0), started_(false), measuring_(false),
       wpmHistoryIndex_(0), freqHistoryCount_(0), lastPublishedWpm_(0), lastPublishedFreq_(0.0f) {
@@ -43,8 +43,8 @@ CwDecoderC1::CwDecoderC1()
  * @param decoderConfig Dekóder konfiguráció (samplingRate, sampleCount, cwCenterFreqHz)
  * @return true ha sikerült elindítani
  */
-bool CwDecoderC1::start(const DecoderConfig &decoderConfig) {
-    CW_DEBUG("CW: Dekóder indítása - samplingRate: %u Hz, centerFreq: %u Hz, sampleCount: %u\n", decoderConfig.samplingRate, decoderConfig.cwCenterFreqHz, decoderConfig.sampleCount);
+bool DecoderCW_C1::start(const DecoderConfig &decoderConfig) {
+    CW_DEBUG("CW-C1: Dekóder indítása - samplingRate: %u Hz, centerFreq: %u Hz, sampleCount: %u\n", decoderConfig.samplingRate, decoderConfig.cwCenterFreqHz, decoderConfig.sampleCount);
 
     samplingRate_ = decoderConfig.samplingRate;
     targetFreq_ = decoderConfig.cwCenterFreqHz > 0 ? (float)decoderConfig.cwCenterFreqHz : 800.0f;
@@ -55,7 +55,7 @@ bool CwDecoderC1::start(const DecoderConfig &decoderConfig) {
     for (size_t i = 0; i < FREQ_SCAN_STEPS; i++) {
         scanFrequencies_[i] = targetFreq_ + STEPS[i];
         scanCoeffs_[i] = calculateGoertzelCoeff(scanFrequencies_[i]);
-        CW_DEBUG("CW: Scan freq[%d] = %.1f Hz, coeff = %.4f\n", i, scanFrequencies_[i], scanCoeffs_[i]);
+        CW_DEBUG("CW-C1: Scan freq[%d] = %.1f Hz, coeff = %.4f\n", i, scanFrequencies_[i], scanCoeffs_[i]);
     }
 
     currentFreqIndex_ = 4; // Kezdjük a középső frekvenciával (0 Hz offset)
@@ -66,15 +66,15 @@ bool CwDecoderC1::start(const DecoderConfig &decoderConfig) {
     decodedData.cwCurrentFreq = static_cast<uint16_t>(scanFrequencies_[currentFreqIndex_]);
     decodedData.cwCurrentWpm = 0;
 
-    CW_DEBUG("CW: Dekóder sikeresen elindítva\n");
+    CW_DEBUG("CW-C1: Dekóder sikeresen elindítva\n");
     return true;
 }
 
 /**
  * @brief Dekóder leállítása
  */
-void CwDecoderC1::stop() {
-    CW_DEBUG("CW: Dekóder leállítva\n");
+void DecoderCW_C1::stop() {
+    CW_DEBUG("CW-C1: Dekóder leállítva\n");
     resetDecoder();
     decodedData.cwCurrentWpm = 0;
     decodedData.cwCurrentFreq = 0;
@@ -85,7 +85,7 @@ void CwDecoderC1::stop() {
  * @param frequency Célfrekvencia Hz-ben
  * @return Goertzel együttható
  */
-float CwDecoderC1::calculateGoertzelCoeff(float frequency) {
+float DecoderCW_C1::calculateGoertzelCoeff(float frequency) {
     float k = (GOERTZEL_N * frequency) / samplingRate_;
     float omega = (2.0f * PI * k) / GOERTZEL_N;
     return 2.0f * cos(omega);
@@ -94,7 +94,7 @@ float CwDecoderC1::calculateGoertzelCoeff(float frequency) {
 /**
  * @brief Goertzel inicializálása
  */
-void CwDecoderC1::initGoertzel() {
+void DecoderCW_C1::initGoertzel() {
     goertzelQ1_ = 0.0f;
     goertzelQ2_ = 0.0f;
     goertzelCoeff_ = scanCoeffs_[currentFreqIndex_];
@@ -107,7 +107,7 @@ void CwDecoderC1::initGoertzel() {
  * @param coeff Goertzel együttható
  * @return Jelszint (magnitude)
  */
-float CwDecoderC1::processGoertzelBlock(const int16_t *samples, size_t count, float coeff) {
+float DecoderCW_C1::processGoertzelBlock(const int16_t *samples, size_t count, float coeff) {
     float q1 = 0.0f;
     float q2 = 0.0f;
 
@@ -127,7 +127,7 @@ float CwDecoderC1::processGoertzelBlock(const int16_t *samples, size_t count, fl
  * @param count Minták száma
  * @return true ha tónus detektálva
  */
-bool CwDecoderC1::detectTone(const int16_t *samples, size_t count) {
+bool DecoderCW_C1::detectTone(const int16_t *samples, size_t count) {
     if (count < GOERTZEL_N) {
         return toneDetected_; // Nem elég minta, megtartjuk az előző állapotot
     }
@@ -166,7 +166,7 @@ bool CwDecoderC1::detectTone(const int16_t *samples, size_t count) {
 /**
  * @brief Adaptív frekvencia követés - megkeresi a legerősebb frekvenciát
  */
-void CwDecoderC1::updateFrequencyTracking() {
+void DecoderCW_C1::updateFrequencyTracking() {
     // Csak akkor követjük, ha tónus van jelen
     if (!toneDetected_) {
         return;
@@ -196,7 +196,7 @@ void CwDecoderC1::updateFrequencyTracking() {
     if (bestIndex != currentFreqIndex_) {
         currentFreqIndex_ = bestIndex;
         goertzelCoeff_ = scanCoeffs_[currentFreqIndex_];
-        CW_DEBUG("CW: Frekvencia váltás: %.1f Hz\n", scanFrequencies_[currentFreqIndex_]);
+        CW_DEBUG("CW-C1: Frekvencia váltás: %.1f Hz\n", scanFrequencies_[currentFreqIndex_]);
     }
 }
 
@@ -205,7 +205,7 @@ void CwDecoderC1::updateFrequencyTracking() {
  * @param rawAudioSamples Bemeneti audio minták tömbje (DC offset már eltávolítva)
  * @param count Minták száma
  */
-void CwDecoderC1::processSamples(const int16_t *rawAudioSamples, size_t count) {
+void DecoderCW_C1::processSamples(const int16_t *rawAudioSamples, size_t count) {
     if (count == 0) {
         return;
     }
@@ -237,7 +237,7 @@ void CwDecoderC1::processSamples(const int16_t *rawAudioSamples, size_t count) {
             // Szóköz beillesztése ha hosszú szünet volt, de csak ha az előző dekódolás sikeres volt
             if (trailingEdgeTime_ > 0 && (currentTime - trailingEdgeTime_) > minWordSpace && lastDecodeSuccess) {
                 decodedData.textBuffer.put(' ');
-                CW_DEBUG("CW: Szóköz\n");
+                CW_DEBUG("CW-C1: Szóköz\n");
                 lastDecodeSuccess = false; // csak egyszer szúrjunk be szóközt
             }
 
@@ -269,7 +269,7 @@ void CwDecoderC1::processSamples(const int16_t *rawAudioSamples, size_t count) {
             if (toneIndex_ < sizeof(toneDurations_) / sizeof(toneDurations_[0])) {
                 toneDurations_[toneIndex_++] = duration;
             } else {
-                CW_DEBUG("CW: toneIndex_ overflow, reset!\n");
+                CW_DEBUG("CW-C1: toneIndex_ overflow, reset!\n");
                 resetDecoder();
                 return;
             }
@@ -302,7 +302,7 @@ void CwDecoderC1::processSamples(const int16_t *rawAudioSamples, size_t count) {
                 unsigned long pauseDuration = currentTime - trailingEdgeTime_;
 
                 if (pauseDuration > 2000) { // 2 másodperces szünet -> időzítés nullázása
-                    CW_DEBUG("CW: Hosszú szünet, időzítés nullázása.\n");
+                    CW_DEBUG("CW-C1: Hosszú szünet, időzítés nullázása.\n");
                     // Dekódoljuk az utolsó karaktert, ha volt
                     bool decodeOk = false;
                     if (toneIndex_ > 0) {
@@ -328,7 +328,7 @@ void CwDecoderC1::processSamples(const int16_t *rawAudioSamples, size_t count) {
                         if (lastPublishedWpm_ != 0) {
                             decodedData.cwCurrentWpm = 0;
                             lastPublishedWpm_ = 0;
-                            CW_DEBUG("CW: WPM PUBLISHED: 0\n");
+                            CW_DEBUG("CW-C1: WPM PUBLISHED: 0\n");
                         }
                     }
 
@@ -350,7 +350,7 @@ void CwDecoderC1::processSamples(const int16_t *rawAudioSamples, size_t count) {
 /**
  * @brief Dit feldolgozása
  */
-void CwDecoderC1::processDot() {
+void DecoderCW_C1::processDot() {
     symbolIndex_ -= symbolOffset_;
     symbolOffset_ /= 2;
     symbolCount_ += 2; // 1 dit + 1 szünet
@@ -359,7 +359,7 @@ void CwDecoderC1::processDot() {
 /**
  * @brief Dah feldolgozása
  */
-void CwDecoderC1::processDash() {
+void DecoderCW_C1::processDash() {
     symbolIndex_ += symbolOffset_;
     symbolOffset_ /= 2;
     symbolCount_ += 4; // 3 dit + 1 szünet
@@ -369,7 +369,7 @@ void CwDecoderC1::processDash() {
  * @brief Szimbólum dekódolása a bináris fából
  * @return true ha sikeres volt a dekódolás
  */
-bool CwDecoderC1::decodeSymbol() {
+bool DecoderCW_C1::decodeSymbol() {
     // Frissített referencia használata ha van
     if (toneMax_ != toneMin_) {
         reference_ = (toneMin_ + toneMax_) / 2;
@@ -411,9 +411,9 @@ bool CwDecoderC1::decodeSymbol() {
                 if (newFreq != lastPublishedFreq_) {
                     decodedData.cwCurrentFreq = static_cast<uint16_t>(newFreq);
                     lastPublishedFreq_ = newFreq;
-                    CW_DEBUG("CW: Freq PUBLISHED: %.1f Hz\n", newFreq);
+                    CW_DEBUG("CW-C1: Freq PUBLISHED: %.1f Hz\n", newFreq);
                 }
-                CW_DEBUG("CW: Freq samples: %d, Mode Index: %d, Freq: %.1f Hz\n", freqHistoryCount_, modeIndex, newFreq);
+                CW_DEBUG("CW-C1: Freq samples: %d, Mode Index: %d, Freq: %.1f Hz\n", freqHistoryCount_, modeIndex, newFreq);
             } else {
                 // Fallback, ha nincs frekvencia előzmény
                 if (lastPublishedFreq_ != scanFrequencies_[currentFreqIndex_]) {
@@ -424,7 +424,7 @@ bool CwDecoderC1::decodeSymbol() {
 
             // A dekódolt karakter beillesztése a vételi pufferbe
             decodedData.textBuffer.put(decodedChar);
-            CW_DEBUG("CW: Dekódolt: %c\n", decodedChar);
+            CW_DEBUG("CW-C1: Dekódolt: %c\n", decodedChar);
             decodeSuccess = true;
         }
     }
@@ -451,7 +451,7 @@ bool CwDecoderC1::decodeSymbol() {
  * @brief WPM számítása
  * @param letterDuration A karakter teljes időtartama ms-ben
  */
-void CwDecoderC1::calculateWpm(unsigned long letterDuration) {
+void DecoderCW_C1::calculateWpm(unsigned long letterDuration) {
     if (symbolCount_ > 1 && letterDuration > 0) {
         // WPM = (szimbólumok * 1200) / időtartam
         uint8_t wpm = ((symbolCount_ - 1) * 1200) / letterDuration;
@@ -485,9 +485,9 @@ void CwDecoderC1::calculateWpm(unsigned long letterDuration) {
             if (currentWpm_ != lastPublishedWpm_) {
                 decodedData.cwCurrentWpm = currentWpm_;
                 lastPublishedWpm_ = currentWpm_;
-                CW_DEBUG("CW: WPM PUBLISHED: %u\n", currentWpm_);
+                CW_DEBUG("CW-C1: WPM PUBLISHED: %u\n", currentWpm_);
             }
-            CW_DEBUG("CW: WPM (raw) = %u, WPM (med) = %u\n", wpm, currentWpm_);
+            CW_DEBUG("CW-C1: WPM (raw) = %u, WPM (med) = %u\n", wpm, currentWpm_);
         }
     }
 }
@@ -509,7 +509,7 @@ void CwDecoderC1::calculateWpm(unsigned long letterDuration) {
  * @param dit Dit (rövid) elem hossza ms-ben
  * @param dah Dah (hosszú) elem hossza ms-ben
  */
-void CwDecoderC1::updateTracking(unsigned long dit, unsigned long dah) {
+void DecoderCW_C1::updateTracking(unsigned long dit, unsigned long dah) {
     // Validálás: a dah ~= 3 * dit (2-4x tartományban)
     if (dah >= 2 * dit && dah <= 4 * dit) {
         // Exponenciális mozgóátlag - simább követés
@@ -527,16 +527,16 @@ void CwDecoderC1::updateTracking(unsigned long dit, unsigned long dah) {
 
         reference_ = (toneMin_ + toneMax_) / 2;
 
-        CW_DEBUG("CW: Valid pair - dit=%lu ms, dah=%lu ms, ref=%lu ms\n", dit, dah, reference_);
+        CW_DEBUG("CW-C1: Valid pair - dit=%lu ms, dah=%lu ms, ref=%lu ms\n", dit, dah, reference_);
     } else {
-        CW_DEBUG("CW: Invalid pair ratio - dit=%lu ms, dah=%lu ms (ratio=%.2f, expected ~3.0)\n", dit, dah, (float)dah / dit);
+        CW_DEBUG("CW-C1: Invalid pair ratio - dit=%lu ms, dah=%lu ms (ratio=%.2f, expected ~3.0)\n", dit, dah, (float)dah / dit);
     }
 }
 
 /**
  * @brief Dekóder reset
  */
-void CwDecoderC1::resetDecoder() {
+void DecoderCW_C1::resetDecoder() {
     started_ = false;
     measuring_ = false;
     toneDetected_ = false;

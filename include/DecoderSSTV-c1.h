@@ -8,19 +8,19 @@
 /**
  * @brief SSTV dekóder osztály - core1 számára
  */
-class SstvDecoderC1 : public IDecoder {
+class DecoderSSTV_C1 : public IDecoder {
 
   public:
     /**
      * Konstruktor
      * @param samplingRate A bemeneti audio mintavételezési sebesség Hz-ben.
      */
-    SstvDecoderC1();
+    DecoderSSTV_C1();
 
     /**
      * Destruktor
      */
-    ~SstvDecoderC1() = default;
+    ~DecoderSSTV_C1() = default;
 
     /**
      * @brief Dekóder neve

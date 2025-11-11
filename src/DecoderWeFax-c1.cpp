@@ -1,5 +1,5 @@
 /**
- * @file WefaxDecoder-c1.cpp
+ * @file DecoderWeFax-c1.cpp
  * @brief WEFAX dekóder implementációja Core-1 számára
  * @project Pico Radio
  * @author BT-Soft (https://github.com/bt-soft, https://electrodiy.blog.hu/)
@@ -8,8 +8,8 @@
 #include <cmath>
 #include <cstring>
 
+#include "DecoderWeFax-c1.h"
 #include "Utils.h"
-#include "WefaxDecoder-c1.h"
 
 // Globális dekódolt adat objektum, megosztva a magok között
 extern DecodedData decodedData;
@@ -42,12 +42,12 @@ extern DecodedData decodedData;
 /**
  * @brief Konstruktor
  */
-WefaxDecoderC1::WefaxDecoderC1() {}
+DecoderWeFax_C1::DecoderWeFax_C1() {}
 
 /**
  * @brief Visszaadja a WEFAX mód nevét
  */
-const char *WefaxDecoderC1::getModeName(WefaxMode mode) const {
+const char *DecoderWeFax_C1::getModeName(WefaxMode mode) const {
     switch (mode) {
         case WefaxMode::IOC576:
             return "IOC576";
@@ -63,7 +63,7 @@ const char *WefaxDecoderC1::getModeName(WefaxMode mode) const {
  * @param decoderConfig Dekóder konfigurációs
  * @return Sikeres indítás esetén true, egyébként false
  */
-bool WefaxDecoderC1::start(const DecoderConfig &decoderConfig) {
+bool DecoderWeFax_C1::start(const DecoderConfig &decoderConfig) {
 
     // Mintavételi frekvencia: 11025 Hz
     sample_rate = WEFAX_SAMPLE_RATE_HZ;
@@ -78,7 +78,7 @@ bool WefaxDecoderC1::start(const DecoderConfig &decoderConfig) {
     // Deviáció arány számítása
     deviation_ratio = (sample_rate / WEFAX_SHIFT) / TWOPI;
 
-    WEFAX_DEBUG("\n--------------------------------------------------\n");
+    WEFAX_DEBUG("WeFax-C1: \n--------------------------------------------------\n");
     WEFAX_DEBUG("    WeFax Start\n");
     WEFAX_DEBUG("--------------------------------------------------\n");
     WEFAX_DEBUG(" Mintavétel: %.0f Hz (FM)\n", sample_rate);
@@ -135,9 +135,9 @@ bool WefaxDecoderC1::start(const DecoderConfig &decoderConfig) {
 /**
  * @brief Dekóder leállítása és erőforrások felszabadítása
  */
-void WefaxDecoderC1::stop() {
+void DecoderWeFax_C1::stop() {
     if (rx_state != IDLE) {
-        WEFAX_DEBUG("\n--------------------------------------------------\n");
+        WEFAX_DEBUG("WeFax-C1: \n--------------------------------------------------\n");
         WEFAX_DEBUG("    WeFax Stop\n");
         WEFAX_DEBUG("--------------------------------------------------\n");
         if (rx_state == RXIMAGE) {
@@ -160,7 +160,7 @@ void WefaxDecoderC1::stop() {
  * @param samples Pointer a nyers audio mintákhoz (DC-centrált int16_t)
  * @param count Minták száma
  */
-void WefaxDecoderC1::processSamples(const int16_t *samples, size_t count) {
+void DecoderWeFax_C1::processSamples(const int16_t *samples, size_t count) {
 
     // Demodulált szürkeérték puffer
     static uint8_t demod_buffer[256]; // Maximum blokk méret
@@ -293,15 +293,15 @@ void WefaxDecoderC1::processSamples(const int16_t *samples, size_t count) {
                 int debug_range = debug_gray_max - debug_gray_min;
 
                 if (rx_state == IDLE) {
-                    WEFAX_DEBUG("IDLE | Jel: %d±%d [%d-%d]\n", debug_gray_avg, debug_range / 2, debug_gray_min, debug_gray_max);
+                    WEFAX_DEBUG("WeFax-C1: IDLE | Jel: %d±%d [%d-%d]\n", debug_gray_avg, debug_range / 2, debug_gray_min, debug_gray_max);
 
                 } else if (rx_state == RXPHASING) {
-                    WEFAX_DEBUG("SZINKRON KERESÉS | Jel: %d±%d [%d-%d]\n", debug_gray_avg, debug_range / 2, debug_gray_min, debug_gray_max);
+                    WEFAX_DEBUG("WeFax-C1: SZINKRON KERESÉS | Jel: %d±%d [%d-%d]\n", debug_gray_avg, debug_range / 2, debug_gray_min, debug_gray_max);
 
                 } else if (rx_state == RXIMAGE) {
                     // IMAGE módban: sor progress megjelenítése
                     float progress = (float)current_line_index / WEFAX_IMAGE_HEIGHT * 100.0f;
-                    WEFAX_DEBUG("KÉP %d/%d (%.0f%%) | IOC%d %.0f LPM | Jel: %d [%d-%d]\n", current_line_index, WEFAX_IMAGE_HEIGHT, progress, current_ioc, (phase_lines > 0) ? (lpm_sum / phase_lines) : 120.0f,
+                    WEFAX_DEBUG("WeFax-C1: KÉP %d/%d (%.0f%%) | IOC%d %.0f LPM | Jel: %d [%d-%d]\n", current_line_index, WEFAX_IMAGE_HEIGHT, progress, current_ioc, (phase_lines > 0) ? (lpm_sum / phase_lines) : 120.0f,
                                 debug_gray_avg, debug_gray_min, debug_gray_max);
                 }
             }
@@ -347,7 +347,7 @@ void WefaxDecoderC1::processSamples(const int16_t *samples, size_t count) {
 
                     // Ha a jelvesztés eléri a küszöböt (másodpercben mérünk így a számláló is másodperc alapú lesz)
                     if (weak_signal_count >= WEAK_SIGNAL_IN_SECONDS) {
-                        WEFAX_DEBUG("\n-------------------------------------------------\n");
+                        WEFAX_DEBUG("WeFax-C1: \n-------------------------------------------------\n");
                         WEFAX_DEBUG(" ⚠  JELVESZTÉS - VÉTEL LEÁLLÍTVA\n");
                         WEFAX_DEBUG("-------------------------------------------------\n");
                         WEFAX_DEBUG("Jelstatisztika (%.0f sec gyenge jel): \n", WEAK_SIGNAL_IN_SECONDS);
@@ -409,7 +409,7 @@ void WefaxDecoderC1::processSamples(const int16_t *samples, size_t count) {
  * @param curr_imag Jelenlegi komplex szám képzetes része
  * @return Az argumentum különbség radiánban
  */
-float WefaxDecoderC1::complex_arg_diff(float prev_real, float prev_imag, float curr_real, float curr_imag) {
+float DecoderWeFax_C1::complex_arg_diff(float prev_real, float prev_imag, float curr_real, float curr_imag) {
     float real_part = prev_real * curr_real + prev_imag * curr_imag;
     float imag_part = prev_real * curr_imag - prev_imag * curr_real;
     return atan2f(imag_part, real_part);
@@ -422,7 +422,7 @@ float WefaxDecoderC1::complex_arg_diff(float prev_real, float prev_imag, float c
 /**
  * @brief Phasing sor dekódolása
  */
-void WefaxDecoderC1::decode_phasing(int gray_value) {
+void DecoderWeFax_C1::decode_phasing(int gray_value) {
     // Mozgóátlag szűrő 16 mintán
     phasing_history[phasing_count % PHASING_FILTER_SIZE] = gray_value;
     phasing_count++;
@@ -449,7 +449,7 @@ void WefaxDecoderC1::decode_phasing(int gray_value) {
 
     // Ha 10 másodperc után nincs phasing detektálás → fallback
     if (total_phasing_samples > 10 * sample_rate && phase_lines == 0) {
-        WEFAX_DEBUG("\n-------------------------------------------------\n");
+        WEFAX_DEBUG("WeFax-C1: \n-------------------------------------------------\n");
         WEFAX_DEBUG("⚠  PHASING TIMEOUT - 10 másodperc eltelt\n");
         WEFAX_DEBUG("-------------------------------------------------\n");
         WEFAX_DEBUG(" Nincs érvényes phasing szinkron jel\n");
@@ -497,7 +497,7 @@ void WefaxDecoderC1::decode_phasing(int gray_value) {
         float elapsed_sec = curr_phase_len / sample_rate;
         float white_pct = (curr_phase_len > 0) ? (100.0f * curr_phase_high / curr_phase_len) : 0;
         float black_pct = (curr_phase_len > 0) ? (100.0f * curr_phase_low / curr_phase_len) : 0;
-        WEFAX_DEBUG("[WEFAX] Phasing: %.1fs | Fehér: %.1f%% | Fekete: %.1f%% | Fázis: %s | Tartomány: %d-%d\n", elapsed_sec, white_pct, black_pct, phase_high ? "MAGAS" : "ALACSONY", gray_hist_low, gray_hist_high);
+        WEFAX_DEBUG("WeFax-C1:  Phasing: %.1fs | Fehér: %.1f%% | Fekete: %.1f%% | Fázis: %s | Tartomány: %d-%d\n", elapsed_sec, white_pct, black_pct, phase_high ? "MAGAS" : "ALACSONY", gray_hist_low, gray_hist_high);
 #endif
 
         phasing_status_timer = 0;
@@ -510,12 +510,11 @@ void WefaxDecoderC1::decode_phasing(int gray_value) {
     if (gray_value > 140 && !phase_high) {
         // FEKETE → FEHÉR átmenet
         phase_high = true;
-        // DEBUG: WEFAX_DEBUG("[WEFAX] >>> Fehér kezdet: gray=%d\n", gray_value);
+        // DEBUG: WEFAX_DEBUG("WeFax-C1:  >>> Fehér kezdet: gray=%d\n", gray_value);
     } else if (gray_value < 100 && phase_high) {
         // FEHÉR → FEKETE átmenet (sorszinkron!)
         phase_high = false;
-        // DEBUG: WEFAX_DEBUG("[WEFAX] <<< Fekete SYNC: gray=%d\n", gray_value);
-
+        // DEBUG: WEFAX_DEBUG("WeFax-C1:  <<< Fekete SYNC: gray=%d\n", gray_value);
         // Érvényes phasing sor ellenőrzése (REÁLIS kritériumok WEFAX jelhez)
         // Phasing sor tipikus szerkezete: 5% fehér + 95% fekete, időtartam: 0.4-0.6s
         float white_ratio = (float)curr_phase_high / curr_phase_len;
@@ -536,7 +535,7 @@ void WefaxDecoderC1::decode_phasing(int gray_value) {
 
             // Ha IDLE állapotban vagyunk és érvényes phasing sort detektáltunk, automatikusan RXPHASING-re váltunk
             if (rx_state == IDLE && valid_lpm) {
-                WEFAX_DEBUG("🔄 AUTOMATIKUS ÚJRAINDÍTÁS: Phasing jel detektálva\n");
+                WEFAX_DEBUG("WeFax-C1: 🔄 AUTOMATIKUS ÚJRAINDÍTÁS: Phasing jel detektálva\n");
                 rx_state = RXPHASING;
                 // Phasing számlálók nullázása, hogy tiszta lappal induljon
                 phase_lines = 0;
@@ -549,17 +548,17 @@ void WefaxDecoderC1::decode_phasing(int gray_value) {
                 // Szinkron jel progressz megjelenítése (4-ből hány van meg)
 #ifdef __WEFAX_DEBUG
                 const char *progress_bar[] = {"▪", "▪▪", "▪▪▪", "▪▪▪▪"};
-                WEFAX_DEBUG("🔵 Szinkron jel %d/4 %s | %.1f LPM | Soridő: %.0f ms | F:%.0f%% Sz:%.0f%%\n", //
-                            phase_lines,                                                                   //
-                            (phase_lines <= 4) ? progress_bar[phase_lines - 1] : "▪▪▪▪+",                  //
-                            tmp_lpm,                                                                       //
-                            line_time_ms,                                                                  //
+                WEFAX_DEBUG("WeFax-C1: 🔵 Szinkron jel %d/4 %s | %.1f LPM | Soridő: %.0f ms | F:%.0f%% Sz:%.0f%%\n", //
+                            phase_lines,                                                                             //
+                            (phase_lines <= 4) ? progress_bar[phase_lines - 1] : "▪▪▪▪+",                            //
+                            tmp_lpm,                                                                                 //
+                            line_time_ms,                                                                            //
                             white_ratio * 100, black_ratio * 100);
 #endif
 
             } else {
                 // Outlier detektálva - NEM számítjuk bele az átlagba!
-                WEFAX_DEBUG("⚠ Hibás szinkron (%.1f LPM - érvénytelen, 90-300 tartományon kívül)\n", tmp_lpm);
+                WEFAX_DEBUG("WeFax-C1: ⚠ Hibás szinkron (%.1f LPM - érvénytelen, 90-300 tartományon kívül)\n", tmp_lpm);
             }
 
             // Folyamatosan frissítjük az LPM-et minden phasing sornál
@@ -585,7 +584,7 @@ void WefaxDecoderC1::decode_phasing(int gray_value) {
 
             // 6 phasing sor után átváltunk IMAGE módba, DE mérés folytatódik!
             if (phase_lines == 6) {
-                WEFAX_DEBUG("\n-------------------------------------------------\n");
+                WEFAX_DEBUG("WeFax-C1: \n-------------------------------------------------\n");
 
                 // Ha már IMAGE módban voltunk → ÚJ KÉP KEZDŐDÖTT!
                 if (rx_state == RXIMAGE) {
@@ -624,10 +623,10 @@ void WefaxDecoderC1::decode_phasing(int gray_value) {
 #if USE_MEASURED_LPM
                 // MÉRT mód: frissítjük a samples_per_line értéket AZONNAL!
                 samples_per_line = sample_rate * 60.0f / avg_lpm;
-                WEFAX_DEBUG("🔧 Finomhangolás #%d: %.1f LPM → %.0f minta/sor (frissítve)\n", phase_lines, avg_lpm, samples_per_line);
+                WEFAX_DEBUG("WeFax-C1: 🔧 Finomhangolás #%d: %.1f LPM → %.0f minta/sor (frissítve)\n", phase_lines, avg_lpm, samples_per_line);
 #else
                 // FIX mód: csak logoljuk, nem frissítünk
-                WEFAX_DEBUG("ℹ Szinkron #%d: %.1f LPM detektálva (FIX 500ms használatban)\n", phase_lines, avg_lpm);
+                WEFAX_DEBUG("WeFax-C1: ℹ Szinkron #%d: %.1f LPM detektálva (FIX 500ms használatban)\n", phase_lines, avg_lpm);
 #endif
             }
 
@@ -660,7 +659,7 @@ void WefaxDecoderC1::decode_phasing(int gray_value) {
  * @param gray_value Aktuális szürkeérték
  * @param current_line_idx Pointer az aktuális sor indexre
  */
-void WefaxDecoderC1::decode_image(int gray_value, uint16_t *current_line_idx) {
+void DecoderWeFax_C1::decode_image(int gray_value, uint16_t *current_line_idx) {
     float current_row_dbl = (float)img_sample / samples_per_line;
     int current_row = (int)current_row_dbl;
     float fractional_part = current_row_dbl - current_row;
@@ -685,7 +684,7 @@ void WefaxDecoderC1::decode_image(int gray_value, uint16_t *current_line_idx) {
             newLine.lineNum = *current_line_idx;
             memcpy(newLine.wefaxPixels, current_wefax_line, img_width);
             if (!decodedData.lineBuffer.put(newLine)) {
-                WEFAX_DEBUG("⚠ BUFFER TELE! Sor #%d elveszett (Core0 lassú?)\n", *current_line_idx);
+                WEFAX_DEBUG("WeFax-C1: ⚠ BUFFER TELE! Sor #%d elveszett (Core0 lassú?)\n", *current_line_idx);
             }
         }
         *current_line_idx = (*current_line_idx + 1) % WEFAX_IMAGE_HEIGHT;
