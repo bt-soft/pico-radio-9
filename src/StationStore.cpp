@@ -28,7 +28,7 @@ const FmStationList_t DEFAULT_FM_STATIONS = {{
      "HirFM"},       // name
                      //----
     {FM_BAND_TYPE,   // bandIndex
-     10550,          // frequency (105.50 MHz)
+     10500,          // frequency (105.00 MHz)
      FM_DEMOD_TYPE,  // modulation
      0,              // Auto bandwidth index
      "Bartok"},      // name
@@ -42,7 +42,7 @@ const FmStationList_t DEFAULT_FM_STATIONS = {{
 
 // TODO: Még valami kínja van az AM memória értékeknek
 //  - tárolni kellene, hogy HAM-e, vagy sima AM
-//  -meg még néhány dolog, de majd...
+//  - meg még néhány dolog, de majd valamikor...
 const AmStationList_t DEFAULT_AM_STATIONS = {{
     {MW_BAND_TYPE,      // bandIndex
      540,               // frequency (540 kHz)

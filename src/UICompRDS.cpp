@@ -1,10 +1,17 @@
 #include "UICompRDS.h"
 #include "Si4735Manager.h"
 
+// RDS működés debug engedélyezése de csak DEBUG módban
+#define __RDS_DEBUG
+#if defined(__DEBUG) && defined(__RDS_DEBUG)
+#define RDS_DEBUG(fmt, ...) DEBUG(fmt __VA_OPT__(, ) __VA_ARGS__)
+#else
+#define RDS_DEBUG(fmt, ...) // Üres makró, ha __DEBUG nincs definiálva
+#endif
+
 // ===================================================================
 // Konstruktor és inicializálás
 // ===================================================================
-
 /**
  * @brief UICompRDS konstruktor
  */
@@ -109,7 +116,7 @@ void UICompRDS::setRdsColors(uint16_t stationColor, uint16_t typeColor, uint16_t
  * @param radioText A feldolgozandó radio text
  * @return String A feldolgozott radio text
  */
-String UICompRDS::processRadioText(const String &radioText) {
+String UICompRDS::normalizeRadioText(const String &radioText) {
     if (radioText.isEmpty()) {
         return radioText;
     }
@@ -195,7 +202,7 @@ bool UICompRDS::updateRdsData() {
         String newRadioText = ::pSi4735Manager->getCachedRadioText();
         if (!newRadioText.isEmpty()) {
             // Radio text feldolgozása - ha több mint 2 egymás utáni szóköz van, levágás az elsőnél
-            String processedRadioText = processRadioText(newRadioText);
+            String processedRadioText = normalizeRadioText(newRadioText);
 
             // Radio text változott - scroll újraszámítás
             tft.setFreeFont();
@@ -206,6 +213,8 @@ bool UICompRDS::updateRdsData() {
         } else {
             needsScrolling = false;
         }
+
+        RDS_DEBUG("RDS Radio Text updated: '%s', needsScrolling: %s\n", newRadioText.c_str(), needsScrolling ? "true" : "false");
     }
 
     return dataChanged;
@@ -278,7 +287,7 @@ void UICompRDS::drawRadioText() {
     String radioText = ::pSi4735Manager->getCachedRadioText();
 
     // Radio text feldolgozása - többszörös szóközök kezelése
-    String processedRadioText = processRadioText(radioText);
+    String processedRadioText = normalizeRadioText(radioText);
 
     // Terület törlése
     tft.fillRect(radioTextArea.x, radioTextArea.y, radioTextArea.width, radioTextArea.height, backgroundColor);
@@ -355,7 +364,7 @@ void UICompRDS::handleRadioTextScroll() {
     // Sprite törlése
     scrollSprite->fillScreen(backgroundColor); // Aktuális radio text lekérése és feldolgozása
     String radioText = ::pSi4735Manager->getCachedRadioText();
-    String processedRadioText = processRadioText(radioText);
+    String processedRadioText = normalizeRadioText(radioText);
 
     // Fő szöveg rajzolása (balra mozog)
     scrollSprite->drawString(processedRadioText, -scrollOffset, 0);
@@ -405,7 +414,7 @@ void UICompRDS::draw() {
 // ===================================================================
 
 /**
- * @brief RDS adatok frissítése (loop-ban hívandó)
+ * @brief RDS adatok frissítése (az FM-screen handleOwnLoop-ból hívjuk)
  */
 void UICompRDS::updateRDS() {
 

@@ -98,7 +98,7 @@ class UICompRDS : public UIComponent {
      * @param radioText A feldolgozandó radio text
      * @return String A feldolgozott radio text
      */
-    String processRadioText(const String &radioText);
+    String normalizeRadioText(const String &radioText);
 
     /**
      * @brief Alapértelmezett layout számítása

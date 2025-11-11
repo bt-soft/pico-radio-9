@@ -9,11 +9,15 @@
 #include "Config.h"
 #include "StationData.h"
 
-#define VALID_STATION_NAME_MIN_LENGHT 3 // Minimális hossz az érvényes állomásnévhez
+// Si4735RDS működés debug engedélyezése de csak DEBUG módban
+#define __SI4735RDS_DEBUG
+#if defined(__DEBUG) && defined(__SI4735RDS_DEBUG)
+#define SI4735RDS_DEBUG(fmt, ...) DEBUG(fmt __VA_OPT__(, ) __VA_ARGS__)
+#else
+#define SI4735RDS_DEBUG(fmt, ...) // Üres makró, ha __DEBUG nincs definiálva
+#endif
 
-// ===================================================================
-// PTY (Program Type) tábla - Statikus definíciók
-// ===================================================================
+#define VALID_STATION_NAME_MIN_LENGHT 3 // Minimális hossz az érvényes állomásnévhez
 
 /**
  * @brief RDS Program Type (PTY) nevek táblája
@@ -178,7 +182,6 @@ bool Si4735Rds::isRdsAvailable() {
  * @return true ha változtak az adatok
  */
 bool Si4735Rds::updateRdsDataWithCache() {
-    uint32_t currentTime = millis();
 
     // Adaptív frissítési időköz:
     // - Ha nincs RDS adat -> 1 másodperc (gyors keresés)
@@ -189,15 +192,15 @@ bool Si4735Rds::updateRdsDataWithCache() {
     }
 
     // Időzített frissítés
-    if (currentTime - lastRdsUpdate < adaptiveInterval || !isRdsAvailable()) {
+    if (!Utils::timeHasPassed(lastRdsUpdate, adaptiveInterval) || !isRdsAvailable()) {
         return false; // Túl korai a frissítés vagy nincs RDS adat
     }
-    lastRdsUpdate = currentTime;
+    lastRdsUpdate = millis();
 
     bool dataChanged = false;
     bool hasValidData = false;
 
-    // --- Állomásnév frissítése -------------------------------------------------------------
+    // --- Állomásnév frissítése
     String newStationName = getRdsStationName();
     // Csak akkor frissíti a cache-t, ha tényleg változott az adat
     if (!newStationName.isEmpty() && newStationName.length() >= VALID_STATION_NAME_MIN_LENGHT && newStationName != cachedStationName) {
@@ -210,7 +213,7 @@ bool Si4735Rds::updateRdsDataWithCache() {
         hasValidData = true;
     }
 
-    // --- Program típus frissítése - PTY kód alapján -----------------------------------------
+    // --- Program típus frissítése - PTY kód alapján
     uint8_t newPtyCode = getRdsProgramTypeCode();
     if (newPtyCode != 255) { // 255 = nincs RDS
         String newProgramType = convertPtyCodeToString(newPtyCode);
@@ -224,7 +227,7 @@ bool Si4735Rds::updateRdsDataWithCache() {
         }
     }
 
-    // --- Radio text frissítése -------------------------------------------------------------
+    // --- Radio text frissítése
     String newRadioText = getRdsRadioText();
     if (!newRadioText.isEmpty() && newRadioText != cachedRadioText) {
         cachedRadioText = newRadioText;
@@ -235,7 +238,7 @@ bool Si4735Rds::updateRdsDataWithCache() {
         hasValidData = true;
     }
 
-    // -- Dátum/idő frissítése -------------------------------------------------------------
+    // -- Dátum/idő frissítése
     uint16_t year, month, day, hour, minute;
     if (getRdsDateTime(year, month, day, hour, minute)) {
         // Dátum formázása: "2025.06.14"
@@ -259,24 +262,28 @@ bool Si4735Rds::updateRdsDataWithCache() {
         }
     }
 
+#ifdef __SI4735RDS_DEBUG
     // // Ha volt valid adat, frissítsük az időzítőt
-    // if (hasValidData) {
-    //     lastValidRdsData = currentTime;
-    //     if (dataChanged) {
-    //         DEBUG("--- RDS data dataChanged --- \n");
-    //         DEBUG("cachedStationName: '%s'\n", cachedStationName.c_str());
-    //         DEBUG("cachedProgramType: '%s'\n", cachedProgramType.c_str());
-    //         DEBUG("cachedRadioText: '%s'\n", cachedRadioText.c_str());
-    //         DEBUG("cachedDate: '%s'\n", cachedDate.c_str());
-    //         DEBUG("cachedTime: '%s'\n", cachedTime.c_str());
-    //         DEBUG("---------------------------- \n");
-    //     }
-    // }
+    if (hasValidData) {
+        lastValidRdsData = millis();
+        if (dataChanged) {
+            SI4735RDS_DEBUG("--- SI4735RDS data dataChanged --- \n");
+            SI4735RDS_DEBUG("cachedStationName: '%s'\n", cachedStationName.c_str());
+            SI4735RDS_DEBUG("cachedProgramType: '%s'\n", cachedProgramType.c_str());
+            SI4735RDS_DEBUG("cachedRadioText: '%s'\n", cachedRadioText.c_str());
+            SI4735RDS_DEBUG("cachedDate: '%s'\n", cachedDate.c_str());
+            SI4735RDS_DEBUG("cachedTime: '%s'\n", cachedTime.c_str());
+            SI4735RDS_DEBUG("---------------------------- \n");
+        }
+    }
+#endif
 
     // Timeout ellenőrzés - különböző időzítés a különböző RDS adatokhoz
-    if (Utils::timeHasPassed(lastValidRdsData, RDS_DATA_TIMEOUT)) { // Hosszú timeout után ha nincs érvényes állomásnév, akkor töröljük a cache-t
+    if (Utils::timeHasPassed(lastValidRdsData, RDS_DATA_TIMEOUT)) {
+        // Hosszú timeout után ha nincs érvényes állomásnév, akkor töröljük a cache-t
         if (!cachedStationName.isEmpty()) {
-            // cachedStationName, cachedProgramType, cachedRadioText, cachedDate, cachedTime NEM törlődik timeout-ra, csak explicit adatvesztéskor vagy állomásváltáskor
+            // cachedStationName, cachedProgramType, cachedRadioText, cachedDate, cachedTime NEM törlődik timeout-ra,
+            // csak explicit adatvesztéskor vagy állomásváltáskor
             dataChanged = true;
         }
     }
@@ -303,44 +310,8 @@ void Si4735Rds::clearRdsCache() {
  * @return String A PTY szöveges leírása
  */
 String Si4735Rds::convertPtyCodeToString(uint8_t ptyCode) {
-    // PTY kódok RDS szabvány szerint (0-31)
-    static const char *ptyTable[] = {
-        "No programme",          // 0
-        "News",                  // 1
-        "Current Affairs",       // 2
-        "Information",           // 3
-        "Sport",                 // 4
-        "Education",             // 5
-        "Drama",                 // 6
-        "Culture",               // 7
-        "Science",               // 8
-        "Varied",                // 9
-        "Pop Music",             // 10
-        "Rock Music",            // 11
-        "Easy Listening",        // 12
-        "Light Classical",       // 13
-        "Serious Classical",     // 14
-        "Other Music",           // 15
-        "Weather",               // 16
-        "Finance",               // 17
-        "Children's programmes", // 18
-        "Social Affairs",        // 19
-        "Religion",              // 20
-        "Phone In",              // 21
-        "Travel",                // 22
-        "Leisure",               // 23
-        "Jazz Music",            // 24
-        "Country Music",         // 25
-        "National Music",        // 26
-        "Oldies Music",          // 27
-        "Folk Music",            // 28
-        "Documentary",           // 29
-        "Alarm Test",            // 30
-        "Alarm"                  // 31
-    };
-
-    if (ptyCode <= 31) {
-        return String(ptyTable[ptyCode]);
+    if (ptyCode <= RDS_PTY_COUNT - 1) {
+        return String(RDS_PTY_NAMES[ptyCode]);
     }
     return "Unknown";
 }
