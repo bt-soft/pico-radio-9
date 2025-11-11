@@ -214,7 +214,7 @@ bool UICompRDS::updateRdsData() {
             needsScrolling = false;
         }
 
-        RDS_DEBUG("RDS Radio Text updated: '%s', needsScrolling: %s\n", newRadioText.c_str(), needsScrolling ? "true" : "false");
+        RDS_DEBUG("RDS: Radio Text updated: '%s', needsScrolling: %s\n", newRadioText.c_str(), needsScrolling ? "true" : "false");
     }
 
     return dataChanged;

@@ -108,7 +108,7 @@ void debugWaitForSerial(TFT_eSPI &tft) {
  */
 void tftTouchCalibrate(TFT_eSPI &tft, uint16_t (&calData)[5]) {
     tft.fillScreen(TFT_BLACK);
-    tft.setTextFont(2);
+    tft.setFreeFont();
     tft.setTextSize(2);
     const char *txt = "TFT touch kalibracio szukseges!\n";
     tft.setCursor((tft.width() - tft.textWidth(txt)) / 2, tft.height() / 2 - 60);
@@ -141,37 +141,6 @@ void tftTouchCalibrate(TFT_eSPI &tft, uint16_t (&calData)[5]) {
     }
     DEBUG(" };\n");
     DEBUG("  tft.setTouch(calData);\n");
-}
-
-/**
- * Hiba megjelenítése a képrnyőn
- */
-void displayException(TFT_eSPI &tft, const char *msg) {
-    int16_t screenWidth = tft.width();
-    int16_t screenHeight = tft.height();
-
-    tft.fillScreen(TFT_BLACK);
-    tft.drawRect(0, 0, screenWidth, screenHeight,
-                 TFT_RED); // 2px széles piros keret
-    tft.drawRect(1, 1, screenWidth - 2, screenHeight - 2, TFT_RED);
-
-    tft.setTextColor(TFT_RED, TFT_BLACK);
-    tft.setTextDatum(MC_DATUM); // Középre igazítás
-    tft.setTextSize(2);
-
-    tft.drawString("HIBA!", screenWidth / 2, screenHeight / 3);
-    tft.setTextSize(1);
-    tft.drawString(msg, screenWidth / 2, screenHeight / 2);
-
-    DEBUG(msg);
-    // Végtelen ciklusba esünk  és a belső LED villogtatásával jelezzük hogy hiba
-    // van
-    while (true) {
-        digitalWrite(LED_BUILTIN, LOW);
-        delay(300);
-        digitalWrite(LED_BUILTIN, HIGH);
-        delay(300);
-    }
 }
 
 /**
@@ -228,18 +197,22 @@ void setTftBacklight(uint8_t brightness) {
  * tartalmaz-e.
  */
 bool isRemainingOnlySpaces(const char *str, uint16_t offset) {
-    if (!str)
+    if (!str) {
         return true;
+    }
 
     size_t len = strlen(str);
-    if (offset >= len)
+    if (offset >= len) {
         return true;
+    }
 
     // Optimalizált ciklus: rögtön kilépünk ha nem szóközt találunk
     for (size_t i = offset; i < len; ++i) {
-        if (str[i] != ' ')
+        if (str[i] != ' ') {
             return false;
+        }
     }
+
     return true;
 }
 
@@ -248,25 +221,31 @@ bool isRemainingOnlySpaces(const char *str, uint16_t offset) {
  * lévő szóközöket figyelmen kívül hagyva.
  */
 int strncmpIgnoringTrailingSpaces(const char *s1, const char *s2, size_t n) {
-    if (n == 0)
+    if (n == 0) {
         return 0;
+    }
 
     // s2 effektív hossza (szóközök nélkül a végén)
     size_t len2 = strlen(s2);
-    while (len2 > 0 && s2[len2 - 1] == ' ')
+    while (len2 > 0 && s2[len2 - 1] == ' ') {
         len2--;
+    }
 
     for (size_t i = 0; i < n; i++) {
         bool end1 = (s1[i] == '\0');
         bool end2 = (i >= len2);
 
-        if (end1 && end2)
+        if (end1 && end2) {
             return 0;
-        if (end1 || end2)
+        }
+        if (end1 || end2) {
             return end1 ? -1 : 1;
-        if (s1[i] != s2[i])
+        }
+        if (s1[i] != s2[i]) {
             return (unsigned char)s1[i] - (unsigned char)s2[i];
+        }
     }
+
     return 0;
 }
 
@@ -274,8 +253,9 @@ int strncmpIgnoringTrailingSpaces(const char *s1, const char *s2, size_t n) {
  * @brief Eltávolítja a C string végéről a szóközöket (in-place).
  */
 void trimTrailingSpaces(char *str) {
-    if (!str)
+    if (!str) {
         return;
+    }
 
     int len = strlen(str);
     while (len > 0 && str[len - 1] == ' ') {
@@ -287,12 +267,14 @@ void trimTrailingSpaces(char *str) {
  * @brief Eltávolítja a C string elejéről a szóközöket (in-place).
  */
 void trimLeadingSpaces(char *str) {
-    if (!str)
+    if (!str) {
         return;
+    }
 
     int spaces = 0;
-    while (str[spaces] == ' ')
+    while (str[spaces] == ' ') {
         spaces++;
+    }
 
     if (spaces > 0) {
         int len = strlen(str);
@@ -311,7 +293,7 @@ void trimSpaces(char *str) {
 
 /**
  * @brief CRC16 számítás (CCITT algoritmus)
- * Használhatnánk a CRC könyvtárat is, de itt saját implementációt adunk
+ * Használhatnánk az Arduino CRC könyvtárát is, de itt egy egyszerű saját implementációt készítünk.
  *
  * @param data Adat pointer
  * @param length Adat hossza bájtokban

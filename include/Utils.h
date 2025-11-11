@@ -75,7 +75,6 @@ void debugWaitForSerial(TFT_eSPI &tft);
 
 //--- TFT ---
 void tftTouchCalibrate(TFT_eSPI &tft, uint16_t (&calData)[5]);
-void displayException(TFT_eSPI &tft, const char *msg);
 
 /**
  * @brief TFT háttérvilágítás beállítása DC/PWM módban

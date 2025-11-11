@@ -20,7 +20,7 @@ class UICompTextBox : public UIComponent {
      * @param h Magasság
      * @param tft TFT_eSPI instance
      */
-    UICompTextBox(int x, int y, int w, int h, TFT_eSPI &tft);
+    UICompTextBox(uint16_t x, uint16_t y, uint16_t w, uint16_t h, TFT_eSPI &tft);
 
     /**
      * @brief Destruktor
@@ -62,32 +62,31 @@ class UICompTextBox : public UIComponent {
     /**
      * @brief Getter a bounds-hoz (örökölt UIComponent-ből)
      */
-    inline int getX() const { return bounds.x; }
-    inline int getY() const { return bounds.y; }
-    inline int getWidth() const { return bounds.width; }
-    inline int getHeight() const { return bounds.height; }
+    inline int16_t getX() const { return bounds.x; }
+    inline int16_t getY() const { return bounds.y; }
+    inline int16_t getWidth() const { return bounds.width; }
+    inline int16_t getHeight() const { return bounds.height; }
 
   private:
     TFT_eSPI &tft_;
 
     // Border paraméterek
-    static constexpr int BORDER_WIDTH = 2;
+    static constexpr uint8_t BORDER_WIDTH = 2;
     static constexpr uint16_t BORDER_COLOR = TFT_CYAN;
     static constexpr uint16_t BACKGROUND_COLOR = TFT_BLACK;
     static constexpr uint16_t TEXT_COLOR = TFT_WHITE;
 
     // Font és sor paraméterek
-    static constexpr int FONT = 1;         // Font 1 (8px magasság, kisebb)
-    static constexpr int CHAR_WIDTH = 6;   // Karakter szélesség font 1-nél
-    static constexpr int LINE_HEIGHT = 10; // Sor magasság (8px + 2px spacing)
-    static constexpr int TEXT_PADDING = 4; // Belső margó a bordertől
+    static constexpr uint8_t CHAR_WIDTH = 6;   // Karakter szélesség font 1-nél
+    static constexpr uint8_t LINE_HEIGHT = 10; // Sor magasság (8px + 2px spacing)
+    static constexpr uint8_t TEXT_PADDING = 4; // Belső margó a bordertől
 
     // Szöveg buffer
     std::vector<String> lines_; // Sorok listája
     String currentLine_;        // Aktuális sor buffer
 
-    int maxLines_;        // Maximum sorok száma a boxban
-    int maxCharsPerLine_; // Maximum karakterek száma soronként
+    uint8_t maxLines_;        // Maximum sorok száma a boxban
+    uint8_t maxCharsPerLine_; // Maximum karakterek száma soronként
 
     bool needsRedraw_; // Teljes újrarajzolás szükséges
     bool borderDrawn_; // Border már rajzolva van

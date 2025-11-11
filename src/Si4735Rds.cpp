@@ -66,7 +66,7 @@ const uint8_t Si4735Rds::RDS_PTY_COUNT = ARRAY_ITEM_COUNT(Si4735Rds::RDS_PTY_NAM
 String Si4735Rds::getRdsStationName() {
 
     // Ellenőrizzük, hogy FM módban vagyunk-e
-    if (!isCurrentBandFM()) {
+    if (!Band::isCurrentBandFM()) {
         return "";
     }
 
@@ -93,7 +93,7 @@ String Si4735Rds::getRdsStationName() {
 uint8_t Si4735Rds::getRdsProgramTypeCode() {
 
     // Ellenőrizzük, hogy FM módban vagyunk-e
-    if (!isCurrentBandFM()) {
+    if (!Band::isCurrentBandFM()) {
         return 255; // Nincs RDS
     }
 
@@ -110,7 +110,7 @@ uint8_t Si4735Rds::getRdsProgramTypeCode() {
 String Si4735Rds::getRdsRadioText() {
 
     // Ellenőrizzük, hogy FM módban vagyunk-e
-    if (!isCurrentBandFM()) {
+    if (!Band::isCurrentBandFM()) {
         return "";
     }
 
@@ -142,7 +142,7 @@ String Si4735Rds::getRdsRadioText() {
 bool Si4735Rds::getRdsDateTime(uint16_t &year, uint16_t &month, uint16_t &day, uint16_t &hour, uint16_t &minute) {
 
     // Ellenőrizzük, hogy FM módban vagyunk-e
-    if (!isCurrentBandFM()) {
+    if (!Band::isCurrentBandFM()) {
         return false;
     }
 
@@ -159,7 +159,7 @@ bool Si4735Rds::getRdsDateTime(uint16_t &year, uint16_t &month, uint16_t &day, u
 bool Si4735Rds::isRdsAvailable() {
 
     // Ellenőrizzük, hogy FM módban vagyunk-e
-    if (!isCurrentBandFM()) {
+    if (!Band::isCurrentBandFM()) {
         return false;
     }
 

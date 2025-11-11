@@ -10,7 +10,8 @@
  * @param h Magasság
  * @param tft TFT_eSPI instance
  */
-UICompTextBox::UICompTextBox(int x, int y, int w, int h, TFT_eSPI &tft) : UIComponent(Rect(x, y, w, h)), tft_(tft), needsRedraw_(true), borderDrawn_(false), cursorVisible_(false), lastCursorBlink_(0), lastTouchTime_(0) {
+UICompTextBox::UICompTextBox(uint16_t x, uint16_t y, uint16_t w, uint16_t h, TFT_eSPI &tft)
+    : UIComponent(Rect(x, y, w, h)), tft_(tft), needsRedraw_(true), borderDrawn_(false), cursorVisible_(false), lastCursorBlink_(0), lastTouchTime_(0) {
 
     calculateDimensions();
     lines_.reserve(maxLines_);
@@ -26,8 +27,8 @@ UICompTextBox::~UICompTextBox() { lines_.clear(); }
  */
 void UICompTextBox::calculateDimensions() {
     // Hasznos terület a border nélkül
-    int usableWidth = getWidth() - (2 * BORDER_WIDTH) - (2 * TEXT_PADDING);
-    int usableHeight = getHeight() - (2 * BORDER_WIDTH) - (2 * TEXT_PADDING);
+    uint16_t usableWidth = getWidth() - (2 * BORDER_WIDTH) - (2 * TEXT_PADDING);
+    uint16_t usableHeight = getHeight() - (2 * BORDER_WIDTH) - (2 * TEXT_PADDING);
 
     maxCharsPerLine_ = usableWidth / CHAR_WIDTH;
     maxLines_ = usableHeight / LINE_HEIGHT;
@@ -137,23 +138,23 @@ void UICompTextBox::redrawAll() {
  */
 void UICompTextBox::drawText() {
 
-    int textX = getX() + BORDER_WIDTH + TEXT_PADDING;
-    int textY = getY() + BORDER_WIDTH + TEXT_PADDING;
+    uint16_t textX = getX() + BORDER_WIDTH + TEXT_PADDING;
+    uint16_t textY = getY() + BORDER_WIDTH + TEXT_PADDING;
 
     tft_.setTextColor(TEXT_COLOR, BACKGROUND_COLOR);
     tft_.setTextSize(1); // Font méret szorzó = 1x
-    tft_.setTextFont(FONT);
+    tft_.setTextFont(1); // Font 1
 
     // Összes sor kirajzolása
-    for (int i = 0; i < lines_.size(); i++) {
-        int lineY = textY + (i * LINE_HEIGHT);
+    for (uint16_t i = 0; i < lines_.size(); i++) {
+        uint16_t lineY = textY + (i * LINE_HEIGHT);
         tft_.setCursor(textX, lineY);
         tft_.print(lines_[i]);
     }
 
     // Aktuális sor kirajzolása (ha van)
     if (!currentLine_.isEmpty()) {
-        int lineY = textY + (lines_.size() * LINE_HEIGHT);
+        uint16_t lineY = textY + (lines_.size() * LINE_HEIGHT);
         tft_.setCursor(textX, lineY);
         tft_.print(currentLine_);
     }
@@ -167,21 +168,21 @@ void UICompTextBox::drawNewLine() {
         return;
     }
 
-    int textX = getX() + BORDER_WIDTH + TEXT_PADDING;
-    int textY = getY() + BORDER_WIDTH + TEXT_PADDING;
+    uint16_t textX = getX() + BORDER_WIDTH + TEXT_PADDING;
+    uint16_t textY = getY() + BORDER_WIDTH + TEXT_PADDING;
 
     // Utolsó sor pozíciója (lines_.size() - 1, mert a sor már hozzá lett adva)
-    int lineIndex = lines_.size() - 1;
-    int lineY = textY + (lineIndex * LINE_HEIGHT);
+    uint16_t lineIndex = lines_.size() - 1;
+    uint16_t lineY = textY + (lineIndex * LINE_HEIGHT);
 
     // Töröljük az aktuális sor teljes területét (a régi karakterek eltűnnek)
-    int lineWidth = getWidth() - (2 * BORDER_WIDTH) - (2 * TEXT_PADDING);
+    uint16_t lineWidth = getWidth() - (2 * BORDER_WIDTH) - (2 * TEXT_PADDING);
     tft_.fillRect(textX, lineY, lineWidth, LINE_HEIGHT, BACKGROUND_COLOR);
 
     // Rajzoljuk ki az új sor tartalmát a lines_ vektorból
     tft_.setTextColor(TEXT_COLOR, BACKGROUND_COLOR);
     tft_.setTextSize(1); // Font méret szorzó = 1x
-    tft_.setTextFont(FONT);
+    tft_.setTextFont(1); // Font 1
     tft_.setCursor(textX, lineY);
     tft_.print(lines_[lineIndex]);
 }
@@ -192,10 +193,10 @@ void UICompTextBox::drawNewLine() {
 void UICompTextBox::scrollUp() {
 
     // Szöveg terület törlése (border nélkül)
-    int textX = getX() + BORDER_WIDTH;
-    int textY = getY() + BORDER_WIDTH;
-    int textW = getWidth() - (2 * BORDER_WIDTH);
-    int textH = getHeight() - (2 * BORDER_WIDTH);
+    uint16_t textX = getX() + BORDER_WIDTH;
+    uint16_t textY = getY() + BORDER_WIDTH;
+    uint16_t textW = getWidth() - (2 * BORDER_WIDTH);
+    uint16_t textH = getHeight() - (2 * BORDER_WIDTH);
 
     tft_.fillRect(textX, textY, textW, textH, BACKGROUND_COLOR);
 
@@ -205,8 +206,8 @@ void UICompTextBox::scrollUp() {
     // Az aktuális sor (currentLine_) területének törlése is
     // Ez azért kell, mert a currentLine_ még nem része a lines_ vektornak,
     // ezért a drawText() nem rajzolja/törli
-    int currentLineY = textY + TEXT_PADDING + (lines_.size() * LINE_HEIGHT);
-    int lineWidth = textW - (2 * TEXT_PADDING);
+    uint16_t currentLineY = textY + TEXT_PADDING + (lines_.size() * LINE_HEIGHT);
+    uint8_t lineWidth = textW - (2 * TEXT_PADDING);
     tft_.fillRect(textX + TEXT_PADDING, currentLineY, lineWidth, LINE_HEIGHT, BACKGROUND_COLOR);
 }
 
@@ -267,7 +268,7 @@ void UICompTextBox::addCharacter(char c) {
 
         tft_.setTextColor(TEXT_COLOR, BACKGROUND_COLOR);
         tft_.setTextSize(1); // Font méret szorzó = 1x
-        tft_.setTextFont(FONT);
+        tft_.setTextFont(1); // Font 1
         tft_.setCursor(charX, lineY);
         tft_.print(c);
     }
