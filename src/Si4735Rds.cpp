@@ -10,7 +10,7 @@
 #include "StationData.h"
 
 // Si4735RDS működés debug engedélyezése de csak DEBUG módban
-#define __SI4735RDS_DEBUG
+// #define __SI4735RDS_DEBUG
 #if defined(__DEBUG) && defined(__SI4735RDS_DEBUG)
 #define SI4735RDS_DEBUG(fmt, ...) DEBUG(fmt __VA_OPT__(, ) __VA_ARGS__)
 #else

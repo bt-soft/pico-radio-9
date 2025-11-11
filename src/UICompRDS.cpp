@@ -2,7 +2,7 @@
 #include "Si4735Manager.h"
 
 // RDS működés debug engedélyezése de csak DEBUG módban
-#define __RDS_DEBUG
+// #define __RDS_DEBUG
 #if defined(__DEBUG) && defined(__RDS_DEBUG)
 #define RDS_DEBUG(fmt, ...) DEBUG(fmt __VA_OPT__(, ) __VA_ARGS__)
 #else
