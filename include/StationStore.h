@@ -42,8 +42,16 @@ class FmStationStore : public BaseStationStore<FmStationList_t, MAX_FM_STATIONS>
 
     void loadDefaults() override {
         memcpy(&data, &DEFAULT_FM_STATIONS, sizeof(FmStationList_t));
+        // Számoljuk meg hány állomás van a default listában
         data.count = 0;
-        DEBUG("FM Station default értékek betöltve.\n");
+        for (uint8_t i = 0; i < MAX_FM_STATIONS; i++) {
+            if (DEFAULT_FM_STATIONS.stations[i].frequency != 0) {
+                data.count++;
+            } else {
+                break; // Első üres állomásnál megállunk
+            }
+        }
+        DEBUG("FM Station default értékek betöltve. Count: %d\n", data.count);
     }
 };
 
@@ -80,8 +88,16 @@ class AmStationStore : public BaseStationStore<AmStationList_t, MAX_AM_STATIONS>
 
     void loadDefaults() override {
         memcpy(&data, &DEFAULT_AM_STATIONS, sizeof(AmStationList_t));
+        // Számoljuk meg hány állomás van a default listában
         data.count = 0;
-        DEBUG("AM Station default értékek betöltve.\n");
+        for (uint8_t i = 0; i < MAX_AM_STATIONS; i++) {
+            if (DEFAULT_AM_STATIONS.stations[i].frequency != 0) {
+                data.count++;
+            } else {
+                break; // Első üres állomásnál megállunk
+            }
+        }
+        DEBUG("AM Station default értékek betöltve. Count: %d\n", data.count);
     }
 };
 

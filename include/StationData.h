@@ -17,11 +17,10 @@
  */
 struct StationData {
     uint8_t bandIndex;                   // A band indexe (pl. FM, MW, SW, stb.)
-    uint16_t frequency;                  // Állomás frekvenciája (kHz)
+    uint16_t frequency;                  // Állomás frekvenciája (FM: 10kHz, AM: 1kHz egységben)
     uint8_t modulation;                  // Demodulációs mód indexe (FM, AM, LSB, USB, CW)
     uint8_t bandwidthIndex;              // Sávszélesség indexe
-    char name[STATION_NAME_BUFFER_SIZE]; // Állomás neve (15 karakter + null
-                                         // terminátor)
+    char name[STATION_NAME_BUFFER_SIZE]; // Állomás neve (15 karakter + null terminátor)
 };
 
 // FM állomások listája

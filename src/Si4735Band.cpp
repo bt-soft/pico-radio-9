@@ -378,6 +378,9 @@ void Si4735Band::tuneMemoryStation(uint8_t bandIndex, uint16_t frequency, uint8_
     // Átállítjuk a demodulációs módot
     currentBand.currDemod = demodModIndex;
 
+    // KRITIKUS: Frekvencia beállítása a band táblában MIELŐTT a bandSet() meghívódik!
+    currentBand.currFreq = frequency;
+
     // 3. Sávszélesség index beállítása a configban a MENTETT érték alapján ---
     uint8_t savedBwIndex = bandwidthIndex;
     if (savedMod == FM_DEMOD_TYPE) {
@@ -389,8 +392,8 @@ void Si4735Band::tuneMemoryStation(uint8_t bandIndex, uint16_t frequency, uint8_
     }
 
     // 4. Újra beállítjuk a sávot az új móddal (false -> ne a preferált adatokat töltse be)
-    this->bandSet(false); // 5. Explicit módon állítsd be a frekvenciát és a módot a chipen
-    si4735.setFrequency(frequency);
+    // A bandSet() használni fogja a currentBand.currFreq értékét amit fentebb beállítottunk
+    this->bandSet(false);
 
     // A tényleges frekvenciát olvassuk vissza a chip-ből (lehet, hogy nem pontosan azt állította be, amit kértünk)
     currentBand.currFreq = si4735.getCurrentFrequency();
