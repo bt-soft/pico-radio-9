@@ -81,8 +81,6 @@ void AudioProcessorC1::stop() {
 
     adcDmaC1.finalize();
     is_running = false;
-    isDMASamplingRunningOnCore1 = false; // Core0 számára jelezzük, hogy nem fut
-
     ADPROC_DEBUG("core1: AudioProc-c1 stop: leállítva, is_running=%d\n", is_running);
 }
 
@@ -157,9 +155,6 @@ void AudioProcessorC1::reconfigureAudioSampling(uint16_t sampleCount, uint16_t s
     adcConfig.samplingRate = static_cast<uint16_t>(finalRate);
 
     ADPROC_DEBUG("AudioProc-c1::reconfigureAudioSampling() - adcConfig frissítve: sampleCount=%d, samplingRate=%d Hz\n", adcConfig.sampleCount, adcConfig.samplingRate);
-
-    isDMASamplingRunningOnCore1 = true; // Core0 számára jelezzük, hogy fut
-
     this->start();
 }
 

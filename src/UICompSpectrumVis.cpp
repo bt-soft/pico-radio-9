@@ -1753,26 +1753,7 @@ uint8_t UICompSpectrumVis::getBandVal(int fft_bin_index, int min_bin_low_res, in
  */
 bool UICompSpectrumVis::getCore1SpectrumData(const int16_t **outData, uint16_t *outSize, float *outBinWidth, float *outAutoGain) {
 
-    // Ellenőrizzük, hogy az audio feldolgozó fut-e (Core1 állapot)
-    if (!isDMASamplingRunningOnCore1) {
-
-        *outData = nullptr;
-        *outSize = 0;
-
-        if (outBinWidth) {
-            *outBinWidth = 0.0f;
-        }
-
-        if (outAutoGain) {
-            *outAutoGain = 0.0f;
-        }
-
-        DEBUG("UICompSpectrumVis::getCore1SpectrumData - AudioProcessorC1 nem fut!\n");
-        return false;
-    }
-
     int8_t activeSharedDataIndex = ::audioController.getActiveSharedDataIndex();
-
     if (activeSharedDataIndex < 0 || activeSharedDataIndex > 1) {
         // Érvénytelen index a Core1-től - biztonságosan leállunk
         *outData = nullptr;
@@ -1807,15 +1788,6 @@ bool UICompSpectrumVis::getCore1SpectrumData(const int16_t **outData, uint16_t *
  * @brief Core1 oszcilloszkóp adatok lekérése
  */
 bool UICompSpectrumVis::getCore1OscilloscopeData(const int16_t **outData, uint16_t *outSampleCount) {
-
-    // Ellenőrizzük, hogy az audio feldolgozó fut-e (Core1 állapot)
-    if (!isDMASamplingRunningOnCore1) {
-        *outData = nullptr;
-        *outSampleCount = 0;
-
-        DEBUG("UICompSpectrumVis::getCore1OscilloscopeData - AudioProcessorC1 nem fut!\n");
-        return false;
-    }
 
     // Core1 oszcilloszkóp adatok lekérése
     int8_t activeSharedDataIndex = ::audioController.getActiveSharedDataIndex();
