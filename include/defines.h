@@ -37,7 +37,7 @@
 #define __DEBUG // Debug mód vezérlése
 
 // Soros portra várakozás az induláskor debug módban
-#define DEBUG_WAIT_FOR_SERIAL
+// #define DEBUG_WAIT_FOR_SERIAL
 
 // #define SHOW_MEMORY_INFO               // Memória monitor bekapcsolása memory leak nyomon követésére
 // #define MEMORY_INFO_INTERVAL 20 * 1000 // 20mp
