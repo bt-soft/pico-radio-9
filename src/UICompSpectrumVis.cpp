@@ -282,21 +282,15 @@ void UICompSpectrumVis::draw() {
     }
     lastFrameTime_ = currentTime;
 
-    static bool renderOnce = true;
-    if (renderOnce) {
-        // DEBUG("UICompSpectrumVis::render() - ELSŐ HÍVÁS - currentMode_=%d\n", static_cast<int>(currentMode_));
-        renderOnce = false;
-    }
-
 #ifdef __DEBUG
-    // // AGC logolás 1mpént
-    // static uint32_t lastAgcLogTime = 0;
-    // if (Utils::timeHasPassed(lastAgcLogTime, 1000)) {
-    //     float avgFrameMax = getAverageFrameMax();
-    //     bool agc = isAutoGainMode();
-    //      DEBUG("[UICompSpectrumVis][AGC] mode=%d agc=%d gain=%.3f avgFrameMax=%.1f\n", (int)currentMode_, agc ? 1 : 0, adaptiveGainFactor_, avgFrameMax);
-    //     lastAgcLogTime = currentTime;
-    // }
+    // AGC logolás 1mpént
+    static uint32_t lastAgcLogTime = 0;
+    if (Utils::timeHasPassed(lastAgcLogTime, 1000)) {
+        float avgFrameMax = getAverageFrameMax();
+        bool agc = isAutoGainMode();
+        DEBUG("[UICompSpectrumVis][AGC] mode=%d agc=%d gain=%.3f avgFrameMax=%.1f\n", (int)currentMode_, agc ? 1 : 0, adaptiveGainFactor_, avgFrameMax);
+        lastAgcLogTime = currentTime;
+    }
 #endif
 
     // Ha Mute állapotban vagyunk
@@ -332,8 +326,6 @@ void UICompSpectrumVis::draw() {
     }
 
     // Renderelés módjának megfelelően
-    // DEBUG("UICompSpectrumVis::render() - switch előtt, currentMode_=%d\n", static_cast<int>(currentMode_));
-
     switch (currentMode_) {
 
         case DisplayMode::Off:
@@ -367,7 +359,7 @@ void UICompSpectrumVis::draw() {
 
         case DisplayMode::CwSnrCurve:
         case DisplayMode::RttySnrCurve:
-            // DEBUG("UICompSpectrumVis::render() - SNR Curve mód, renderSnrCurve() hívás\n");
+            DEBUG("UICompSpectrumVis::render() - SNR Curve mód, renderSnrCurve() hívás\n");
             renderSnrCurve();
             break;
     }
@@ -441,9 +433,11 @@ void UICompSpectrumVis::drawFrame() {
 
 /**
  * @brief Kezeli a sprite létrehozását/törlését a megadott módhoz
- * @param modeToPrepareFor Az a mód, amelyhez a sprite-ot elő kell készíteni.
+ * @param modeToPrepareForDisplayMode Az a mód, amelyhez a sprite-ot elő kell készíteni.
  */
-void UICompSpectrumVis::manageSpriteForMode(DisplayMode modeToPrepareFor) {
+void UICompSpectrumVis::manageSpriteForMode(DisplayMode modeToPrepareForDisplayMode) {
+
+    DEBUG("UICompSpectrumVis::manageSpriteForMode() - modeToPrepareFor=%d\n", static_cast<int>(modeToPrepareForDisplayMode));
 
     if (spriteCreated_) { // Ha létezik sprite egy korábbi módból
         sprite_->deleteSprite();
@@ -451,7 +445,7 @@ void UICompSpectrumVis::manageSpriteForMode(DisplayMode modeToPrepareFor) {
     }
 
     // Sprite használata MINDEN módhoz (kivéve Off)
-    if (modeToPrepareFor != DisplayMode::Off) {
+    if (modeToPrepareForDisplayMode != DisplayMode::Off) {
         int graphH = getGraphHeight();
         if (bounds.width > 0 && graphH > 0) {
             sprite_->setColorDepth(16); // RGB565
@@ -466,7 +460,7 @@ void UICompSpectrumVis::manageSpriteForMode(DisplayMode modeToPrepareFor) {
     }
 
     // Teljes terület törlése mód váltáskor az előző grafikon eltávolításához
-    if (modeToPrepareFor != lastRenderedMode_) {
+    if (modeToPrepareForDisplayMode != lastRenderedMode_) {
 
         // Csak a belső területet töröljük, de az alsó bordert meghagyjuk
         tft.fillRect(bounds.x, bounds.y, bounds.width, bounds.height - 1, TFT_BLACK);
@@ -480,7 +474,7 @@ void UICompSpectrumVis::manageSpriteForMode(DisplayMode modeToPrepareFor) {
         }
 
         // Envelope reset mód váltáskor
-        if (modeToPrepareFor == DisplayMode::Envelope) {
+        if (modeToPrepareForDisplayMode == DisplayMode::Envelope) {
             envelopeLastSmoothedValue_ = 0.0f; // Simított érték nullázása
             // Wabuf buffer teljes törlése hogy tiszta vonallal kezdődjön az envelope
             for (auto &row : wabuf) {
@@ -493,19 +487,19 @@ void UICompSpectrumVis::manageSpriteForMode(DisplayMode modeToPrepareFor) {
 /**
  * @brief Grafikon magasságának számítása (teljes keret magasság)
  */
-int UICompSpectrumVis::getGraphHeight() const {
+uint16_t UICompSpectrumVis::getGraphHeight() const {
     return bounds.height - 1; // 1 pixel eltávolítása az alsó border megőrzéséhez
 }
 
 /**
  * @brief Indicator magasságának számítása
  */
-int UICompSpectrumVis::getIndicatorHeight() const { return modeIndicatorVisible_ ? 10 : 0; }
+uint8_t UICompSpectrumVis::getIndicatorHeight() const { return modeIndicatorVisible_ ? 10 : 0; }
 
 /**
  * @brief Hatékony magasság számítása (grafikon + indicator)
  */
-int UICompSpectrumVis::getEffectiveHeight() const {
+uint16_t UICompSpectrumVis::getEffectiveHeight() const {
     return bounds.height + getIndicatorHeight(); // Keret + indicator alatta
 }
 
@@ -513,6 +507,8 @@ int UICompSpectrumVis::getEffectiveHeight() const {
  * @brief FFT paraméterek beállítása az aktuális módhoz
  */
 void UICompSpectrumVis::setFftParametersForDisplayMode() {
+
+    DEBUG("UICompSpectrumVis::setFftParametersForDisplayMode() - currentMode_=%d\n", static_cast<int>(currentMode_));
 
     if (currentMode_ == DisplayMode::CWWaterfall || currentMode_ == DisplayMode::CwSnrCurve) {
         // CW módok esetén a CW tuning aid használata
@@ -542,10 +538,8 @@ void UICompSpectrumVis::setFftParametersForDisplayMode() {
     // Előnyben részesítjük a hátsó puffert, ha nem nulla nyomokat tartalmaz (frissen írva a Core1 által)
     if (sdBack.displayMinFreqHz != 0 || sdBack.displayMaxFreqHz != 0) {
         sdToUse = &sdBack;
-        // DEBUG("UICompSpectrumVis: hátsó-buffer hasznalata (idx=%d)\n", backIdx);
     } else if (sdActive.displayMinFreqHz != 0 || sdActive.displayMaxFreqHz != 0) {
         sdToUse = &sdActive;
-        // DEBUG("UICompSpectrumVis: aktív-buffer hasznalata (idx=%d)\n", activeIdx);
     }
 
     if (currentMode_ == DisplayMode::CWWaterfall || currentMode_ == DisplayMode::RTTYWaterfall || currentMode_ == DisplayMode::CwSnrCurve || currentMode_ == DisplayMode::RttySnrCurve) {
@@ -585,7 +579,7 @@ void UICompSpectrumVis::cycleThroughModes() {
     }
 
     // Új mód beállítása
-    setCurrentMode(static_cast<DisplayMode>(nextMode));
+    setCurrentDisplayMode(static_cast<DisplayMode>(nextMode));
 
     // Config-ba is beállítjuk (mentésre) az aktuális módot
     config.data.audioModeAM = nextMode;
@@ -608,28 +602,40 @@ void UICompSpectrumVis::startShowModeIndicator() {
  * @brief AM/FM Mód betöltése config-ból
  */
 void UICompSpectrumVis::loadModeFromConfig() {
+
+    DEBUG("UICompSpectrumVis::loadModeFromConfig() - radioMode_=%d\n", static_cast<int>(radioMode_));
+
     // Config-ból betöltjük az aktuális rádió módnak megfelelő audio módot
-    uint8_t configValue = config.data.audioModeAM;
-    DisplayMode configMode = configValueToDisplayMode(configValue);
+    uint8_t configValue = radioMode_ == RadioMode::FM ? config.data.audioModeFM : config.data.audioModeAM;
+    DisplayMode configDisplayMode = configValueToDisplayMode(configValue);
 
     // FM módban CW/RTTY módok nem engedélyezettek
-    if (radioMode_ == RadioMode::FM && (configMode == DisplayMode::CWWaterfall || configMode == DisplayMode::RTTYWaterfall)) {
-        configMode = DisplayMode::Waterfall; // Alapértelmezés FM módban
+    if (radioMode_ == RadioMode::FM && (configDisplayMode == DisplayMode::CWWaterfall || configDisplayMode == DisplayMode::RTTYWaterfall)) {
+        configDisplayMode = DisplayMode::Waterfall; // Alapértelmezés FM módban
+    }
+
+    // TODO: BUG - Még nem találtam meg a hibát (2025.11), de ha a config-ban SNR Curve van lementve AM módban, akkor lefagy a rendszer az induláskor
+    // Emiatt ha AM módban, ha valamelyi SNR Curve van elmentve, akkor visszaállunk Spectrum LowRes módra, így legalább elindul...
+    // Nyilván a renderSnrCurve metódusban van valami gond, amit még ki kell javítani...
+    if (radioMode_ == RadioMode::AM && (configDisplayMode == DisplayMode::CwSnrCurve || configDisplayMode == DisplayMode::RttySnrCurve)) {
+        configDisplayMode = DisplayMode::SpectrumLowRes;
     }
 
     // Beállítjuk a betöltött módot a config alapján
-    setCurrentMode(configMode);
+    setCurrentDisplayMode(configDisplayMode);
 }
 
 /**
  * @brief Beállítja a jelenlegi megjelenítési módot
- * @param mode A beállítandó megjelenítési mód
+ * @param newdisplayMode A beállítandó megjelenítési mód
  */
-void UICompSpectrumVis::setCurrentMode(DisplayMode newMode) {
+void UICompSpectrumVis::setCurrentDisplayMode(DisplayMode newdisplayMode) {
+
+    DEBUG("UICompSpectrumVis::setCurrentDisplayMode() - newdisplayMode=%d\n", static_cast<int>(newdisplayMode));
 
     // Előző mód megőrzése a tisztításhoz
     lastRenderedMode_ = currentMode_;
-    currentMode_ = newMode;
+    currentMode_ = newdisplayMode;
 
     // FFT paraméterek beállítása az új módhoz
     setFftParametersForDisplayMode();
@@ -1296,6 +1302,8 @@ uint16_t UICompSpectrumVis::valueToWaterfallColor(float val, float min_val, floa
  */
 void UICompSpectrumVis::setTuningAidType(TuningAidType type) {
 
+    DEBUG("UICompSpectrumVis::setTuningAidType - Beállítva TuningAidType: %d\n", static_cast<int>(type));
+
     bool typeChanged = (currentTuningAidType_ != type);
     currentTuningAidType_ = type;
 
@@ -1356,6 +1364,9 @@ void UICompSpectrumVis::setTuningAidType(TuningAidType type) {
  * @brief Frissíti a CW/RTTY hangolási segéd paramétereket
  */
 void UICompSpectrumVis::updateTuningAidParameters() {
+
+    DEBUG("UICompSpectrumVis::updateTuningAidParameters - Frissítés a konfiguráció alapján\n");
+
     // Újrahívjuk a setTuningAidType-ot az aktuális típussal
     // Ez frissíti a currentTuningAidMinFreqHz_ és currentTuningAidMaxFreqHz_ értékeket
     // a frissített globális változók (cwToneFrequencyHz, rttyMarkFrequencyHz, stb.) alapján
@@ -1416,10 +1427,10 @@ void UICompSpectrumVis::renderCwOrRttyTuningAid() {
         float exact_bin_index = min_bin_for_tuning + ratio_in_display_width * (num_bins_in_tuning_range - 1);
 
         // Interpolált magnitude érték (közös helper metódus használata)
-        double rawMagnitude = getInterpolatedMagnitude(magnitudeData, exact_bin_index, min_bin_for_tuning, max_bin_for_tuning);
+        float rawMagnitude = getInterpolatedMagnitude(magnitudeData, exact_bin_index, min_bin_for_tuning, max_bin_for_tuning);
 
         maxMagnitude = std::max(maxMagnitude, static_cast<float>(rawMagnitude));
-        double scaledMagnitude = rawMagnitude * adaptiveScale;
+        float scaledMagnitude = rawMagnitude * adaptiveScale;
         uint8_t finalValue = static_cast<uint8_t>(constrain(scaledMagnitude, 0.0, 255.0));
         wabuf[0][c] = finalValue;
 
@@ -1506,9 +1517,8 @@ void UICompSpectrumVis::renderCwOrRttyTuningAid() {
  * @brief SNR Curve renderelése - frekvencia/SNR burkológörbe
  */
 void UICompSpectrumVis::renderSnrCurve() {
-    // Audio feldolgozás Core1-en történik, AudioCore1Manager-en keresztül
 
-    int graphH = getGraphHeight();
+    uint16_t graphH = getGraphHeight();
     if (!spriteCreated_ || bounds.width == 0 || graphH <= 0) {
         return;
     }
@@ -1522,6 +1532,7 @@ void UICompSpectrumVis::renderSnrCurve() {
     // Lekérjük az adatokat a Core1-ről
     bool dataAvailable = getCore1SpectrumData(&magnitudeData, &actualFftSize, &currentBinWidthHz, &currentAutoGain);
     if (!dataAvailable || !magnitudeData || currentBinWidthHz == 0) {
+        DEBUG("UICompSpectrumVis::renderSnrCurve - Nem sikerült adatok lekérése\n");
         return;
     }
 
@@ -1548,20 +1559,19 @@ void UICompSpectrumVis::renderSnrCurve() {
     if (MIN_FREQ_HZ == 0 || MAX_FREQ_HZ == 0 || MIN_FREQ_HZ >= MAX_FREQ_HZ) {
         static unsigned long lastSnrErrorDebugTime = 0;
         if (Utils::timeHasPassed(lastSnrErrorDebugTime, 10000)) {
-            // DEBUG("UICompSpectrumVis::renderSnrCurve - Érvénytelen frekvencia határok: MIN=%.2f, MAX=%.2f, automatikus javítás!\n", MIN_FREQ_HZ, MAX_FREQ_HZ);
+            DEBUG("UICompSpectrumVis::renderSnrCurve - Érvénytelen frekvencia határok: MIN=%.2f, MAX=%.2f, automatikus javítás!\n", MIN_FREQ_HZ, MAX_FREQ_HZ);
             lastSnrErrorDebugTime = millis();
         }
+
+        DEBUG("UICompSpectrumVis::renderSnrCurve - Érvénytelen frekvencia határok miatt alapértelmezett értékek beállítása\n");
         // Állítsuk be az alapértelmezett határokat
         currentTuningAidMinFreqHz_ = AnalyzerConstants::ANALYZER_MIN_FREQ_HZ;
         currentTuningAidMaxFreqHz_ = maxDisplayFrequencyHz_;
-        // Frissítsük a lokális változatokat is
-        // (ezek const-ként vannak deklarálva, de a további kód már a member változatokat használja)
     }
 
-    const int min_bin = std::max(2, static_cast<int>(std::round(MIN_FREQ_HZ / currentBinWidthHz)));
-    // actualFftSize already equals number of bins (N/2) so the last index is actualFftSize-1
-    const int max_bin = std::min(static_cast<int>(actualFftSize - 1), static_cast<int>(std::round(MAX_FREQ_HZ / currentBinWidthHz)));
-    const int num_bins = std::max(1, max_bin - min_bin + 1);
+    const uint16_t min_bin = std::max(2, static_cast<int>(std::round(MIN_FREQ_HZ / currentBinWidthHz)));
+    const uint16_t max_bin = std::min(static_cast<int>(actualFftSize - 1), static_cast<int>(std::round(MAX_FREQ_HZ / currentBinWidthHz)));
+    const uint16_t num_bins = std::max(1, max_bin - min_bin + 1);
 
     // Adaptív skálázás a módtól függően
     float adaptiveScale;
@@ -1573,32 +1583,30 @@ void UICompSpectrumVis::renderSnrCurve() {
     float maxMagnitude = 0.0f;
 
     // Előző pont koordinátái a görbe rajzolásához
-    int prevX = -1;
-    int prevY = -1;
+    int16_t prevX = -1;
+    int16_t prevY = -1;
 
-    // WORKAROUND: Az utolsó oszlop (x=width-1) sprite műveletei lefagyást okoznak
-    // Audio DMA és sprite memória írás közötti race condition miatt
     // Minden pixel oszlophoz kiszámítjuk az SNR értéket interpolációval
-    for (int x = 0; x < bounds.width - 1; x++) { // width-1 hogy ne fagy le az utolsó pixelnél
+    for (uint16_t x = 0; x < bounds.width; x++) {
+
         // X koordináta frekvenciává konvertálása (lebegőpontos bin index)
         float ratio = (bounds.width <= 1) ? 0.0f : (static_cast<float>(x) / (bounds.width - 1));
         float exact_bin_index = min_bin + ratio * (num_bins - 1);
 
         // Interpolált magnitude érték (közös helper metódus használata)
-        double rawMagnitude = getInterpolatedMagnitude(magnitudeData, exact_bin_index, min_bin, max_bin);
-
+        float rawMagnitude = getInterpolatedMagnitude(magnitudeData, exact_bin_index, min_bin, max_bin);
         maxMagnitude = std::max(maxMagnitude, static_cast<float>(rawMagnitude));
 
         // SNR érték számítása (egyszerű amplitúdó alapú)
         float snrValue = rawMagnitude * adaptiveScale;
 
         // Y koordináta számítása (invertált, mert a képernyő teteje y=0)
-        int y = graphH - static_cast<int>(constrain(snrValue, 0.0f, static_cast<float>(graphH)));
+        uint16_t y = graphH - static_cast<int>(constrain(snrValue, 0.0f, static_cast<float>(graphH)));
         y = constrain(y, 0, graphH - 1);
 
         // Görbe rajzolása - pont összekötése az előzővel
         if (prevX >= 0 && prevY >= 0) {
-            // Vonal rajzolása az előző ponttól a jelenleg számítottig
+            //  Vonal rajzolása az előző ponttól a jelenleg számítottig
             sprite_->drawLine(prevX, prevY, x, y, TFT_CYAN);
         }
 
@@ -1645,48 +1653,31 @@ void UICompSpectrumVis::renderSnrCurve() {
                     snprintf(freqStr, sizeof(freqStr), "%dHz", cwFrequency);
                 }
 
-                int w = sprite_->textWidth(freqStr);
-                // Töröljük a hátteret 1px margóval, MC_DATUM-hoz igazítva
-                // DEBUG("UICompSpectrumVis::renderSnrCurve - ELŐTTE sprite_->fillRect (CW bg)\n");
-                sprite_->fillRect(line_x_cw - w / 2 - 1, LABEL_Y_POS - 1, w + 2, labelHeight + 2, TFT_BLACK);
-                // DEBUG("UICompSpectrumVis::renderSnrCurve - UTÁNA sprite_->fillRect (CW bg)\n");
+                uint16_t w = sprite_->textWidth(freqStr);
 
-                // DEBUG("UICompSpectrumVis::renderSnrCurve - ELŐTTE sprite_->drawString (CW)\n");
+                // Töröljük a hátteret 1px margóval, MC_DATUM-hoz igazítva
+                sprite_->fillRect(line_x_cw - w / 2 - 1, LABEL_Y_POS - 1, w + 2, labelHeight + 2, TFT_BLACK);
                 sprite_->setTextColor(TUNING_AID_CW_TARGET_COLOR, TFT_BLACK); // Szöveg színe és háttérszín
                 sprite_->drawString(freqStr, line_x_cw, LABEL_Y_POS);
-                // DEBUG("UICompSpectrumVis::renderSnrCurve - UTÁNA sprite_->drawString (CW)\n");
 
                 // TextDatum visszaállítása alapértelmezett
                 sprite_->setTextDatum(TL_DATUM);
-                // DEBUG("UICompSpectrumVis::renderSnrCurve - CW vonal és felirat kész\n");
             }
 
         } else if (currentMode_ == DisplayMode::RttySnrCurve) {
-            // DEBUG("UICompSpectrumVis::renderSnrCurve - RTTY mód\n");
             // RTTY módban mark és space vonalak
             uint16_t f_mark = config.data.rttyMarkFrequencyHz;
             uint16_t f_space = f_mark - config.data.rttyShiftHz;
 
-            // DEBUG("UICompSpectrumVis::renderSnrCurve - RTTY freq: mark=%d, space=%d\n", f_mark, f_space);
-
             // Space vonal (cyan) + címke
             if (f_space >= min_freq_displayed && f_space <= max_freq_displayed) {
-                // DEBUG("UICompSpectrumVis::renderSnrCurve - RTTY Space vonal rajzolása\n");
-                // DEBUG("UICompSpectrumVis::renderSnrCurve - f_space=%d, min=%d, span=%d\n", f_space, min_freq_displayed, displayed_span_hz);
 
                 float ratio_space = (static_cast<float>(f_space) - min_freq_displayed) / displayed_span_hz;
-                // DEBUG("UICompSpectrumVis::renderSnrCurve - ratio_space=%.4f\n", ratio_space);
-
                 uint16_t line_x_space = static_cast<uint16_t>(std::round(ratio_space * (bounds.width - 1)));
-                // DEBUG("UICompSpectrumVis::renderSnrCurve - line_x_space (előtte constrain)=%d\n", line_x_space);
-
                 line_x_space = constrain(line_x_space, 0, bounds.width - 1);
-                // DEBUG("UICompSpectrumVis::renderSnrCurve - line_x_space (utána constrain)=%d\n", line_x_space);
 
                 // Először a teljes vonal kirajzolása
-                // DEBUG("UICompSpectrumVis::renderSnrCurve - ELŐTTE sprite_->drawFastVLine (RTTY Space)\n");
                 sprite_->drawFastVLine(line_x_space, 0, graphH, TUNING_AID_RTTY_SPACE_COLOR);
-                // DEBUG("UICompSpectrumVis::renderSnrCurve - UTÁNA sprite_->drawFastVLine (RTTY Space)\n");
 
                 // Space frekvencia kiírása a vonal közepére
                 snprintf(freqStr, sizeof(freqStr), "%dHz", f_space);
@@ -1695,27 +1686,21 @@ void UICompSpectrumVis::renderSnrCurve() {
                 int w = sprite_->textWidth(freqStr);
 
                 // Töröljük a hátteret 1px margóval
-                // DEBUG("UICompSpectrumVis::renderSnrCurve - ELŐTTE sprite_->fillRect (RTTY Space bg)\n");
                 sprite_->fillRect(line_x_space - 5 - w - 1, LABEL_Y_POS - 1, w + 2, labelHeight + 2, TFT_BLACK);
-                // DEBUG("UICompSpectrumVis::renderSnrCurve - UTÁNA sprite_->fillRect (RTTY Space bg)\n");
 
                 // DEBUG("UICompSpectrumVis::renderSnrCurve - ELŐTTE sprite_->drawString (RTTY Space)\n");
                 sprite_->setTextColor(TUNING_AID_RTTY_SPACE_COLOR, TFT_BLACK);
                 sprite_->drawString(freqStr, line_x_space - 5, LABEL_Y_POS);
-                // DEBUG("UICompSpectrumVis::renderSnrCurve - UTÁNA sprite_->drawString (RTTY Space)\n");
             }
 
             // Mark vonal (yellow) + címke
             if (f_mark >= min_freq_displayed && f_mark <= max_freq_displayed) {
-                // DEBUG("UICompSpectrumVis::renderSnrCurve - RTTY Mark vonal rajzolása\n");
                 float ratio_mark = (static_cast<float>(f_mark) - min_freq_displayed) / displayed_span_hz;
                 uint16_t line_x_mark = static_cast<uint16_t>(std::round(ratio_mark * (bounds.width - 1)));
                 line_x_mark = constrain(line_x_mark, 0, bounds.width - 1);
 
                 // Először a teljes vonal kirajzolása
-                // DEBUG("UICompSpectrumVis::renderSnrCurve - ELŐTTE sprite_->drawFastVLine (RTTY Mark)\n");
                 sprite_->drawFastVLine(line_x_mark, 0, graphH, TUNING_AID_RTTY_MARK_COLOR);
-                // DEBUG("UICompSpectrumVis::renderSnrCurve - UTÁNA sprite_->drawFastVLen (RTTY Mark)\n");
 
                 // Mark frekvencia kiírása a vonal közepére
                 snprintf(freqStr, sizeof(freqStr), "%dHz", f_mark);
@@ -1724,24 +1709,16 @@ void UICompSpectrumVis::renderSnrCurve() {
                 int w = sprite_->textWidth(freqStr);
 
                 // Töröljük a hátteret 1px margóval
-                // DEBUG("UICompSpectrumVis::renderSnrCurve - ELŐTTE sprite_->fillRect (RTTY Mark bg)\n");
                 sprite_->fillRect(line_x_mark + 5 - 1, LABEL_Y_POS - 1, w + 2, labelHeight + 2, TFT_BLACK);
-                // DEBUG("UICompSpectrumVis::renderSnrCurve - UTÁNA sprite_->fillRect (RTTY Mark bg)\n");
 
-                // DEBUG("UICompSpectrumVis::renderSnrCurve - ELŐTTE sprite_->drawString (RTTY Mark)\n");
                 sprite_->setTextColor(TUNING_AID_RTTY_MARK_COLOR, TFT_BLACK);
                 sprite_->drawString(freqStr, line_x_mark + 5, LABEL_Y_POS);
-                // DEBUG("UICompSpectrumVis::renderSnrCurve - UTÁNA sprite_->drawString (RTTY Mark)\n");
             }
         }
     }
 
-    // DEBUG("UICompSpectrumVis::renderSnrCurve - UTÁNA hangolási vonalak\n");
-
-    // DEBUG("UICompSpectrumVis::renderSnrCurve - ELŐTTE sprite_->pushSprite()\n");
     // Sprite kirakása a képernyőre
     sprite_->pushSprite(bounds.x, bounds.y);
-    // DEBUG("UICompSpectrumVis::renderSnrCurve - UTÁNA sprite_->pushSprite()\n");
 
     // Adaptív autogain frissítése
     updateFrameBasedGain(maxMagnitude);
@@ -1772,53 +1749,30 @@ uint8_t UICompSpectrumVis::getBandVal(int fft_bin_index, int min_bin_low_res, in
 }
 
 /**
- * @brief Kirajzol egyetlen oszlopot/sávot (bar-t) az alacsony felbontású spektrumhoz.
- * @param band_idx A frekvenciasáv indexe, amelyhez az oszlop tartozik.
- * @param magnitude A sáv magnitúdója (double).
- * @param actual_start_x_on_screen A spektrum rajzolásának kezdő X koordinátája a képernyőn.
- * @param peak_max_height_for_mode A sáv maximális magassága az adott módban.
- * @param current_bar_width_pixels Az aktuális sávszélesség pixelekben.
- */
-void UICompSpectrumVis::drawSpectrumBar(int band_idx, double magnitude, int actual_start_x_on_screen, int peak_max_height_for_mode, int current_bar_width_pixels) {
-    int graphH = bounds.height;
-    if (graphH <= 0)
-        return;
-
-    int dsize = static_cast<int>(magnitude / SensitivityConstants::AMPLITUDE_SCALE);
-    dsize = constrain(dsize, 0, peak_max_height_for_mode);
-    constexpr int bar_gap_pixels = 1;
-    int bar_total_width_pixels_dynamic = current_bar_width_pixels + bar_gap_pixels;
-    int xPos = actual_start_x_on_screen + bar_total_width_pixels_dynamic * band_idx;
-
-    if (xPos + current_bar_width_pixels > bounds.x + bounds.width || xPos < bounds.x)
-        return;
-
-    if (dsize > 0) {
-        int y_start_bar = bounds.y + graphH - dsize;
-        int bar_h_visual = dsize;
-        if (y_start_bar < bounds.y) {
-            bar_h_visual -= (bounds.y - y_start_bar);
-            y_start_bar = bounds.y;
-        }
-        if (bar_h_visual > 0) {
-            tft.fillRect(xPos, y_start_bar, current_bar_width_pixels, bar_h_visual, TFT_GREEN); // Zöld bar
-        }
-    }
-
-    if (dsize > Rpeak_[band_idx] && band_idx < MAX_SPECTRUM_BANDS) {
-        Rpeak_[band_idx] = dsize;
-    }
-    // Ha a peak érték 0-ra csökkent, töröljük (biztosítjuk, hogy ne jelenjen meg)
-    if (band_idx < MAX_SPECTRUM_BANDS && Rpeak_[band_idx] < 1) {
-        Rpeak_[band_idx] = 0;
-    }
-}
-
-/**
  * @brief Core1 spektrum adatok lekérése
  */
 bool UICompSpectrumVis::getCore1SpectrumData(const int16_t **outData, uint16_t *outSize, float *outBinWidth, float *outAutoGain) {
+
+    // Ellenőrizzük, hogy az audio feldolgozó fut-e (Core1 állapot)
+    if (!isDMASamplingRunningOnCore1) {
+
+        *outData = nullptr;
+        *outSize = 0;
+
+        if (outBinWidth) {
+            *outBinWidth = 0.0f;
+        }
+
+        if (outAutoGain) {
+            *outAutoGain = 0.0f;
+        }
+
+        DEBUG("UICompSpectrumVis::getCore1SpectrumData - AudioProcessorC1 nem fut!\n");
+        return false;
+    }
+
     int8_t activeSharedDataIndex = ::audioController.getActiveSharedDataIndex();
+
     if (activeSharedDataIndex < 0 || activeSharedDataIndex > 1) {
         // Érvénytelen index a Core1-től - biztonságosan leállunk
         *outData = nullptr;
@@ -1837,10 +1791,14 @@ bool UICompSpectrumVis::getCore1SpectrumData(const int16_t **outData, uint16_t *
 
     *outData = data.fftSpectrumData;
     *outSize = data.fftSpectrumSize;
-    if (outBinWidth)
+
+    if (outBinWidth) {
         *outBinWidth = data.fftBinWidthHz;
-    if (outAutoGain)
+    }
+
+    if (outAutoGain) {
         *outAutoGain = 1.0f; // TODO: implementálni, ha szükséges
+    }
 
     return (data.fftSpectrumData != nullptr && data.fftSpectrumSize > 0);
 }
@@ -1849,6 +1807,16 @@ bool UICompSpectrumVis::getCore1SpectrumData(const int16_t **outData, uint16_t *
  * @brief Core1 oszcilloszkóp adatok lekérése
  */
 bool UICompSpectrumVis::getCore1OscilloscopeData(const int16_t **outData, uint16_t *outSampleCount) {
+
+    // Ellenőrizzük, hogy az audio feldolgozó fut-e (Core1 állapot)
+    if (!isDMASamplingRunningOnCore1) {
+        *outData = nullptr;
+        *outSampleCount = 0;
+
+        DEBUG("UICompSpectrumVis::getCore1OscilloscopeData - AudioProcessorC1 nem fut!\n");
+        return false;
+    }
+
     // Core1 oszcilloszkóp adatok lekérése
     int8_t activeSharedDataIndex = ::audioController.getActiveSharedDataIndex();
     if (activeSharedDataIndex < 0 || activeSharedDataIndex > 1) {
@@ -1886,49 +1854,6 @@ void UICompSpectrumVis::drawMutedMessage() {
     tft.drawString("-- Muted --", x, y);
 
     isMutedDrawn = true;
-}
-
-/**
- * @brief Optimal FFT méret meghatározása a megjelenítési módhoz
- */
-uint16_t UICompSpectrumVis::getOptimalFftSizeForMode(DisplayMode mode) const {
-    uint16_t size;
-    switch (mode) {
-        case DisplayMode::CWWaterfall:
-            size = 512; // Szép spektrum megjelenítés CW-ben is - dekóder külön gyors FFT-t kap
-            break;
-
-        case DisplayMode::RTTYWaterfall:
-            size = 512; // RTTY jelhez elegendő a közepes felbontás
-            break;
-
-        case DisplayMode::SpectrumHighRes:
-            size = 512; // Magas felbontású spektrum
-            break;
-
-        case DisplayMode::Waterfall:
-            size = 256; // Vízfolyás
-            break;
-
-        case DisplayMode::CwSnrCurve:
-        case DisplayMode::RttySnrCurve:
-            size = 512; // Jó felbontás szükséges a görbe számára
-            break;
-
-        case DisplayMode::SpectrumLowRes:
-        case DisplayMode::Oscilloscope:
-        case DisplayMode::Envelope:
-        default:
-            size = 256;
-            break;
-
-        case DisplayMode::Off:
-            size = 0;
-            break;
-    }
-
-    DEBUG("UICompSpectrumVis::getOptimalFftSizeForMode: Mód=%d, FFT méret=%d\n", (int)mode, size);
-    return size;
 }
 
 /**
@@ -2119,7 +2044,7 @@ void UICompSpectrumVis::renderFrequencyRangeLabels(uint16_t minDisplayFrequencyH
  * @param maxBin Maximum megengedett bin index
  * @return Interpolált magnitude érték
  */
-double UICompSpectrumVis::getInterpolatedMagnitude(const int16_t *magnitudeData, float exactBinIndex, int minBin, int maxBin) const {
+float UICompSpectrumVis::getInterpolatedMagnitude(const int16_t *magnitudeData, float exactBinIndex, int minBin, int maxBin) const {
     // Interpoláció a szomszédos bin-ek között
     int bin_low = static_cast<int>(std::floor(exactBinIndex));
     int bin_high = static_cast<int>(std::ceil(exactBinIndex));
@@ -2132,8 +2057,8 @@ double UICompSpectrumVis::getInterpolatedMagnitude(const int16_t *magnitudeData,
     float frac = exactBinIndex - bin_low;
 
     // Lineáris interpoláció
-    double mag_low = static_cast<double>(magnitudeData[bin_low]);
-    double mag_high = static_cast<double>(magnitudeData[bin_high]);
+    float mag_low = static_cast<float>(magnitudeData[bin_low]);
+    float mag_high = static_cast<float>(magnitudeData[bin_high]);
 
     return mag_low * (1.0 - frac) + mag_high * frac;
 }

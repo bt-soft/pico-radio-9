@@ -59,8 +59,6 @@ void ScreenAM::drawContent() {
  */
 void ScreenAM::activate() {
 
-    DEBUG("ScreenAM::activate() - ELŐTTE - Free heap: %d bytes\n", rp2040.getFreeHeap());
-
     // Szülő osztály aktiválása
     ScreenAMRadioBase::activate();
 
@@ -69,8 +67,6 @@ void ScreenAM::activate() {
 
     // AM audio dekóder indítása (csak FFT, nincs dekóder)
     ::audioController.startAudioController(DecoderId::ID_DECODER_ONLY_FFT, AM_AF_RAW_SAMPLES_SIZE, AM_AF_BANDWIDTH_HZ);
-
-    DEBUG("ScreenAM::activate() - UTÁNA - Free heap: %d bytes\n", rp2040.getFreeHeap());
 }
 
 /**
@@ -79,15 +75,11 @@ void ScreenAM::activate() {
  */
 void ScreenAM::deactivate() {
 
-    DEBUG("ScreenAM::deactivate() - ELŐTTE - Free heap: %d bytes\n", rp2040.getFreeHeap());
-
     // Audio dekóder leállítása
     ::audioController.stopAudioController();
 
     // Szülő osztály deaktiválása
     ScreenRadioBase::deactivate();
-
-    DEBUG("ScreenAM::deactivate() - UTÁNA - Free heap: %d bytes\n", rp2040.getFreeHeap());
 }
 
 // =====================================================================

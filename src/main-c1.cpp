@@ -41,6 +41,9 @@ volatile uint8_t activeSharedDataIndex = 0; // Aktív SharedData index (0 vagy 1
 // A dekódolt adatok globális példánya, ezt éri el a Core-0 is
 DecodedData decodedData;
 
+// AudioProcessorC1 futási állapot flag (Core1 írja, Core0 olvassa)
+volatile bool isDMASamplingRunningOnCore1 = false;
+
 // CORE1 szenzor adatok (Core1 olvassa az ADC-t, Core0 csak kijelzi!)
 volatile float core1_VbusVoltage;    // VBUS feszültség (Volt) - Core1 méri ADC1-ről
 volatile float core1_CpuTemperature; // CPU hőmérséklet (Celsius) - Core1 méri ADC4-ről

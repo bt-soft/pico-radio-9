@@ -68,7 +68,6 @@ bool AudioProcessorC1::initialize(const AdcDmaC1::CONFIG &config, bool useFFT, b
 void AudioProcessorC1::start() {
     adcDmaC1.initialize(this->adcConfig);
     is_running = true;
-
     ADPROC_DEBUG("core1: AudioProc-c1 start: elindítva, sampleCount=%d, samplingRate=%d Hz, useFFT=%d, is_running=%d\n", adcConfig.sampleCount, adcConfig.samplingRate, useFFT, is_running);
 }
 
@@ -79,8 +78,10 @@ void AudioProcessorC1::stop() {
     if (!is_running) {
         return;
     }
+
     adcDmaC1.finalize();
     is_running = false;
+    isDMASamplingRunningOnCore1 = false; // Core0 számára jelezzük, hogy nem fut
 
     ADPROC_DEBUG("core1: AudioProc-c1 stop: leállítva, is_running=%d\n", is_running);
 }
@@ -103,10 +104,12 @@ void AudioProcessorC1::reconfigureAudioSampling(uint16_t sampleCount, uint16_t s
         uint32_t nyquist = bandwidthHz * 2u;
         uint32_t suggested = static_cast<uint32_t>(ceilf(nyquist * oversampleFactor));
         ADPROC_DEBUG("AudioProc-c1::reconfigureAudioSampling() - nyquist=%d Hz, suggested=%d Hz, finalRate(előtte)=%d Hz\n", nyquist, suggested, finalRate);
-        if (finalRate == 0)
+
+        if (finalRate == 0) {
             finalRate = suggested;
-        else if (finalRate < nyquist)
+        } else if (finalRate < nyquist) {
             finalRate = suggested;
+        }
         ADPROC_DEBUG("AudioProc-c1::reconfigureAudioSampling() - finalRate(utána)=%d Hz\n", finalRate);
     }
 
@@ -155,7 +158,9 @@ void AudioProcessorC1::reconfigureAudioSampling(uint16_t sampleCount, uint16_t s
 
     ADPROC_DEBUG("AudioProc-c1::reconfigureAudioSampling() - adcConfig frissítve: sampleCount=%d, samplingRate=%d Hz\n", adcConfig.sampleCount, adcConfig.samplingRate);
 
-    start();
+    isDMASamplingRunningOnCore1 = true; // Core0 számára jelezzük, hogy fut
+
+    this->start();
 }
 
 /**
@@ -362,9 +367,12 @@ void AudioProcessorC1::applyAgc(int16_t *samples, uint16_t count) {
  * Más módokban lefuttatja az FFT-t, kiszámolja a spektrumot és a domináns frekvenciát.
  */
 bool AudioProcessorC1::processAndFillSharedData(SharedData &sharedData) {
+
+    // Ha nem fut a feldolgozás, akkor kilépünk
     if (!is_running) {
         return false;
     }
+
 #ifdef __ADPROC_DEBUG
     uint32_t methodStartTime = micros();
 #endif

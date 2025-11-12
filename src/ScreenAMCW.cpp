@@ -51,7 +51,7 @@ void ScreenAMCW::layoutComponents() {
     // ===================================================================
     ScreenRadioBase::createSpectrumComponent(Rect(255, 40, 150, 80), RadioMode::AM);
     // Induláskor beállítjuk a CwSnrCurve megjelenítési módot
-    ScreenRadioBase::spectrumComp->setCurrentMode(UICompSpectrumVis::DisplayMode::CwSnrCurve);
+    ScreenRadioBase::spectrumComp->setCurrentDisplayMode(UICompSpectrumVis::DisplayMode::CwSnrCurve);
 
     // MEGJEGYZÉS: Az audioController indítása az activate() metódusban történik
     // hogy képernyőváltáskor megfelelően leálljon és újrainduljon

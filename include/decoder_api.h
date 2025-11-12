@@ -189,3 +189,6 @@ struct DecodedData {
     volatile uint16_t rttySpaceFreq; // Space frekvencia (Hz)
     volatile uint16_t rttyBaudRate;  // Baud sebesség (beállított)
 };
+
+// AudioProcessorC1/DMA futási állapot flag (Core1 írja, Core0 olvassa)
+extern volatile bool isDMASamplingRunningOnCore1; // main-c1.cpp-ben deklarálva és inicializálva

@@ -150,7 +150,7 @@ void setup() {
     SCREEN_W = tft.width();
     SCREEN_H = tft.height();
 
-#ifdef DEBUG_WAIT_FOR_SERIAL
+#if defined(__DEBUG) && defined(DEBUG_WAIT_FOR_SERIAL)
     // Várakozás a soros port megnyitására hibakereséshez
     Utils::debugWaitForSerial(tft);
 #endif

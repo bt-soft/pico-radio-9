@@ -20,15 +20,15 @@ class UICompSpectrumVis : public UIComponent {
      */
     enum class DisplayMode {
         Off = 0,         //
-        SpectrumLowRes,  //
-        SpectrumHighRes, //
-        Oscilloscope,    //
-        Envelope,        //
-        Waterfall,       //
-        CWWaterfall,     //
-        CwSnrCurve,      //
-        RTTYWaterfall,   //
-        RttySnrCurve
+        SpectrumLowRes,  // 1
+        SpectrumHighRes, // 2
+        Oscilloscope,    // 3
+        Envelope,        // 4
+        Waterfall,       // 5
+        CWWaterfall,     // 6
+        CwSnrCurve,      // 7
+        RTTYWaterfall,   // 8
+        RttySnrCurve     // 9
     };
 
     /**
@@ -145,9 +145,9 @@ class UICompSpectrumVis : public UIComponent {
 
     /**
      * @brief Beállítja a jelenlegi megjelenítési módot
-     * @param mode A beállítandó megjelenítési mód
+     * @param newdisplayMode A beállítandó megjelenítési mód
      */
-    void setCurrentMode(DisplayMode mode);
+    void setCurrentDisplayMode(DisplayMode newdisplayMode);
 
   private:
     RadioMode radioMode_;
@@ -194,9 +194,10 @@ class UICompSpectrumVis : public UIComponent {
     std::vector<std::vector<uint8_t>> wabuf;
 
     /**
-     * @brief Sprite kezelő függvények (radio-2 alapján)
+     * @brief Sprite kezelő függvények
+     * @param modeToPrepareForDisplayMode Az a mód, amelyhez a sprite-ot elő kell készíteni.
      */
-    void manageSpriteForMode(DisplayMode modeToPrepareFor);
+    void manageSpriteForMode(DisplayMode modeToPrepareForDisplayMode);
 
     /**
      * @brief Renderelő függvények
@@ -214,10 +215,9 @@ class UICompSpectrumVis : public UIComponent {
     void startShowModeIndicator();
 
     /**
-     * @brief Spectrum bar függvények (radio-2 alapján)
+     * @brief Spectrum bar függvények
      */
     uint8_t getBandVal(int fft_bin_index, int min_bin_low_res, int num_bins_low_res_range, int total_bands);
-    void drawSpectrumBar(int band_idx, double magnitude, int actual_start_x_on_screen, int peak_max_height_for_mode, int current_bar_width_pixels);
 
     /**
      * @brief CW/RTTY hangolási segéd függvények
@@ -229,9 +229,9 @@ class UICompSpectrumVis : public UIComponent {
      * @brief Segéd függvények
      */
     uint16_t valueToWaterfallColor(float val, float min_val, float max_val, byte colorProfileIndex);
-    int getGraphHeight() const;
-    int getIndicatorHeight() const;
-    int getEffectiveHeight() const;
+    uint16_t getGraphHeight() const;
+    uint8_t getIndicatorHeight() const;
+    uint16_t getEffectiveHeight() const;
 
     /**
      * @brief Interpolált magnitude érték lekérése két FFT bin között
@@ -241,7 +241,7 @@ class UICompSpectrumVis : public UIComponent {
      * @param maxBin Maximum megengedett bin index
      * @return Interpolált magnitude érték
      */
-    double getInterpolatedMagnitude(const int16_t *magnitudeData, float exactBinIndex, int minBin, int maxBin) const;
+    float getInterpolatedMagnitude(const int16_t *magnitudeData, float exactBinIndex, int minBin, int maxBin) const;
 
     /**
      * @brief Core1 audio adatok kezelése
@@ -278,20 +278,6 @@ class UICompSpectrumVis : public UIComponent {
      * @brief Spektrum mód dekódolása szöveggé
      */
     const char *decodeModeToStr();
-
-    /**
-     * @brief Optimális FFT méret meghatározása a megjelenítési módhoz
-     * @param mode A megjelenítési mód
-     * @return Az optimális FFT méret
-     */
-    uint16_t getOptimalFftSizeForMode(DisplayMode mode) const;
-
-    /**
-     * @brief Optimális FFT Mintavételezési frekvencia meghatározása a megjelenítési módhoz
-     * @param mode A megjelenítési mód
-     * @return Az optimális FFT méret
-     */
-    uint16_t getOptimalFftSampleFrequencyForAfbandwidth(DisplayMode mode) const;
 
     /**
      * @brief Core1 FFT paraméterek (frekvencia/méret) beállítása

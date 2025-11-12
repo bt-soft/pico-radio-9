@@ -92,6 +92,8 @@ String formatFrequencyString(float freqHz) {
 void debugWaitForSerial(TFT_eSPI &tft) {
 #ifdef __DEBUG
     beepError();
+    tft.setFreeFont();
+    tft.setTextSize(2);
     tft.setTextColor(TFT_WHITE);
     tft.drawString("Nyisd meg a soros portot!", 0, 0);
     while (!Serial) {
