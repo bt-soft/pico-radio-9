@@ -28,14 +28,26 @@
  * @brief AudioProcessorC1 konstruktor.
  */
 AudioProcessorC1::AudioProcessorC1()
-    : useFFT(false), is_running(false), useBlockingDma(true),
+    : useFFT(false),        // FFT használat kikapcsolva alapértelmezetten
+      is_running(false),    // Feldolgozás leállítva alapértelmezetten
+      useBlockingDma(true), // Blokkoló DMA mód alapértelmezetten
+
+      //-------
       // AGC alapértelmezett értékek inicializálása
-      agcLevel_(2000.0f), agcAlpha_(0.02f), agcTargetPeak_(20000.0f), agcMinGain_(0.1f), agcMaxGain_(50.0f), // 20.0 -> 50.0 (gyenge jel kompenzálás)
-      currentAgcGain_(1.0f), useAgc_(true),                                                                  // Alapértelmezetten AGC bekapcsolva
-      manualGain_(1.0f),
+      agcLevel_(2000.0f),       //
+      agcAlpha_(0.02f),         //
+      agcTargetPeak_(20000.0f), //
+      agcMinGain_(0.1f),        //
+      agcMaxGain_(50.0f),       // 20.0 -> 50.0 (gyenge jel kompenzálás)
+      currentAgcGain_(1.0f),    //
+
+      //------------- állítható értékek
+      useAgc_(false),    // Alapértelmezetten az AGC ki van kapcsolva
+      manualGain_(1.0f), // manual gain alapértelmezett érték (ha az AGC ki van kapcsolva)
+
       // Zajszűrés alapértelmezett értékek
-      useNoiseReduction_(true), // Alapértelmezetten zajszűrés bekapcsolva
-      smoothingPoints_(0)       // NINCS simítás alapértelmezetten (CW/RTTY miatt!)
+      useNoiseReduction_(false), // Alapértelmezetten zajszűrés bekapcsolva
+      smoothingPoints_(0)        // NINCS simítás alapértelmezetten (CW/RTTY miatt!)
 {}
 
 /**
@@ -222,6 +234,7 @@ bool AudioProcessorC1::checkSignalThreshold(SharedData &sharedData) {
  * - FFT megjelenítés: smoothingPoints_ = 3 (enyhe simítás)
  */
 void AudioProcessorC1::removeDcAndSmooth(const uint16_t *input, int16_t *output, uint16_t count) {
+
     if (!useNoiseReduction_ || smoothingPoints_ == 0) {
         // Zajszűrés kikapcsolva - csak DC offset eltávolítás (gyors)
         arm_offset_q15((q15_t *)input, -ADC_MIDPOINT, (q15_t *)output, count);

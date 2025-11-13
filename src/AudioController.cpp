@@ -1,3 +1,4 @@
+
 /**
  * @file AudioController.cpp
  * @brief AudioController osztály implementációja a Core-0 számára
@@ -29,7 +30,7 @@ void AudioController::startAudioController(DecoderId id, uint32_t sampleCount, u
     rp2040.fifo.push(sampleCount);
     rp2040.fifo.push(bandwidthHz);
 
-    // opcionális: CW cél frekvencia
+    // opcionális: CW cél frekvencia, de meg kell adni, ha vannak további RTTY paraméterek
     rp2040.fifo.push(cwCenterFreqHz);
 
     // opcionális: RTTY paraméterek
@@ -105,4 +106,40 @@ int8_t AudioController::getActiveSharedDataIndex() {
         }
         return -1;
     }
+}
+
+/**
+ * @brief AudioProcessorC1 AGC engedélyezése/letiltása Core1-en.
+ */
+bool AudioController::setAgcEnabled(bool enabled) {
+    rp2040.fifo.push(RP2040CommandCode::CMD_SET_AGC_ENABLED);
+    rp2040.fifo.push(enabled ? 1 : 0);
+    return rp2040.fifo.pop() == RP2040ResponseCode::RESP_ACK; // ACK jött?
+}
+
+/**
+ * @brief AudioProcessorC1 zajszűrés engedélyezése/letiltása Core1-en.
+ */
+bool AudioController::setNoiseReductionEnabled(bool enabled) {
+    rp2040.fifo.push(RP2040CommandCode::CMD_SET_NOISE_REDUCTION_ENABLED);
+    rp2040.fifo.push(enabled ? 1 : 0);
+    return rp2040.fifo.pop() == RP2040ResponseCode::RESP_ACK; // ACK jött?
+}
+
+/**
+ * @brief AudioProcessorC1 smoothing pontok számának beállítása Core1-en.
+ */
+bool AudioController::setSmoothingPoints(uint32_t points) {
+    rp2040.fifo.push(RP2040CommandCode::CMD_SET_SMOOTHING_POINTS);
+    rp2040.fifo.push(points);
+    return rp2040.fifo.pop() == RP2040ResponseCode::RESP_ACK; // ACK jött?
+}
+
+void AudioController::setManualGain(float gain) {
+    // Float átküldése FIFO-n uint32_t bit patternként
+    uint32_t gainBits;
+    memcpy(&gainBits, &gain, sizeof(uint32_t));
+    rp2040.fifo.push(RP2040CommandCode::CMD_SET_MANUAL_GAIN);
+    rp2040.fifo.push(gainBits);
+    (void)rp2040.fifo.pop(); // ACK
 }

@@ -21,13 +21,17 @@ enum DecoderId : uint32_t {
  * @brief RP2040 Parancskódok a core0 -> core1 kommunikációhoz
  */
 enum RP2040CommandCode : uint32_t {
+    CMD_SET_MANUAL_GAIN = 10,
     CMD_NOP = 0,
     CMD_STOP = 1,
     CMD_SET_CONFIG = 2,
     // CMD_GET_CONFIG = 3,
     // CMD_PING = 4,
-    CMD_GET_DATA_BLOCK = 5,   //  megosztott adatblokk indexének lekérésére
-    CMD_GET_SAMPLING_RATE = 6 //  mintavételezési sebesség lekérésére
+    CMD_GET_DATA_BLOCK = 5,    //  megosztott adatblokk indexének lekérésére
+    CMD_GET_SAMPLING_RATE = 6, //  mintavételezési sebesség lekérésére
+    CMD_SET_AGC_ENABLED = 7,
+    CMD_SET_NOISE_REDUCTION_ENABLED = 8,
+    CMD_SET_SMOOTHING_POINTS = 9
 };
 
 /**

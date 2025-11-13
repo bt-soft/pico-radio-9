@@ -32,6 +32,12 @@ class AudioController {
      */
     int8_t getActiveSharedDataIndex();
 
+    // Vezérlő metódusok
+    bool setAgcEnabled(bool enabled);
+    bool setNoiseReductionEnabled(bool enabled);
+    bool setSmoothingPoints(uint32_t points);
+    void setManualGain(float gain);
+
   private:
     DecoderId activeDecoderCore0 = ID_DECODER_NONE;
     // DecoderId oldActiveDecoderCore0 = ID_DECODER_NONE;

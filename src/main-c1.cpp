@@ -372,6 +372,36 @@ void processFifoCommands() {
             rp2040.fifo.push(audioProcC1.getSamplingRate());
             break;
         }
+
+        case RP2040CommandCode::CMD_SET_AGC_ENABLED: {
+            bool enabled = (rp2040.fifo.pop() != 0);
+            audioProcC1.setAgcEnabled(enabled);
+            rp2040.fifo.push(RP2040ResponseCode::RESP_ACK);
+            break;
+        }
+
+        case RP2040CommandCode::CMD_SET_NOISE_REDUCTION_ENABLED: {
+            bool enabled = (rp2040.fifo.pop() != 0);
+            audioProcC1.setNoiseReductionEnabled(enabled);
+            rp2040.fifo.push(RP2040ResponseCode::RESP_ACK);
+            break;
+        }
+
+        case RP2040CommandCode::CMD_SET_SMOOTHING_POINTS: {
+            uint32_t points = rp2040.fifo.pop();
+            audioProcC1.setSmoothingPoints(static_cast<uint8_t>(points));
+            rp2040.fifo.push(RP2040ResponseCode::RESP_ACK);
+            break;
+        }
+
+        case RP2040CommandCode::CMD_SET_MANUAL_GAIN: {
+            uint32_t gainBits = rp2040.fifo.pop();
+            float gain;
+            memcpy(&gain, &gainBits, sizeof(float));
+            audioProcC1.setManualGain(gain);
+            rp2040.fifo.push(RP2040ResponseCode::RESP_ACK);
+            break;
+        }
     }
 }
 

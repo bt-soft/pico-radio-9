@@ -75,10 +75,10 @@ class AudioProcessorC1 {
 
   public:
     // AGC és zajszűrés beállítási metódusok
-    void setAgcEnabled(bool enabled) { useAgc_ = enabled; }
-    void setManualGain(float gain) { manualGain_ = constrain(gain, agcMinGain_, agcMaxGain_); }
-    void setNoiseReductionEnabled(bool enabled) { useNoiseReduction_ = enabled; }
-    void setSmoothingPoints(uint8_t points) {
+    inline void setAgcEnabled(bool enabled) { useAgc_ = enabled; }
+    inline void setManualGain(float gain) { manualGain_ = constrain(gain, agcMinGain_, agcMaxGain_); }
+    inline void setNoiseReductionEnabled(bool enabled) { useNoiseReduction_ = enabled; }
+    inline void setSmoothingPoints(uint8_t points) {
         // Csak 0 (nincs simítás), 3 vagy 5 engedélyezett
         if (points == 0)
             smoothingPoints_ = 0;
@@ -89,8 +89,8 @@ class AudioProcessorC1 {
     }
 
     // AGC állapot lekérdezése
-    bool isAgcEnabled() const { return useAgc_; }
-    float getCurrentAgcGain() const { return currentAgcGain_; }
-    float getManualGain() const { return manualGain_; }
-    bool isNoiseReductionEnabled() const { return useNoiseReduction_; }
+    inline bool isAgcEnabled() const { return useAgc_; }
+    inline float getCurrentAgcGain() const { return currentAgcGain_; }
+    inline float getManualGain() const { return manualGain_; }
+    inline bool isNoiseReductionEnabled() const { return useNoiseReduction_; }
 };
