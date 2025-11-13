@@ -185,9 +185,9 @@ void ScreenSetupAudioProc::handleRttyBaudRateDialog(int index) {
 
     auto rttyBaudRateDialog = std::make_shared<UIValueChangeDialog>(
         this, "RTTY Baud Rate", "RTTY Baud Rate (bps):", tempValuePtr.get(),
-        static_cast<float>(20.0),  // Min: 20bps
-        static_cast<float>(150.0), // Max: 150bps
-        static_cast<float>(1.0),   // Step: 1bps
+        20.0f,  // Min: 20bps
+        150.0f, // Max: 150bps
+        0.5f,   // Step: 0.5bps
         [this, index](const std::variant<int, float, bool> &liveNewValue) {
             if (std::holds_alternative<float>(liveNewValue)) {
                 float currentDialogVal = std::get<float>(liveNewValue);
