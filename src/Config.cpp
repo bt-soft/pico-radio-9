@@ -55,11 +55,13 @@ const Config_t DEFAULT_CONFIG = {
     .miniAudioFftConfigAnalyzer = 0.0f, // Analyzerhez alapértelmezetten Auto Gain
     .miniAudioFftConfigRtty = 0.0f,     // RTTY-hez alapértelmezetten Auto Gain
 
-    // CW és RTTY beállítások
-    .cwToneFrequencyHz = 850,      // x Hz CW offset
-    .rttyMarkFrequencyHz = 1000,   // Hogy az 1.2kHz-es HF sávszélességbe is beleférjen  //2125,   // RTTY Mark frequency
-    .rttyShiftHz = 170,            // RTTY Shift
-    .cwRttyLedDebugEnabled = true, // CW/RTTY LED debug jelzés engedélyezése
+    // CW beállítások
+    .cwToneFrequencyHz = 850, // x Hz CW frequency
+
+    // RTTY beállítások
+    .rttyMarkFrequencyHz = 1000, // Hogy az 1.2kHz-es HF sávszélességbe is beleférjen  //2125,   // RTTY Mark frequency
+    .rttyShiftFrequencyHz = 450, // RTTY Shift frequency
+    .rttyBaudRate = 50.0f,       // RTTY Baud rate
 
     // Audio processing alapértelmezett beállítások
     .audioModeAM = 1, // AudioComponentType::SPECTRUM_LOW_RES

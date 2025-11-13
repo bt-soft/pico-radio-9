@@ -1327,9 +1327,9 @@ void UICompSpectrumVis::setTuningAidType(TuningAidType type) {
 
         } else if (currentTuningAidType_ == TuningAidType::RTTY_TUNING) {
             uint16_t f_mark = config.data.rttyMarkFrequencyHz;
-            uint16_t f_space = f_mark - config.data.rttyShiftHz;
+            uint16_t f_space = f_mark - config.data.rttyShiftFrequencyHz;
             float f_center = (f_mark + f_space) / 2.0f;
-            if (config.data.rttyShiftHz <= 200) {
+            if (config.data.rttyShiftFrequencyHz <= 200) {
                 // 8 rész: teljes sávszélesség 1kHz,
                 // A space a 3., mark az 5. jobb oldalán
                 constexpr float total_bw = 800.0f;
@@ -1340,7 +1340,7 @@ void UICompSpectrumVis::setTuningAidType(TuningAidType type) {
                 currentTuningAidMaxFreqHz_ = f_center + 4 * part;
             } else {
                 // 6 rész: space a 2. jobb oldalán, mark a 4. jobb oldalán
-                float part = config.data.rttyShiftHz / 2.0f;
+                float part = config.data.rttyShiftFrequencyHz / 2.0f;
                 currentTuningAidMinFreqHz_ = f_center - 3 * part;
                 currentTuningAidMaxFreqHz_ = f_center + 3 * part;
             }
@@ -1472,7 +1472,7 @@ void UICompSpectrumVis::renderCwOrRttyTuningAid() {
 
             } else if (currentTuningAidType_ == TuningAidType::RTTY_TUNING) {
                 uint16_t f_mark = config.data.rttyMarkFrequencyHz;
-                uint16_t f_space = f_mark - config.data.rttyShiftHz;
+                uint16_t f_space = f_mark - config.data.rttyShiftFrequencyHz;
 
                 // Space vonal (cyan) + címke
                 if (f_space >= min_freq_displayed && f_space <= max_freq_displayed) {
@@ -1667,7 +1667,7 @@ void UICompSpectrumVis::renderSnrCurve() {
         } else if (currentMode_ == DisplayMode::RttySnrCurve) {
             // RTTY módban mark és space vonalak
             uint16_t f_mark = config.data.rttyMarkFrequencyHz;
-            uint16_t f_space = f_mark - config.data.rttyShiftHz;
+            uint16_t f_space = f_mark - config.data.rttyShiftFrequencyHz;
 
             // Space vonal (cyan) + címke
             if (f_space >= min_freq_displayed && f_space <= max_freq_displayed) {

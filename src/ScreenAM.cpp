@@ -322,7 +322,7 @@ void ScreenAM::handleDecoderButton(const UIButton::ButtonEvent &event) {
                     break;
                 case 1: // RTTY
                     // TODO: RTTY képernyő implementálása
-                    DEBUG("RTTY dekóder - még nincs implementálva\n");
+                    getScreenManager()->switchToScreen(SCREEN_NAME_DECODER_RTTY);
                     break;
                 case 2: // SSTV
                     // TODO: SSTV képernyő implementálása

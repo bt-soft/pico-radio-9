@@ -61,12 +61,12 @@ struct Config_t {
     float miniAudioFftConfigRtty;     // MiniAudioFft erősítés konfigurációja az RTTY-hez
 
     // CW frekvencia
-    uint16_t cwToneFrequencyHz; // CW vételi eltolás Hz-ben
+    uint16_t cwToneFrequencyHz; // CW frekvencia Hz-ben
 
     // RTTY frekvenciák
-    uint16_t rttyMarkFrequencyHz; // RTTY Mark frekvencia Hz-ben
-    uint16_t rttyShiftHz;         // RTTY Shift Hz-ben
-    bool cwRttyLedDebugEnabled;   // CW/RTTY LED debug jelzés engedélyezése
+    uint16_t rttyMarkFrequencyHz;  // RTTY Mark frekvencia Hz-ben
+    uint16_t rttyShiftFrequencyHz; // RTTY Shift frekvencia Hz-ben
+    float rttyBaudRate;            // RTTY Baud rate
 
     // Audio processing beállítások
     uint8_t audioModeAM; // Utolsó audio mód AM képernyőn (AudioComponentType)

@@ -19,9 +19,9 @@ class ScreenSetupAudioProc : public ScreenSetupBase {
     enum class AudioProcItemAction {
         NONE = 0,
         CW_TONE_FREQUENCY = 400,
-        CW_RTTY_LED_DEBUG, // CW/RTTY LED debug jelzés engedélyezése
-        RTTY_SHIFT,
         RTTY_MARK_FREQUENCY,
+        RTTY_SHIFT_FREQUENCY,
+        RTTY_BAUDRATE,
         FFT_GAIN_AM,
         FFT_GAIN_FM,
     };
@@ -31,8 +31,11 @@ class ScreenSetupAudioProc : public ScreenSetupBase {
 
     // Audió feldolgozás specifikus dialógus kezelő függvények
     void handleCwToneFrequencyDialog(int index);
-    void handleRttyShiftDialog(int index);
+
     void handleRttyMarkFrequencyDialog(int index);
+    void handleRttyShiftFrequencyDialog(int index);
+    void handleRttyBaudRateDialog(int index);
+
     void handleFFTGainDialog(int index, bool isAM);
     void handleToggleItem(int index, bool &configValue);
 

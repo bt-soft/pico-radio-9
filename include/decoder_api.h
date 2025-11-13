@@ -187,5 +187,5 @@ struct DecodedData {
     // RTTY-specifikus státuszok (Core1 írja, Core0 olvassa)
     volatile uint16_t rttyMarkFreq;  // Mark frekvencia (Hz)
     volatile uint16_t rttySpaceFreq; // Space frekvencia (Hz)
-    volatile uint16_t rttyBaudRate;  // Baud sebesség (beállított)
+    volatile float rttyBaudRate;     // Baud sebesség (beállított)
 };

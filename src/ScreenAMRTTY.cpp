@@ -1,35 +1,35 @@
-#include "ScreenAMCW.h"
+#include "ScreenAMRTTY.h"
 #include "ScreenManager.h"
 #include "defines.h"
 
 /**
- * @brief ScreenAMCW konstruktor
+ * @brief ScreenAMRTTY konstruktor
  */
-ScreenAMCW::ScreenAMCW() : ScreenAMRadioBase(SCREEN_NAME_DECODER_CW), lastPublishedCwWpm(0), lastPublishedCwFreq(0) {
+ScreenAMRTTY::ScreenAMRTTY() : ScreenAMRadioBase(SCREEN_NAME_DECODER_RTTY), lastPublishedRttyMark(0), lastPublishedRttySpace(0), lastPublishedRttyBaud(0.0f) {
     // UI komponensek létrehozása és elhelyezése
     layoutComponents();
 }
 
 /**
- * @brief ScreenAMCW destruktor
+ * @brief ScreenAMRTTY destruktor
  */
-ScreenAMCW::~ScreenAMCW() {
-    DEBUG("ScreenAMCW::~ScreenAMCW() - Destruktor hívása - erőforrások felszabadítása\n");
+ScreenAMRTTY::~ScreenAMRTTY() {
+    DEBUG("ScreenAMRTTY::~ScreenAMRTTY() - Destruktor hívása - erőforrások felszabadítása\n");
 
     // TextBox cleanup
-    if (cwTextBox) {
-        DEBUG("ScreenAMCW::~ScreenAMCW() - TextBox cleanup\n");
-        removeChild(cwTextBox);
-        cwTextBox.reset();
+    if (rttyTextBox) {
+        DEBUG("ScreenAMRTTY::~ScreenAMRTTY() - TextBox cleanup\n");
+        removeChild(rttyTextBox);
+        rttyTextBox.reset();
     }
 
-    DEBUG("ScreenAMCW::~ScreenAMCW() - Destruktor befejezve\n");
+    DEBUG("ScreenAMRTTY::~ScreenAMRTTY() - Destruktor befejezve\n");
 }
 
 /**
  * @brief UI komponensek létrehozása és képernyőn való elhelyezése
  */
-void ScreenAMCW::layoutComponents() {
+void ScreenAMRTTY::layoutComponents() {
 
     // Frekvencia kijelző pozicionálás
     uint16_t FreqDisplayY = 20;
@@ -58,24 +58,24 @@ void ScreenAMCW::layoutComponents() {
 
     // TextBox hozzáadása (a S-Meter alatt)
     constexpr uint16_t TEXTBOX_HEIGHT = 130;
-    cwTextBox = std::make_shared<UICompTextBox>( //
-        5,                                       // x
-        150,                                     //::SCREEN_H - TEXTBOX_HEIGHT,             // y
-        400,                                     // width
-        TEXTBOX_HEIGHT,                          // height
-        tft                                      // TFT instance
+    rttyTextBox = std::make_shared<UICompTextBox>( //
+        5,                                         // x
+        150,                                       //::SCREEN_H - TEXTBOX_HEIGHT,             // y
+        400,                                       // width
+        TEXTBOX_HEIGHT,                            // height
+        tft                                        // TFT instance
     );
 
     // Komponens hozzáadása a képernyőhöz
-    children.push_back(cwTextBox);
+    children.push_back(rttyTextBox);
 }
 
 /**
- * @brief CW specifikus gombok hozzáadása a közös AM gombokhoz
+ * @brief RTTY specifikus gombok hozzáadása a közös AM gombokhoz
  * @param buttonConfigs A már meglévő gomb konfigurációk vektora
- * @details Felülírja az ős metódusát, hogy hozzáadja a CW-specifikus gombokat
+ * @details Felülírja az ős metódusát, hogy hozzáadja a RTTY-specifikus gombokat
  */
-void ScreenAMCW::addSpecificHorizontalButtons(std::vector<UIHorizontalButtonBar::ButtonConfig> &buttonConfigs) {
+void ScreenAMRTTY::addSpecificHorizontalButtons(std::vector<UIHorizontalButtonBar::ButtonConfig> &buttonConfigs) {
 
     // Szülő osztály (ScreenAMRadioBase) közös AM gombjainak hozzáadása
     // Ez tartalmazza: BFO, AFBW, ANTCAP, DEMOD gombokat
@@ -99,24 +99,26 @@ void ScreenAMCW::addSpecificHorizontalButtons(std::vector<UIHorizontalButtonBar:
 /**
  * @brief Képernyő aktiválása
  */
-void ScreenAMCW::activate() {
+void ScreenAMRTTY::activate() {
 
     // Szülő osztály aktiválása
     ScreenAMRadioBase::activate();
 
-    // CW audio dekóder indítása
+    // RTTY audio dekóder indítása
     ::audioController.startAudioController( //
-        DecoderId::ID_DECODER_CW,           //
-        CW_RAW_SAMPLES_SIZE,                //
-        CW_AF_BANDWIDTH_HZ,                 //
-        config.data.cwToneFrequencyHz       //
+        DecoderId::ID_DECODER_RTTY,         //
+        RTTY_RAW_SAMPLES_SIZE,              //
+        RTTY_AF_BANDWIDTH_HZ,               //
+        config.data.rttyMarkFrequencyHz,    //
+        config.data.rttyShiftFrequencyHz,   //
+        config.data.rttyBaudRate            //
     );
 }
 
 /**
  * @brief Képernyő deaktiválása
  */
-void ScreenAMCW::deactivate() {
+void ScreenAMRTTY::deactivate() {
 
     // Audio dekóder leállítása
     ::audioController.stopAudioController();
@@ -128,44 +130,47 @@ void ScreenAMCW::deactivate() {
 /**
  * @brief Folyamatos loop hívás
  */
-void ScreenAMCW::handleOwnLoop() {
+void ScreenAMRTTY::handleOwnLoop() {
     // Szülő osztály loop kezelése (S-Meter frissítés, stb.)
     ScreenAMRadioBase::handleOwnLoop();
 
-    // CW dekódolt szöveg frissítése - RITKÁBBAN (2mp-ként)
+    // RTTY dekódolt szöveg frissítése - RITKÁBBAN (2mp-ként)
     this->checkDecodedData();
 }
 
 /**
- * @brief CW dekódolt szöveg ellenőrzése és frissítése
+ * @brief RTTY dekódolt szöveg ellenőrzése és frissítése
  */
-void ScreenAMCW::checkDecodedData() {
+void ScreenAMRTTY::checkDecodedData() {
 
-    uint8_t currentWpm = ::decodedData.cwCurrentWpm;
-    uint16_t currentFreq = ::decodedData.cwCurrentFreq;
+    uint16_t currentMark = decodedData.rttyMarkFreq;
+    uint16_t currentSpace = decodedData.rttySpaceFreq;
+    float currentBaud = decodedData.rttyBaudRate;
 
     // Változás detektálás
-    bool wpmChanged = (lastPublishedCwWpm == 0 && currentWpm != 0) || (abs((int)currentWpm - (int)lastPublishedCwWpm) >= 3);
-    bool freqChanged = (lastPublishedCwFreq == 0 && currentFreq > 0) || (abs((int)currentFreq - (int)lastPublishedCwFreq) >= 50);
-    bool anyDataChanged = (wpmChanged || freqChanged);
+    bool markChanged = (lastPublishedRttyMark == 0.0f && currentMark > 0.0f) || (abs(currentMark - lastPublishedRttyMark) >= 5.0f);
+    bool spaceChanged = (lastPublishedRttySpace == 0.0f && currentSpace > 0.0f) || (abs(currentSpace - lastPublishedRttySpace) >= 5.0f);
+    bool baudChanged = (lastPublishedRttyBaud == 0.0f && currentBaud > 0.0f) || (abs(currentBaud - lastPublishedRttyBaud) >= 0.5f);
+    bool anyDataChanged = (markChanged || spaceChanged || baudChanged);
 
     // Időzítés: 2 másodpercenként frissítünk (TFT terhelés csökkentése)
-    static unsigned long lastCwDisplayUpdate = 0;
-    bool timeToUpdate = Utils::timeHasPassed(lastCwDisplayUpdate, 2000);
+    static unsigned long lastRTTYDisplayUpdate = 0;
+    bool timeToUpdate = Utils::timeHasPassed(lastRTTYDisplayUpdate, 2000);
 
     // Frissítés csak ha eltelt az idő ÉS történt változás
-    // VAGY ha ez az első megjelenítés (lastCwDisplayUpdate == 0)
-    if ((timeToUpdate && anyDataChanged) || lastCwDisplayUpdate == 0) {
-        lastPublishedCwWpm = currentWpm;
-        lastPublishedCwFreq = currentFreq;
-        lastCwDisplayUpdate = millis();
+    // VAGY ha ez az első megjelenítés (lastRTTYDisplayUpdate == 0)
+    if ((timeToUpdate && anyDataChanged) || lastRTTYDisplayUpdate == 0) {
+        lastPublishedRttyMark = currentMark;
+        lastPublishedRttySpace = currentSpace;
+        lastPublishedRttyBaud = currentBaud;
+        lastRTTYDisplayUpdate = millis();
 
         // A textbox komponens fölött, jobbra igazítva jelenjen meg a kiírás
         constexpr uint16_t labelW = 140;
         constexpr uint8_t textHeight = 8; // textSize(1) betűmagasság: 8px
         constexpr uint8_t gap = 2;        // Távolság a textbox tetejétől
         uint16_t labelX = 250;
-        uint16_t textBoxTop = cwTextBox->getBounds().y;
+        uint16_t textBoxTop = rttyTextBox->getBounds().y;
         uint16_t labelY = textBoxTop - gap - textHeight; // Szöveg alja 2px-re a textbox teteje fölött
 
         tft.fillRect(labelX, labelY, labelW, textHeight, TFT_BLACK); // Csak a szöveg magasságát töröljük
@@ -173,17 +178,18 @@ void ScreenAMCW::checkDecodedData() {
         tft.setTextSize(1);
         tft.setTextColor(TFT_SILVER, TFT_BLACK);
 
-        // Mindig kiírjuk a config CW frekvenciát
-        tft.printf("%4u Hz / %4s Hz / %2s WPM",                            //
-                   (uint16_t)config.data.cwToneFrequencyHz,                //
-                   currentFreq > 0 ? String(currentFreq).c_str() : "----", //
-                   currentWpm > 0 ? String(currentWpm).c_str() : "--");
+        // RTTY beállítások kiírása: Mark / Space / Baud
+        if (currentMark > 0.0f && currentSpace > 0.0f && currentBaud > 0.0f) {
+            tft.printf("M:%.0f S:%.0f Sh:%.0f Bd:%.2f", currentMark, currentSpace, currentMark - currentSpace, currentBaud);
+        } else {
+            tft.print("M:-- S:-- Sh:-- Bd:--");
+        }
     }
 
     char ch;
     while (::decodedData.textBuffer.get(ch)) {
-        if (cwTextBox) {
-            cwTextBox->addCharacter(ch);
+        if (rttyTextBox) {
+            rttyTextBox->addCharacter(ch);
         }
     }
 }

@@ -95,7 +95,9 @@ void DebugDataInspector::printConfigData(const Config_t &configData) {
     }
     DEBUG("  cwToneFrequencyHz: %u\n", configData.cwToneFrequencyHz);
     DEBUG("  rttyMarkFrequencyHz: %u\n", configData.rttyMarkFrequencyHz);
-    DEBUG("  rttyShiftHz: %u\n", configData.rttyShiftHz);
+    DEBUG("  rttyShiftFrequencyHz: %u\n", configData.rttyShiftFrequencyHz);
+    DEBUG("  rttyBaudRate: %f\n", configData.rttyBaudRate);
+
     DEBUG("====================\n");
 #endif
 }

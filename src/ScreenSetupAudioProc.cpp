@@ -26,13 +26,13 @@ void ScreenSetupAudioProc::populateMenuItems() {
     settingItems.clear();
 
     settingItems.push_back(SettingItem("CW Tone Frequency", String(config.data.cwToneFrequencyHz) + " Hz", static_cast<int>(AudioProcItemAction::CW_TONE_FREQUENCY)));
-    settingItems.push_back(SettingItem("RTTY Shift", String(config.data.rttyShiftHz) + " Hz", static_cast<int>(AudioProcItemAction::RTTY_SHIFT)));
+
     settingItems.push_back(SettingItem("RTTY Mark Frequency", String(config.data.rttyMarkFrequencyHz) + " Hz", static_cast<int>(AudioProcItemAction::RTTY_MARK_FREQUENCY)));
+    settingItems.push_back(SettingItem("RTTY Shift Frequency", String(config.data.rttyShiftFrequencyHz) + " Hz", static_cast<int>(AudioProcItemAction::RTTY_SHIFT_FREQUENCY)));
+    settingItems.push_back(SettingItem("RTTY baudrate", String(config.data.rttyBaudRate), static_cast<int>(AudioProcItemAction::RTTY_BAUDRATE)));
 
     settingItems.push_back(SettingItem("FFT Gain AM", decodeFFTGain(config.data.audioFftGainConfigAm), static_cast<int>(AudioProcItemAction::FFT_GAIN_AM)));
     settingItems.push_back(SettingItem("FFT Gain FM", decodeFFTGain(config.data.audioFftGainConfigFm), static_cast<int>(AudioProcItemAction::FFT_GAIN_FM)));
-
-    settingItems.push_back(SettingItem("CW/RTTY LED Debug", String(config.data.cwRttyLedDebugEnabled ? "ON" : "OFF"), static_cast<int>(AudioProcItemAction::CW_RTTY_LED_DEBUG)));
 
     // Lista komponens újrarajzolásának kérése, ha létezik
     if (menuList) {
@@ -57,12 +57,16 @@ void ScreenSetupAudioProc::handleItemAction(int index, int action) {
             handleCwToneFrequencyDialog(index);
             break;
 
-        case AudioProcItemAction::RTTY_SHIFT:
-            handleRttyShiftDialog(index);
-            break;
-
         case AudioProcItemAction::RTTY_MARK_FREQUENCY:
             handleRttyMarkFrequencyDialog(index);
+            break;
+
+        case AudioProcItemAction::RTTY_SHIFT_FREQUENCY:
+            handleRttyShiftFrequencyDialog(index);
+            break;
+
+        case AudioProcItemAction::RTTY_BAUDRATE:
+            handleRttyBaudRateDialog(index);
             break;
 
         case AudioProcItemAction::FFT_GAIN_AM:
@@ -71,10 +75,6 @@ void ScreenSetupAudioProc::handleItemAction(int index, int action) {
 
         case AudioProcItemAction::FFT_GAIN_FM:
             handleFFTGainDialog(index, false);
-            break;
-
-        case AudioProcItemAction::CW_RTTY_LED_DEBUG:
-            handleToggleItem(index, config.data.cwRttyLedDebugEnabled);
             break;
 
         case AudioProcItemAction::NONE:
@@ -116,37 +116,6 @@ void ScreenSetupAudioProc::handleCwToneFrequencyDialog(int index) {
 }
 
 /**
- * @brief RTTY shift beállítása dialógussal
- *
- * @param index A menüpont indexe a lista frissítéséhez
- */
-void ScreenSetupAudioProc::handleRttyShiftDialog(int index) {
-    auto tempValuePtr = std::make_shared<int>(static_cast<int>(config.data.rttyShiftHz));
-
-    auto rttyShiftDialog = std::make_shared<UIValueChangeDialog>(
-        this, "RTTY Shift", "RTTY Shift (Hz):", tempValuePtr.get(),
-        static_cast<int>(80),   // Min: 80Hz
-        static_cast<int>(1000), // Max: 1000Hz
-        static_cast<int>(10),   // Step: 10Hz
-        [this, index](const std::variant<int, float, bool> &liveNewValue) {
-            if (std::holds_alternative<int>(liveNewValue)) {
-                int currentDialogVal = std::get<int>(liveNewValue);
-                config.data.rttyShiftHz = static_cast<uint16_t>(currentDialogVal);
-                DEBUG("ScreenSetupAudioProc: Live RTTY shift preview: %u Hz\n", config.data.rttyShiftHz);
-            }
-        },
-        [this, index, tempValuePtr](UIDialogBase *sender, UIMessageDialog::DialogResult dialogResult) {
-            if (dialogResult == UIMessageDialog::DialogResult::Accepted) {
-                config.data.rttyShiftHz = static_cast<uint16_t>(*tempValuePtr);
-                settingItems[index].value = String(config.data.rttyShiftHz) + " Hz";
-                updateListItem(index);
-            }
-        },
-        Rect(-1, -1, 280, 0));
-    this->showDialog(rttyShiftDialog);
-}
-
-/**
  * @brief RTTY mark frequency beállítása dialógussal
  *
  * @param index A menüpont indexe a lista frissítéséhez
@@ -163,7 +132,6 @@ void ScreenSetupAudioProc::handleRttyMarkFrequencyDialog(int index) {
             if (std::holds_alternative<int>(liveNewValue)) {
                 int currentDialogVal = std::get<int>(liveNewValue);
                 config.data.rttyMarkFrequencyHz = static_cast<uint16_t>(currentDialogVal);
-                DEBUG("ScreenSetupAudioProc: Live RTTY mark frequency preview: %u Hz\n", config.data.rttyMarkFrequencyHz);
             }
         },
         [this, index, tempValuePtr](UIDialogBase *sender, UIMessageDialog::DialogResult dialogResult) {
@@ -175,6 +143,66 @@ void ScreenSetupAudioProc::handleRttyMarkFrequencyDialog(int index) {
         },
         Rect(-1, -1, 280, 0));
     this->showDialog(rttyMarkDialog);
+}
+
+/**
+ * @brief RTTY shift beállítása dialógussal
+ *
+ * @param index A menüpont indexe a lista frissítéséhez
+ */
+void ScreenSetupAudioProc::handleRttyShiftFrequencyDialog(int index) {
+    auto tempValuePtr = std::make_shared<int>(static_cast<int>(config.data.rttyShiftFrequencyHz));
+
+    auto rttyShiftFrequencyDialog = std::make_shared<UIValueChangeDialog>(
+        this, "RTTY Shift", "RTTY Shift Frequency (Hz):", tempValuePtr.get(),
+        static_cast<int>(80),   // Min: 80Hz
+        static_cast<int>(1000), // Max: 1000Hz
+        static_cast<int>(10),   // Step: 10Hz
+        [this, index](const std::variant<int, float, bool> &liveNewValue) {
+            if (std::holds_alternative<int>(liveNewValue)) {
+                int currentDialogVal = std::get<int>(liveNewValue);
+                config.data.rttyShiftFrequencyHz = static_cast<uint16_t>(currentDialogVal);
+            }
+        },
+        [this, index, tempValuePtr](UIDialogBase *sender, UIMessageDialog::DialogResult dialogResult) {
+            if (dialogResult == UIMessageDialog::DialogResult::Accepted) {
+                config.data.rttyShiftFrequencyHz = static_cast<uint16_t>(*tempValuePtr);
+                settingItems[index].value = String(config.data.rttyShiftFrequencyHz) + " Hz";
+                updateListItem(index);
+            }
+        },
+        Rect(-1, -1, 280, 0));
+    this->showDialog(rttyShiftFrequencyDialog);
+}
+
+/**
+ * @brief RTTY shift beállítása dialógussal
+ *
+ * @param index A menüpont indexe a lista frissítéséhez
+ */
+void ScreenSetupAudioProc::handleRttyBaudRateDialog(int index) {
+    auto tempValuePtr = std::make_shared<float>(static_cast<float>(config.data.rttyBaudRate));
+
+    auto rttyBaudRateDialog = std::make_shared<UIValueChangeDialog>(
+        this, "RTTY Baud Rate", "RTTY Baud Rate (bps):", tempValuePtr.get(),
+        static_cast<float>(20.0),  // Min: 20bps
+        static_cast<float>(150.0), // Max: 150bps
+        static_cast<float>(1.0),   // Step: 1bps
+        [this, index](const std::variant<int, float, bool> &liveNewValue) {
+            if (std::holds_alternative<float>(liveNewValue)) {
+                float currentDialogVal = std::get<float>(liveNewValue);
+                config.data.rttyBaudRate = static_cast<float>(currentDialogVal);
+            }
+        },
+        [this, index, tempValuePtr](UIDialogBase *sender, UIMessageDialog::DialogResult dialogResult) {
+            if (dialogResult == UIMessageDialog::DialogResult::Accepted) {
+                config.data.rttyBaudRate = static_cast<float>(*tempValuePtr);
+                settingItems[index].value = String(config.data.rttyBaudRate) + " bps";
+                updateListItem(index);
+            }
+        },
+        Rect(-1, -1, 280, 0));
+    this->showDialog(rttyBaudRateDialog);
 }
 
 /**

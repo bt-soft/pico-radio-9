@@ -21,6 +21,7 @@
 
 // Dekóder képernyők
 #include "ScreenAMCW.h"
+#include "ScreenAMRTTY.h"
 
 // Fejlesztői képernyők
 // #include "ScreenEmpty.h"
@@ -47,7 +48,9 @@ void ScreenManager::registerDefaultScreenFactories() {
     registerScreenFactory(SCREEN_NAME_SETUP_SI4735, []() { return std::make_shared<ScreenSetupSi4735>(); });
     registerScreenFactory(SCREEN_NAME_SETUP_AUDIO_PROC, []() { return std::make_shared<ScreenSetupAudioProc>(); });
 
+    // Dekóder képernyők regisztrálása
     registerScreenFactory(SCREEN_NAME_DECODER_CW, []() { return std::make_shared<ScreenAMCW>(); });
+    registerScreenFactory(SCREEN_NAME_DECODER_RTTY, []() { return std::make_shared<ScreenAMRTTY>(); });
 
     // Teszt képernyők regisztrálása
     // registerScreenFactory(SCREEN_NAME_TEST, []() { return std::make_shared<ScreenTest>(); });
