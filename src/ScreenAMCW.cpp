@@ -14,16 +14,12 @@ ScreenAMCW::ScreenAMCW() : ScreenAMRadioBase(SCREEN_NAME_DECODER_CW), lastPublis
  * @brief ScreenAMCW destruktor
  */
 ScreenAMCW::~ScreenAMCW() {
-    DEBUG("ScreenAMCW::~ScreenAMCW() - Destruktor hívása - erőforrások felszabadítása\n");
-
     // TextBox cleanup
     if (cwTextBox) {
         DEBUG("ScreenAMCW::~ScreenAMCW() - TextBox cleanup\n");
         removeChild(cwTextBox);
         cwTextBox.reset();
     }
-
-    DEBUG("ScreenAMCW::~ScreenAMCW() - Destruktor befejezve\n");
 }
 
 /**
@@ -34,8 +30,10 @@ void ScreenAMCW::layoutComponents() {
     // Frekvencia kijelző pozicionálás
     uint16_t FreqDisplayY = 20;
     Rect sevenSegmentFreqBounds(0, FreqDisplayY, UICompSevenSegmentFreq::SEVEN_SEGMENT_FREQ_WIDTH, UICompSevenSegmentFreq::SEVEN_SEGMENT_FREQ_HEIGHT + 10);
+
     // S-Meter komponens pozícionálása
     Rect smeterBounds(2, FreqDisplayY + UICompSevenSegmentFreq::SEVEN_SEGMENT_FREQ_HEIGHT - 10, SMeterConstants::SMETER_WIDTH, 70);
+
     // Szülő osztály layout meghívása (állapotsor, frekvencia, S-Meter)
     ScreenAMRadioBase::layoutComponents(sevenSegmentFreqBounds, smeterBounds);
 
@@ -60,7 +58,7 @@ void ScreenAMCW::layoutComponents() {
     constexpr uint16_t TEXTBOX_HEIGHT = 130;
     cwTextBox = std::make_shared<UICompTextBox>( //
         5,                                       // x
-        150,                                     //::SCREEN_H - TEXTBOX_HEIGHT,             // y
+        150,                                     // y
         400,                                     // width
         TEXTBOX_HEIGHT,                          // height
         tft                                      // TFT instance
@@ -106,10 +104,10 @@ void ScreenAMCW::activate() {
 
     // CW audio dekóder indítása
     ::audioController.startAudioController( //
-        DecoderId::ID_DECODER_CW,           //
-        CW_RAW_SAMPLES_SIZE,                //
-        CW_AF_BANDWIDTH_HZ,                 //
-        config.data.cwToneFrequencyHz       //
+        DecoderId::ID_DECODER_CW,           // CW dekóder azonosító
+        CW_RAW_SAMPLES_SIZE,                // sampleCount
+        CW_AF_BANDWIDTH_HZ,                 // bandwidthHz
+        config.data.cwToneFrequencyHz       // cwCenterFreqHz
     );
 }
 
@@ -164,7 +162,7 @@ void ScreenAMCW::checkDecodedData() {
         constexpr uint16_t labelW = 140;
         constexpr uint8_t textHeight = 8; // textSize(1) betűmagasság: 8px
         constexpr uint8_t gap = 2;        // Távolság a textbox tetejétől
-        uint16_t labelX = 250;
+        constexpr uint16_t labelX = 250;
         uint16_t textBoxTop = cwTextBox->getBounds().y;
         uint16_t labelY = textBoxTop - gap - textHeight; // Szöveg alja 2px-re a textbox teteje fölött
 
@@ -180,6 +178,7 @@ void ScreenAMCW::checkDecodedData() {
                    currentWpm > 0 ? String(currentWpm).c_str() : "--");
     }
 
+    // Dekódolt karakterek kiolvasása a ring bufferből és hozzáadása a textboxhoz
     char ch;
     while (::decodedData.textBuffer.get(ch)) {
         if (cwTextBox) {

@@ -359,7 +359,6 @@ void UICompSpectrumVis::draw() {
 
         case DisplayMode::CwSnrCurve:
         case DisplayMode::RttySnrCurve:
-            DEBUG("UICompSpectrumVis::render() - SNR Curve mód, renderSnrCurve() hívás\n");
             renderSnrCurve();
             break;
     }

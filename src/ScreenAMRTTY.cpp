@@ -14,16 +14,12 @@ ScreenAMRTTY::ScreenAMRTTY() : ScreenAMRadioBase(SCREEN_NAME_DECODER_RTTY), last
  * @brief ScreenAMRTTY destruktor
  */
 ScreenAMRTTY::~ScreenAMRTTY() {
-    DEBUG("ScreenAMRTTY::~ScreenAMRTTY() - Destruktor hívása - erőforrások felszabadítása\n");
-
     // TextBox cleanup
     if (rttyTextBox) {
         DEBUG("ScreenAMRTTY::~ScreenAMRTTY() - TextBox cleanup\n");
         removeChild(rttyTextBox);
         rttyTextBox.reset();
     }
-
-    DEBUG("ScreenAMRTTY::~ScreenAMRTTY() - Destruktor befejezve\n");
 }
 
 /**
@@ -34,8 +30,10 @@ void ScreenAMRTTY::layoutComponents() {
     // Frekvencia kijelző pozicionálás
     uint16_t FreqDisplayY = 20;
     Rect sevenSegmentFreqBounds(0, FreqDisplayY, UICompSevenSegmentFreq::SEVEN_SEGMENT_FREQ_WIDTH, UICompSevenSegmentFreq::SEVEN_SEGMENT_FREQ_HEIGHT + 10);
+
     // S-Meter komponens pozícionálása
     Rect smeterBounds(2, FreqDisplayY + UICompSevenSegmentFreq::SEVEN_SEGMENT_FREQ_HEIGHT - 10, SMeterConstants::SMETER_WIDTH, 70);
+
     // Szülő osztály layout meghívása (állapotsor, frekvencia, S-Meter)
     ScreenAMRadioBase::layoutComponents(sevenSegmentFreqBounds, smeterBounds);
 
@@ -50,8 +48,8 @@ void ScreenAMRTTY::layoutComponents() {
     // Spektrum vizualizáció komponens létrehozása
     // ===================================================================
     ScreenRadioBase::createSpectrumComponent(Rect(255, 40, 150, 80), RadioMode::AM);
-    // Induláskor beállítjuk a CwSnrCurve megjelenítési módot
-    ScreenRadioBase::spectrumComp->setCurrentDisplayMode(UICompSpectrumVis::DisplayMode::CwSnrCurve);
+    // Induláskor beállítjuk a RttySnrCurve megjelenítési módot
+    ScreenRadioBase::spectrumComp->setCurrentDisplayMode(UICompSpectrumVis::DisplayMode::RttySnrCurve);
 
     // MEGJEGYZÉS: Az audioController indítása az activate() metódusban történik
     // hogy képernyőváltáskor megfelelően leálljon és újrainduljon
@@ -60,7 +58,7 @@ void ScreenAMRTTY::layoutComponents() {
     constexpr uint16_t TEXTBOX_HEIGHT = 130;
     rttyTextBox = std::make_shared<UICompTextBox>( //
         5,                                         // x
-        150,                                       //::SCREEN_H - TEXTBOX_HEIGHT,             // y
+        150,                                       // y
         400,                                       // width
         TEXTBOX_HEIGHT,                            // height
         tft                                        // TFT instance
@@ -106,12 +104,13 @@ void ScreenAMRTTY::activate() {
 
     // RTTY audio dekóder indítása
     ::audioController.startAudioController( //
-        DecoderId::ID_DECODER_RTTY,         //
-        RTTY_RAW_SAMPLES_SIZE,              //
-        RTTY_AF_BANDWIDTH_HZ,               //
-        config.data.rttyMarkFrequencyHz,    //
-        config.data.rttyShiftFrequencyHz,   //
-        config.data.rttyBaudRate            //
+        DecoderId::ID_DECODER_RTTY,         // RTTY dekóder azonosító
+        RTTY_RAW_SAMPLES_SIZE,              // RTTY bemeneti audio minták száma blokkonként
+        RTTY_AF_BANDWIDTH_HZ,               // RTTY audio sávszélesség
+        0,                                  // cwCenterFreqHz muszáj megadni, de az RTTY-nél nem használjuk
+        config.data.rttyMarkFrequencyHz,    // RTTY Mark frekvencia
+        config.data.rttyShiftFrequencyHz,   // RTTY Space frekvencia
+        config.data.rttyBaudRate            // RTTY Baud rate
     );
 }
 
@@ -169,23 +168,24 @@ void ScreenAMRTTY::checkDecodedData() {
         constexpr uint16_t labelW = 140;
         constexpr uint8_t textHeight = 8; // textSize(1) betűmagasság: 8px
         constexpr uint8_t gap = 2;        // Távolság a textbox tetejétől
-        uint16_t labelX = 250;
+        constexpr uint16_t labelX = 95;   //
         uint16_t textBoxTop = rttyTextBox->getBounds().y;
         uint16_t labelY = textBoxTop - gap - textHeight; // Szöveg alja 2px-re a textbox teteje fölött
 
-        tft.fillRect(labelX, labelY, labelW, textHeight, TFT_BLACK); // Csak a szöveg magasságát töröljük
+        tft.fillRect(labelX, labelY, labelW, textHeight, TFT_RED); // Csak a szöveg magasságát töröljük
         tft.setCursor(labelX, labelY);
         tft.setTextSize(1);
         tft.setTextColor(TFT_SILVER, TFT_BLACK);
 
         // RTTY beállítások kiírása: Mark / Space / Baud
-        if (currentMark > 0.0f && currentSpace > 0.0f && currentBaud > 0.0f) {
-            tft.printf("M:%.0f S:%.0f Sh:%.0f Bd:%.2f", currentMark, currentSpace, currentMark - currentSpace, currentBaud);
-        } else {
-            tft.print("M:-- S:-- Sh:-- Bd:--");
-        }
+        tft.printf("Mark: %4.0f /  Space: %3.0f / Shift: %4.0f / Baud: %3.2f",                                //
+                   currentMark > 0 ? String(currentMark).c_str() : "----",                                    //
+                   currentSpace > 0 ? String(currentSpace).c_str() : "---",                                   //
+                   currentMark > 0 && currentSpace > 0 ? String(currentMark - currentSpace).c_str() : "----", //
+                   currentBaud > 0 ? String(currentBaud).c_str() : "----");
     }
 
+    // Dekódolt karakterek kiolvasása a ring bufferből és hozzáadása a textboxhoz
     char ch;
     while (::decodedData.textBuffer.get(ch)) {
         if (rttyTextBox) {

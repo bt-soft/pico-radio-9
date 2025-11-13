@@ -72,7 +72,6 @@ class UICompTextBox : public UIComponent {
     // Border paraméterek
     static constexpr uint8_t BORDER_WIDTH = 2;
     static constexpr uint16_t BORDER_COLOR = TFT_CYAN;
-    static constexpr uint16_t BACKGROUND_COLOR = TFT_BLACK;
     static constexpr uint16_t TEXT_COLOR = TFT_WHITE;
 
     // Font és sor paraméterek
