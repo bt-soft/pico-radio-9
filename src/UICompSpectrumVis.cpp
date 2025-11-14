@@ -29,8 +29,8 @@ constexpr uint8_t SPECTRUM_FPS = 25;                              // FPS limitá
 
 }; // namespace FftDisplayConstants
 
-// Zajküszöb - alacsony szintű zajt nullázza (int16_t tartományban, már normalizált az AudioProcessor-ban)
-constexpr float NOISE_THRESHOLD = 5.0f; // Zajszűrés: zaj mag ~2-10, jel ~20-200, manual gain 2.0x
+// Zajküszöb - alacsony szintű zajt nullázza
+constexpr float NOISE_THRESHOLD = 150.0f; // Zajszűrés: zaj magnitúdó értékével
 
 // ===== ÉRZÉKENYSÉGI / AMPLITÚDÓ SKÁLÁZÁSI KONSTANSOK =====
 // Minden grafikon mód érzékenységét és amplitúdó skálázását itt lehet módosítani
@@ -51,7 +51,7 @@ constexpr float OSCI_SENSITIVITY_FACTOR = 30.0f; // Oszcilloszkóp jel erősít�
 constexpr float ENVELOPE_SENSITIVITY_FACTOR = 0.20f; // Envelope amplitúdó erősítése
 
 // Waterfall mód - nagyobb érték = élénkebb színek
-constexpr float WATERFALL_SENSITIVITY_FACTOR = 1.0f; // Waterfall intenzitás skálázása
+constexpr float WATERFALL_SENSITIVITY_FACTOR = 18.0f; // Waterfall intenzitás skálázása
 
 // CW SNR Curve sensitivity constants
 constexpr float CW_SNR_CURVE_SENSITIVITY_FACTOR = 0.8f;
@@ -739,17 +739,19 @@ void UICompSpectrumVis::renderSpectrum(bool isHighRes) {
             }
             fft_bin_index = constrain(fft_bin_index, 0, max_bin_idx);
 
+            // ELŐSZÖR zajszűrés a nyers adaton
             float magnitude = magnitudeData[fft_bin_index];
             if (magnitude < NOISE_THRESHOLD) {
                 magnitude = 0.0f;
             }
 
-            // Legnagyobb érték megkeresése az updateFrameBasedGain-hez
-            maxMagnitude = std::max(maxMagnitude, magnitude);
+            // UTÁNA erősítés a tiszta jelen
+            float amplified = magnitude * adaptiveScale;
+            maxMagnitude = std::max(maxMagnitude, amplified);
 
             sprite_->drawFastVLine(screen_pixel_x, 0, graphH, TFT_BLACK);
 
-            uint8_t scaled_magnitude = static_cast<uint8_t>(constrain(magnitude * adaptiveScale, 0, graphH - 1));
+            uint8_t scaled_magnitude = static_cast<uint8_t>(constrain(amplified, 0, graphH - 1));
 
             if (scaled_magnitude > 0) {
                 int16_t y_bar_start = graphH - 1 - scaled_magnitude;
@@ -807,6 +809,7 @@ void UICompSpectrumVis::renderSpectrum(bool isHighRes) {
             uint8_t band_idx = getBandVal(i, min_bin_idx, num_bins_in_range, LOW_RES_BANDS);
             if (band_idx < LOW_RES_BANDS) {
                 float magnitude = magnitudeData[i];
+                // ELŐSZÖR zajszűrés a nyers adaton
                 if (magnitude < NOISE_THRESHOLD) {
                     magnitude = 0.0f;
                 }
@@ -825,8 +828,9 @@ void UICompSpectrumVis::renderSpectrum(bool isHighRes) {
 
             sprite_->fillRect(x_pos, 0, bar_width, graphH, TFT_BLACK);
 
-            float magnitude = band_magnitudes[band_idx];
-            uint8_t dsize = static_cast<uint8_t>(constrain(magnitude * adaptiveScale, 0, actual_low_res_peak_max_height));
+            // UTÁNA erősítés a tiszta (szűrt) jelen
+            float magnitude = band_magnitudes[band_idx] * adaptiveScale;
+            uint8_t dsize = static_cast<uint8_t>(constrain(magnitude, 0, actual_low_res_peak_max_height));
 
             if (dsize > Rpeak_[band_idx] && band_idx < MAX_SPECTRUM_BANDS) {
                 Rpeak_[band_idx] = dsize;
@@ -971,7 +975,7 @@ void UICompSpectrumVis::renderEnvelope() {
     for (uint8_t r = 0; r < bounds.height; ++r) {
         // 'r' (0 to bounds.height-1) leképezése FFT bin indexre a szűkített tartományon belül
         uint8_t fft_bin_index = min_bin_for_env + static_cast<uint8_t>(std::round(static_cast<float>(r) / std::max(1, (bounds.height - 1)) * (num_bins_in_env_range - 1)));
-        fft_bin_index = constrain(fft_bin_index, min_bin_for_env, max_bin_for_env); // Finomabb gain alkalmazás envelope-hoz
+        fft_bin_index = constrain(fft_bin_index, min_bin_for_env, max_bin_for_env);
         float rawMagnitude = magnitudeData[fft_bin_index];
 
         // KRITIKUS: Infinity és NaN értékek szűrése!
@@ -979,16 +983,17 @@ void UICompSpectrumVis::renderEnvelope() {
             rawMagnitude = 0.0;
         }
 
-        // További védelem: túl nagy értékek limitálása
-        if (rawMagnitude > 10000.0) {
-            rawMagnitude = 10000.0;
+        // ELŐSZÖR zajszűrés a nyers adaton (NOISE_THRESHOLD)
+        if (rawMagnitude < NOISE_THRESHOLD) {
+            rawMagnitude = 0.0;
         }
 
+        // UTÁNA erősítés a tiszta jelen
         float gained_val = rawMagnitude * adaptiveScale;
 
         // Debug info gyűjtése
-        maxRawMagnitude = std::max(maxRawMagnitude, static_cast<float>(rawMagnitude));
-        maxGainedVal = std::max(maxGainedVal, static_cast<float>(gained_val));
+        maxRawMagnitude = std::max(maxRawMagnitude, rawMagnitude);
+        maxGainedVal = std::max(maxGainedVal, gained_val);
 
         wabuf[r][bounds.width - 1] = static_cast<uint8_t>(constrain(gained_val, 0.0, 255.0));
     }
@@ -997,20 +1002,21 @@ void UICompSpectrumVis::renderEnvelope() {
     sprite_->fillSprite(TFT_BLACK); // Sprite törlése
 
     // Erőteljes simítás a tüskék ellen
-    constexpr float ENVELOPE_SMOOTH_FACTOR = 0.05f;   // Sokkal erősebb simítás
-    constexpr float ENVELOPE_NOISE_THRESHOLD = 25.0f; // Magasabb zajküszöb a tüskék ellen
+    constexpr float ENVELOPE_SMOOTH_FACTOR = 0.05f; // Sokkal erősebb simítás
+    // ENVELOPE_NOISE_THRESHOLD ELTÁVOLÍTVA - használjuk az általános NOISE_THRESHOLD-ot!
 
     // Először rajzoljunk egy vékony központi vízszintes vonalat (alapvonal) - mindig látható
-    int yCenter_on_sprite = graphH / 2;
+    uint8_t yCenter_on_sprite = graphH / 2;
     sprite_->drawFastHLine(0, yCenter_on_sprite, bounds.width, TFT_WHITE);
 
-    for (uint32_t c = 0; c < bounds.width; ++c) {
-        int sum_val_in_col = 0;
-        int count_val_in_col = 0;
+    for (uint8_t c = 0; c < bounds.width; ++c) {
+        int16_t sum_val_in_col = 0;
+        int16_t count_val_in_col = 0;
         bool column_has_signal = false;
 
-        for (int r_wabuf = 0; r_wabuf < bounds.height; ++r_wabuf) { // Teljes bounds.height
-            if (wabuf[r_wabuf][c] > ENVELOPE_NOISE_THRESHOLD) {
+        for (uint8_t r_wabuf = 0; r_wabuf < bounds.height; ++r_wabuf) { // Teljes bounds.height
+            // Használjuk az általános NOISE_THRESHOLD-ot (már felerősített értékeken)
+            if (wabuf[r_wabuf][c] > 0) { // Ha nem nulla (már szűrve volt a nyers adaton)
                 column_has_signal = true;
                 sum_val_in_col += wabuf[r_wabuf][c];
                 count_val_in_col++;
@@ -1024,16 +1030,14 @@ void UICompSpectrumVis::renderEnvelope() {
             // NEM korlátozzuk itt - a rajzolásnál fogjuk kezelni a tüskéket
         }
 
-        // Zajszűrés: kis amplitúdók elnyomása
-        if (current_col_max_amplitude < ENVELOPE_NOISE_THRESHOLD) {
-            current_col_max_amplitude = 0.0f;
-        }
+        // Zajszűrés már megtörtént a nyers adaton, nincs szükség itt dupla szűrésre
 
         // Erősebb simítás az oszlopok között - lassabb változás
         envelopeLastSmoothedValue_ = ENVELOPE_SMOOTH_FACTOR * envelopeLastSmoothedValue_ + (1.0f - ENVELOPE_SMOOTH_FACTOR) * current_col_max_amplitude;
 
-        // További simítás: csak jelentős változásokat engedünk át
-        if (abs(current_col_max_amplitude - envelopeLastSmoothedValue_) < ENVELOPE_NOISE_THRESHOLD) {
+        // További simítás: csak jelentős változásokat engedünk át (adaptív küszöb)
+        constexpr float ENVELOPE_CHANGE_THRESHOLD = 2.0f; // Minimális változás az átrajzoláshoz
+        if (abs(current_col_max_amplitude - envelopeLastSmoothedValue_) < ENVELOPE_CHANGE_THRESHOLD) {
             current_col_max_amplitude = envelopeLastSmoothedValue_;
         }
 
@@ -1132,18 +1136,17 @@ void UICompSpectrumVis::renderWaterfall() {
         int fft_bin_index = min_bin_for_wf + static_cast<int>(std::round(static_cast<float>(r) / std::max(1, (bounds.height - 1)) * (num_bins_in_wf_range - 1)));
         fft_bin_index = constrain(fft_bin_index, min_bin_for_wf, max_bin_for_wf);
 
-        // Waterfall input scale - adaptív autogain-nel
-        // Nyers int16_t -> double konverzió (az AudioProcessor már normalizálta)
-        double rawMagnitude = static_cast<double>(magnitudeData[fft_bin_index]);
-
-        // Zajküszöb alkalmazása
+        // ELŐSZÖR zajszűrés a nyers adaton
+        float rawMagnitude = magnitudeData[fft_bin_index];
         if (rawMagnitude < NOISE_THRESHOLD) {
-            rawMagnitude = 0.0;
+            rawMagnitude = 0.0f;
         }
 
-        maxMagnitude = std::max(maxMagnitude, static_cast<float>(rawMagnitude));
-        float scaledMagnitude = rawMagnitude * adaptiveScale;
-        uint8_t finalValue = static_cast<uint8_t>(constrain(scaledMagnitude, 0.0, 255.0));
+        // UTÁNA erősítés a tiszta jelen
+        float amplified = rawMagnitude * adaptiveScale;
+        maxMagnitude = std::max(maxMagnitude, amplified);
+
+        uint8_t finalValue = static_cast<uint8_t>(constrain(amplified, 0.0f, 255.0f));
 
         wabuf[r][bounds.width - 1] = finalValue;
     }
@@ -1524,10 +1527,15 @@ void UICompSpectrumVis::renderSnrCurve() {
         // Interpolált magnitude érték (közös helper metódus használata)
         // A getInterpolatedMagnitude már normalizált float-ot ad vissza
         float rawMagnitude = getInterpolatedMagnitude(magnitudeData, exact_bin_index, min_bin, max_bin);
-        maxMagnitude = std::max(maxMagnitude, static_cast<float>(rawMagnitude));
 
-        // SNR érték számítása (egyszerű amplitúdó alapú)
+        // ELŐSZÖR zajszűrés a nyers adaton
+        if (rawMagnitude < NOISE_THRESHOLD) {
+            rawMagnitude = 0.0f;
+        }
+
+        // UTÁNA erősítés a tiszta jelen
         float snrValue = rawMagnitude * adaptiveScale;
+        maxMagnitude = std::max(maxMagnitude, snrValue);
 
         // Y koordináta számítása (invertált, mert a képernyő teteje y=0)
         uint16_t y = graphH - static_cast<int>(constrain(snrValue, 0.0f, static_cast<float>(graphH)));
