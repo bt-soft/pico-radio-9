@@ -174,7 +174,6 @@ UICompSpectrumVis::~UICompSpectrumVis() {
  * @param currentFrameMaxValue Jelenlegi frame maximális értéke
  */
 void UICompSpectrumVis::updateFrameBasedGain(float currentFrameMaxValue) {
-    uint32_t now = millis();
 
     // Frame maximum érték hozzáadása a history bufferhez
     frameMaxHistory_[frameHistoryIndex_] = currentFrameMaxValue;
@@ -185,8 +184,9 @@ void UICompSpectrumVis::updateFrameBasedGain(float currentFrameMaxValue) {
         frameHistoryFull_ = true;
     }
 
-    // Rendszeres gain frissítés (gyakrabban, mint régen)
-    if (now - lastGainUpdateTime_ > GAIN_UPDATE_INTERVAL_MS && frameHistoryFull_) {
+    // Rendszeres gain frissítés (adatok alapján)
+    if (Utils::timeHasPassed(lastGainUpdateTime_, GAIN_UPDATE_INTERVAL_MS) && frameHistoryFull_) {
+
         float averageFrameMax = getAverageFrameMax();
 
         if (averageFrameMax > MIN_SIGNAL_THRESHOLD) {
@@ -201,11 +201,11 @@ void UICompSpectrumVis::updateFrameBasedGain(float currentFrameMaxValue) {
             adaptiveGainFactor_ = constrain(adaptiveGainFactor_, 0.001f, 20.0f); // max 20x erősítés
 
             // Részletes AGC debug log
-            DEBUG("[AGC] graphH=%d targetMaxHeight=%.1f averageFrameMax=%.1f idealGain=%.3f adaptiveGainFactor_=%.3f currentFrameMaxValue=%.1f\n", graphH, targetMaxHeight, averageFrameMax, idealGain, adaptiveGainFactor_,
-                  currentFrameMaxValue);
+            DEBUG("UICompSpectrumVis::updateFrameBasedGain - graphH=%d targetMaxHeight=%.1f averageFrameMax=%.1f idealGain=%.3f adaptiveGainFactor_=%.3f currentFrameMaxValue=%.1f\n", graphH, targetMaxHeight,
+                  averageFrameMax, idealGain, adaptiveGainFactor_, currentFrameMaxValue);
         }
 
-        lastGainUpdateTime_ = now;
+        lastGainUpdateTime_ = millis();
     }
 }
 
@@ -317,7 +317,7 @@ void UICompSpectrumVis::draw() {
     static uint32_t lastAgcLogTime = 0;
     if (isAutoGainMode() && Utils::timeHasPassed(lastAgcLogTime, 1000)) {
         float avgFrameMax = getAverageFrameMax();
-        DEBUG("[UICompSpectrumVis][AGC] displayMode=%d adaptiveGainFactor_=%.3f avgFrameMax=%.1f\n", (int)currentMode_, adaptiveGainFactor_, avgFrameMax);
+        DEBUG("[UICompSpectrumVis][auto AGC] displayMode=%d adaptiveGainFactor_=%.3f avgFrameMax=%.1f\n", (int)currentMode_, adaptiveGainFactor_, avgFrameMax);
         lastAgcLogTime = currentTime;
     }
 #endif
@@ -489,10 +489,11 @@ void UICompSpectrumVis::manageSpriteForMode(DisplayMode modeToPrepareForDisplayM
                 // DEBUG("UICompSpectrumVis: Sprite létrehozása sikertelen, mód: %d (szélesség:%d, grafikon magasság:%d)\n", static_cast<int>(modeToPrepareFor), bounds.width, graphH);
             }
         }
-        // Bar magasságok nullázása módváltáskor
-        for (int i = 0; i < MAX_SPECTRUM_BANDS; ++i) {
-            bar_height_[i] = 0;
-        }
+    }
+
+    // LowRes Bar magasságok nullázása módváltáskor
+    for (int i = 0; i < MAX_SPECTRUM_BANDS; ++i) {
+        bar_height_[i] = 0;
     }
 
     // Teljes terület törlése mód váltáskor az előző grafikon eltávolításához
@@ -874,7 +875,6 @@ void UICompSpectrumVis::renderSpectrumBar(bool isHighRes) {
         }
         updateFrameBasedGain(agcBarHistoryMax);
 
-        DEBUG("Bar debug ----------------------------\n");
         // Sávok kirajzolása
         for (uint8_t band_idx = 0; band_idx < bands_to_display; band_idx++) {
             uint16_t x_pos = x_offset + bar_total_width * band_idx;
@@ -948,13 +948,6 @@ void UICompSpectrumVis::renderSpectrumBar(bool isHighRes) {
                 int16_t y_peak = graphH - Rpeak_[band_idx];
                 sprite_->fillRect(x_pos, y_peak, bar_width, 2, TFT_CYAN);
             }
-
-            // DEBUG: Per-bar output
-#ifdef __DEBUG
-            char dbg[128];
-            snprintf(dbg, sizeof(dbg), "[BAR %02d] mag=%.2f scale=%.2f dsize=%d\n", band_idx, band_magnitudes[band_idx], adaptiveScale, dsize);
-            DEBUG(dbg);
-#endif
         }
     }
 

@@ -177,10 +177,10 @@ class UICompSpectrumVis : public UIComponent {
     float agcBarMaxHistory_[AGC_BAR_MAX_HISTORY] = {0};
     uint8_t agcBarMaxHistoryIndex_ = 0;
 
-    static constexpr uint32_t GAIN_UPDATE_INTERVAL_MS = 750; // Lassabb frissítés a stabilabb működésért
-    static constexpr float TARGET_MAX_UTILIZATION = 0.85f;   // 85%-os maximális kitöltés
-    static constexpr float GAIN_SMOOTH_FACTOR = 0.2f;        // Lassabb simítási faktor a stabilabb működésért
-    static constexpr float MIN_SIGNAL_THRESHOLD = 0.1f;      // Minimum jel küszöb
+    static constexpr uint32_t GAIN_UPDATE_INTERVAL_MS = 1000; // Lassabb frissítés a stabilabb működésért
+    static constexpr float TARGET_MAX_UTILIZATION = 0.85f;    // 85%-os maximális kitöltés
+    static constexpr float GAIN_SMOOTH_FACTOR = 0.2f;         // Lassabb simítási faktor a stabilabb működésért
+    static constexpr float MIN_SIGNAL_THRESHOLD = 0.1f;       // Minimum jel küszöb
 
     // Sprite handling
     TFT_eSprite *sprite_;
