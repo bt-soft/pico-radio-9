@@ -108,14 +108,19 @@ void Si4735Runtime::checkAGC() {
 }
 
 /**
- * Manage Audio Mute
+ * Manage Audio Mute, SSB hangoláskor hasznos lehet
  * (SSB/CW frekvenciaváltáskor a zajszűrés miatt)
  */
-void Si4735Runtime::manageHardwareAudioMute() {
-#define MIN_ELAPSED_HARDWARE_AUDIO_MUTE_TIME 0 // Noise surpression SSB in mSec. 0 mSec = off //Was 0 (LWH)
+void Si4735Runtime::manageHardwareAudioMuteOnSSB() {
+#define MIN_ELAPSED_HARDWARE_AUDIO_MUTE_MSEC 5 // Zajelnyomás az SSB módban hasznos
+
+    // Ha globális némítás aktív, akkor nem kezeljük a hardware audio mute állapot időzített feloldását
+    if (rtv::muteStat) {
+        return;
+    }
 
     // Csak akkor állítsuk le a némítást, ha ez a feltétel megváltozott
-    if (hardwareAudioMuteState and ((millis() - hardwareAudioMuteElapsed) > MIN_ELAPSED_HARDWARE_AUDIO_MUTE_TIME)) {
+    if (hardwareAudioMuteState and Utils::timeHasPassed(hardwareAudioMuteElapsed, MIN_ELAPSED_HARDWARE_AUDIO_MUTE_MSEC)) {
         // Ha a mute állapotban vagyunk és eltelt a minimális idő, akkor kikapcsoljuk a mute-t
         hardwareAudioMuteState = false;
         si4735.setHardwareAudioMute(false);
@@ -126,10 +131,24 @@ void Si4735Runtime::manageHardwareAudioMute() {
  * Manage Audio Mute
  * (SSB/CW frekvenciaváltáskor a zajszűrés miatt)
  */
-void Si4735Runtime::hardwareAudioMuteOn() {
+void Si4735Runtime::hardwareAudioMuteOnInSSB() {
     si4735.setHardwareAudioMute(true);
     hardwareAudioMuteState = true;
     hardwareAudioMuteElapsed = millis();
+}
+
+/**
+ * @brief Beállítja a hardver és szoftver audio némítást
+ * @param mute true: némítás, false: némítás feloldása
+ */
+void Si4735Runtime::setHWAndSWAudioMute(bool mute) {
+
+    // HW mute
+    si4735.setHardwareAudioMute(mute);
+    hardwareAudioMuteState = mute;
+
+    // SW mute
+    si4735.setAudioMute(mute);
 }
 
 /**

@@ -32,7 +32,7 @@ class Si4735Runtime : public Si4735Base {
     SignalQualityData signalCache;
 
   protected:
-    void manageHardwareAudioMute();
+    void manageHardwareAudioMuteOnSSB(); //(SSB/CW frekvenciaváltáskor a zajszűrés miatt)
     void manageSquelch();
 
     /**
@@ -43,7 +43,8 @@ class Si4735Runtime : public Si4735Base {
   public:
     Si4735Runtime() : Si4735Base(), hardwareAudioMuteState(false), hardwareAudioMuteElapsed(millis()) {};
 
-    void hardwareAudioMuteOn();
+    void setHWAndSWAudioMute(bool mute);
+    void hardwareAudioMuteOnInSSB();
     void checkAGC();
 
     /**

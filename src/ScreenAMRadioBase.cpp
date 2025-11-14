@@ -174,7 +174,7 @@ bool ScreenAMRadioBase::handleRotary(const RotaryEvent &event) {
                 if (rtv::freqDec <= -16000) {
                     rtv::freqDec = rtv::freqDec + 16000;
                     int16_t freqPlus16 = currentFrequency + 16;
-                    //::pSi4735Manager->hardwareAudioMuteOn(); //csak pattogást okoz, nem kell
+                    //::pSi4735Manager->hardwareAudioMuteOnInSSB(); //csak pattogást okoz, nem kell
                     ::pSi4735Manager->getSi4735().setFrequency(freqPlus16);
                     delay(10);
                 }

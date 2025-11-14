@@ -8,7 +8,7 @@
 	)
 	(paper "A5" portrait)
 	(title_block
-		(title "Pico Radio 5")
+		(title "Pico Radio 9")
 	)
 	(layers
 		(0 "F.Cu" signal)
@@ -335,7 +335,7 @@
 		(property ki_fp_filters "TO?92*")
 		(path "/baffa4d2-f744-41c3-8777-2437c4b4c767")
 		(sheetname "/")
-		(sheetfile "pico-radio-5.kicad_sch")
+		(sheetfile "pico-radio-9.kicad_sch")
 		(attr through_hole)
 		(fp_line
 			(start -0.53 1.85)
@@ -553,7 +553,7 @@
 		(property ki_fp_filters "Choke_* *Coil* Inductor_* L_*")
 		(path "/626106b0-6fdc-4cf3-9c22-ccfc8e06bf74")
 		(sheetname "/")
-		(sheetfile "pico-radio-5.kicad_sch")
+		(sheetfile "pico-radio-9.kicad_sch")
 		(attr through_hole)
 		(fp_line
 			(start 9.12 0)
@@ -729,7 +729,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/e6ebb73f-f673-40d7-bdd1-cc66e91b6989")
 		(sheetname "/")
-		(sheetfile "pico-radio-5.kicad_sch")
+		(sheetfile "pico-radio-9.kicad_sch")
 		(attr through_hole)
 		(fp_line
 			(start 6.12 1.37)
@@ -892,7 +892,7 @@
 		(property ki_fp_filters "CP_*")
 		(path "/969cd7ce-b498-47ed-a4c2-1936ff8f4fd7")
 		(sheetname "/")
-		(sheetfile "pico-radio-5.kicad_sch")
+		(sheetfile "pico-radio-9.kicad_sch")
 		(attr through_hole)
 		(fp_line
 			(start -1.554775 -1.475)
@@ -2247,7 +2247,7 @@
 		(property ki_fp_filters "SW*Omron*B3FS*")
 		(path "/34c74b0e-1098-4126-8edf-eb881608c547")
 		(sheetname "/")
-		(sheetfile "pico-radio-5.kicad_sch")
+		(sheetfile "pico-radio-9.kicad_sch")
 		(attr through_hole)
 		(fp_line
 			(start -1.38 -1.38)
@@ -2500,7 +2500,7 @@
 		(property ki_fp_filters "Connector*:*_1x??_*")
 		(path "/1dd4a06e-7f6e-40a1-9587-03784a434602")
 		(sheetname "/")
-		(sheetfile "pico-radio-5.kicad_sch")
+		(sheetfile "pico-radio-9.kicad_sch")
 		(attr through_hole)
 		(fp_line
 			(start 1.38 1.27)
@@ -2726,7 +2726,7 @@
 				)
 			)
 		)
-		(property "Value" "22k"
+		(property "Value" "1k"
 			(at 5.08 2.37 90)
 			(layer "F.Fab")
 			(uuid "50ff0d00-489f-43f2-adb8-326d2a4ccc20")
@@ -2764,7 +2764,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/831195c6-089a-4a71-9dcf-b0fd55c7a0a6")
 		(sheetname "/")
-		(sheetfile "pico-radio-5.kicad_sch")
+		(sheetfile "pico-radio-9.kicad_sch")
 		(attr through_hole)
 		(fp_line
 			(start 1.04 0)
@@ -2938,7 +2938,7 @@
 		(property ki_fp_filters "CP_*")
 		(path "/9eda3951-fc86-4787-adce-481c1f222ab2")
 		(sheetname "/")
-		(sheetfile "pico-radio-5.kicad_sch")
+		(sheetfile "pico-radio-9.kicad_sch")
 		(attr through_hole)
 		(fp_line
 			(start 1.49 1.04)
@@ -4293,7 +4293,7 @@
 		(property ki_fp_filters "Choke_* *Coil* Inductor_* L_*")
 		(path "/a8442614-dfe5-47db-8fca-cf15353330dd")
 		(sheetname "/")
-		(sheetfile "pico-radio-5.kicad_sch")
+		(sheetfile "pico-radio-9.kicad_sch")
 		(attr through_hole)
 		(fp_line
 			(start 1.04 0)
@@ -4431,7 +4431,7 @@
 				)
 			)
 		)
-		(property "Value" "22k"
+		(property "Value" "1k"
 			(at 5.08 2.37 90)
 			(layer "F.Fab")
 			(uuid "b9bb6cd9-3e97-4ea0-8841-9da88b817c11")
@@ -4469,7 +4469,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/f9acc750-331e-4736-b01f-32b0c59358c3")
 		(sheetname "/")
-		(sheetfile "pico-radio-5.kicad_sch")
+		(sheetfile "pico-radio-9.kicad_sch")
 		(attr through_hole)
 		(fp_line
 			(start 1.04 0)
@@ -4643,7 +4643,7 @@
 		(property ki_fp_filters "Jumper* TestPoint*2Pads* TestPoint*Bridge*")
 		(path "/cda4fd2a-703a-4f80-a543-d0a91470e13c")
 		(sheetname "/")
-		(sheetfile "pico-radio-5.kicad_sch")
+		(sheetfile "pico-radio-9.kicad_sch")
 		(attr through_hole)
 		(fp_line
 			(start 1.04 0)
@@ -4819,7 +4819,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/b0b4bc29-338a-4802-b8be-db00be0d037b")
 		(sheetname "/")
-		(sheetfile "pico-radio-5.kicad_sch")
+		(sheetfile "pico-radio-9.kicad_sch")
 		(attr through_hole)
 		(fp_line
 			(start 9.12 0)
@@ -4993,7 +4993,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/991859d0-4de9-431a-b343-bd88dda7d24b")
 		(sheetname "/")
-		(sheetfile "pico-radio-5.kicad_sch")
+		(sheetfile "pico-radio-9.kicad_sch")
 		(attr through_hole)
 		(fp_line
 			(start 2.015 0.92)
@@ -5136,7 +5136,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/35d22843-4981-465a-9a60-c3584a208b45")
 		(sheetname "/")
-		(sheetfile "pico-radio-5.kicad_sch")
+		(sheetfile "pico-radio-9.kicad_sch")
 		(attr through_hole)
 		(fp_line
 			(start 9.12 0)
@@ -5310,7 +5310,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/410f0427-32c7-444f-bb33-fb0b62afc76c")
 		(sheetname "/")
-		(sheetfile "pico-radio-5.kicad_sch")
+		(sheetfile "pico-radio-9.kicad_sch")
 		(attr through_hole)
 		(fp_line
 			(start -1.12 1.37)
@@ -5568,7 +5568,7 @@
 		)
 		(path "/b5266aaf-cd12-4053-86a1-c89bcd803724")
 		(sheetname "/")
-		(sheetfile "pico-radio-5.kicad_sch")
+		(sheetfile "pico-radio-9.kicad_sch")
 		(attr through_hole)
 		(fp_line
 			(start -1.38 34.4)
@@ -5953,7 +5953,7 @@
 		(property ki_fp_filters "TerminalBlock*:*")
 		(path "/7e011560-e5d9-4001-a6c9-e49c65560dba")
 		(sheetname "/")
-		(sheetfile "pico-radio-5.kicad_sch")
+		(sheetfile "pico-radio-9.kicad_sch")
 		(attr through_hole)
 		(fp_line
 			(start -2.22 3.72)
@@ -6291,7 +6291,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/527ee09d-f1ab-4931-8ea4-07d51c259ca5")
 		(sheetname "/")
-		(sheetfile "pico-radio-5.kicad_sch")
+		(sheetfile "pico-radio-9.kicad_sch")
 		(attr through_hole)
 		(fp_line
 			(start 9.12 0)
@@ -6465,7 +6465,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/f3d5d656-fd0d-413c-8ae9-adc29f990fb6")
 		(sheetname "/")
-		(sheetfile "pico-radio-5.kicad_sch")
+		(sheetfile "pico-radio-9.kicad_sch")
 		(attr through_hole)
 		(fp_line
 			(start 9.12 0)
@@ -6641,7 +6641,7 @@
 		(property ki_fp_filters "TO?92*")
 		(path "/042fca12-a9dd-42ca-8622-2560124532f5")
 		(sheetname "/")
-		(sheetfile "pico-radio-5.kicad_sch")
+		(sheetfile "pico-radio-9.kicad_sch")
 		(attr through_hole)
 		(fp_line
 			(start -0.53 1.85)
@@ -6859,7 +6859,7 @@
 		(property ki_fp_filters "Connector*:*_1x??_*")
 		(path "/b69b6e0e-3d9b-4531-8f18-38c4ae55281c")
 		(sheetname "/")
-		(sheetfile "pico-radio-5.kicad_sch")
+		(sheetfile "pico-radio-9.kicad_sch")
 		(attr through_hole)
 		(fp_line
 			(start -1.38 9)
@@ -7133,7 +7133,7 @@
 		(property ki_fp_filters "Crystal*")
 		(path "/a4e07504-4dfc-4ff6-81cd-387393516bdb")
 		(sheetname "/")
-		(sheetfile "pico-radio-5.kicad_sch")
+		(sheetfile "pico-radio-9.kicad_sch")
 		(attr through_hole)
 		(fp_line
 			(start 1.9 1.12)
@@ -7349,7 +7349,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/5ac96ac4-e3db-4cca-aa0e-b9aee8170d98")
 		(sheetname "/")
-		(sheetfile "pico-radio-5.kicad_sch")
+		(sheetfile "pico-radio-9.kicad_sch")
 		(attr through_hole)
 		(fp_line
 			(start 9.12 0)
@@ -7523,7 +7523,7 @@
 		(property ki_fp_filters "Connector*:*_1x??_*")
 		(path "/40d08cae-9161-41dd-af60-29e21fa42653")
 		(sheetname "/")
-		(sheetfile "pico-radio-5.kicad_sch")
+		(sheetfile "pico-radio-9.kicad_sch")
 		(attr through_hole)
 		(fp_line
 			(start -1.38 -1.38)
@@ -7776,7 +7776,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/90d4ba8c-6e85-4e4f-a165-848fda555c62")
 		(sheetname "/")
-		(sheetfile "pico-radio-5.kicad_sch")
+		(sheetfile "pico-radio-9.kicad_sch")
 		(attr through_hole)
 		(fp_line
 			(start 2.015 0.92)
@@ -8015,7 +8015,7 @@
 		(property ki_fp_filters "Choke_* *Coil* Inductor_* L_*")
 		(path "/289bf71a-5ed2-40f2-8853-5a1eb96c8f5e")
 		(sheetname "/")
-		(sheetfile "pico-radio-5.kicad_sch")
+		(sheetfile "pico-radio-9.kicad_sch")
 		(attr through_hole)
 		(fp_line
 			(start 1.38 1.27)
@@ -8364,7 +8364,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/61fb6fa2-cc22-4e4a-a870-83800c88c480")
 		(sheetname "/")
-		(sheetfile "pico-radio-5.kicad_sch")
+		(sheetfile "pico-radio-9.kicad_sch")
 		(attr through_hole)
 		(fp_line
 			(start 9.12 0)
@@ -8538,7 +8538,7 @@
 		(property ki_fp_filters "Choke_* *Coil* Inductor_* L_*")
 		(path "/f972d7aa-30b4-4818-9a43-f9ae95f9a83a")
 		(sheetname "/")
-		(sheetfile "pico-radio-5.kicad_sch")
+		(sheetfile "pico-radio-9.kicad_sch")
 		(attr through_hole)
 		(fp_line
 			(start 1.04 0)
@@ -8714,7 +8714,7 @@
 		(property ki_fp_filters "TerminalBlock*:*")
 		(path "/329c74b9-d609-4f40-83e3-ddb461ecff18")
 		(sheetname "/")
-		(sheetfile "pico-radio-5.kicad_sch")
+		(sheetfile "pico-radio-9.kicad_sch")
 		(attr through_hole)
 		(fp_line
 			(start -2.22 3.72)
@@ -9054,7 +9054,7 @@
 		(property ki_fp_filters "TO?92*")
 		(path "/873e3400-7d8a-433a-b91a-f77ca2bdb9a6")
 		(sheetname "/")
-		(sheetfile "pico-radio-5.kicad_sch")
+		(sheetfile "pico-radio-9.kicad_sch")
 		(attr through_hole)
 		(fp_line
 			(start -0.53 1.85)
@@ -9272,7 +9272,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/30d4e6b9-1ca6-40fc-8d9e-412606b1c536")
 		(sheetname "/")
-		(sheetfile "pico-radio-5.kicad_sch")
+		(sheetfile "pico-radio-9.kicad_sch")
 		(attr through_hole)
 		(fp_line
 			(start 1.04 0)
@@ -9446,7 +9446,7 @@
 		(property ki_fp_filters "CP_*")
 		(path "/90ca6d8a-e8a1-4e82-852f-4a9e1f55c130")
 		(sheetname "/")
-		(sheetfile "pico-radio-5.kicad_sch")
+		(sheetfile "pico-radio-9.kicad_sch")
 		(attr through_hole)
 		(fp_line
 			(start 1.49 1.04)
@@ -10801,7 +10801,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/3494e8c8-f62d-43d2-926b-55a66c91bdde")
 		(sheetname "/")
-		(sheetfile "pico-radio-5.kicad_sch")
+		(sheetfile "pico-radio-9.kicad_sch")
 		(attr through_hole)
 		(fp_line
 			(start 0.485 -0.92)
@@ -11046,7 +11046,7 @@
 		)
 		(path "/a3e650c4-3458-4575-af03-2e0197421abf")
 		(sheetname "/")
-		(sheetfile "pico-radio-5.kicad_sch")
+		(sheetfile "pico-radio-9.kicad_sch")
 		(attr through_hole)
 		(fp_line
 			(start 4.445 -1.27)
@@ -11585,7 +11585,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/75c1d152-5cec-456c-b047-1fc52130bbb5")
 		(sheetname "/")
-		(sheetfile "pico-radio-5.kicad_sch")
+		(sheetfile "pico-radio-9.kicad_sch")
 		(attr through_hole)
 		(fp_line
 			(start 1.04 0)
@@ -11762,7 +11762,7 @@
 		(property ki_fp_filters "RaspberryPi?Pico?Common* RaspberryPi?Pico?SMD*")
 		(path "/8b29d5fe-a239-40c7-8353-3da6e0e25199")
 		(sheetname "/")
-		(sheetfile "pico-radio-5.kicad_sch")
+		(sheetfile "pico-radio-9.kicad_sch")
 		(attr through_hole)
 		(fp_line
 			(start -2.04 0.8)
@@ -13279,7 +13279,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/e097533e-a5c5-4401-9806-4e915bc8d10c")
 		(sheetname "/")
-		(sheetfile "pico-radio-5.kicad_sch")
+		(sheetfile "pico-radio-9.kicad_sch")
 		(attr through_hole)
 		(fp_line
 			(start 0.485 -0.92)
@@ -13424,7 +13424,7 @@
 		(property ki_fp_filters "*Buzzer*")
 		(path "/61dddb7b-529a-412f-b593-dab6ede78328")
 		(sheetname "/")
-		(sheetfile "pico-radio-5.kicad_sch")
+		(sheetfile "pico-radio-9.kicad_sch")
 		(attr through_hole)
 		(fp_circle
 			(center 3.8 0)
@@ -13593,7 +13593,7 @@
 		(property ki_fp_filters "CP_*")
 		(path "/743aa484-fbff-4495-ba4d-bf37c421226e")
 		(sheetname "/")
-		(sheetfile "pico-radio-5.kicad_sch")
+		(sheetfile "pico-radio-9.kicad_sch")
 		(attr through_hole)
 		(fp_line
 			(start 1.49 1.04)
@@ -14948,7 +14948,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/c933a52d-5268-4376-8f25-c3ae6d0524a4")
 		(sheetname "/")
-		(sheetfile "pico-radio-5.kicad_sch")
+		(sheetfile "pico-radio-9.kicad_sch")
 		(attr through_hole)
 		(fp_line
 			(start -1.12 -1.37)
@@ -15111,7 +15111,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/ddeb7cd1-504f-4adc-9579-d4ce56c6efd8")
 		(sheetname "/")
-		(sheetfile "pico-radio-5.kicad_sch")
+		(sheetfile "pico-radio-9.kicad_sch")
 		(attr through_hole)
 		(fp_line
 			(start 2.015 0.92)
@@ -15254,7 +15254,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/7ebdba15-b6e4-4cb0-ad6b-3926b139e488")
 		(sheetname "/")
-		(sheetfile "pico-radio-5.kicad_sch")
+		(sheetfile "pico-radio-9.kicad_sch")
 		(attr through_hole)
 		(fp_line
 			(start 9.12 0)
@@ -15433,7 +15433,7 @@
 		(property ki_fp_filters "SOIC_A10-GS_SIL SOIC_A10-GS_SIL-M SOIC_A10-GS_SIL-L")
 		(path "/e9b7a8f1-5140-46d7-a674-15ec421492fd")
 		(sheetname "/")
-		(sheetfile "pico-radio-5.kicad_sch")
+		(sheetfile "pico-radio-9.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start -2.0828 -5.08)
@@ -16559,7 +16559,7 @@
 		(property ki_fp_filters "SolderJumper*Bridged12*")
 		(path "/e53c39b3-2992-4441-ae44-72fe09836b45")
 		(sheetname "/")
-		(sheetfile "pico-radio-5.kicad_sch")
+		(sheetfile "pico-radio-9.kicad_sch")
 		(zone_connect 1)
 		(attr exclude_from_pos_files exclude_from_bom allow_soldermask_bridges)
 		(net_tie_pad_groups "1,2")
@@ -16841,7 +16841,7 @@
 				(justify mirror)
 			)
 		)
-		(property "Value" "TFT SDO"
+		(property "Value" "TFT SDO - ha kell"
 			(at 0 -1.9 90)
 			(layer "B.Fab")
 			(uuid "6ca889cc-b805-45ae-a744-d4dcf7fbd051")
@@ -16884,7 +16884,7 @@
 		(property ki_fp_filters "SolderJumper*Open*")
 		(path "/61bc5a1f-f6af-4811-852e-3b6c881b747b")
 		(sheetname "/")
-		(sheetfile "pico-radio-5.kicad_sch")
+		(sheetfile "pico-radio-9.kicad_sch")
 		(zone_connect 1)
 		(attr exclude_from_pos_files exclude_from_bom allow_soldermask_bridges)
 		(fp_rect

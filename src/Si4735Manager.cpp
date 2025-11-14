@@ -47,7 +47,7 @@ void Si4735Manager::loop() {
     manageSquelch();
 
     // Hardver némítás kezelése
-    manageHardwareAudioMute();
+    manageHardwareAudioMuteOnSSB();
 
     // Signal quality cache frissítése, ha szükséges
     updateSignalCacheIfNeeded();

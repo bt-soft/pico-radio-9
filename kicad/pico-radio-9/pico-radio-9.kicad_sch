@@ -5,7 +5,7 @@
 	(uuid "b9640508-dcc6-4f6b-830f-c53a732dcb5b")
 	(paper "A4")
 	(title_block
-		(title "Pico radio-5")
+		(title "Pico radio-9")
 		(date "2025-08-04")
 	)
 	(lib_symbols
@@ -8637,7 +8637,7 @@
 			(uuid "2b99b4f1-f371-45c4-a24d-0bd8392f38d3")
 		)
 		(instances
-			(project "pico-radio-5"
+			(project "pico-radio-9"
 				(path "/b9640508-dcc6-4f6b-830f-c53a732dcb5b"
 					(reference "#PWR01")
 					(unit 1)
@@ -8702,7 +8702,7 @@
 			(uuid "b3898bee-f3ef-404a-99ff-39ee9335ab51")
 		)
 		(instances
-			(project "pico-radio-5"
+			(project "pico-radio-9"
 				(path "/b9640508-dcc6-4f6b-830f-c53a732dcb5b"
 					(reference "#PWR032")
 					(unit 1)
@@ -8832,7 +8832,7 @@
 			(uuid "f6afcdb1-96bc-4a50-b484-63e8410dd75d")
 		)
 		(instances
-			(project "pico-radio-5"
+			(project "pico-radio-9"
 				(path "/b9640508-dcc6-4f6b-830f-c53a732dcb5b"
 					(reference "#PWR024")
 					(unit 1)
@@ -8898,7 +8898,7 @@
 			(uuid "11ca7e79-b4d4-439d-afe3-987ea42f6f55")
 		)
 		(instances
-			(project "pico-radio-5"
+			(project "pico-radio-9"
 				(path "/b9640508-dcc6-4f6b-830f-c53a732dcb5b"
 					(reference "#PWR027")
 					(unit 1)
@@ -9106,7 +9106,7 @@
 			(uuid "65060df7-30c8-48a1-a469-48b33b78d35f")
 		)
 		(instances
-			(project "pico-radio-5"
+			(project "pico-radio-9"
 				(path "/b9640508-dcc6-4f6b-830f-c53a732dcb5b"
 					(reference "R6")
 					(unit 1)
@@ -9239,7 +9239,7 @@
 			(uuid "7fcfedef-47f1-48f5-895c-760a461a2c8d")
 		)
 		(instances
-			(project "pico-radio-5"
+			(project "pico-radio-9"
 				(path "/b9640508-dcc6-4f6b-830f-c53a732dcb5b"
 					(reference "J4")
 					(unit 1)
@@ -9447,7 +9447,7 @@
 			(uuid "77daf434-59a1-4d51-be03-2945f4ba7167")
 		)
 		(instances
-			(project "pico-radio-5"
+			(project "pico-radio-9"
 				(path "/b9640508-dcc6-4f6b-830f-c53a732dcb5b"
 					(reference "R10")
 					(unit 1)
@@ -9513,7 +9513,7 @@
 			(uuid "ea2f57f9-5a1a-4c02-80fe-76f0c8181c1e")
 		)
 		(instances
-			(project "pico-radio-5"
+			(project "pico-radio-9"
 				(path "/b9640508-dcc6-4f6b-830f-c53a732dcb5b"
 					(reference "#PWR017")
 					(unit 1)
@@ -9651,7 +9651,7 @@
 			(uuid "053cc679-7169-4a42-93b4-307a5d1195e8")
 		)
 		(instances
-			(project "pico-radio-5"
+			(project "pico-radio-9"
 				(path "/b9640508-dcc6-4f6b-830f-c53a732dcb5b"
 					(reference "C6")
 					(unit 1)
@@ -9716,7 +9716,7 @@
 			(uuid "01900498-59f8-4538-af3c-c39a78e27321")
 		)
 		(instances
-			(project "pico-radio-5"
+			(project "pico-radio-9"
 				(path "/b9640508-dcc6-4f6b-830f-c53a732dcb5b"
 					(reference "#PWR020")
 					(unit 1)
@@ -9781,7 +9781,7 @@
 			(uuid "74611efd-f7db-4788-90b8-97853f82e57d")
 		)
 		(instances
-			(project "pico-radio-5"
+			(project "pico-radio-9"
 				(path "/b9640508-dcc6-4f6b-830f-c53a732dcb5b"
 					(reference "#PWR037")
 					(unit 1)
@@ -9849,7 +9849,7 @@
 			(uuid "8460618d-338e-46b5-8ee0-203e36334cbe")
 		)
 		(instances
-			(project "pico-radio-5"
+			(project "pico-radio-9"
 				(path "/b9640508-dcc6-4f6b-830f-c53a732dcb5b"
 					(reference "R11")
 					(unit 1)
@@ -9981,7 +9981,7 @@
 			(uuid "38f26c45-7d73-4605-bcad-0baf4e9a41ab")
 		)
 		(instances
-			(project "pico-radio-5"
+			(project "pico-radio-9"
 				(path "/b9640508-dcc6-4f6b-830f-c53a732dcb5b"
 					(reference "#PWR036")
 					(unit 1)
@@ -10046,7 +10046,7 @@
 			(uuid "0f12b9f6-de07-4a94-a72a-cd80d9f49c12")
 		)
 		(instances
-			(project "pico-radio-5"
+			(project "pico-radio-9"
 				(path "/b9640508-dcc6-4f6b-830f-c53a732dcb5b"
 					(reference "#PWR015")
 					(unit 1)
@@ -10114,7 +10114,7 @@
 			(uuid "4439b3fc-b2bb-412d-a7c0-980e99141d47")
 		)
 		(instances
-			(project "pico-radio-5"
+			(project "pico-radio-9"
 				(path "/b9640508-dcc6-4f6b-830f-c53a732dcb5b"
 					(reference "R8")
 					(unit 1)
@@ -10180,7 +10180,7 @@
 			(uuid "5f8f07a3-6561-408b-b720-44048378a1ed")
 		)
 		(instances
-			(project "pico-radio-5"
+			(project "pico-radio-9"
 				(path "/b9640508-dcc6-4f6b-830f-c53a732dcb5b"
 					(reference "#PWR025")
 					(unit 1)
@@ -10388,7 +10388,7 @@
 			(uuid "dcee2f51-4fac-475b-99cc-35e1dc4e32dd")
 		)
 		(instances
-			(project "pico-radio-5"
+			(project "pico-radio-9"
 				(path "/b9640508-dcc6-4f6b-830f-c53a732dcb5b"
 					(reference "R5")
 					(unit 1)
@@ -10522,7 +10522,7 @@
 			(uuid "a128fc8a-2819-43a3-97cb-15177e1fed00")
 		)
 		(instances
-			(project "pico-radio-5"
+			(project "pico-radio-9"
 				(path "/b9640508-dcc6-4f6b-830f-c53a732dcb5b"
 					(reference "#PWR016")
 					(unit 1)
@@ -10588,7 +10588,7 @@
 			(uuid "b7f5daad-006b-415f-84a9-cb3050212395")
 		)
 		(instances
-			(project "pico-radio-5"
+			(project "pico-radio-9"
 				(path "/b9640508-dcc6-4f6b-830f-c53a732dcb5b"
 					(reference "#PWR029")
 					(unit 1)
@@ -10791,7 +10791,7 @@
 			(uuid "d38d3191-aeaf-470f-9bf2-1758ab03c51b")
 		)
 		(instances
-			(project "pico-radio-5"
+			(project "pico-radio-9"
 				(path "/b9640508-dcc6-4f6b-830f-c53a732dcb5b"
 					(reference "#PWR010")
 					(unit 1)
@@ -10928,7 +10928,7 @@
 			(uuid "4b97b561-5035-4149-8e14-fbe311438552")
 		)
 		(instances
-			(project "pico-radio-5"
+			(project "pico-radio-9"
 				(path "/b9640508-dcc6-4f6b-830f-c53a732dcb5b"
 					(reference "R2")
 					(unit 1)
@@ -11062,7 +11062,7 @@
 			(uuid "f78bf5d2-188c-4889-93d6-187eb0965788")
 		)
 		(instances
-			(project "pico-radio-5"
+			(project "pico-radio-9"
 				(path "/b9640508-dcc6-4f6b-830f-c53a732dcb5b"
 					(reference "R3")
 					(unit 1)
@@ -11138,7 +11138,7 @@
 			(uuid "6ecca839-4697-41fe-9660-ed5db7c5d736")
 		)
 		(instances
-			(project "pico-radio-5"
+			(project "pico-radio-9"
 				(path "/b9640508-dcc6-4f6b-830f-c53a732dcb5b"
 					(reference "Q2")
 					(unit 1)
@@ -11204,7 +11204,7 @@
 			(uuid "12705664-54d3-4b2d-93f1-cd1832d72189")
 		)
 		(instances
-			(project "pico-radio-5"
+			(project "pico-radio-9"
 				(path "/b9640508-dcc6-4f6b-830f-c53a732dcb5b"
 					(reference "#PWR028")
 					(unit 1)
@@ -11456,7 +11456,7 @@
 			(uuid "a16ccb27-e26f-48d8-ab63-f45874bfb586")
 		)
 		(instances
-			(project "pico-radio-5"
+			(project "pico-radio-9"
 				(path "/b9640508-dcc6-4f6b-830f-c53a732dcb5b"
 					(reference "C5")
 					(unit 1)
@@ -11523,7 +11523,7 @@
 			(uuid "a758b17a-aebe-46bd-9b9b-10793ab86577")
 		)
 		(instances
-			(project "pico-radio-5"
+			(project "pico-radio-9"
 				(path "/b9640508-dcc6-4f6b-830f-c53a732dcb5b"
 					(reference "C12")
 					(unit 1)
@@ -11658,7 +11658,7 @@
 			(uuid "9f4b019b-3881-41a2-8932-d9122d5eb990")
 		)
 		(instances
-			(project "pico-radio-5"
+			(project "pico-radio-9"
 				(path "/b9640508-dcc6-4f6b-830f-c53a732dcb5b"
 					(reference "C8")
 					(unit 1)
@@ -11728,7 +11728,7 @@
 			(uuid "6aac1087-f599-49d9-9975-404743ddf96a")
 		)
 		(instances
-			(project "pico-radio-5"
+			(project "pico-radio-9"
 				(path "/b9640508-dcc6-4f6b-830f-c53a732dcb5b"
 					(reference "C2")
 					(unit 1)
@@ -11797,7 +11797,7 @@
 			(uuid "d2d93285-a9d1-4bfb-bcec-617cbadb7f90")
 		)
 		(instances
-			(project "pico-radio-5"
+			(project "pico-radio-9"
 				(path "/b9640508-dcc6-4f6b-830f-c53a732dcb5b"
 					(reference "C7")
 					(unit 1)
@@ -12089,7 +12089,7 @@
 			(uuid "b1912d4e-7448-4865-b885-e76afb3653fd")
 		)
 		(instances
-			(project "pico-radio-5"
+			(project "pico-radio-9"
 				(path "/b9640508-dcc6-4f6b-830f-c53a732dcb5b"
 					(reference "#PWR035")
 					(unit 1)
@@ -12158,7 +12158,7 @@
 			(uuid "2d9eb301-81e7-440b-b75a-6bfe7dddc069")
 		)
 		(instances
-			(project "pico-radio-5"
+			(project "pico-radio-9"
 				(path "/b9640508-dcc6-4f6b-830f-c53a732dcb5b"
 					(reference "L2")
 					(unit 1)
@@ -12226,7 +12226,7 @@
 			(uuid "3bca6c14-b6a2-4883-a948-2d269d94fc82")
 		)
 		(instances
-			(project "pico-radio-5"
+			(project "pico-radio-9"
 				(path "/b9640508-dcc6-4f6b-830f-c53a732dcb5b"
 					(reference "R7")
 					(unit 1)
@@ -12291,7 +12291,7 @@
 			(uuid "3fa35560-7bc4-4e89-bdb1-c70ec8b3a6c2")
 		)
 		(instances
-			(project "pico-radio-5"
+			(project "pico-radio-9"
 				(path "/b9640508-dcc6-4f6b-830f-c53a732dcb5b"
 					(reference "#PWR018")
 					(unit 1)
@@ -12356,7 +12356,7 @@
 			(uuid "98c46d19-25c8-4929-b228-80a2d97cca8b")
 		)
 		(instances
-			(project "pico-radio-5"
+			(project "pico-radio-9"
 				(path "/b9640508-dcc6-4f6b-830f-c53a732dcb5b"
 					(reference "#PWR040")
 					(unit 1)
@@ -12748,7 +12748,7 @@
 			(uuid "77b3f09a-dff8-4617-8002-2d2f8bf184f5")
 		)
 		(instances
-			(project "pico-radio-5"
+			(project "pico-radio-9"
 				(path "/b9640508-dcc6-4f6b-830f-c53a732dcb5b"
 					(reference "Q3")
 					(unit 1)
@@ -12814,7 +12814,7 @@
 			(uuid "66d7c923-688b-4753-a8ec-4c556b0b80b4")
 		)
 		(instances
-			(project "pico-radio-5"
+			(project "pico-radio-9"
 				(path "/b9640508-dcc6-4f6b-830f-c53a732dcb5b"
 					(reference "#PWR019")
 					(unit 1)
@@ -12879,7 +12879,7 @@
 			(uuid "04bd7932-f46b-4e88-9a25-c21e05294972")
 		)
 		(instances
-			(project "pico-radio-5"
+			(project "pico-radio-9"
 				(path "/b9640508-dcc6-4f6b-830f-c53a732dcb5b"
 					(reference "#PWR021")
 					(unit 1)
@@ -12944,7 +12944,7 @@
 			(uuid "defca0ee-321b-4443-aec1-646558e06e12")
 		)
 		(instances
-			(project "pico-radio-5"
+			(project "pico-radio-9"
 				(path "/b9640508-dcc6-4f6b-830f-c53a732dcb5b"
 					(reference "#PWR023")
 					(unit 1)
@@ -12970,7 +12970,7 @@
 				)
 			)
 		)
-		(property "Value" "22nF"
+		(property "Value" "100nF"
 			(at 196.85 137.16 90)
 			(effects
 				(font
@@ -13077,7 +13077,7 @@
 			(uuid "6f6ab2ee-1775-4642-93ca-27ec95ba4d60")
 		)
 		(instances
-			(project "pico-radio-5"
+			(project "pico-radio-9"
 				(path "/b9640508-dcc6-4f6b-830f-c53a732dcb5b"
 					(reference "#PWR034")
 					(unit 1)
@@ -13144,7 +13144,7 @@
 			(uuid "73cf18c0-f2fc-4b73-a18e-6e0276b0ef58")
 		)
 		(instances
-			(project "pico-radio-5"
+			(project "pico-radio-9"
 				(path "/b9640508-dcc6-4f6b-830f-c53a732dcb5b"
 					(reference "JP2")
 					(unit 1)
@@ -13209,7 +13209,7 @@
 			(uuid "5669e31c-09ca-47b7-9331-f36a4868c07e")
 		)
 		(instances
-			(project "pico-radio-5"
+			(project "pico-radio-9"
 				(path "/b9640508-dcc6-4f6b-830f-c53a732dcb5b"
 					(reference "#PWR014")
 					(unit 1)
@@ -13340,7 +13340,7 @@
 			(uuid "8509fcb5-d4b6-49b3-b899-095dbe04771b")
 		)
 		(instances
-			(project "pico-radio-5"
+			(project "pico-radio-9"
 				(path "/b9640508-dcc6-4f6b-830f-c53a732dcb5b"
 					(reference "#PWR030")
 					(unit 1)
@@ -13405,7 +13405,7 @@
 			(uuid "6887211d-6109-4936-af30-7d563c400831")
 		)
 		(instances
-			(project "pico-radio-5"
+			(project "pico-radio-9"
 				(path "/b9640508-dcc6-4f6b-830f-c53a732dcb5b"
 					(reference "#PWR026")
 					(unit 1)
@@ -13472,7 +13472,7 @@
 			(uuid "042beb8a-a6f2-45bb-83e6-a1d81a813f6f")
 		)
 		(instances
-			(project "pico-radio-5"
+			(project "pico-radio-9"
 				(path "/b9640508-dcc6-4f6b-830f-c53a732dcb5b"
 					(reference "C10")
 					(unit 1)
@@ -13537,7 +13537,7 @@
 			(uuid "d9c9f68e-f7ea-4991-a9aa-17cc02e759bf")
 		)
 		(instances
-			(project "pico-radio-5"
+			(project "pico-radio-9"
 				(path "/b9640508-dcc6-4f6b-830f-c53a732dcb5b"
 					(reference "#PWR09")
 					(unit 1)
@@ -13602,7 +13602,7 @@
 			(uuid "0f14977f-2ace-4ab8-b322-81e54a2d7d3e")
 		)
 		(instances
-			(project "pico-radio-5"
+			(project "pico-radio-9"
 				(path "/b9640508-dcc6-4f6b-830f-c53a732dcb5b"
 					(reference "#PWR022")
 					(unit 1)
@@ -13669,7 +13669,7 @@
 			(uuid "06956e32-c693-48d5-b2ad-d25f85a52f99")
 		)
 		(instances
-			(project "pico-radio-5"
+			(project "pico-radio-9"
 				(path "/b9640508-dcc6-4f6b-830f-c53a732dcb5b"
 					(reference "C11")
 					(unit 1)
@@ -13805,7 +13805,7 @@
 			(uuid "d040dee4-d35f-43d6-968c-212828a37b63")
 		)
 		(instances
-			(project "pico-radio-5"
+			(project "pico-radio-9"
 				(path "/b9640508-dcc6-4f6b-830f-c53a732dcb5b"
 					(reference "#PWR011")
 					(unit 1)
@@ -13874,7 +13874,7 @@
 			(uuid "1a94c4ed-7731-4c97-9f7a-4d218ee2446f")
 		)
 		(instances
-			(project "pico-radio-5"
+			(project "pico-radio-9"
 				(path "/b9640508-dcc6-4f6b-830f-c53a732dcb5b"
 					(reference "C9")
 					(unit 1)
@@ -13939,7 +13939,7 @@
 			(uuid "4022cfc8-6498-400c-a9d2-6209e063de71")
 		)
 		(instances
-			(project "pico-radio-5"
+			(project "pico-radio-9"
 				(path "/b9640508-dcc6-4f6b-830f-c53a732dcb5b"
 					(reference "#PWR039")
 					(unit 1)
@@ -14116,7 +14116,7 @@
 			(uuid "9eb6a4df-9a15-4705-b320-8c505f3232ad")
 		)
 		(instances
-			(project "pico-radio-5"
+			(project "pico-radio-9"
 				(path "/b9640508-dcc6-4f6b-830f-c53a732dcb5b"
 					(reference "#PWR031")
 					(unit 1)
@@ -14186,7 +14186,7 @@
 			(uuid "4f15ddc8-0353-4896-bbf7-473a8f4282ec")
 		)
 		(instances
-			(project "pico-radio-5"
+			(project "pico-radio-9"
 				(path "/b9640508-dcc6-4f6b-830f-c53a732dcb5b"
 					(reference "R9")
 					(unit 1)
@@ -14322,7 +14322,7 @@
 			(uuid "6775e191-64b4-4061-9eac-7280e2dac00f")
 		)
 		(instances
-			(project "pico-radio-5"
+			(project "pico-radio-9"
 				(path "/b9640508-dcc6-4f6b-830f-c53a732dcb5b"
 					(reference "L3")
 					(unit 1)
@@ -14390,7 +14390,7 @@
 			(uuid "e105263e-0442-4455-831e-a4bc54754f22")
 		)
 		(instances
-			(project "pico-radio-5"
+			(project "pico-radio-9"
 				(path "/b9640508-dcc6-4f6b-830f-c53a732dcb5b"
 					(reference "R4")
 					(unit 1)
@@ -14455,7 +14455,7 @@
 			(uuid "b9de3618-a832-4045-a905-3635fab32309")
 		)
 		(instances
-			(project "pico-radio-5"
+			(project "pico-radio-9"
 				(path "/b9640508-dcc6-4f6b-830f-c53a732dcb5b"
 					(reference "#PWR033")
 					(unit 1)

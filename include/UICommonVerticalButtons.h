@@ -85,7 +85,9 @@ class UICommonVerticalButtons {
             return;
         }
         rtv::muteStat = event.state == UIButton::EventButtonState::On;
-        ::pSi4735Manager->getSi4735().setAudioMute(rtv::muteStat);
+
+        // Softveresen és harveresen is némítjuk a rádiót
+        ::pSi4735Manager->setHWAndSWAudioMute(rtv::muteStat);
     }
 
     /**

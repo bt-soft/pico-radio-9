@@ -10,18 +10,13 @@
 #include "rtVars.h"
 #include "utils.h"
 
+// Ezt tesztre használjuk, hogy a némított állapotot figyelmen kívül hagyjuk (Az AD + FFT hangolásához)
+#define TEST_DO_NOT_PROCESS_MUTED_STATE
+
 namespace AudioProcessorConstants {
 // // Audio input konstansok
-const uint16_t MAX_SAMPLING_FREQUENCY = 30000; // 30kHz mintavételezés a 15kHz Nyquist limithez
-// const uint16_t MIN_SAMPLING_FREQUENCY = 2000;                          // 1kHz Minimum mintavételezési frekvencia -> 2kHz Nyquist limit
-// const uint16_t DEFAULT_AM_SAMPLING_FREQUENCY = 12000;                  // 12kHz AM mintavételezés, 6kHZ AH sávszélességhez
-// const uint16_t DEFAULT_FM_SAMPLING_FREQUENCY = MAX_SAMPLING_FREQUENCY; // 30kHz FM mintavételezés
-
-// // FFT konstansok
-// const uint16_t MIN_FFT_SAMPLES = 64;
-// const uint16_t MAX_FFT_SAMPLES = 2048;
-const uint16_t DEFAULT_FFT_SAMPLES = 256;
-
+// const uint16_t MAX_SAMPLING_FREQUENCY = 30000; // 30kHz mintavételezés a 15kHz Nyquist limithez
+// const uint16_t DEFAULT_FFT_SAMPLES = 256;
 }; // namespace AudioProcessorConstants
 
 // Színprofilok
@@ -36,31 +31,28 @@ constexpr uint8_t SPECTRUM_FPS = 25;                              // FPS limitá
 
 // ===== ÉRZÉKENYSÉGI / AMPLITÚDÓ SKÁLÁZÁSI KONSTANSOK =====
 
-// SNR Curve sensitivity constants
-constexpr float CW_SNR_CURVE_SENSITIVITY_FACTOR = 0.8f;   // Reduced for better weak signal detection
-constexpr float RTTY_SNR_CURVE_SENSITIVITY_FACTOR = 0.9f; // RTTY SNR görbe érzékenység (kiegyensúlyozott autogain)
-
 // ===== ÉRZÉKENYSÉGI / AMPLITÚDÓ SKÁLÁZÁSI KONSTANSOK =====
 // Minden grafikon mód érzékenységét és amplitúdó skálázását itt lehet módosítani
 // EGYSÉGES LOGIKA: nagyobb érték = nagyobb érzékenység (minden módnál)
 namespace SensitivityConstants {
+
 // Spektrum módok (LowRes és HighRes) - nagyobb érték = nagyobb érzékenység
-constexpr float AMPLITUDE_SCALE = 0.8f; // Spektrum bar-ok amplitúdó skálázása
+constexpr float SPECTRUMBAR_SENSITIVITY_FACTOR = 2.0f; // Spektrum bar-ok amplitúdó skálázása
 
 // Oszcilloszkóp mód - nagyobb érték = nagyobb érzékenység
 constexpr float OSCI_SENSITIVITY_FACTOR = 1.0f; // Oszcilloszkóp jel erősítése
 
 // Envelope mód - nagyobb érték = nagyobb amplitúdó
-constexpr float ENVELOPE_INPUT_GAIN = 2.0f; // Envelope amplitúdó erősítése
+constexpr float ENVELOPE_SENSITIVITY_FACTOR = 2.0f; // Envelope amplitúdó erősítése
 
 // Waterfall mód - nagyobb érték = élénkebb színek
-constexpr float WATERFALL_INPUT_SCALE = 8.0f; // Waterfall intenzitás skálázása
+constexpr float WATERFALL_SENSITIVITY_FACTOR = 8.0f; // Waterfall intenzitás skálázása
 
-// CW/RTTY hangolási segéd - nagyobb érték = élénkebb színek
-constexpr float TUNING_AID_INPUT_SCALE = 3.0f; // Hangolási segéd intenzitás skálázása
+// CW SNR Curve sensitivity constants
+constexpr float CW_SNR_CURVE_SENSITIVITY_FACTOR = 0.8f;
 
-// SNR görbe mód - nagyobb érték = nagyobb amplitúdó
-constexpr float SNR_CURVE_SENSITIVITY_FACTOR = 2.0f; // SNR görbe érzékenység
+// RTTY SNR Curve sensitivity constants
+constexpr float RTTY_SNR_CURVE_SENSITIVITY_FACTOR = 0.9f;
 }; // namespace SensitivityConstants
 
 // Analizátor konstansok
@@ -174,7 +166,7 @@ void UICompSpectrumVis::updateFrameBasedGain(float currentFrameMaxValue) {
 }
 
 /**
- * @brief Átlagos frame maximum kiszámítása
+ * @brief Átlagos frame maximum kiszámítása az AGC-hez
  * @return Az utolsó FRAME_HISTORY_SIZE frame átlagos maximuma
  */
 float UICompSpectrumVis::getAverageFrameMax() const {
@@ -288,12 +280,13 @@ void UICompSpectrumVis::draw() {
     if (Utils::timeHasPassed(lastAgcLogTime, 1000)) {
         float avgFrameMax = getAverageFrameMax();
         bool agc = isAutoGainMode();
-        DEBUG("[UICompSpectrumVis][AGC] mode=%d agc=%d gain=%.3f avgFrameMax=%.1f\n", (int)currentMode_, agc ? 1 : 0, adaptiveGainFactor_, avgFrameMax);
+        DEBUG("[UICompSpectrumVis][AGC] displayMode=%d agc=%s adaptiveGainFactor_=%.3f avgFrameMax=%.1f\n", (int)currentMode_, agc ? "true" : "false", adaptiveGainFactor_, avgFrameMax);
         lastAgcLogTime = currentTime;
     }
 #endif
 
-    // Ha Mute állapotban vagyunk
+    // Ha Mute állapotban vagy vagyunk
+#if not defined TEST_DO_NOT_PROCESS_MUTED_STATE
     if (rtv::muteStat) {
         if (!isMutedDrawn) {
             drawFrame();
@@ -305,15 +298,18 @@ void UICompSpectrumVis::draw() {
         isMutedDrawn = false;
         needBorderDrawn = true; // Muted állapot megszűnt, rajzoljuk újra a keretet
     }
+#endif
 
     if (needBorderDrawn) {
         drawFrame();             // Rajzoljuk meg a keretet, ha szükséges
         needBorderDrawn = false; // Reset the flag after drawing
     }
 
+#if not defined TEST_DO_NOT_PROCESS_MUTED_STATE
     if (rtv::muteStat) {
         return;
     }
+#endif
 
     // Biztonsági ellenőrzés: FM módban CW/RTTY és az SNR hangolássegéd módok nem engedélyezettek
     if (radioMode_ == RadioMode::FM &&                 //
@@ -742,14 +738,15 @@ void UICompSpectrumVis::renderSpectrumLowRes() {
 
     // Core1 spektrum adatok lekérése
     const int16_t *magnitudeData = nullptr;
-    uint16_t actualFftSize = AudioProcessorConstants::DEFAULT_FFT_SAMPLES;
+    uint16_t actualFftSize = 0;
     float currentBinWidthHz = 0.0f;
     float currentAutoGain = 1.0f;
     bool dataAvailable = getCore1SpectrumData(&magnitudeData, &actualFftSize, &currentBinWidthHz, &currentAutoGain);
 
-    // Ha nincs friss adat vagy nincs magnitude adat, vagy a bin szélesség nulla, ne rajzoljunk újra
-    if (!dataAvailable || !magnitudeData || currentBinWidthHz == 0.0f) {
+    // Ha nincs friss adat vagy nincs magnitude adat, ne rajzoljunk újra (megelőzzük a villogást)
+    if (!dataAvailable || !magnitudeData || currentBinWidthHz == 0) {
         // Csak a sprite kirakása a korábbi tartalommal
+        DEBUG("UICompSpectrumVis::renderSpectrumLowRes - Nincs elérhető adat a rajzoláshoz\n");
         sprite_->pushSprite(bounds.x, bounds.y);
         return;
     }
@@ -761,7 +758,7 @@ void UICompSpectrumVis::renderSpectrumLowRes() {
     const int num_bins_in_low_res_range = std::max(1, max_bin_idx_low_res - min_bin_idx_low_res + 1);
 
     // Adaptív autogain használata
-    float adaptiveScale = getAdaptiveScale(SensitivityConstants::AMPLITUDE_SCALE);
+    float adaptiveScale = getAdaptiveScale(SensitivityConstants::SPECTRUMBAR_SENSITIVITY_FACTOR);
 
     // Zajküszöb - alacsony szintű zajt nullázza
     constexpr float NOISE_THRESHOLD = 0.003f; // Experimentális érték, finomhangolható
@@ -858,7 +855,7 @@ void UICompSpectrumVis::renderSpectrumHighRes() {
 
     // Core1 spektrum adatok lekérése
     const int16_t *magnitudeData = nullptr;
-    uint16_t actualFftSize = AudioProcessorConstants::DEFAULT_FFT_SAMPLES;
+    uint16_t actualFftSize = 0;
     float currentBinWidthHz = 0.0f;
     float currentAutoGain = 1.0f;
 
@@ -867,6 +864,7 @@ void UICompSpectrumVis::renderSpectrumHighRes() {
     // Ha nincs friss adat vagy nincs magnitude adat, ne rajzoljunk újra (megelőzzük a villogást)
     if (!dataAvailable || !magnitudeData || currentBinWidthHz == 0) {
         // Csak a sprite kirakása a korábbi tartalommal
+        DEBUG("UICompSpectrumVis::renderSpectrumHighRes - Nincs elérhető adat a rajzoláshoz\n");
         sprite_->pushSprite(bounds.x, bounds.y);
         return;
     }
@@ -878,7 +876,7 @@ void UICompSpectrumVis::renderSpectrumHighRes() {
     const int num_bins_in_display_range = std::max(1, max_bin_idx_for_display - min_bin_idx_for_display + 1);
 
     // Adaptív autogain használata
-    float adaptiveScale = getAdaptiveScale(SensitivityConstants::AMPLITUDE_SCALE);
+    float adaptiveScale = getAdaptiveScale(SensitivityConstants::SPECTRUMBAR_SENSITIVITY_FACTOR);
     float maxMagnitude = 0.0f;
 
     // Zajküszöb - alacsony szintű zajt nullázza
@@ -958,7 +956,10 @@ void UICompSpectrumVis::renderOscilloscope() {
     uint16_t sampleCount = 0;
     bool dataAvailable = getCore1OscilloscopeData(&osciData, &sampleCount);
 
+    // Ha nincs friss adat vagy nincs oszcilloszkóp adat, ne rajzoljunk újra (megelőzzük a villogást)
     if (!dataAvailable || !osciData || sampleCount <= 0) {
+        // Csak a sprite kirakása a korábbi tartalommal
+        DEBUG("UICompSpectrumVis::renderOscilloscope - Nincs elérhető adat a rajzoláshoz\n");
         sprite_->pushSprite(bounds.x, bounds.y);
         return;
     }
@@ -1010,14 +1011,18 @@ void UICompSpectrumVis::renderEnvelope() {
 
     // Core1 spektrum adatok lekérése
     const int16_t *magnitudeData = nullptr;
-    uint16_t actualFftSize = AudioProcessorConstants::DEFAULT_FFT_SAMPLES;
+    uint16_t actualFftSize = 0;
     float currentBinWidthHz = 0.0f;
     float currentAutoGain = 1.0f;
-
     bool dataAvailable = getCore1SpectrumData(&magnitudeData, &actualFftSize, &currentBinWidthHz, &currentAutoGain);
 
-    if (!dataAvailable || currentBinWidthHz == 0)
-        currentBinWidthHz = (AudioProcessorConstants::MAX_SAMPLING_FREQUENCY / AudioProcessorConstants::DEFAULT_FFT_SAMPLES);
+    // Ha nincs friss adat vagy nincs magnitude adat, ne rajzoljunk újra (megelőzzük a villogást)
+    if (!dataAvailable || !magnitudeData || currentBinWidthHz == 0) {
+        // Csak a sprite kirakása a korábbi tartalommal
+        DEBUG("UICompSpectrumVis::renderEnvelope - Nincs elérhető adat a rajzoláshoz\n");
+        sprite_->pushSprite(bounds.x, bounds.y);
+        return;
+    }
 
     // 1. Adatok eltolása balra a wabuf-ban
     for (int r = 0; r < bounds.height; ++r) { // Teljes bounds.height
@@ -1032,10 +1037,11 @@ void UICompSpectrumVis::renderEnvelope() {
     const int num_bins_in_env_range = std::max(1, max_bin_for_env - min_bin_for_env + 1);
 
     // Frame-alapú adaptív skálázás envelope-hoz
-    float adaptiveScale = getAdaptiveScale(SensitivityConstants::ENVELOPE_INPUT_GAIN);
-
+    float adaptiveScale = getAdaptiveScale(SensitivityConstants::ENVELOPE_SENSITIVITY_FACTOR);
     // Konzervatív korlátok envelope-hoz
-    adaptiveScale = constrain(adaptiveScale, SensitivityConstants::ENVELOPE_INPUT_GAIN * 0.1f, SensitivityConstants::ENVELOPE_INPUT_GAIN * 10.0f); // 2. Új adatok betöltése
+    adaptiveScale = constrain(adaptiveScale, SensitivityConstants::ENVELOPE_SENSITIVITY_FACTOR * 0.1f, SensitivityConstants::ENVELOPE_SENSITIVITY_FACTOR * 10.0f);
+
+    // 2. Új adatok betöltése
     // Az Envelope módhoz az magnitudeData értékeit használjuk csökkentett erősítéssel.
     float maxRawMagnitude = 0.0f;
     float maxGainedVal = 0.0f;
@@ -1169,15 +1175,16 @@ void UICompSpectrumVis::renderWaterfall() {
 
     // Core1 spektrum adatok lekérése
     const int16_t *magnitudeData = nullptr;
-    uint16_t actualFftSize = AudioProcessorConstants::DEFAULT_FFT_SAMPLES;
+    uint16_t actualFftSize = 0;
     float currentBinWidthHz = 0.0f;
     float currentAutoGain = 1.0f;
 
     bool dataAvailable = getCore1SpectrumData(&magnitudeData, &actualFftSize, &currentBinWidthHz, &currentAutoGain);
 
-    // Ha nincs friss adat, ne frissítsük a waterfall buffert - megelőzzük a hamis mintákat
+    // Ha nincs friss adat vagy nincs magnitude adat, ne rajzoljunk újra (megelőzzük a villogást)
     if (!dataAvailable || !magnitudeData || currentBinWidthHz == 0) {
         // Csak a sprite kirakása a korábbi tartalommal
+        DEBUG("UICompSpectrumVis::renderWaterfall - Nincs elérhető adat a rajzoláshoz\n");
         sprite_->pushSprite(bounds.x, bounds.y);
         return;
     }
@@ -1198,7 +1205,7 @@ void UICompSpectrumVis::renderWaterfall() {
 
     // Adaptív autogain használata waterfall-hoz
     constexpr float NOISE_THRESHOLD = 0.003f; // Experimentális érték, finomhangolható
-    float adaptiveScale = getAdaptiveScale(SensitivityConstants::WATERFALL_INPUT_SCALE);
+    float adaptiveScale = getAdaptiveScale(SensitivityConstants::WATERFALL_SENSITIVITY_FACTOR);
     float maxMagnitude = 0.0f;
 
     for (int r = 0; r < bounds.height; ++r) {
@@ -1393,14 +1400,17 @@ void UICompSpectrumVis::renderCwOrRttyTuningAid() {
 
     // Core1 spektrum adatok lekérése
     const int16_t *magnitudeData = nullptr;
-    uint16_t actualFftSize = AudioProcessorConstants::DEFAULT_FFT_SAMPLES;
+    uint16_t actualFftSize = 0;
     float currentBinWidthHz = 0.0f;
     float currentAutoGain = 1.0f;
 
     // Lekérjük az adatokat a Core1-ről
     bool dataAvailable = getCore1SpectrumData(&magnitudeData, &actualFftSize, &currentBinWidthHz, &currentAutoGain);
+    // Ha nincs friss adat vagy nincs magnitude adat, ne rajzoljunk újra (megelőzzük a villogást)
     if (!dataAvailable || !magnitudeData || currentBinWidthHz == 0) {
-        // sprite_->pushSprite(bounds.x, bounds.y); // Sprite kirakása a képernyőre
+        // Csak a sprite kirakása a korábbi tartalommal
+        DEBUG("UICompSpectrumVis::renderCwOrRttyTuningAid - Nincs elérhető adat a rajzoláshoz\n");
+        sprite_->pushSprite(bounds.x, bounds.y);
         return;
     }
 
@@ -1414,7 +1424,7 @@ void UICompSpectrumVis::renderCwOrRttyTuningAid() {
     const int num_bins_in_tuning_range = std::max(1, max_bin_for_tuning - min_bin_for_tuning + 1);
 
     // Adaptív autogain használata waterfall-hoz
-    float adaptiveScale = getAdaptiveScale(SensitivityConstants::WATERFALL_INPUT_SCALE);
+    float adaptiveScale = getAdaptiveScale(SensitivityConstants::WATERFALL_SENSITIVITY_FACTOR);
     float maxMagnitude = 0.0f;
 
     // 2. Új adatok betöltése a legfelső sorba INTERPOLÁCIÓVAL (simább tuning aid)
@@ -1524,14 +1534,17 @@ void UICompSpectrumVis::renderSnrCurve() {
 
     // Core1 spektrum adatok lekérése
     const int16_t *magnitudeData = nullptr;
-    uint16_t actualFftSize = AudioProcessorConstants::DEFAULT_FFT_SAMPLES;
+    uint16_t actualFftSize = 0;
     float currentBinWidthHz = 0.0f;
     float currentAutoGain = 1.0f;
 
     // Lekérjük az adatokat a Core1-ről
     bool dataAvailable = getCore1SpectrumData(&magnitudeData, &actualFftSize, &currentBinWidthHz, &currentAutoGain);
+    // Ha nincs friss adat vagy nincs magnitude adat, ne rajzoljunk újra (megelőzzük a villogást)
     if (!dataAvailable || !magnitudeData || currentBinWidthHz == 0) {
-        DEBUG("UICompSpectrumVis::renderSnrCurve - Nem sikerült adatok lekérése\n");
+        // Csak a sprite kirakása a korábbi tartalommal
+        DEBUG("UICompSpectrumVis::renderSnrCurve - Nincs elérhető adat a rajzoláshoz\n");
+        sprite_->pushSprite(bounds.x, bounds.y);
         return;
     }
 
@@ -1575,9 +1588,9 @@ void UICompSpectrumVis::renderSnrCurve() {
     // Adaptív skálázás a módtól függően
     float adaptiveScale;
     if (currentMode_ == DisplayMode::CwSnrCurve) {
-        adaptiveScale = getAdaptiveScale(CW_SNR_CURVE_SENSITIVITY_FACTOR);
+        adaptiveScale = getAdaptiveScale(SensitivityConstants::CW_SNR_CURVE_SENSITIVITY_FACTOR);
     } else {
-        adaptiveScale = getAdaptiveScale(RTTY_SNR_CURVE_SENSITIVITY_FACTOR);
+        adaptiveScale = getAdaptiveScale(SensitivityConstants::RTTY_SNR_CURVE_SENSITIVITY_FACTOR);
     }
     float maxMagnitude = 0.0f;
 

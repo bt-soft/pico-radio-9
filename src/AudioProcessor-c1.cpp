@@ -46,8 +46,8 @@ AudioProcessorC1::AudioProcessorC1()
       manualGain_(1.0f), // manual gain alapértelmezett érték (ha az AGC ki van kapcsolva)
 
       // Zajszűrés alapértelmezett értékek
-      useNoiseReduction_(false), // Alapértelmezetten zajszűrés bekapcsolva
-      smoothingPoints_(0)        // NINCS simítás alapértelmezetten (CW/RTTY miatt!)
+      useNoiseReduction_(true), // Alapértelmezetten zajszűrés bekapcsolva
+      smoothingPoints_(5)       // Alapértelmezett simítás értéke
 {}
 
 /**
@@ -171,7 +171,7 @@ void AudioProcessorC1::reconfigureAudioSampling(uint16_t sampleCount, uint16_t s
 }
 
 /**
- * @brief Alkalmazza a Hanning ablakot a bemeneti adatokra.
+ * @brief A bemeneti FFT adatokra alkalmazza a Hanning ablakot
  * @param data A bemeneti adatok pointere (komplex formátum: re, im, re, im,...).
  * @param size Az adatok mérete (minták száma).
  */
@@ -191,6 +191,7 @@ void AudioProcessorC1::applyHanningWindow(q15_t *data, int size) {
  * @param sharedData A SharedData struktúra referencia, amit fel kell tölteni.
  * @return true, ha a jel meghaladja a küszöböt, különben false.
  */
+[[maybe_unused]] // sehol sem használjuk
 bool AudioProcessorC1::checkSignalThreshold(SharedData &sharedData) {
 
     int32_t maxAbsRaw = 0;
@@ -244,7 +245,7 @@ void AudioProcessorC1::removeDcAndSmooth(const uint16_t *input, int16_t *output,
     // Zajszűrés bekapcsolva - mozgó átlag simítás
     if (smoothingPoints_ == 5) {
         // 5-pontos mozgó átlag (erősebb simítás)
-        // Figyelem: Ez szélesíti az FFT bin-eket! CW/RTTY-nél NEM ajánlott!
+        // Figyelem: Ez szélesíti az FFT bin-eket!
         for (uint16_t i = 0; i < count; i++) {
             int32_t sum = (int32_t)input[i] - ADC_MIDPOINT;
             uint8_t divisor = 1;
@@ -419,7 +420,7 @@ bool AudioProcessorC1::processAndFillSharedData(SharedData &sharedData) {
     // Ez javítja a dinamikát gyenge jelek esetén, és véd a túlvezéreléstől
     applyAgc(sharedData.rawSampleData, sharedData.rawSampleCount);
 
-    // Ha nem kell FFT (pl. SSTV), akkor nem megyünk tovább
+    // Ha nem kell FFT (pl. SSTV, WEFAX), akkor nem megyünk tovább
     if (!useFFT) {
         sharedData.fftSpectrumSize = 0;   // nincs spektrum
         sharedData.dominantFrequency = 0; // nincs domináns frekvencia
