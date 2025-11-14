@@ -523,9 +523,9 @@ bool AudioProcessorC1::processAndFillSharedData(SharedData &sharedData) {
         int32_t abs_im = (im < 0) ? -im : im;
         int32_t mag = (abs_re > abs_im) ? abs_re + (abs_im >> 1) : abs_im + (abs_re >> 1);
 
-        // Scaling: 2x erősítés (1 bit balra shift) - elegendő a láthatósághoz
-        // Az FFT eredmények általában kicsik, de 4x túl nagy volt kis zajokhoz
-        mag = mag << 1; // 2x scaling
+        // Alpha-max-plus-beta-min már ~1.4x túlbecsüli a valós magnitude-ot
+        // Nincs szükség további scalingre - az UI-ban 2x gain elég
+        // mag = mag << 1; // 2x scaling ELTÁVOLÍTVA - túl nagy zajszint!
 
         // Constrain int16_t tartományba (0..32767)
         sharedData.fftSpectrumData[i] = (int16_t)constrain(mag, 0, 32767);
@@ -538,13 +538,24 @@ bool AudioProcessorC1::processAndFillSharedData(SharedData &sharedData) {
     }
 
 #ifdef __ADPROC_DEBUG
-    // Debug: első 10 bin magnitude értéke
+    // Debug: Legnagyobb 5 bin megkeresése és kiírása
     if (sharedData.fftSpectrumSize >= 10) {
-        ADPROC_DEBUG("FFT magnitudes[0-9]: ");
+        // Első 10 bin
+        ADPROC_DEBUG("FFT mag[0-9]: ");
         for (int i = 0; i < 10; i++) {
             ADPROC_DEBUG("%d ", sharedData.fftSpectrumData[i]);
         }
-        ADPROC_DEBUG("\n");
+
+        // MAX érték keresése (DC bin nélkül)
+        int16_t maxVal = 0;
+        int maxIdx = 0;
+        for (int i = 1; i < sharedData.fftSpectrumSize; i++) {
+            if (sharedData.fftSpectrumData[i] > maxVal) {
+                maxVal = sharedData.fftSpectrumData[i];
+                maxIdx = i;
+            }
+        }
+        ADPROC_DEBUG("| MAX: bin[%d]=%.1fkHz val=%d\n", maxIdx, maxIdx * this->currentBinWidthHz / 1000.0f, maxVal);
     }
 #endif
 

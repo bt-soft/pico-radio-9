@@ -30,7 +30,7 @@ constexpr uint8_t SPECTRUM_FPS = 25;                              // FPS limitá
 }; // namespace FftDisplayConstants
 
 // Zajküszöb - alacsony szintű zajt nullázza (int16_t tartományban, már normalizált az AudioProcessor-ban)
-constexpr float NOISE_THRESHOLD = 30.0f; // Zajszűrés: ennél kisebb értékek nullázva (2x scaling után)
+constexpr float NOISE_THRESHOLD = 5.0f; // Zajszűrés: zaj mag ~2-10, jel ~20-200, manual gain 2.0x
 
 // ===== ÉRZÉKENYSÉGI / AMPLITÚDÓ SKÁLÁZÁSI KONSTANSOK =====
 // Minden grafikon mód érzékenységét és amplitúdó skálázását itt lehet módosítani
