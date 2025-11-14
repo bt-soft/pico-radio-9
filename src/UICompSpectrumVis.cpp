@@ -902,8 +902,11 @@ void UICompSpectrumVis::renderSpectrumBar(bool isHighRes) {
                     bar_height_[band_idx] = dsize;
                 } else {
                     if (bar_release_counter == 0 && bar_height_[band_idx] > 1) {
-                        // Ha nincs új nagyobb érték, minden frame-ben 4-el csökkentjük (gyorsabb csillapítás)
-                        bar_height_[band_idx] -= 2;
+                        if (bar_height_[band_idx] - dsize > 8) {
+                            bar_height_[band_idx] -= 4;
+                        } else {
+                            bar_height_[band_idx] -= 2;
+                        }
                         if (bar_height_[band_idx] < 1) {
                             bar_height_[band_idx] = 0;
                         }
