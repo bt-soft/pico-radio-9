@@ -55,7 +55,7 @@ constexpr uint8_t SPECTRUM_FPS = 25;                              // FPS limitá
 constexpr float NOISE_THRESHOLD = 120.0f; // Zajszűrés: zaj magnitúdó értékével
 
 // AGC célkitöltés arány (a spektrum magasságából)
-constexpr float TARGET_MAX_UTILIZATION = 0.80f; // 80% a grafikon magasságából (AGC célmagasság)
+constexpr float TARGET_MAX_UTILIZATION = 0.60f; // 60% a grafikon magasságából (AGC célmagasság)
 
 // ===== ÉRZÉKENYSÉGI / AMPLITÚDÓ SKÁLÁZÁSI KONSTANSOK =====
 // Minden grafikon mód érzékenységét és amplitúdó skálázását itt lehet módosítani
@@ -808,7 +808,6 @@ void UICompSpectrumVis::renderSpectrumBar(bool isHighRes) {
         // Sávokba csoportosított rajzolás (széles oszlopok peak-kel)
         constexpr uint8_t BAR_GAP_PIXELS = 1;
         constexpr uint8_t LOW_RES_BANDS = 24;
-        uint8_t actual_low_res_peak_max_height = graphH > 0 ? graphH - 1 : 0;
         uint8_t bands_to_display = LOW_RES_BANDS;
 
         if (bounds.width < (bands_to_display + (bands_to_display - 1) * BAR_GAP_PIXELS)) {
@@ -855,10 +854,14 @@ void UICompSpectrumVis::renderSpectrumBar(bool isHighRes) {
             }
         }
 
-        // Legnagyobb érték megkeresése az updateFrameBasedGain-hez
-        for (uint8_t band_idx = 0; band_idx < LOW_RES_BANDS; band_idx++) {
-            maxMagnitude = std::max(maxMagnitude, band_magnitudes[band_idx]);
+        // AGC-hez: bar-ok maximum magassága
+        float maxBarMagnitude = 0.0f;
+        for (uint8_t band_idx = 0; band_idx < bands_to_display; band_idx++) {
+            maxBarMagnitude = std::max(maxBarMagnitude, band_magnitudes[band_idx]);
         }
+
+        // AGC-t a bar-ok maximuma alapján számoljuk
+        updateFrameBasedGain(maxBarMagnitude);
 
         DEBUG("Bar debug ----------------------------\n");
         // Sávok kirajzolása
@@ -870,7 +873,9 @@ void UICompSpectrumVis::renderSpectrumBar(bool isHighRes) {
             // UTÁNA erősítés a tiszta (szűrt) jelen
             float adaptiveScale = getAdaptiveScale(SensitivityConstants::LOWRES_SPECTRUMBAR_SENSITIVITY_FACTOR);
             float magnitude = band_magnitudes[band_idx] * adaptiveScale;
-            uint8_t dsize = static_cast<uint8_t>(constrain(magnitude, 0, actual_low_res_peak_max_height));
+
+            uint8_t maxBarHeight = static_cast<uint8_t>(graphH * TARGET_MAX_UTILIZATION);
+            uint8_t dsize = static_cast<uint8_t>(constrain(magnitude, 0, maxBarHeight));
 
             // Zajküszöb alatti bar legyen 1px magas
             if (dsize == 0) {
@@ -886,7 +891,7 @@ void UICompSpectrumVis::renderSpectrumBar(bool isHighRes) {
             // Oszlop magasság gyorsabb csillapítása
             static uint8_t bar_height_[MAX_SPECTRUM_BANDS] = {0};
             // A bar magassága mindig az aktuális dsize vagy a csillapított érték közül a nagyobb
-            // Ha nincs új nagyobb érték, minden frame-ben 2-vel csökkentjük (gyorsabb csillapítás)
+            // Ha nincs új nagyobb érték, minden frame-ben 4-el csökkentjük (gyorsabb csillapítás)
             if (band_idx < MAX_SPECTRUM_BANDS) {
                 if (dsize >= bar_height_[band_idx]) {
                     bar_height_[band_idx] = dsize;
