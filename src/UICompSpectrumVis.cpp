@@ -198,7 +198,7 @@ float UICompSpectrumVis::getAdaptiveScale(float baseConstant) {
     //-1.0f: Disabled, 0.0f: Auto, >0.0f: Manual Gain Factor
     float gainfactor = this->radioMode_ == RadioMode::AM ? config.data.audioFftGainConfigAm : config.data.audioFftGainConfigFm;
 
-    // Ha ki van kapcsolva a gain, akkor egyszeres erősítést használunk
+    // Ha ki van kapcsolva a gain (Disabled), akkor nincs erősítés
     if (gainfactor == -1.0f) {
         gainfactor = 1.0f;
     }
