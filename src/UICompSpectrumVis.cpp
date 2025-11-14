@@ -13,6 +13,14 @@
 // Ezt tesztre használjuk, hogy a némított állapotot figyelmen kívül hagyjuk (Az AD + FFT hangolásához)
 #define TEST_DO_NOT_PROCESS_MUTED_STATE
 
+// UICompSpectrumVis működés debug engedélyezése de csak DEBUG módban
+#define __UISPECTRUM_DEBUG
+#if defined(__DEBUG) && defined(__UISPECTRUM_DEBUG)
+#define UISPECTRUM_DEBUG(fmt, ...) DEBUG(fmt __VA_OPT__(, ) __VA_ARGS__)
+#else
+#define UISPECTRUM_DEBUG(fmt, ...) // Üres makró, ha __DEBUG nincs definiálva
+#endif
+
 namespace AudioProcessorConstants {
 // // Audio input konstansok
 // const uint16_t MAX_SAMPLING_FREQUENCY = 30000; // 30kHz mintavételezés a 15kHz Nyquist limithez
@@ -183,7 +191,7 @@ void UICompSpectrumVis::updateBarBasedGain(float currentBarMaxValue) {
         }
         barAgcLastUpdateTime_ = millis();
 
-        // DEBUG("Bar AGC: currentMax=%.1f gainFactor=%.3f\n", currentBarMaxValue, barAgcGainFactor_);
+        UISPECTRUM_DEBUG("Bar AGC: currentMax=%.1f gainFactor=%.3f\n", currentBarMaxValue, barAgcGainFactor_);
     }
 }
 
@@ -204,7 +212,7 @@ void UICompSpectrumVis::updateMagnitudeBasedGain(float currentMagnitudeMaxValue)
         }
         magnitudeAgcLastUpdateTime_ = millis();
 
-        DEBUG("Magnitude AGC: currentMax=%.1f gainFactor=%.3f\n", currentMagnitudeMaxValue, magnitudeAgcGainFactor_);
+        UISPECTRUM_DEBUG("Magnitude AGC: currentMax=%.1f gainFactor=%.3f\n", currentMagnitudeMaxValue, magnitudeAgcGainFactor_);
     }
 }
 
@@ -378,7 +386,7 @@ void UICompSpectrumVis::draw() {
     // AGC logolás 1mpént, de csak ha be van kapcsolva az auto agc
     static uint32_t lastAgcLogTime = 0;
     if (isAutoGainMode() && Utils::timeHasPassed(lastAgcLogTime, 1000)) {
-        DEBUG("[UICompSpectrumVis][auto AGC] mode=%d barGain=%.3f magGain=%.3f\n", (int)currentMode_, barAgcGainFactor_, magnitudeAgcGainFactor_);
+        UISPECTRUM_DEBUG("[UICompSpectrumVis][auto AGC] mode=%d barGain=%.3f magGain=%.3f\n", (int)currentMode_, barAgcGainFactor_, magnitudeAgcGainFactor_);
         lastAgcLogTime = currentTime;
     }
 #endif
@@ -530,7 +538,7 @@ void UICompSpectrumVis::drawFrame() {
  */
 void UICompSpectrumVis::manageSpriteForMode(DisplayMode modeToPrepareForDisplayMode) {
 
-    DEBUG("UICompSpectrumVis::manageSpriteForMode() - modeToPrepareFor=%d\n", static_cast<int>(modeToPrepareForDisplayMode));
+    UISPECTRUM_DEBUG("UICompSpectrumVis::manageSpriteForMode() - modeToPrepareFor=%d\n", static_cast<int>(modeToPrepareForDisplayMode));
 
     if (spriteCreated_) { // Ha létezik sprite egy korábbi módból
         sprite_->deleteSprite();
@@ -545,9 +553,9 @@ void UICompSpectrumVis::manageSpriteForMode(DisplayMode modeToPrepareForDisplayM
             spriteCreated_ = sprite_->createSprite(bounds.width, graphH);
             if (spriteCreated_) {
                 sprite_->fillSprite(TFT_BLACK); // Kezdeti törlés
-                // DEBUG("UICompSpectrumVis: Sprite létrehozva, méret: %dx%d, bounds.width=%d\n", sprite_->width(), sprite_->height(), bounds.width);
+                UISPECTRUM_DEBUG("UICompSpectrumVis: Sprite létrehozva, méret: %dx%d, bounds.width=%d\n", sprite_->width(), sprite_->height(), bounds.width);
             } else {
-                // DEBUG("UICompSpectrumVis: Sprite létrehozása sikertelen, mód: %d (szélesség:%d, grafikon magasság:%d)\n", static_cast<int>(modeToPrepareFor), bounds.width, graphH);
+                UISPECTRUM_DEBUG("UICompSpectrumVis: Sprite létrehozása sikertelen, mód: %d (szélesség:%d, grafikon magasság:%d)\n", static_cast<int>(modeToPrepareForDisplayMode), bounds.width, graphH);
             }
         }
     }
@@ -606,7 +614,7 @@ uint16_t UICompSpectrumVis::getEffectiveHeight() const {
  */
 void UICompSpectrumVis::setFftParametersForDisplayMode() {
 
-    DEBUG("UICompSpectrumVis::setFftParametersForDisplayMode() - currentMode_=%d\n", static_cast<int>(currentMode_));
+    UISPECTRUM_DEBUG("UICompSpectrumVis::setFftParametersForDisplayMode() - currentMode_=%d\n", static_cast<int>(currentMode_));
 
     if (currentMode_ == DisplayMode::CWWaterfall || currentMode_ == DisplayMode::CwSnrCurve) {
         // CW módok esetén a CW tuning aid használata
@@ -701,7 +709,7 @@ void UICompSpectrumVis::startShowModeIndicator() {
  */
 void UICompSpectrumVis::loadModeFromConfig() {
 
-    DEBUG("UICompSpectrumVis::loadModeFromConfig() - radioMode_=%d\n", static_cast<int>(radioMode_));
+    UISPECTRUM_DEBUG("UICompSpectrumVis::loadModeFromConfig() - radioMode_=%d\n", static_cast<int>(radioMode_));
 
     // Config-ból betöltjük az aktuális rádió módnak megfelelő audio módot
     uint8_t configValue = radioMode_ == RadioMode::FM ? config.data.audioModeFM : config.data.audioModeAM;
@@ -729,7 +737,7 @@ void UICompSpectrumVis::loadModeFromConfig() {
  */
 void UICompSpectrumVis::setCurrentDisplayMode(DisplayMode newdisplayMode) {
 
-    DEBUG("UICompSpectrumVis::setCurrentDisplayMode() - newdisplayMode=%d\n", static_cast<int>(newdisplayMode));
+    UISPECTRUM_DEBUG("UICompSpectrumVis::setCurrentDisplayMode() - newdisplayMode=%d\n", static_cast<int>(newdisplayMode));
 
     // Előző mód megőrzése a tisztításhoz
     lastRenderedMode_ = currentMode_;
@@ -798,7 +806,7 @@ void UICompSpectrumVis::renderSpectrumBar(bool isHighRes) {
     uint8_t graphH = getGraphHeight();
     if (!spriteCreated_ || bounds.width == 0 || graphH <= 0) {
         if (!spriteCreated_) {
-            DEBUG("UICompSpectrumVis::renderSpectrum - Sprite nincs létrehozva\n");
+            UISPECTRUM_DEBUG("UICompSpectrumVis::renderSpectrum - Sprite nincs létrehozva\n");
         }
         return;
     }
@@ -812,7 +820,7 @@ void UICompSpectrumVis::renderSpectrumBar(bool isHighRes) {
 
     // Ha nincs friss adat, ne rajzoljunk újra (megelőzzük a villogást)
     if (!dataAvailable || !magnitudeData || currentBinWidthHz == 0) {
-        DEBUG("UICompSpectrumVis::renderSpectrum - Nincs elérhető adat a rajzoláshoz\n");
+        UISPECTRUM_DEBUG("UICompSpectrumVis::renderSpectrum - Nincs elérhető adat a rajzoláshoz\n");
         sprite_->pushSprite(bounds.x, bounds.y);
         return;
     }
@@ -1023,7 +1031,7 @@ void UICompSpectrumVis::renderOscilloscope() {
     uint8_t graphH = getGraphHeight();
     if (!spriteCreated_ || bounds.width == 0 || graphH <= 0) {
         if (!spriteCreated_) {
-            DEBUG("UICompSpectrumVis::renderOscilloscope - Sprite nincs létrehozva\n");
+            UISPECTRUM_DEBUG("UICompSpectrumVis::renderOscilloscope - Sprite nincs létrehozva\n");
         }
         return;
     }
@@ -1036,7 +1044,7 @@ void UICompSpectrumVis::renderOscilloscope() {
     // Ha nincs friss adat vagy nincs oszcilloszkóp adat, ne rajzoljunk újra (megelőzzük a villogást)
     if (!dataAvailable || !osciData || sampleCount <= 0) {
         // Csak a sprite kirakása a korábbi tartalommal
-        DEBUG("UICompSpectrumVis::renderOscilloscope - Nincs elérhető adat a rajzoláshoz\n");
+        UISPECTRUM_DEBUG("UICompSpectrumVis::renderOscilloscope - Nincs elérhető adat a rajzoláshoz\n");
         sprite_->pushSprite(bounds.x, bounds.y);
         return;
     }
@@ -1077,7 +1085,7 @@ void UICompSpectrumVis::renderEnvelope() {
     int graphH = getGraphHeight();
     if (!spriteCreated_ || bounds.width == 0 || graphH <= 0 || wabuf.empty() || wabuf[0].empty()) {
         if (!spriteCreated_) {
-            DEBUG("UICompSpectrumVis::renderEnvelope - Sprite nincs létrehozva\n");
+            UISPECTRUM_DEBUG("UICompSpectrumVis::renderEnvelope - Sprite nincs létrehozva\n");
         }
         return;
     }
@@ -1092,7 +1100,7 @@ void UICompSpectrumVis::renderEnvelope() {
     // Ha nincs friss adat vagy nincs magnitude adat, ne rajzoljunk újra (megelőzzük a villogást)
     if (!dataAvailable || !magnitudeData || currentBinWidthHz == 0) {
         // Csak a sprite kirakása a korábbi tartalommal
-        DEBUG("UICompSpectrumVis::renderEnvelope - Nincs elérhető adat a rajzoláshoz\n");
+        UISPECTRUM_DEBUG("UICompSpectrumVis::renderEnvelope - Nincs elérhető adat a rajzoláshoz\n");
         sprite_->pushSprite(bounds.x, bounds.y);
         return;
     }
@@ -1244,7 +1252,7 @@ void UICompSpectrumVis::renderWaterfall() {
     int graphH = getGraphHeight();
     if (!spriteCreated_ || bounds.width == 0 || graphH <= 0 || wabuf.empty() || wabuf[0].empty()) {
         if (!spriteCreated_) {
-            DEBUG("UICompSpectrumVis::renderWaterfall - Sprite nincs létrehozva\n");
+            UISPECTRUM_DEBUG("UICompSpectrumVis::renderWaterfall - Sprite nincs létrehozva\n");
         }
         return;
     }
@@ -1260,7 +1268,7 @@ void UICompSpectrumVis::renderWaterfall() {
     // Ha nincs friss adat vagy nincs magnitude adat, ne rajzoljunk újra (megelőzzük a villogást)
     if (!dataAvailable || !magnitudeData || currentBinWidthHz == 0) {
         // Csak a sprite kirakása a korábbi tartalommal
-        DEBUG("UICompSpectrumVis::renderWaterfall - Nincs elérhető adat a rajzoláshoz\n");
+        UISPECTRUM_DEBUG("UICompSpectrumVis::renderWaterfall - Nincs elérhető adat a rajzoláshoz\n");
         sprite_->pushSprite(bounds.x, bounds.y);
         return;
     }
@@ -1378,7 +1386,7 @@ uint16_t UICompSpectrumVis::valueToWaterfallColor(float val, float min_val, floa
  */
 void UICompSpectrumVis::setTuningAidType(TuningAidType type) {
 
-    DEBUG("UICompSpectrumVis::setTuningAidType - Beállítva TuningAidType: %d\n", static_cast<int>(type));
+    UISPECTRUM_DEBUG("UICompSpectrumVis::setTuningAidType - Beállítva TuningAidType: %d\n", static_cast<int>(type));
 
     bool typeChanged = (currentTuningAidType_ != type);
     currentTuningAidType_ = type;
@@ -1441,7 +1449,7 @@ void UICompSpectrumVis::setTuningAidType(TuningAidType type) {
  */
 void UICompSpectrumVis::updateTuningAidParameters() {
 
-    DEBUG("UICompSpectrumVis::updateTuningAidParameters - Frissítés a konfiguráció alapján\n");
+    UISPECTRUM_DEBUG("UICompSpectrumVis::updateTuningAidParameters - Frissítés a konfiguráció alapján\n");
 
     // Újrahívjuk a setTuningAidType-ot az aktuális típussal
     // Ez frissíti a currentTuningAidMinFreqHz_ és currentTuningAidMaxFreqHz_ értékeket
@@ -1463,7 +1471,7 @@ void UICompSpectrumVis::renderCwOrRttyTuningAidWaterfall() {
     int graphH = getGraphHeight();
     if (!spriteCreated_ || bounds.width == 0 || graphH <= 0 || wabuf.empty() || wabuf[0].empty()) {
         if (!spriteCreated_) {
-            DEBUG("UICompSpectrumVis::renderTuningAid - Sprite nincs létrehozva\n");
+            UISPECTRUM_DEBUG("UICompSpectrumVis::renderTuningAid - Sprite nincs létrehozva\n");
         }
         return;
     }
@@ -1479,7 +1487,7 @@ void UICompSpectrumVis::renderCwOrRttyTuningAidWaterfall() {
     // Ha nincs friss adat vagy nincs magnitude adat, ne rajzoljunk újra (megelőzzük a villogást)
     if (!dataAvailable || !magnitudeData || currentBinWidthHz == 0) {
         // Csak a sprite kirakása a korábbi tartalommal
-        DEBUG("UICompSpectrumVis::renderCwOrRttyTuningAid - Nincs elérhető adat a rajzoláshoz\n");
+        UISPECTRUM_DEBUG("UICompSpectrumVis::renderCwOrRttyTuningAid - Nincs elérhető adat a rajzoláshoz\n");
         sprite_->pushSprite(bounds.x, bounds.y);
         return;
     }
@@ -1617,7 +1625,7 @@ void UICompSpectrumVis::renderSnrCurve() {
     // Ha nincs friss adat vagy nincs magnitude adat, ne rajzoljunk újra (megelőzzük a villogást)
     if (!dataAvailable || !magnitudeData || currentBinWidthHz == 0) {
         // Csak a sprite kirakása a korábbi tartalommal
-        DEBUG("UICompSpectrumVis::renderSnrCurve - Nincs elérhető adat a rajzoláshoz\n");
+        UISPECTRUM_DEBUG("UICompSpectrumVis::renderSnrCurve - Nincs elérhető adat a rajzoláshoz\n");
         sprite_->pushSprite(bounds.x, bounds.y);
         return;
     }
@@ -1628,12 +1636,12 @@ void UICompSpectrumVis::renderSnrCurve() {
     // // Megfelelő frekvencia határok és hangolási segéd típus használata a módtól függően
     // if (currentMode_ == DisplayMode::CwSnrCurve) {
     //     if (currentTuningAidType_ != TuningAidType::CW_TUNING || currentTuningAidMinFreqHz_ == 0 || currentTuningAidMaxFreqHz_ == 0) {
-    //         DEBUG("UICompSpectrumVis::renderSnrCurve - CW tuning aid inicializálása\n");
+    //         UISPECTRUM_DEBUG("UICompSpectrumVis::renderSnrCurve - CW tuning aid inicializálása\n");
     //         setTuningAidType(TuningAidType::CW_TUNING);
     //     }
     // } else if (currentMode_ == DisplayMode::RttySnrCurve) {
     //     if (currentTuningAidType_ != TuningAidType::RTTY_TUNING || currentTuningAidMinFreqHz_ == 0 || currentTuningAidMaxFreqHz_ == 0) {
-    //         DEBUG("UICompSpectrumVis::renderSnrCurve - RTTY tuning aid inicializálása\n");
+    //         UISPECTRUM_DEBUG("UICompSpectrumVis::renderSnrCurve - RTTY tuning aid inicializálása\n");
     //         setTuningAidType(TuningAidType::RTTY_TUNING);
     //     }
     // }
@@ -1645,11 +1653,11 @@ void UICompSpectrumVis::renderSnrCurve() {
     if (MIN_FREQ_HZ == 0 || MAX_FREQ_HZ == 0 || MIN_FREQ_HZ >= MAX_FREQ_HZ) {
         static unsigned long lastSnrErrorDebugTime = 0;
         if (Utils::timeHasPassed(lastSnrErrorDebugTime, 10000)) {
-            DEBUG("UICompSpectrumVis::renderSnrCurve - Érvénytelen frekvencia határok: MIN=%.2f, MAX=%.2f, automatikus javítás!\n", MIN_FREQ_HZ, MAX_FREQ_HZ);
+            UISPECTRUM_DEBUG("UICompSpectrumVis::renderSnrCurve - Érvénytelen frekvencia határok: MIN=%.2f, MAX=%.2f, automatikus javítás!\n", MIN_FREQ_HZ, MAX_FREQ_HZ);
             lastSnrErrorDebugTime = millis();
         }
 
-        DEBUG("UICompSpectrumVis::renderSnrCurve - Érvénytelen frekvencia határok miatt alapértelmezett értékek beállítása\n");
+        UISPECTRUM_DEBUG("UICompSpectrumVis::renderSnrCurve - Érvénytelen frekvencia határok miatt alapértelmezett értékek beállítása\n");
         // Állítsuk be az alapértelmezett határokat
         currentTuningAidMinFreqHz_ = AnalyzerConstants::ANALYZER_MIN_FREQ_HZ;
         currentTuningAidMaxFreqHz_ = maxDisplayFrequencyHz_;
@@ -1781,7 +1789,7 @@ void UICompSpectrumVis::renderSnrCurve() {
                 // Töröljük a hátteret 1px margóval
                 sprite_->fillRect(line_x_space - 5 - w - 1, LABEL_Y_POS - 1, w + 2, labelHeight + 2, TFT_BLACK);
 
-                // DEBUG("UICompSpectrumVis::renderSnrCurve - ELŐTTE sprite_->drawString (RTTY Space)\n");
+                // Space címke
                 sprite_->setTextColor(TUNING_AID_RTTY_SPACE_COLOR, TFT_BLACK);
                 sprite_->drawString(freqStr, line_x_space - 5, LABEL_Y_POS);
             }
@@ -1804,6 +1812,7 @@ void UICompSpectrumVis::renderSnrCurve() {
                 // Töröljük a hátteret 1px margóval
                 sprite_->fillRect(line_x_mark + 5 - 1, LABEL_Y_POS - 1, w + 2, labelHeight + 2, TFT_BLACK);
 
+                // Mark címke
                 sprite_->setTextColor(TUNING_AID_RTTY_MARK_COLOR, TFT_BLACK);
                 sprite_->drawString(freqStr, line_x_mark + 5, LABEL_Y_POS);
             }
@@ -1857,7 +1866,7 @@ bool UICompSpectrumVis::getCore1SpectrumData(const float **outData, uint16_t *ou
         if (outAutoGain) {
             *outAutoGain = 0.0f;
         }
-        DEBUG("UICompSpectrumVis::getCore1SpectrumData - érvénytelen shared index: %d\n", activeSharedDataIndex);
+        UISPECTRUM_DEBUG("UICompSpectrumVis::getCore1SpectrumData - érvénytelen shared index: %d\n", activeSharedDataIndex);
         return false;
     }
 
@@ -1887,7 +1896,7 @@ bool UICompSpectrumVis::getCore1OscilloscopeData(const int16_t **outData, uint16
     if (activeSharedDataIndex < 0 || activeSharedDataIndex > 1) {
         *outData = nullptr;
         *outSampleCount = 0;
-        DEBUG("UICompSpectrumVis::getCore1OscilloscopeData - érvénytelen shared index: %d\n", activeSharedDataIndex);
+        UISPECTRUM_DEBUG("UICompSpectrumVis::getCore1OscilloscopeData - érvénytelen shared index: %d\n", activeSharedDataIndex);
         return false;
     }
 
