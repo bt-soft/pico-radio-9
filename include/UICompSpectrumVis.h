@@ -172,8 +172,8 @@ class UICompSpectrumVis : public UIComponent {
     float adaptiveGainFactor_;                    // Frame-alapú adaptív gain faktor
     uint32_t lastGainUpdateTime_;                 // Utolsó gain frissítés ideje
 
-    // AGC: 5 frame-es buffer a bar maximumhoz
-    static constexpr int AGC_BAR_MAX_HISTORY = 5;
+    // AGC: AGC_BAR_MAX_HISTORY frame-es buffer a bar maximumhoz
+    static constexpr int AGC_BAR_MAX_HISTORY = 10;
     float agcBarMaxHistory_[AGC_BAR_MAX_HISTORY] = {0};
     uint8_t agcBarMaxHistoryIndex_ = 0;
 

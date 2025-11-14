@@ -489,6 +489,10 @@ void UICompSpectrumVis::manageSpriteForMode(DisplayMode modeToPrepareForDisplayM
                 // DEBUG("UICompSpectrumVis: Sprite létrehozása sikertelen, mód: %d (szélesség:%d, grafikon magasság:%d)\n", static_cast<int>(modeToPrepareFor), bounds.width, graphH);
             }
         }
+        // Bar magasságok nullázása módváltáskor
+        for (int i = 0; i < MAX_SPECTRUM_BANDS; ++i) {
+            bar_height_[i] = 0;
+        }
     }
 
     // Teljes terület törlése mód váltáskor az előző grafikon eltávolításához
@@ -903,7 +907,7 @@ void UICompSpectrumVis::renderSpectrumBar(bool isHighRes) {
                 } else {
                     if (bar_release_counter == 0 && bar_height_[band_idx] > 1) {
                         if (bar_height_[band_idx] - dsize > 8) {
-                            bar_height_[band_idx] -= 4;
+                            bar_height_[band_idx] -= 6;
                         } else {
                             bar_height_[band_idx] -= 2;
                         }
