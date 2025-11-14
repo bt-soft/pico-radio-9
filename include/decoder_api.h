@@ -22,6 +22,7 @@ enum DecoderId : uint32_t {
  */
 enum RP2040CommandCode : uint32_t {
     CMD_SET_MANUAL_GAIN = 10,
+    CMD_SET_BLOCKING_DMA_MODE = 11,
     CMD_NOP = 0,
     CMD_STOP = 1,
     CMD_SET_CONFIG = 2,

@@ -156,10 +156,10 @@ void ScreenFM::activate() {
 
     // FM audio dekóder indítása (csak FFT, nincs dekóder)
     ::audioController.startAudioController(DecoderId::ID_DECODER_ONLY_FFT, FM_AF_RAW_SAMPLES_SIZE, FM_AF_BANDWIDTH_HZ);
-    ::audioController.setAgcEnabled(false);            // AGC kikapcsolása
-    ::audioController.setManualGain(1.0f);             // Manuális erősítés (1.0 = nincs extra erősítés)
-    ::audioController.setNoiseReductionEnabled(false); // Zajszűrés kikapcsolva (tisztább spektrum)
-    ::audioController.setSmoothingPoints(0);           // Zajszűrés simítási pontok száma (0=nincs)
+    //::audioController.setAgcEnabled(false);            // AGC kikapcsolása
+    //::audioController.setManualGain(1.0f);             // Manuális erősítés (1.0 = nincs extra erősítés)
+    ::audioController.setNoiseReductionEnabled(true); // Zajszűrés bekapcsolva (tisztább spektrum)
+    ::audioController.setSmoothingPoints(5);          // Zajszűrés simítási pontok száma = 5 (erősebb zajszűrés, nincs frekvencia felbontási igény)
 }
 
 /**

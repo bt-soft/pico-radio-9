@@ -402,6 +402,12 @@ void processFifoCommands() {
             rp2040.fifo.push(RP2040ResponseCode::RESP_ACK);
             break;
         }
+        case RP2040CommandCode::CMD_SET_BLOCKING_DMA_MODE: {
+            bool blocking = (rp2040.fifo.pop() != 0);
+            audioProcC1.setBlockingDmaMode(blocking);
+            rp2040.fifo.push(RP2040ResponseCode::RESP_ACK);
+            break;
+        }
     }
 }
 

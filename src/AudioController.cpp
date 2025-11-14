@@ -1,4 +1,3 @@
-
 /**
  * @file AudioController.cpp
  * @brief AudioController osztály implementációja a Core-0 számára
@@ -142,4 +141,14 @@ void AudioController::setManualGain(float gain) {
     rp2040.fifo.push(RP2040CommandCode::CMD_SET_MANUAL_GAIN);
     rp2040.fifo.push(gainBits);
     (void)rp2040.fifo.pop(); // ACK
+}
+
+/**
+ * @brief Beállítja a blokkoló/nem blokkoló DMA módot Core1-en.
+ */
+bool AudioController::setBlockingDmaMode(bool blocking) {
+    rp2040.fifo.push(RP2040CommandCode::CMD_SET_BLOCKING_DMA_MODE);
+    rp2040.fifo.push(blocking ? 1 : 0);
+    uint32_t resp = rp2040.fifo.pop();
+    return resp == RP2040ResponseCode::RESP_ACK;
 }

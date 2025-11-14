@@ -18,7 +18,7 @@
 #include "defines.h"
 
 // AudioProcessor működés debug engedélyezése de csak DEBUG módban
-//#define __ADPROC_DEBUG
+// #define __ADPROC_DEBUG
 #if defined(__DEBUG) && defined(__ADPROC_DEBUG)
 #define ADPROC_DEBUG(fmt, ...) DEBUG(fmt __VA_OPT__(, ) __VA_ARGS__)
 #else
@@ -47,8 +47,8 @@ AudioProcessorC1::AudioProcessorC1()
       manualGain_(1.0f), // manual gain alapértelmezett érték (ha az AGC ki van kapcsolva)
 
       // Zajszűrés alapértelmezett értékek
-      useNoiseReduction_(true), // Alapértelmezetten zajszűrés bekapcsolva
-      smoothingPoints_(5)       // Alapértelmezett simítás értéke
+      useNoiseReduction_(false), // Alapértelmezetten zajszűrés bekapcsolva
+      smoothingPoints_(0)        // Alapértelmezett simítás értéke
 {}
 
 /**

@@ -64,7 +64,7 @@ namespace SensitivityConstants {
 //
 
 // LoweRes Spektrum mód
-constexpr float LOWRES_SPECTRUMBAR_SENSITIVITY_FACTOR = 1.0f; // Spektrum bar-ok amplitúdó skálázása (nagyobb érték: nagyobb sávok)
+constexpr float LOWRES_SPECTRUMBAR_SENSITIVITY_FACTOR = 0.2f; // Spektrum bar-ok amplitúdó skálázása (nagyobb érték: nagyobb sávok)
 
 // HighRes Spektrum mód
 constexpr float HIGHRES_SPECTRUMBAR_SENSITIVITY_FACTOR = 0.12f; // Spektrum bar-ok amplitúdó skálázása
@@ -183,7 +183,7 @@ void UICompSpectrumVis::updateBarBasedGain(float currentBarMaxValue) {
         }
         barAgcLastUpdateTime_ = millis();
 
-        DEBUG("Bar AGC: currentMax=%.1f gainFactor=%.3f\n", currentBarMaxValue, barAgcGainFactor_);
+        // DEBUG("Bar AGC: currentMax=%.1f gainFactor=%.3f\n", currentBarMaxValue, barAgcGainFactor_);
     }
 }
 

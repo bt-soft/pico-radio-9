@@ -36,6 +36,7 @@ class AudioController {
     bool setNoiseReductionEnabled(bool enabled);
     bool setSmoothingPoints(uint32_t points);
     void setManualGain(float gain);
+    bool setBlockingDmaMode(bool blocking);
 
   private:
     DecoderId activeDecoderCore0 = ID_DECODER_NONE;
