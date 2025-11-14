@@ -164,23 +164,26 @@ class UICompSpectrumVis : public UIComponent {
     uint16_t maxDisplayFrequencyHz_;
     float envelopeLastSmoothedValue_;
 
-    // Frame-alapú adaptív autogain rendszer
-    static constexpr int FRAME_HISTORY_SIZE = 16; // Több frame átlagolás a stabilabb működésért
-    float frameMaxHistory_[FRAME_HISTORY_SIZE];   // Frame maximum értékek története
-    int frameHistoryIndex_;                       // Jelenlegi index a circular bufferben
-    bool frameHistoryFull_;                       // Már tele van-e a history buffer
-    float adaptiveGainFactor_;                    // Frame-alapú adaptív gain faktor
-    uint32_t lastGainUpdateTime_;                 // Utolsó gain frissítés ideje
+    // ===== KÖZÖS AGC KONSTANSOK =====
+    static constexpr uint32_t AGC_UPDATE_INTERVAL_MS = 750; // Időalapú AGC frissítés (ms)
+    static constexpr float AGC_TARGET_UTILIZATION = 0.85f;  // 85%-os maximális kitöltés (közös)
+    static constexpr float AGC_SMOOTH_FACTOR = 0.2f;        // Simítási faktor (közös)
+    static constexpr float AGC_MIN_SIGNAL_THRESHOLD = 0.1f; // Minimum jel küszöb (közös)
+    static constexpr int AGC_HISTORY_SIZE = 10;             // History buffer méret (közös)
 
-    // AGC: AGC_BAR_MAX_HISTORY frame-es buffer a bar maximumhoz
-    static constexpr int AGC_BAR_MAX_HISTORY = 10;
-    float agcBarMaxHistory_[AGC_BAR_MAX_HISTORY] = {0};
-    uint8_t agcBarMaxHistoryIndex_ = 0;
+    // ===== BAR-ALAPÚ AGC (Spektrum módok: LowRes, HighRes) =====
+    // Spektrum bar-ok magasságát méri, nem a nyers magnitude-ot
+    float barAgcHistory_[AGC_HISTORY_SIZE] = {0}; // Bar max magasságok története
+    uint8_t barAgcHistoryIndex_ = 0;              // Circular buffer index
+    float barAgcGainFactor_ = 0.02f;              // Bar-alapú gain faktor
+    uint32_t barAgcLastUpdateTime_ = 0;           // Utolsó frissítés időpontja
 
-    static constexpr uint32_t GAIN_UPDATE_INTERVAL_MS = 1000; // Lassabb frissítés a stabilabb működésért
-    static constexpr float TARGET_MAX_UTILIZATION = 0.85f;    // 85%-os maximális kitöltés
-    static constexpr float GAIN_SMOOTH_FACTOR = 0.2f;         // Lassabb simítási faktor a stabilabb működésért
-    static constexpr float MIN_SIGNAL_THRESHOLD = 0.1f;       // Minimum jel küszöb
+    // ===== MAGNITUDE-ALAPÚ AGC (Jel-alapú módok: Envelope, Waterfall, Oszcilloszkóp) =====
+    // Nyers FFT magnitude maximum-ot méri
+    float magnitudeAgcHistory_[AGC_HISTORY_SIZE] = {0}; // Magnitude max értékek története
+    uint8_t magnitudeAgcHistoryIndex_ = 0;              // Circular buffer index
+    float magnitudeAgcGainFactor_ = 0.02f;              // Magnitude-alapú gain faktor
+    uint32_t magnitudeAgcLastUpdateTime_ = 0;           // Utolsó frissítés időpontja
 
     // Sprite handling
     TFT_eSprite *sprite_;
@@ -256,18 +259,22 @@ class UICompSpectrumVis : public UIComponent {
     bool getCore1OscilloscopeData(const int16_t **outData, uint16_t *outSampleCount);
 
     /**
-     * @brief Autogain kezelés
+     * @brief Autogain kezelés - REFAKTORÁLT 2 KÜLÖN AGC RENDSZER
      */
     bool isAutoGainMode();
 
-    /**
-     * @brief Frame-alapú adaptív autogain rendszer
-     */
-    void updateFrameBasedGain(float currentFrameMaxValue);
-    float getAdaptiveScale(float baseConstant);
-    void resetAdaptiveGain();
-    float getCurrentGainFactor() const { return adaptiveGainFactor_; }
-    float getAverageFrameMax() const;
+    // Bar-alapú AGC (Spektrum módok: LowRes, HighRes)
+    void updateBarBasedGain(float currentBarMaxValue);
+    float getBarAgcScale(float baseConstant);
+    void resetBarAgc();
+
+    // Magnitude-alapú AGC (Jel-alapú módok: Envelope, Waterfall, Oszcilloszkóp)
+    void updateMagnitudeBasedGain(float currentMagnitudeMaxValue);
+    float getMagnitudeAgcScale(float baseConstant);
+    void resetMagnitudeAgc();
+
+    // Közös helper
+    float calculateAgcGain(const float *history, int historySize, float currentGainFactor) const;
     float isMutedDrawn;
 
     /**

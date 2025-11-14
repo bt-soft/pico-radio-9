@@ -121,10 +121,10 @@ UICompSpectrumVis::UICompSpectrumVis(int x, int y, int w, int h, RadioMode radio
       lastTouchTime_(0),                               //
       lastFrameTime_(0),                               //
       envelopeLastSmoothedValue_(0.0f),                //
-      frameHistoryIndex_(0),                           //
-      frameHistoryFull_(false),                        //
-      adaptiveGainFactor_(0.02f),                      //
-      lastGainUpdateTime_(0),                          //
+      barAgcGainFactor_(0.02f),                        //
+      barAgcLastUpdateTime_(0),                        //
+      magnitudeAgcGainFactor_(0.02f),                  //
+      magnitudeAgcLastUpdateTime_(0),                  //
       sprite_(nullptr),                                //
       spriteCreated_(false),                           //
       indicatorFontHeight_(0),                         //
@@ -137,11 +137,11 @@ UICompSpectrumVis::UICompSpectrumVis(int x, int y, int w, int h, RadioMode radio
 
     // Peak detection buffer inicializálása
     memset(Rpeak_, 0, sizeof(Rpeak_));
+    memset(bar_height_, 0, sizeof(bar_height_));
 
-    // Frame history buffer inicializálása
-    for (int i = 0; i < FRAME_HISTORY_SIZE; i++) {
-        frameMaxHistory_[i] = 0.0f;
-    }
+    // AGC history bufferek inicializálása
+    memset(barAgcHistory_, 0, sizeof(barAgcHistory_));
+    memset(magnitudeAgcHistory_, 0, sizeof(magnitudeAgcHistory_));
 
     // Waterfall buffer inicializálása
     if (bounds.height > 0 && bounds.width > 0) {
@@ -170,99 +170,131 @@ UICompSpectrumVis::~UICompSpectrumVis() {
 }
 
 /**
- * @brief Frame-alapú adaptív autogain frissítése
- * @param currentFrameMaxValue Jelenlegi frame maximális értéke
+ * @brief Bar-alapú AGC frissítése (Spektrum módok: LowRes, HighRes)
+ * @param currentBarMaxValue Jelenlegi frame legnagyobb bar magassága (már erősített érték)
  */
-void UICompSpectrumVis::updateFrameBasedGain(float currentFrameMaxValue) {
+void UICompSpectrumVis::updateBarBasedGain(float currentBarMaxValue) {
+    // Bar maximum hozzáadása a history bufferhez
+    barAgcHistory_[barAgcHistoryIndex_] = currentBarMaxValue;
+    barAgcHistoryIndex_ = (barAgcHistoryIndex_ + 1) % AGC_HISTORY_SIZE;
 
-    // Frame maximum érték hozzáadása a history bufferhez
-    frameMaxHistory_[frameHistoryIndex_] = currentFrameMaxValue;
-    frameHistoryIndex_ = (frameHistoryIndex_ + 1) % FRAME_HISTORY_SIZE;
-
-    // Jelöljük, hogy már van elég adatunk
-    if (frameHistoryIndex_ == 0) {
-        frameHistoryFull_ = true;
-    }
-
-    // Rendszeres gain frissítés (adatok alapján)
-    if (Utils::timeHasPassed(lastGainUpdateTime_, GAIN_UPDATE_INTERVAL_MS) && frameHistoryFull_) {
-
-        float averageFrameMax = getAverageFrameMax();
-
-        if (averageFrameMax > MIN_SIGNAL_THRESHOLD) {
-            int graphH = getGraphHeight();
-            float targetMaxHeight = graphH * TARGET_MAX_UTILIZATION; // 75% a grafikon magasságából
-            float idealGain = targetMaxHeight / averageFrameMax;
-
-            // Simított átmenet az új gain faktorhoz
-            adaptiveGainFactor_ = GAIN_SMOOTH_FACTOR * idealGain + (1.0f - GAIN_SMOOTH_FACTOR) * adaptiveGainFactor_;
-
-            // Biztonsági korlátok - nagyobb maximum, hogy a sávok látványosabbak legyenek
-            adaptiveGainFactor_ = constrain(adaptiveGainFactor_, 0.001f, 20.0f); // max 20x erősítés
-
-            // Részletes AGC debug log
-            DEBUG("UICompSpectrumVis::updateFrameBasedGain - graphH=%d targetMaxHeight=%.1f averageFrameMax=%.1f idealGain=%.3f adaptiveGainFactor_=%.3f currentFrameMaxValue=%.1f\n", graphH, targetMaxHeight,
-                  averageFrameMax, idealGain, adaptiveGainFactor_, currentFrameMaxValue);
+    // Időalapú gain frissítés
+    if (Utils::timeHasPassed(barAgcLastUpdateTime_, AGC_UPDATE_INTERVAL_MS)) {
+        float newGain = calculateAgcGain(barAgcHistory_, AGC_HISTORY_SIZE, barAgcGainFactor_);
+        if (newGain > 0.0f) {
+            barAgcGainFactor_ = newGain;
         }
+        barAgcLastUpdateTime_ = millis();
 
-        lastGainUpdateTime_ = millis();
+        DEBUG("Bar AGC: currentMax=%.1f gainFactor=%.3f\n", currentBarMaxValue, barAgcGainFactor_);
     }
 }
 
 /**
- * @brief Átlagos frame maximum kiszámítása az AGC-hez
- * @return Az utolsó FRAME_HISTORY_SIZE frame átlagos maximuma
+ * @brief Magnitude-alapú AGC frissítése (Jel-alapú módok: Envelope, Waterfall, Oszcilloszkóp)
+ * @param currentMagnitudeMaxValue Jelenlegi frame legnagyobb magnitude értéke (nyers FFT adat)
  */
-float UICompSpectrumVis::getAverageFrameMax() const {
-    if (!frameHistoryFull_) {
-        // Ha még nincs elég adat, használjunk egy magas értéket,
-        // hogy a gain alacsony maradjon a túlvezérlés elkerülésére
-        return 5000.0f; // Feltételezzük, hogy ez egy tipikus magas érték
-    }
+void UICompSpectrumVis::updateMagnitudeBasedGain(float currentMagnitudeMaxValue) {
+    // Magnitude maximum hozzáadása a history bufferhez
+    magnitudeAgcHistory_[magnitudeAgcHistoryIndex_] = currentMagnitudeMaxValue;
+    magnitudeAgcHistoryIndex_ = (magnitudeAgcHistoryIndex_ + 1) % AGC_HISTORY_SIZE;
 
+    // Időalapú gain frissítés
+    if (Utils::timeHasPassed(magnitudeAgcLastUpdateTime_, AGC_UPDATE_INTERVAL_MS)) {
+        float newGain = calculateAgcGain(magnitudeAgcHistory_, AGC_HISTORY_SIZE, magnitudeAgcGainFactor_);
+        if (newGain > 0.0f) {
+            magnitudeAgcGainFactor_ = newGain;
+        }
+        magnitudeAgcLastUpdateTime_ = millis();
+
+        DEBUG("Magnitude AGC: currentMax=%.1f gainFactor=%.3f\n", currentMagnitudeMaxValue, magnitudeAgcGainFactor_);
+    }
+}
+
+/**
+ * @brief Közös AGC gain számítás
+ * @param history History buffer
+ * @param historySize History buffer mérete
+ * @param currentGainFactor Jelenlegi gain faktor
+ * @return Új gain faktor
+ */
+float UICompSpectrumVis::calculateAgcGain(const float *history, int historySize, float currentGainFactor) const {
+    // History átlag számítása (stabil érték több frame alapján)
     float sum = 0.0f;
-    for (int i = 0; i < FRAME_HISTORY_SIZE; i++) {
-        sum += frameMaxHistory_[i];
+    int validCount = 0;
+    for (int i = 0; i < historySize; i++) {
+        if (history[i] > AGC_MIN_SIGNAL_THRESHOLD) {
+            sum += history[i];
+            validCount++;
+        }
     }
-    return sum / FRAME_HISTORY_SIZE;
+
+    if (validCount == 0) {
+        return currentGainFactor; // Nincs elég jel, megtartjuk a jelenlegi gain-t
+    }
+
+    float averageMax = sum / validCount;
+    int graphH = getGraphHeight();
+    float targetHeight = graphH * AGC_TARGET_UTILIZATION;
+    float idealGain = targetHeight / averageMax;
+
+    // Simított átmenet az új gain-hez
+    float newGain = AGC_SMOOTH_FACTOR * idealGain + (1.0f - AGC_SMOOTH_FACTOR) * currentGainFactor;
+
+    // Biztonsági korlátok
+    return constrain(newGain, 0.001f, 20.0f);
 }
 
 /**
- * @brief Adaptív skálázási faktor lekérése
- * @param baseConstant Alap konstans érték
- * @return Adaptív skálázási faktor
+ * @brief Bar-alapú AGC scale lekérése
+ * @param baseConstant Alap érzékenységi konstans
+ * @return Skálázási faktor
  */
-float UICompSpectrumVis::getAdaptiveScale(float baseConstant) {
-
-    // Auto gain módban az adaptív faktort használjuk
+float UICompSpectrumVis::getBarAgcScale(float baseConstant) {
     if (isAutoGainMode()) {
-        return baseConstant * adaptiveGainFactor_;
+        return baseConstant * barAgcGainFactor_;
     }
 
-    // FFT Gain dB-ben: -999.0f = Auto Gain, -40.0 ... +40.0 dB tartomány
+    // Manual gain mód: dB -> lineáris konverzió
     float gainDb = this->radioMode_ == RadioMode::AM ? config.data.audioFftGainConfigAm : config.data.audioFftGainConfigFm;
-
-    // dB -> lineáris konverzió: gain_linear = 10^(dB/20)
-    // 0 dB = 1.0x, -40 dB = 0.01x, +40 dB = 100x
     float gainLinear = powf(10.0f, gainDb / 20.0f);
-
-    // Az erősítéssel megszorozzuk a bázis konstans értéket
     return baseConstant * gainLinear;
 }
 
 /**
- * @brief Adaptív autogain reset
+ * @brief Magnitude-alapú AGC scale lekérése
+ * @param baseConstant Alap érzékenységi konstans
+ * @return Skálázási faktor
  */
-void UICompSpectrumVis::resetAdaptiveGain() {
-    adaptiveGainFactor_ = 0.02f; // Alacsony kezdeti érték a túlvezérlés elkerülésére
-    frameHistoryIndex_ = 0;
-    frameHistoryFull_ = false;
-    lastGainUpdateTime_ = millis();
-
-    // Frame history buffer resetelése
-    for (int i = 0; i < FRAME_HISTORY_SIZE; i++) {
-        frameMaxHistory_[i] = 0.0f;
+float UICompSpectrumVis::getMagnitudeAgcScale(float baseConstant) {
+    if (isAutoGainMode()) {
+        return baseConstant * magnitudeAgcGainFactor_;
     }
+
+    // Manual gain mód: dB -> lineáris konverzió
+    float gainDb = this->radioMode_ == RadioMode::AM ? config.data.audioFftGainConfigAm : config.data.audioFftGainConfigFm;
+    float gainLinear = powf(10.0f, gainDb / 20.0f);
+    return baseConstant * gainLinear;
+}
+
+/**
+ * @brief Bar-alapú AGC reset
+ */
+void UICompSpectrumVis::resetBarAgc() {
+    memset(barAgcHistory_, 0, sizeof(barAgcHistory_));
+    barAgcHistoryIndex_ = 0;
+    barAgcGainFactor_ = 0.02f;
+    barAgcLastUpdateTime_ = 0;
+}
+
+/**
+ * @brief Magnitude-alapú AGC reset
+ */
+void UICompSpectrumVis::resetMagnitudeAgc() {
+    memset(magnitudeAgcHistory_, 0, sizeof(magnitudeAgcHistory_));
+    magnitudeAgcHistoryIndex_ = 0;
+    magnitudeAgcGainFactor_ = 0.02f;
+    magnitudeAgcLastUpdateTime_ = 0;
 }
 
 /**
@@ -316,8 +348,7 @@ void UICompSpectrumVis::draw() {
     // AGC logolás 1mpént, de csak ha be van kapcsolva az auto agc
     static uint32_t lastAgcLogTime = 0;
     if (isAutoGainMode() && Utils::timeHasPassed(lastAgcLogTime, 1000)) {
-        float avgFrameMax = getAverageFrameMax();
-        DEBUG("[UICompSpectrumVis][auto AGC] displayMode=%d adaptiveGainFactor_=%.3f avgFrameMax=%.1f\n", (int)currentMode_, adaptiveGainFactor_, avgFrameMax);
+        DEBUG("[UICompSpectrumVis][auto AGC] mode=%d barGain=%.3f magGain=%.3f\n", (int)currentMode_, barAgcGainFactor_, magnitudeAgcGainFactor_);
         lastAgcLogTime = currentTime;
     }
 #endif
@@ -783,7 +814,7 @@ void UICompSpectrumVis::renderSpectrumBar(bool isHighRes) {
             }
 
             // UTÁNA erősítés a tiszta jelen
-            float adaptiveScale = getAdaptiveScale(SensitivityConstants::HIGHRES_SPECTRUMBAR_SENSITIVITY_FACTOR);
+            float adaptiveScale = getBarAgcScale(SensitivityConstants::HIGHRES_SPECTRUMBAR_SENSITIVITY_FACTOR);
             float amplified = magnitude * adaptiveScale;
             maxMagnitude = std::max(maxMagnitude, amplified);
 
@@ -865,15 +896,8 @@ void UICompSpectrumVis::renderSpectrumBar(bool isHighRes) {
             maxBarMagnitude = std::max(maxBarMagnitude, band_magnitudes[band_idx]);
         }
 
-        // AGC: 5 frame-es bufferbe mentjük a bar maximumot
-        agcBarMaxHistory_[agcBarMaxHistoryIndex_] = maxBarMagnitude;
-        agcBarMaxHistoryIndex_ = (agcBarMaxHistoryIndex_ + 1) % AGC_BAR_MAX_HISTORY;
-        // AGC-t az elmúlt 5 frame legnagyobb bar értéke alapján számoljuk
-        float agcBarHistoryMax = 0.0f;
-        for (uint8_t i = 0; i < AGC_BAR_MAX_HISTORY; ++i) {
-            agcBarHistoryMax = std::max(agcBarHistoryMax, agcBarMaxHistory_[i]);
-        }
-        updateFrameBasedGain(agcBarHistoryMax);
+        // Bar-alapú AGC frissítés (LowRes: maxBarMagnitude a legnagyobb sáv magnitude értéke)
+        updateBarBasedGain(maxBarMagnitude);
 
         // Sávok kirajzolása
         for (uint8_t band_idx = 0; band_idx < bands_to_display; band_idx++) {
@@ -882,7 +906,7 @@ void UICompSpectrumVis::renderSpectrumBar(bool isHighRes) {
             sprite_->fillRect(x_pos, 0, bar_width, graphH, TFT_BLACK);
 
             // UTÁNA erősítés a tiszta (szűrt) jelen
-            float adaptiveScale = getAdaptiveScale(SensitivityConstants::LOWRES_SPECTRUMBAR_SENSITIVITY_FACTOR);
+            float adaptiveScale = getBarAgcScale(SensitivityConstants::LOWRES_SPECTRUMBAR_SENSITIVITY_FACTOR);
             float magnitude = band_magnitudes[band_idx] * adaptiveScale;
 
             uint8_t maxBarHeight = static_cast<uint8_t>(graphH * TARGET_MAX_UTILIZATION);
@@ -951,8 +975,8 @@ void UICompSpectrumVis::renderSpectrumBar(bool isHighRes) {
         }
     }
 
-    // Frissítjük az automatikus gain-et a frame-alapú maximum alapján
-    updateFrameBasedGain(maxMagnitude);
+    // Frissítjük a bar-alapú AGC-t (HighRes: maxMagnitude a legnagyobb bar magasság)
+    updateBarBasedGain(maxMagnitude);
 
     // Sprite kirakása
     sprite_->pushSprite(bounds.x, bounds.y);
@@ -1054,8 +1078,8 @@ void UICompSpectrumVis::renderEnvelope() {
     const uint8_t max_bin_for_env = std::min(static_cast<int>(actualFftSize - 1), static_cast<int>(std::round(maxDisplayFrequencyHz_ * 0.2f / currentBinWidthHz)));
     const uint8_t num_bins_in_env_range = std::max(1, max_bin_for_env - min_bin_for_env + 1);
 
-    // Frame-alapú adaptív skálázás envelope-hoz
-    float adaptiveScale = getAdaptiveScale(SensitivityConstants::ENVELOPE_SENSITIVITY_FACTOR);
+    // Magnitude-alapú adaptív skálázás envelope-hoz
+    float adaptiveScale = getMagnitudeAgcScale(SensitivityConstants::ENVELOPE_SENSITIVITY_FACTOR);
     // Konzervatív korlátok envelope-hoz
     adaptiveScale = constrain(adaptiveScale, SensitivityConstants::ENVELOPE_SENSITIVITY_FACTOR * 0.1f, SensitivityConstants::ENVELOPE_SENSITIVITY_FACTOR * 10.0f);
 
@@ -1175,6 +1199,9 @@ void UICompSpectrumVis::renderEnvelope() {
         }
     }
 
+    // Frissítjük a magnitude-alapú AGC-t (Envelope: maxRawMagnitude a legnagyobb nyers FFT magnitude)
+    updateMagnitudeBasedGain(maxRawMagnitude);
+
     sprite_->pushSprite(bounds.x, bounds.y);
 }
 
@@ -1220,9 +1247,9 @@ void UICompSpectrumVis::renderWaterfall() {
     const int num_bins_in_wf_range = std::max(1, max_bin_for_wf - min_bin_for_wf + 1);
 
     // 2. Új adatok betöltése a wabuf jobb szélére (a wabuf továbbra is bounds.height magas)
-    // Adaptív autogain használata waterfall-hoz
-    float adaptiveScale = getAdaptiveScale(SensitivityConstants::WATERFALL_SENSITIVITY_FACTOR);
-    float maxMagnitude = 0.0f;
+    // Magnitude-alapú AGC használata waterfall-hoz
+    float adaptiveScale = getMagnitudeAgcScale(SensitivityConstants::WATERFALL_SENSITIVITY_FACTOR);
+    float maxRawMagnitude = 0.0f;
 
     for (int r = 0; r < bounds.height; ++r) {
         // 'r' (0 to bounds.height-1) leképezése FFT bin indexre a szűkített tartományon belül
@@ -1235,9 +1262,11 @@ void UICompSpectrumVis::renderWaterfall() {
             rawMagnitude = 0.0f;
         }
 
+        // Debug: gyűjtjük a legnagyobb nyers magnitude-ot az AGC-hez
+        maxRawMagnitude = std::max(maxRawMagnitude, rawMagnitude);
+
         // UTÁNA erősítés a tiszta jelen
         float amplified = rawMagnitude * adaptiveScale;
-        maxMagnitude = std::max(maxMagnitude, amplified);
 
         uint8_t finalValue = static_cast<uint8_t>(constrain(amplified, 0.0f, 255.0f));
 
@@ -1279,8 +1308,8 @@ void UICompSpectrumVis::renderWaterfall() {
         sprite_->drawPixel(bounds.width - 1, y_on_sprite, color);
     }
 
-    // Adaptív autogain frissítése
-    updateFrameBasedGain(maxMagnitude);
+    // Frissítjük a magnitude-alapú AGC-t (Waterfall: maxRawMagnitude a legnagyobb nyers FFT magnitude)
+    updateMagnitudeBasedGain(maxRawMagnitude);
 
     // Sprite kirakása a képernyőre
     sprite_->pushSprite(bounds.x, bounds.y);
@@ -1434,15 +1463,15 @@ void UICompSpectrumVis::renderCwOrRttyTuningAidWaterfall() {
     const int max_bin_for_tuning = std::min(static_cast<int>(actualFftSize - 1), static_cast<int>(std::round(currentTuningAidMaxFreqHz_ / currentBinWidthHz)));
     const int num_bins_in_tuning_range = std::max(1, max_bin_for_tuning - min_bin_for_tuning + 1);
 
-    // Adaptív skálázás a módtól függően
+    // Magnitude-alapú adaptív skálázás a módtól függően
     float adaptiveScale;
     if (currentMode_ == DisplayMode::CWWaterfall) {
-        adaptiveScale = getAdaptiveScale(SensitivityConstants::CW_TUNING_AID_WATERFALL_SENSITIVITY_FACTOR);
+        adaptiveScale = getMagnitudeAgcScale(SensitivityConstants::CW_TUNING_AID_WATERFALL_SENSITIVITY_FACTOR);
     } else {
-        adaptiveScale = getAdaptiveScale(SensitivityConstants::RTTY_TUNING_AID_WATERFALL_SENSITIVITY_FACTOR);
+        adaptiveScale = getMagnitudeAgcScale(SensitivityConstants::RTTY_TUNING_AID_WATERFALL_SENSITIVITY_FACTOR);
     }
 
-    float maxMagnitude = 0.0f;
+    float maxRawMagnitude = 0.0f;
 
     // 2. Új adatok betöltése a legfelső sorba INTERPOLÁCIÓVAL (simább tuning aid)
     constexpr int WF_GRADIENT = 100;
@@ -1456,7 +1485,7 @@ void UICompSpectrumVis::renderCwOrRttyTuningAidWaterfall() {
         // A getInterpolatedMagnitude már normalizált float-ot ad vissza
         float rawMagnitude = getInterpolatedMagnitude(magnitudeData, exact_bin_index, min_bin_for_tuning, max_bin_for_tuning);
 
-        maxMagnitude = std::max(maxMagnitude, static_cast<float>(rawMagnitude));
+        maxRawMagnitude = std::max(maxRawMagnitude, rawMagnitude);
         float scaledMagnitude = rawMagnitude * adaptiveScale;
         uint8_t finalValue = static_cast<uint8_t>(constrain(scaledMagnitude, 0.0, 255.0));
         wabuf[0][c] = finalValue;
@@ -1466,8 +1495,8 @@ void UICompSpectrumVis::renderCwOrRttyTuningAidWaterfall() {
         sprite_->drawPixel(c, 0, color);
     }
 
-    // Adaptív autogain frissítése
-    updateFrameBasedGain(maxMagnitude);
+    // Frissítjük a magnitude-alapú AGC-t
+    updateMagnitudeBasedGain(maxRawMagnitude);
 
     uint16_t min_freq_displayed = currentTuningAidMinFreqHz_;
     uint16_t max_freq_displayed = currentTuningAidMaxFreqHz_;
@@ -1532,9 +1561,6 @@ void UICompSpectrumVis::renderCwOrRttyTuningAidWaterfall() {
 
     // Sprite kirakása a képernyőre
     sprite_->pushSprite(bounds.x, bounds.y);
-
-    // Adaptív autogain frissítése
-    updateFrameBasedGain(maxMagnitude);
 
     // Frekvencia feliratok rajzolása, ha még nem történt meg
     renderFrequencyRangeLabels(min_freq_displayed, max_freq_displayed);
@@ -1625,12 +1651,12 @@ void UICompSpectrumVis::renderSnrCurve() {
             rawMagnitude = 0.0f;
         }
 
-        // Adaptív skálázás a módtól függően
+        // Magnitude-alapú adaptív skálázás a módtól függően
         float adaptiveScale;
         if (currentMode_ == DisplayMode::CwSnrCurve) {
-            adaptiveScale = getAdaptiveScale(SensitivityConstants::CW_TUNING_AID_SNR_CURVE_SENSITIVITY_FACTOR);
+            adaptiveScale = getMagnitudeAgcScale(SensitivityConstants::CW_TUNING_AID_SNR_CURVE_SENSITIVITY_FACTOR);
         } else {
-            adaptiveScale = getAdaptiveScale(SensitivityConstants::RTTY_TUNING_AID_SNR_CURVE_SENSITIVITY_FACTOR);
+            adaptiveScale = getMagnitudeAgcScale(SensitivityConstants::RTTY_TUNING_AID_SNR_CURVE_SENSITIVITY_FACTOR);
         }
 
         // UTÁNA erősítés a tiszta jelen
@@ -1754,11 +1780,11 @@ void UICompSpectrumVis::renderSnrCurve() {
         }
     }
 
+    // Frissítjük a magnitude-alapú AGC-t
+    updateMagnitudeBasedGain(maxMagnitude);
+
     // Sprite kirakása a képernyőre
     sprite_->pushSprite(bounds.x, bounds.y);
-
-    // Adaptív autogain frissítése
-    updateFrameBasedGain(maxMagnitude);
 
     // Frekvencia feliratok rajzolása alsó részen
     renderFrequencyRangeLabels(static_cast<uint16_t>(MIN_FREQ_HZ), static_cast<uint16_t>(MAX_FREQ_HZ));
