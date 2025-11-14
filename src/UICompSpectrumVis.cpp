@@ -21,8 +21,9 @@ namespace AudioProcessorConstants {
 
 // Színprofilok
 namespace FftDisplayConstants {
-const uint16_t colors0[16] = {0x0000, 0x000F, 0x001F, 0x081F, 0x0810, 0x0800, 0x0C00, 0x1C00, 0xFC00, 0xFDE0, 0xFFE0, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF}; // Cold
-const uint16_t colors1[16] = {0x0000, 0x1000, 0x2000, 0x4000, 0x8000, 0xC000, 0xF800, 0xF8A0, 0xF9C0, 0xFD20, 0xFFE0, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF}; // Hot
+const uint16_t waterFallColors_0[16] = {0x0000, 0x000F, 0x001F, 0x081F, 0x0810, 0x0800, 0x0C00, 0x1C00, 0xFC00, 0xFDE0, 0xFFE0, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF}; // Cold
+const uint16_t waterFallColors_1[16] = {0x0000, 0x1000, 0x2000, 0x4000, 0x8000, 0xC000, 0xF800, 0xF8A0, 0xF9C0, 0xFD20, 0xFFE0, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF}; // Hot
+#define WATERFALL_COLOR_INDEX 0
 
 constexpr uint16_t MODE_INDICATOR_VISIBLE_TIMEOUT_MS = 10 * 1000; // A mód indikátor kiírásának láthatósága x másodpercig
 constexpr uint8_t SPECTRUM_FPS = 25;                              // FPS limitálás konstans, ez még élvezhető vizualizációt ad, maradjon így 20 FPS-en
@@ -1182,7 +1183,7 @@ void UICompSpectrumVis::renderWaterfall() {
         float interpolated_val = val_lower * (1.0f - frac) + val_upper * frac;
 
         // Szín konverzió
-        uint16_t color = valueToWaterfallColor(WF_GRADIENT * interpolated_val, 0.0f, 255.0f * WF_GRADIENT, 0);
+        uint16_t color = valueToWaterfallColor(WF_GRADIENT * interpolated_val, 0.0f, 255.0f * WF_GRADIENT, WATERFALL_COLOR_INDEX);
         sprite_->drawPixel(bounds.width - 1, y_on_sprite, color);
     }
 
@@ -1202,7 +1203,7 @@ void UICompSpectrumVis::renderWaterfall() {
  * @brief Waterfall szín meghatározása
  */
 uint16_t UICompSpectrumVis::valueToWaterfallColor(float val, float min_val, float max_val, byte colorProfileIndex) {
-    const uint16_t *colors = (colorProfileIndex == 0) ? FftDisplayConstants::colors0 : FftDisplayConstants::colors1;
+    const uint16_t *colors = (colorProfileIndex == 0) ? FftDisplayConstants::waterFallColors_0 : FftDisplayConstants::waterFallColors_1;
     byte color_size = 16;
 
     if (val < min_val)
@@ -1363,7 +1364,7 @@ void UICompSpectrumVis::renderCwOrRttyTuningAid() {
         wabuf[0][c] = finalValue;
 
         // Csak a legfelső sort rajzoljuk ki (y=0) interpolált értékkel
-        uint16_t color = valueToWaterfallColor(WF_GRADIENT * finalValue, 0.0f, 255.0f * WF_GRADIENT, 0);
+        uint16_t color = valueToWaterfallColor(WF_GRADIENT * finalValue, 0.0f, 255.0f * WF_GRADIENT, WATERFALL_COLOR_INDEX);
         sprite_->drawPixel(c, 0, color);
     }
 
