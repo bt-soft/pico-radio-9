@@ -190,7 +190,7 @@ class UICompSpectrumVis : public UIComponent {
     uint16_t currentTuningAidMinFreqHz_;
     uint16_t currentTuningAidMaxFreqHz_;
 
-    // Waterfall buffer - egyszerűsített 2D vektor
+    // Envelope és Waterfall buffer - egyszerűsített 2D vektor
     std::vector<std::vector<uint8_t>> wabuf;
 
     /**
@@ -203,8 +203,7 @@ class UICompSpectrumVis : public UIComponent {
      * @brief Renderelő függvények
      */
     void renderOffMode();
-    void renderSpectrumLowRes();
-    void renderSpectrumHighRes();
+    void renderSpectrum(bool isHighRes);
     void renderOscilloscope();
     void renderWaterfall();
     void renderEnvelope();
@@ -241,12 +240,12 @@ class UICompSpectrumVis : public UIComponent {
      * @param maxBin Maximum megengedett bin index
      * @return Interpolált magnitude érték
      */
-    float getInterpolatedMagnitude(const int16_t *magnitudeData, float exactBinIndex, int minBin, int maxBin) const;
+    float getInterpolatedMagnitude(const float *magnitudeData, float exactBinIndex, int minBin, int maxBin) const;
 
     /**
      * @brief Core1 audio adatok kezelése
      */
-    bool getCore1SpectrumData(const int16_t **outData, uint16_t *outSize, float *outBinWidth, float *outAutoGain);
+    bool getCore1SpectrumData(const float **outData, uint16_t *outSize, float *outBinWidth, float *outAutoGain);
     bool getCore1OscilloscopeData(const int16_t **outData, uint16_t *outSampleCount);
 
     /**

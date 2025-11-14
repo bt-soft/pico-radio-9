@@ -48,9 +48,9 @@ class IDecoder {
     /**
      * @brief Domináns frekvencia és amplitúdó feldolgozása
      * @param dominantFrequency Domináns frekvencia Hz-ben
-     * @param dominantAmplitude Amplitúdó a domináns frekvencián
+     * @param dominantAmplitude Amplitúdó a domináns frekvencián (FLOAT - Arduino FFT)
      */
-    virtual void processDomFreq(uint32_t dominantFrequency, int16_t dominantAmplitude) { //
+    virtual void processDomFreq(uint32_t dominantFrequency, float dominantAmplitude) { //
         DEBUG("IDecoder::processDomFreq - Alapértelmezett üres implementáció\n");
     };
 };

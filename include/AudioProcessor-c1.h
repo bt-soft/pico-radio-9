@@ -1,5 +1,5 @@
 #pragma once
-#include <arm_math.h>
+#include <ArduinoFFT.h>
 #include <vector>
 
 #include "AdcDma-c1.h"
@@ -40,10 +40,9 @@ class AudioProcessorC1 {
     bool isRunning() { return is_running; }
 
   private:
-    void applyHanningWindow(q15_t *data, int size);
-    bool checkSignalThreshold(SharedData &sharedData);
-    void applyAgc(int16_t *samples, uint16_t count);
     void removeDcAndSmooth(const uint16_t *input, int16_t *output, uint16_t count);
+    void applyAgc(int16_t *samples, uint16_t count);
+    bool checkSignalThreshold(SharedData &sharedData);
 
     AdcDmaC1 adcDmaC1;
     AdcDmaC1::CONFIG adcConfig;
@@ -51,18 +50,24 @@ class AudioProcessorC1 {
     bool is_running;
     bool useBlockingDma; // Blokkoló (true) vagy nem-blokkoló (false) DMA mód
 
-    // FFT-hez kapcsolódó tagváltozók
-    arm_cfft_instance_q15 fft_inst;   // CMSIS CFFT instance
-    std::vector<q15_t> fftInput;      // Bemeneti puffer a CFFT számára (heap-en)
-    std::vector<q15_t> hanningWindow; // Hanning ablak táblázat
+    // FFT-hez kapcsolódó tagváltozók (Arduino FFT - FLOAT)
+    ArduinoFFT<float> FFT;           // Arduino FFT objektum
+    std::vector<float> vReal;        // FFT valós komponens (input/output)
+    std::vector<float> vImag;        // FFT imaginárius komponens
+    std::vector<float> fftMagnitude; // FFT magnitúdó (output)
+    uint16_t currentFftSize;         // Aktuális FFT méret
 
     // Az aktuális FFT bin szélesség, amelyet a konfiguráció során számoltunk ki (Hz)
     float currentBinWidthHz = 0.0f;
 
+    // // Alacsony frekvenciás szűrés konstansai (a spektrum megjelenítés minőségének javítása)
+    // static constexpr float LOW_FREQ_ATTENUATION_THRESHOLD_HZ = 300.0f; // Ez alatti frekvenciákat csillapítunk
+    // static constexpr float LOW_FREQ_ATTENUATION_FACTOR = 50.0f;          // Ezzel a faktorral osztjuk az alacsony frekvenciák magnitúdóját
+
     // AGC (Automatikus Erősítésszabályozás) paraméterek
     float agcLevel_;       // AGC mozgó átlag szint
     float agcAlpha_;       // AGC szűrési állandó (exponenciális mozgó átlag)
-    float agcTargetPeak_;  // Cél amplitúdó q15 formátumban
+    float agcTargetPeak_;  // Cél amplitúdó
     float agcMinGain_;     // Minimum erősítés
     float agcMaxGain_;     // Maximum erősítés
     float currentAgcGain_; // Aktuális erősítési faktor

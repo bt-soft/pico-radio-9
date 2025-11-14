@@ -3,7 +3,6 @@
 
 #include "IDecoder.h"
 #include "RingBuffer.h"
-#include "arm_math.h"
 
 /**
  * @brief RTTY dekóder Core1-en

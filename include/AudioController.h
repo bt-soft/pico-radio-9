@@ -2,7 +2,6 @@
 
 #include <stdint.h>
 
-#include "arm_math.h"
 #include "decoder_api.h"
 #include "defines.h"
 

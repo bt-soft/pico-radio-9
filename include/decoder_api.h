@@ -85,12 +85,12 @@ struct SharedData {
     uint16_t rawSampleCount;
     int16_t rawSampleData[MAX_RAW_SAMPLES_SIZE];
 
-    // FFT spektrum adatok
+    // FFT spektrum adatok (FLOAT - Arduino FFT-hez)
     uint16_t fftSpectrumSize;
-    int16_t fftSpectrumData[MAX_FFT_SPECTRUM_SIZE];
+    float fftSpectrumData[MAX_FFT_SPECTRUM_SIZE];
 
     uint32_t dominantFrequency; // Domináns frekvencia Hz-ben
-    int16_t dominantAmplitude;  // Amplitúdó a domináns frekvencián
+    float dominantAmplitude;    // Amplitúdó a domináns frekvencián (FLOAT - Arduino FFT)
     float fftBinWidthHz;        // FFT bin szélessége Hz-ben
 
     // Opcionális futási megjelenítési határok, amelyeket a Core1 tölt ki, amikor a dekóder konfigurációja megváltozik

@@ -37,17 +37,21 @@ constexpr float NOISE_THRESHOLD = 5.0f; // Zajszűrés: zaj mag ~2-10, jel ~20-2
 // EGYSÉGES LOGIKA: nagyobb érték = nagyobb érzékenység (minden módnál)
 namespace SensitivityConstants {
 
+//
+// TODO: Az érzékenységi értékek az Si4703 50-es hangerőssége mellett a kapcsrajznak megfelelő hardveren lettek beállítva
+//
+
 // Spektrum módok (LowRes és HighRes) - nagyobb érték = nagyobb érzékenység
-constexpr float SPECTRUMBAR_SENSITIVITY_FACTOR = 2.0f; // Spektrum bar-ok amplitúdó skálázása
+constexpr float SPECTRUMBAR_SENSITIVITY_FACTOR = 0.08f; // Spektrum bar-ok amplitúdó skálázása
 
 // Oszcilloszkóp mód - nagyobb érték = nagyobb érzékenység
-constexpr float OSCI_SENSITIVITY_FACTOR = 1.0f; // Oszcilloszkóp jel erősítése
+constexpr float OSCI_SENSITIVITY_FACTOR = 30.0f; // Oszcilloszkóp jel erősítése
 
 // Envelope mód - nagyobb érték = nagyobb amplitúdó
-constexpr float ENVELOPE_SENSITIVITY_FACTOR = 2.0f; // Envelope amplitúdó erősítése
+constexpr float ENVELOPE_SENSITIVITY_FACTOR = 0.20f; // Envelope amplitúdó erősítése
 
 // Waterfall mód - nagyobb érték = élénkebb színek
-constexpr float WATERFALL_SENSITIVITY_FACTOR = 8.0f; // Waterfall intenzitás skálázása
+constexpr float WATERFALL_SENSITIVITY_FACTOR = 1.0f; // Waterfall intenzitás skálázása
 
 // CW SNR Curve sensitivity constants
 constexpr float CW_SNR_CURVE_SENSITIVITY_FACTOR = 0.8f;
@@ -329,11 +333,11 @@ void UICompSpectrumVis::draw() {
             break;
 
         case DisplayMode::SpectrumLowRes:
-            renderSpectrumLowRes();
+            renderSpectrum(false);
             break;
 
         case DisplayMode::SpectrumHighRes:
-            renderSpectrumHighRes();
+            renderSpectrum(true);
             break;
 
         case DisplayMode::Oscilloscope:
@@ -688,248 +692,175 @@ void UICompSpectrumVis::renderOffMode() {
 }
 
 /**
- * @brief Low resolution spektrum renderelése (sprite-tal, javított amplitúdóval)
+ * @brief Egységes spektrum renderelés (Low és High resolution)
+ * @param isHighRes true = HighRes (pixel-per-bin), false = LowRes (sávok)
  */
-void UICompSpectrumVis::renderSpectrumLowRes() {
-    // Audio feldolgozás Core1-en történik, AudioCore1Manager-en keresztül
-
-    int graphH = getGraphHeight();
+void UICompSpectrumVis::renderSpectrum(bool isHighRes) {
+    uint8_t graphH = getGraphHeight();
     if (!spriteCreated_ || bounds.width == 0 || graphH <= 0) {
         if (!spriteCreated_) {
-            DEBUG("UICompSpectrumVis::renderSpectrumLowRes - Sprite nincs létrehozva\n");
+            DEBUG("UICompSpectrumVis::renderSpectrum - Sprite nincs létrehozva\n");
         }
         return;
     }
 
-    // Ne töröljük a teljes sprite-ot minden frame-ben - csak az oszlopokat rajzoljuk újra
-
-    int actual_low_res_peak_max_height = graphH - 1;
-    constexpr int bar_gap_pixels = 1;
-    constexpr int LOW_RES_BANDS = 24;
-    int bands_to_display_on_screen = LOW_RES_BANDS;
-
-    if (bounds.width < (bands_to_display_on_screen + (bands_to_display_on_screen - 1) * bar_gap_pixels)) {
-        bands_to_display_on_screen = (bounds.width + bar_gap_pixels) / (1 + bar_gap_pixels);
-    }
-    if (bands_to_display_on_screen <= 0)
-        bands_to_display_on_screen = 1;
-
-    int dynamic_bar_width_pixels = 1;
-    if (bands_to_display_on_screen > 0) {
-        dynamic_bar_width_pixels = (bounds.width - (std::max(0, bands_to_display_on_screen - 1) * bar_gap_pixels)) / bands_to_display_on_screen;
-    }
-    if (dynamic_bar_width_pixels < 1)
-        dynamic_bar_width_pixels = 1;
-
-    int bar_total_width_pixels_dynamic = dynamic_bar_width_pixels + bar_gap_pixels;
-    int total_drawn_width = (bands_to_display_on_screen * dynamic_bar_width_pixels) + (std::max(0, bands_to_display_on_screen - 1) * bar_gap_pixels);
-    int x_offset = (bounds.width - total_drawn_width) / 2;
-
-    // Lassabb peak ereszkedés: csak minden 3. hívásnál csökkentjük
-    static uint8_t peak_fall_counter = 0;
-    peak_fall_counter = (peak_fall_counter + 1) % 3;
-
-    for (int band_idx = 0; band_idx < bands_to_display_on_screen; band_idx++) {
-        if (peak_fall_counter == 0) {
-            if (Rpeak_[band_idx] >= 1)
-                Rpeak_[band_idx] -= 1;
-        }
-    }
-
     // Core1 spektrum adatok lekérése
-    const int16_t *magnitudeData = nullptr;
+    const float *magnitudeData = nullptr;
     uint16_t actualFftSize = 0;
     float currentBinWidthHz = 0.0f;
     float currentAutoGain = 1.0f;
     bool dataAvailable = getCore1SpectrumData(&magnitudeData, &actualFftSize, &currentBinWidthHz, &currentAutoGain);
 
-    // Ha nincs friss adat vagy nincs magnitude adat, ne rajzoljunk újra (megelőzzük a villogást)
+    // Ha nincs friss adat, ne rajzoljunk újra (megelőzzük a villogást)
     if (!dataAvailable || !magnitudeData || currentBinWidthHz == 0) {
-        // Csak a sprite kirakása a korábbi tartalommal
-        DEBUG("UICompSpectrumVis::renderSpectrumLowRes - Nincs elérhető adat a rajzoláshoz\n");
+        DEBUG("UICompSpectrumVis::renderSpectrum - Nincs elérhető adat a rajzoláshoz\n");
         sprite_->pushSprite(bounds.x, bounds.y);
         return;
     }
 
-    const int min_bin_idx_low_res = std::max(2, static_cast<int>(std::round(AnalyzerConstants::ANALYZER_MIN_FREQ_HZ / currentBinWidthHz)));
-    // actualFftSize is the number of available bins (N/2) provided by Core1,
-    // so the highest bin index is actualFftSize - 1 (not divided by 2 again).
-    const int max_bin_idx_low_res = std::min(static_cast<int>(actualFftSize - 1), static_cast<int>(std::round(maxDisplayFrequencyHz_ / currentBinWidthHz)));
-    const int num_bins_in_low_res_range = std::max(1, max_bin_idx_low_res - min_bin_idx_low_res + 1);
+    const uint8_t min_bin_idx = std::max(2, static_cast<int>(std::round(AnalyzerConstants::ANALYZER_MIN_FREQ_HZ / currentBinWidthHz)));
+    const uint8_t max_bin_idx = std::min(static_cast<int>(actualFftSize - 1), static_cast<int>(std::round(maxDisplayFrequencyHz_ / currentBinWidthHz)));
 
-    // Adaptív autogain használata
     float adaptiveScale = getAdaptiveScale(SensitivityConstants::SPECTRUMBAR_SENSITIVITY_FACTOR);
+    float maxMagnitude = 0.0f;
 
-    float band_magnitudes[LOW_RES_BANDS] = {0.0f};
+    if (isHighRes) {
+        // ===== HIGH RESOLUTION MODE =====
+        // Pixel-per-bin rajzolás (vékony vonalak)
+        const uint8_t num_bins_in_range = std::max(1, max_bin_idx - min_bin_idx + 1);
 
-    // magnitudeData már garantáltan nem nullptr itt
-    for (int i = min_bin_idx_low_res; i <= max_bin_idx_low_res; i++) {
-        uint8_t band_idx = getBandVal(i, min_bin_idx_low_res, num_bins_in_low_res_range, LOW_RES_BANDS);
-        if (band_idx < LOW_RES_BANDS) {
-            // Nyers int16_t -> float konverzió (az AudioProcessor már normalizálta)
-            float magnitude = static_cast<float>(magnitudeData[i]);
+        for (uint8_t screen_pixel_x = 0; screen_pixel_x < bounds.width; ++screen_pixel_x) {
+            uint8_t fft_bin_index;
+            if (bounds.width == 1) {
+                fft_bin_index = min_bin_idx;
+            } else {
+                float ratio = static_cast<float>(screen_pixel_x) / (bounds.width - 1);
+                fft_bin_index = min_bin_idx + static_cast<uint8_t>(std::round(ratio * (num_bins_in_range - 1)));
+            }
+            fft_bin_index = constrain(fft_bin_index, 0, max_bin_idx);
 
-            // DEBUG: Magnitude értékek kiírása (csak néhány bin-re a spam elkerülése végett)
-            // if (i % 10 == 0) {
-            //     DEBUG("LowRes magnitude[%d]: %s (threshold: %s)\n", i, Utils::floatToString(magnitude, 6).c_str(), Utils::floatToString(NOISE_THRESHOLD, 6).c_str());
-            // }
-
-            // Zajküszöb alkalmazása
+            float magnitude = magnitudeData[fft_bin_index];
             if (magnitude < NOISE_THRESHOLD) {
                 magnitude = 0.0f;
             }
-            band_magnitudes[band_idx] = std::max(band_magnitudes[band_idx], magnitude);
-        }
-    }
 
-    // Legnagyobb érték megkeresése az adaptív autogain számára
-    float maxMagnitude = 0.0f;
-    for (int band_idx = 0; band_idx < LOW_RES_BANDS; band_idx++) {
-        maxMagnitude = std::max(maxMagnitude, static_cast<float>(band_magnitudes[band_idx]));
-    }
+            // Legnagyobb érték megkeresése az updateFrameBasedGain-hez
+            maxMagnitude = std::max(maxMagnitude, magnitude);
 
-    // Sávok kirajzolása sprite-ra (adaptív autogain-nel)
-    for (int band_idx = 0; band_idx < bands_to_display_on_screen; band_idx++) {
-        int x_pos_for_bar = x_offset + bar_total_width_pixels_dynamic * band_idx;
+            sprite_->drawFastVLine(screen_pixel_x, 0, graphH, TFT_BLACK);
 
-        // Előbb töröljük az oszlop területét (fekete háttér)
-        sprite_->fillRect(x_pos_for_bar, 0, dynamic_bar_width_pixels, graphH, TFT_BLACK);
+            uint8_t scaled_magnitude = static_cast<uint8_t>(constrain(magnitude * adaptiveScale, 0, graphH - 1));
 
-        // Adaptív magnitúdó skálázás - egységes logika: nagyobb scale = nagyobb érzékenység
-        float magnitude = band_magnitudes[band_idx];
-        int dsize = static_cast<int>(magnitude * adaptiveScale);
-        dsize = constrain(dsize, 0, actual_low_res_peak_max_height);
-
-        if (dsize > Rpeak_[band_idx] && band_idx < MAX_SPECTRUM_BANDS) {
-            Rpeak_[band_idx] = dsize;
-        }
-
-        // Bar kirajzolása sprite-ra
-        if (dsize > 0) {
-            int y_start_bar = graphH - dsize;
-            int bar_h_visual = dsize;
-            if (y_start_bar < 0) {
-                bar_h_visual -= (0 - y_start_bar);
-                y_start_bar = 0;
-            }
-            if (bar_h_visual > 0) {
-                sprite_->fillRect(x_pos_for_bar, y_start_bar, dynamic_bar_width_pixels, bar_h_visual, TFT_GREEN); // Zöld bar
+            if (scaled_magnitude > 0) {
+                int16_t y_bar_start = graphH - 1 - scaled_magnitude;
+                uint8_t bar_actual_height = scaled_magnitude + 1;
+                if (y_bar_start < 0) {
+                    bar_actual_height -= (0 - y_bar_start);
+                    y_bar_start = 0;
+                }
+                if (bar_actual_height > 0) {
+                    sprite_->drawFastVLine(screen_pixel_x, y_bar_start, bar_actual_height, TFT_SKYBLUE);
+                }
             }
         }
+    } else {
+        // ===== LOW RESOLUTION MODE =====
+        // Sávokba csoportosított rajzolás (széles oszlopok peak-kel)
+        constexpr uint8_t BAR_GAP_PIXELS = 1;
+        constexpr uint8_t LOW_RES_BANDS = 24;
+        uint8_t actual_low_res_peak_max_height = graphH > 0 ? graphH - 1 : 0;
+        uint8_t bands_to_display = LOW_RES_BANDS;
 
-        // Peak (csúcs) kirajzolása sprite-ra
-        int peak = Rpeak_[band_idx];
-        if (peak > 3) {
-            int y_peak = graphH - peak;
-            sprite_->fillRect(x_pos_for_bar, y_peak, dynamic_bar_width_pixels, 2, TFT_CYAN); // 2 pixel magas cyan csík
+        if (bounds.width < (bands_to_display + (bands_to_display - 1) * BAR_GAP_PIXELS)) {
+            bands_to_display = static_cast<uint8_t>((bounds.width + BAR_GAP_PIXELS) / (1 + BAR_GAP_PIXELS));
+        }
+        if (bands_to_display == 0) {
+            bands_to_display = 1;
+        }
+
+        uint8_t bar_width = 1;
+        if (bands_to_display > 0) {
+            bar_width = static_cast<uint8_t>((bounds.width - (std::max(0, bands_to_display - 1) * BAR_GAP_PIXELS)) / bands_to_display);
+        }
+        if (bar_width < 1)
+            bar_width = 1;
+
+        uint8_t bar_total_width = bar_width + BAR_GAP_PIXELS;
+        uint16_t total_drawn_width = (bands_to_display * bar_width) + (std::max(0, bands_to_display - 1) * BAR_GAP_PIXELS);
+        int16_t x_offset = (bounds.width - total_drawn_width) / 2;
+
+        // Peak ereszkedés: csak minden 3. hívásnál csökkentjük
+        static uint8_t peak_fall_counter = 0;
+        peak_fall_counter = (peak_fall_counter + 1) % 3;
+        for (uint8_t band_idx = 0; band_idx < bands_to_display; band_idx++) {
+            if (peak_fall_counter == 0) {
+                if (Rpeak_[band_idx] >= 1)
+                    Rpeak_[band_idx] -= 1;
+            }
+        }
+
+        const uint8_t num_bins_in_range = std::max(1, max_bin_idx - min_bin_idx + 1);
+        float band_magnitudes[LOW_RES_BANDS] = {0.0f};
+
+        // Sávok feltöltése a legnagyobb magnitude értékekkel
+        for (uint8_t i = min_bin_idx; i <= max_bin_idx; i++) {
+            uint8_t band_idx = getBandVal(i, min_bin_idx, num_bins_in_range, LOW_RES_BANDS);
+            if (band_idx < LOW_RES_BANDS) {
+                float magnitude = magnitudeData[i];
+                if (magnitude < NOISE_THRESHOLD) {
+                    magnitude = 0.0f;
+                }
+                band_magnitudes[band_idx] = std::max(band_magnitudes[band_idx], magnitude);
+            }
+        }
+
+        // Legnagyobb érték megkeresése az updateFrameBasedGain-hez
+        for (uint8_t band_idx = 0; band_idx < LOW_RES_BANDS; band_idx++) {
+            maxMagnitude = std::max(maxMagnitude, band_magnitudes[band_idx]);
+        }
+
+        // Sávok kirajzolása
+        for (uint8_t band_idx = 0; band_idx < bands_to_display; band_idx++) {
+            uint16_t x_pos = x_offset + bar_total_width * band_idx;
+
+            sprite_->fillRect(x_pos, 0, bar_width, graphH, TFT_BLACK);
+
+            float magnitude = band_magnitudes[band_idx];
+            uint8_t dsize = static_cast<uint8_t>(constrain(magnitude * adaptiveScale, 0, actual_low_res_peak_max_height));
+
+            if (dsize > Rpeak_[band_idx] && band_idx < MAX_SPECTRUM_BANDS) {
+                Rpeak_[band_idx] = dsize;
+            }
+
+            // Bar kirajzolása
+            if (dsize > 0) {
+                int16_t y_start = graphH - dsize;
+                uint8_t bar_h = dsize;
+                if (y_start < 0) {
+                    bar_h -= (0 - y_start);
+                    y_start = 0;
+                }
+                if (bar_h > 0) {
+                    sprite_->fillRect(x_pos, y_start, bar_width, bar_h, TFT_GREEN);
+                }
+            }
+
+            // Peak kirajzolása
+            uint8_t peak = Rpeak_[band_idx];
+            if (peak > 3) {
+                int16_t y_peak = graphH - peak;
+                sprite_->fillRect(x_pos, y_peak, bar_width, 2, TFT_CYAN);
+            }
         }
     }
 
-    // Adaptív autogain frissítése
+    // Frissítjük az automatikus gain-et a frame-alapú maximum alapján
     updateFrameBasedGain(maxMagnitude);
 
-    // Sprite kirakása a képernyőre
+    // Sprite kirakása
     sprite_->pushSprite(bounds.x, bounds.y);
 
-    // Frekvencia feliratok rajzolása, ha még nem történt meg
-    renderFrequencyRangeLabels(AnalyzerConstants::ANALYZER_MIN_FREQ_HZ, maxDisplayFrequencyHz_);
-}
-
-/**
- * @brief High resolution spektrum renderelése (sprite-tal, javított amplitúdóval)
- */
-void UICompSpectrumVis::renderSpectrumHighRes() {
-    // Audio feldolgozás Core1-en történik, AudioCore1Manager-en keresztül
-
-    int graphH = getGraphHeight();
-    if (!spriteCreated_ || bounds.width == 0 || graphH <= 0) {
-        if (!spriteCreated_) {
-            DEBUG("UICompSpectrumVis::renderSpectrumHighRes - Sprite nincs létrehozva\n");
-        }
-        return;
-    }
-
-    // Ne töröljük a teljes sprite-ot minden frame-ben - csak a vonalakat rajzoljuk újra
-
-    // Core1 spektrum adatok lekérése
-    const int16_t *magnitudeData = nullptr;
-    uint16_t actualFftSize = 0;
-    float currentBinWidthHz = 0.0f;
-    float currentAutoGain = 1.0f;
-
-    bool dataAvailable = getCore1SpectrumData(&magnitudeData, &actualFftSize, &currentBinWidthHz, &currentAutoGain);
-
-    // Ha nincs friss adat vagy nincs magnitude adat, ne rajzoljunk újra (megelőzzük a villogást)
-    if (!dataAvailable || !magnitudeData || currentBinWidthHz == 0) {
-        // Csak a sprite kirakása a korábbi tartalommal
-        DEBUG("UICompSpectrumVis::renderSpectrumHighRes - Nincs elérhető adat a rajzoláshoz\n");
-        sprite_->pushSprite(bounds.x, bounds.y);
-        return;
-    }
-
-    // Use Nyquist frequency for mapping
-    const int min_bin_idx_for_display = std::max(2, static_cast<int>(std::round(AnalyzerConstants::ANALYZER_MIN_FREQ_HZ / currentBinWidthHz)));
-    // actualFftSize represents number of bins (half-FFT). Use actualFftSize-1 as the max index.
-    const int max_bin_idx_for_display = static_cast<int>(actualFftSize - 1);
-    const int num_bins_in_display_range = std::max(1, max_bin_idx_for_display - min_bin_idx_for_display + 1);
-
-    // Adaptív autogain használata
-    float adaptiveScale = getAdaptiveScale(SensitivityConstants::SPECTRUMBAR_SENSITIVITY_FACTOR);
-    float maxMagnitude = 0.0f;
-
-    for (int screen_pixel_x = 0; screen_pixel_x < bounds.width; ++screen_pixel_x) {
-        int fft_bin_index;
-        if (bounds.width == 1) {
-            fft_bin_index = min_bin_idx_for_display;
-        } else {
-            float ratio = static_cast<float>(screen_pixel_x) / (bounds.width - 1);
-            fft_bin_index = min_bin_idx_for_display + static_cast<int>(std::round(ratio * (num_bins_in_display_range - 1)));
-        }
-        // Constrain to available bin indices (0 .. actualFftSize-1)
-        fft_bin_index = constrain(fft_bin_index, 0, static_cast<int>(actualFftSize - 1));
-
-        // Nyers int16_t -> float konverzió (az AudioProcessor már normalizálta)
-        float magnitude = static_cast<float>(magnitudeData[fft_bin_index]);
-
-        // DEBUG: Magnitude értékek kiírása (csak néhány oszlopra a spam elkerülése végett)
-        // if (screen_pixel_x % 20 == 0) {
-        //     DEBUG("HighRes magnitude[%d]: %s (threshold: %s)\n", fft_bin_index, Utils::floatToString(magnitude, 6).c_str(), Utils::floatToString(NOISE_THRESHOLD, 6).c_str());
-        // }
-
-        // Zajküszöb alkalmazása
-        if (magnitude < NOISE_THRESHOLD) {
-            magnitude = 0.0f;
-        }
-
-        maxMagnitude = std::max(maxMagnitude, static_cast<float>(magnitude));
-
-        // Előbb töröljük a pixel oszlopot (fekete vonal)
-        sprite_->drawFastVLine(screen_pixel_x, 0, graphH, TFT_BLACK);
-
-        // Amplitúdó skálázás - adaptív autogain-nel - egységes logika: nagyobb scale = nagyobb érzékenység
-        int scaled_magnitude = static_cast<int>(magnitude * adaptiveScale);
-        scaled_magnitude = constrain(scaled_magnitude, 0, graphH - 1);
-
-        if (scaled_magnitude > 0) {
-            int y_bar_start = graphH - 1 - scaled_magnitude;
-            int bar_actual_height = scaled_magnitude + 1;
-            if (y_bar_start < 0) {
-                bar_actual_height -= (0 - y_bar_start);
-                y_bar_start = 0;
-            }
-            if (bar_actual_height > 0) {
-                sprite_->drawFastVLine(screen_pixel_x, y_bar_start, bar_actual_height, TFT_SKYBLUE);
-            }
-        }
-    }
-
-    // Adaptív autogain frissítése
-    updateFrameBasedGain(maxMagnitude);
-
-    // Sprite kirakása a képernyőre
-    sprite_->pushSprite(bounds.x, bounds.y);
-
-    // Frekvencia feliratok rajzolása, ha még nem történt meg
+    // Frekvencia feliratok kirajzolása, ha szükséges
     renderFrequencyRangeLabels(AnalyzerConstants::ANALYZER_MIN_FREQ_HZ, maxDisplayFrequencyHz_);
 }
 
@@ -937,9 +868,8 @@ void UICompSpectrumVis::renderSpectrumHighRes() {
  * @brief Oszcilloszkóp renderelése
  */
 void UICompSpectrumVis::renderOscilloscope() {
-    // Audio feldolgozás Core1-en történik, AudioCore1Manager-en keresztül
 
-    int graphH = getGraphHeight();
+    uint8_t graphH = getGraphHeight();
     if (!spriteCreated_ || bounds.width == 0 || graphH <= 0) {
         if (!spriteCreated_) {
             DEBUG("UICompSpectrumVis::renderOscilloscope - Sprite nincs létrehozva\n");
@@ -963,28 +893,24 @@ void UICompSpectrumVis::renderOscilloscope() {
     // Sprite törlése - csak akkor, ha van új adat
     sprite_->fillSprite(TFT_BLACK);
 
-    // DC komponens számítása csak az érvényes mintákra
-    double sum_samples = 0.0;
-    for (int k = 0; k < sampleCount; ++k) {
-        sum_samples += osciData[k];
-    }
-    double dc_offset_correction = (sampleCount > 0 && osciData) ? sum_samples / sampleCount : 2048.0;
+    uint16_t prev_x = -1, prev_y = -1;
+    for (uint16_t i = 0; i < sampleCount; i++) {
 
-    float current_sensitivity_factor = SensitivityConstants::OSCI_SENSITIVITY_FACTOR;
-    int prev_x = -1, prev_y = -1;
-    for (int i = 0; i < sampleCount; i++) {
-        int raw_sample = osciData[i];
-        double sample_deviation = (static_cast<double>(raw_sample) - dc_offset_correction);
-        double gain_adjusted_deviation = sample_deviation * current_sensitivity_factor;
-        double scaled_y_deflection = gain_adjusted_deviation * (static_cast<double>(graphH) / 2.0 - 1.0) / 2048.0;
-        int y_pos = graphH / 2 - static_cast<int>(round(scaled_y_deflection));
+        int16_t raw_sample = osciData[i];
+
+        float gain_adjusted_deviation = static_cast<float>(raw_sample) * SensitivityConstants::OSCI_SENSITIVITY_FACTOR;
+        float scaled_y_deflection = gain_adjusted_deviation * (static_cast<float>(graphH) / 2.0f - 1.0f) / 2048.0f;
+
+        uint16_t y_pos = graphH / 2 - static_cast<int>(round(scaled_y_deflection));
         y_pos = constrain(y_pos, 0, graphH - 1);
-        int x_pos = (sampleCount == 1) ? 0 : (int)round((float)i / (sampleCount - 1) * (bounds.width - 1));
+        uint16_t x_pos = (sampleCount == 1) ? 0 : (int)round((float)i / (sampleCount - 1) * (bounds.width - 1));
+
         if (prev_x != -1 && i > 0) {
             sprite_->drawLine(prev_x, prev_y, x_pos, y_pos, TFT_GREEN);
         } else if (prev_x == -1) {
             sprite_->drawPixel(x_pos, y_pos, TFT_GREEN);
         }
+
         prev_x = x_pos;
         prev_y = y_pos;
     }
@@ -1006,7 +932,7 @@ void UICompSpectrumVis::renderEnvelope() {
     }
 
     // Core1 spektrum adatok lekérése
-    const int16_t *magnitudeData = nullptr;
+    const float *magnitudeData = nullptr;
     uint16_t actualFftSize = 0;
     float currentBinWidthHz = 0.0f;
     float currentAutoGain = 1.0f;
@@ -1021,16 +947,15 @@ void UICompSpectrumVis::renderEnvelope() {
     }
 
     // 1. Adatok eltolása balra a wabuf-ban
-    for (int r = 0; r < bounds.height; ++r) { // Teljes bounds.height
-        for (uint32_t c = 0; c < bounds.width - 1; ++c) {
+    for (uint8_t r = 0; r < bounds.height; ++r) { // Teljes bounds.height
+        for (uint8_t c = 0; c < bounds.width - 1; ++c) {
             wabuf[r][c] = wabuf[r][c + 1];
         }
     }
 
-    const int min_bin_for_env = std::max(10, static_cast<int>(std::round(AnalyzerConstants::ANALYZER_MIN_FREQ_HZ / currentBinWidthHz)));
-    // actualFftSize represents the number of available bins (half-FFT). Use actualFftSize-1 as the upper bound.
-    const int max_bin_for_env = std::min(static_cast<int>(actualFftSize - 1), static_cast<int>(std::round(maxDisplayFrequencyHz_ * 0.2f / currentBinWidthHz)));
-    const int num_bins_in_env_range = std::max(1, max_bin_for_env - min_bin_for_env + 1);
+    const uint8_t min_bin_for_env = std::max(10, static_cast<int>(std::round(AnalyzerConstants::ANALYZER_MIN_FREQ_HZ / currentBinWidthHz)));
+    const uint8_t max_bin_for_env = std::min(static_cast<int>(actualFftSize - 1), static_cast<int>(std::round(maxDisplayFrequencyHz_ * 0.2f / currentBinWidthHz)));
+    const uint8_t num_bins_in_env_range = std::max(1, max_bin_for_env - min_bin_for_env + 1);
 
     // Frame-alapú adaptív skálázás envelope-hoz
     float adaptiveScale = getAdaptiveScale(SensitivityConstants::ENVELOPE_SENSITIVITY_FACTOR);
@@ -1043,12 +968,11 @@ void UICompSpectrumVis::renderEnvelope() {
     float maxGainedVal = 0.0f;
 
     // Minden sort feldolgozunk a teljes felbontásért
-    for (uint32_t r = 0; r < bounds.height; ++r) {
+    for (uint8_t r = 0; r < bounds.height; ++r) {
         // 'r' (0 to bounds.height-1) leképezése FFT bin indexre a szűkített tartományon belül
-        int fft_bin_index = min_bin_for_env + static_cast<int>(std::round(static_cast<float>(r) / std::max(1, (bounds.height - 1)) * (num_bins_in_env_range - 1)));
+        uint8_t fft_bin_index = min_bin_for_env + static_cast<uint8_t>(std::round(static_cast<float>(r) / std::max(1, (bounds.height - 1)) * (num_bins_in_env_range - 1)));
         fft_bin_index = constrain(fft_bin_index, min_bin_for_env, max_bin_for_env); // Finomabb gain alkalmazás envelope-hoz
-        // Nyers int16_t -> float konverzió (az AudioProcessor már normalizálta)
-        float rawMagnitude = static_cast<float>(magnitudeData[fft_bin_index]);
+        float rawMagnitude = magnitudeData[fft_bin_index];
 
         // KRITIKUS: Infinity és NaN értékek szűrése!
         if (!isfinite(rawMagnitude) || rawMagnitude < 0.0) {
@@ -1073,8 +997,8 @@ void UICompSpectrumVis::renderEnvelope() {
     sprite_->fillSprite(TFT_BLACK); // Sprite törlése
 
     // Erőteljes simítás a tüskék ellen
-    constexpr float ENVELOPE_SMOOTH_FACTOR = 0.05f;   // Sokkal erősebb simítás (0.15f volt)
-    constexpr float ENVELOPE_NOISE_THRESHOLD = 10.0f; // Magasabb zajküszöb a tüskék ellen (2.0f volt)
+    constexpr float ENVELOPE_SMOOTH_FACTOR = 0.05f;   // Sokkal erősebb simítás
+    constexpr float ENVELOPE_NOISE_THRESHOLD = 25.0f; // Magasabb zajküszöb a tüskék ellen
 
     // Először rajzoljunk egy vékony központi vízszintes vonalat (alapvonal) - mindig látható
     int yCenter_on_sprite = graphH / 2;
@@ -1129,8 +1053,9 @@ void UICompSpectrumVis::renderEnvelope() {
 
             int y_offset_pixels = static_cast<int>(round(y_offset_float));
             y_offset_pixels = std::min(y_offset_pixels, graphH - 4); // Kis margó
-            if (y_offset_pixels < 0)
+            if (y_offset_pixels < 0) {
                 y_offset_pixels = 0;
+            }
 
             if (y_offset_pixels > 1) {
                 // Szimmetrikus burkoló a középvonaltól - eredeti stílus
@@ -1171,7 +1096,7 @@ void UICompSpectrumVis::renderWaterfall() {
     }
 
     // Core1 spektrum adatok lekérése
-    const int16_t *magnitudeData = nullptr;
+    const float *magnitudeData = nullptr;
     uint16_t actualFftSize = 0;
     float currentBinWidthHz = 0.0f;
     float currentAutoGain = 1.0f;
@@ -1194,12 +1119,10 @@ void UICompSpectrumVis::renderWaterfall() {
     }
 
     const int min_bin_for_wf = std::max(2, static_cast<int>(std::round(AnalyzerConstants::ANALYZER_MIN_FREQ_HZ / currentBinWidthHz)));
-    // actualFftSize is already the number of bins; highest index is actualFftSize-1
     const int max_bin_for_wf = std::min(static_cast<int>(actualFftSize - 1), static_cast<int>(std::round(maxDisplayFrequencyHz_ / currentBinWidthHz)));
     const int num_bins_in_wf_range = std::max(1, max_bin_for_wf - min_bin_for_wf + 1);
 
     // 2. Új adatok betöltése a wabuf jobb szélére (a wabuf továbbra is bounds.height magas)
-
     // Adaptív autogain használata waterfall-hoz
     float adaptiveScale = getAdaptiveScale(SensitivityConstants::WATERFALL_SENSITIVITY_FACTOR);
     float maxMagnitude = 0.0f;
@@ -1212,11 +1135,6 @@ void UICompSpectrumVis::renderWaterfall() {
         // Waterfall input scale - adaptív autogain-nel
         // Nyers int16_t -> double konverzió (az AudioProcessor már normalizálta)
         double rawMagnitude = static_cast<double>(magnitudeData[fft_bin_index]);
-
-        // DEBUG: Magnitude értékek kiírása (csak néhány sorra a spam elkerülése végett)
-        // if (r % 10 == 0) {
-        //     DEBUG("Waterfall magnitude[%d]: %s (threshold: %s)\n", fft_bin_index, Utils::floatToString(static_cast<float>(rawMagnitude), 6).c_str(), Utils::floatToString(NOISE_THRESHOLD, 6).c_str());
-        // }
 
         // Zajküszöb alkalmazása
         if (rawMagnitude < NOISE_THRESHOLD) {
@@ -1396,7 +1314,7 @@ void UICompSpectrumVis::renderCwOrRttyTuningAid() {
     }
 
     // Core1 spektrum adatok lekérése
-    const int16_t *magnitudeData = nullptr;
+    const float *magnitudeData = nullptr;
     uint16_t actualFftSize = 0;
     float currentBinWidthHz = 0.0f;
     float currentAutoGain = 1.0f;
@@ -1531,7 +1449,7 @@ void UICompSpectrumVis::renderSnrCurve() {
     }
 
     // Core1 spektrum adatok lekérése
-    const int16_t *magnitudeData = nullptr;
+    const float *magnitudeData = nullptr;
     uint16_t actualFftSize = 0;
     float currentBinWidthHz = 0.0f;
     float currentAutoGain = 1.0f;
@@ -1760,9 +1678,9 @@ uint8_t UICompSpectrumVis::getBandVal(int fft_bin_index, int min_bin_low_res, in
 }
 
 /**
- * @brief Core1 spektrum adatok lekérése
+ * @brief Core1 spektrum adatok lekérése (FLOAT - Arduino FFT)
  */
-bool UICompSpectrumVis::getCore1SpectrumData(const int16_t **outData, uint16_t *outSize, float *outBinWidth, float *outAutoGain) {
+bool UICompSpectrumVis::getCore1SpectrumData(const float **outData, uint16_t *outSize, float *outBinWidth, float *outAutoGain) {
 
     int8_t activeSharedDataIndex = ::audioController.getActiveSharedDataIndex();
     if (activeSharedDataIndex < 0 || activeSharedDataIndex > 1) {
@@ -1781,7 +1699,7 @@ bool UICompSpectrumVis::getCore1SpectrumData(const int16_t **outData, uint16_t *
 
     const SharedData &data = ::sharedData[activeSharedDataIndex];
 
-    *outData = data.fftSpectrumData;
+    *outData = data.fftSpectrumData; // FLOAT pointer
     *outSize = data.fftSpectrumSize;
 
     if (outBinWidth) {
@@ -1924,37 +1842,26 @@ void UICompSpectrumVis::renderModeIndicator() {
  */
 void UICompSpectrumVis::renderFrequencyRangeLabels(uint16_t minDisplayFrequencyHz, uint16_t maxDisplayFrequencyHz) {
 
-    // DEBUG("UICompSpectrumVis::renderFrequencyRangeLabels() - KEZDÉS\n");
-
     if (!frequencyLabelsDrawn_) {
-        // DEBUG("UICompSpectrumVis::renderFrequencyRangeLabels() - frequencyLabelsDrawn_ = false, kilépés\n");
         return;
     }
 
     uint16_t indicatorH = 10;
     uint16_t indicatorY = bounds.y + bounds.height; // Közvetlenül a keret alatt kezdődik
 
-    // DEBUG("UICompSpectrumVis::renderFrequencyRangeLabels() - ELŐTTE tft.fillRect()\n");
     // Felirat terület törlése a teljes szélességben
     tft.fillRect(bounds.x, indicatorY, bounds.width, indicatorH + 2, TFT_BLACK);
-    // DEBUG("UICompSpectrumVis::renderFrequencyRangeLabels() - UTÁNA tft.fillRect()\n");
 
     tft.setFreeFont();
     tft.setTextSize(1);
-    tft.setTextColor(TFT_YELLOW, TFT_BLACK);
-
-    // DEBUG("UICompSpectrumVis::renderFrequencyRangeLabels() - Waterfall ellenőrzés...\n");
+    tft.setTextColor(TFT_SILVER, TFT_BLACK);
 
     // Waterfall módban alul/felül középre igazított a freki címkék elrendezése
     if (currentMode_ == DisplayMode::Waterfall) {
-        // DEBUG("UICompSpectrumVis::renderFrequencyRangeLabels() - WATERFALL mód, MIN felirat\n");
         // Min frekvencia a spektrum alatt középen
         tft.setTextDatum(BC_DATUM); // Bottom center
-        // DEBUG("UICompSpectrumVis::renderFrequencyRangeLabels() - ELŐTTE tft.drawString() Waterfall MIN\n");
         tft.drawString(Utils::formatFrequencyString(minDisplayFrequencyHz), bounds.x + bounds.width / 2, indicatorY + indicatorH);
-        // DEBUG("UICompSpectrumVis::renderFrequencyRangeLabels() - UTÁNA tft.drawString() Waterfall MIN\n");
 
-        // DEBUG("UICompSpectrumVis::renderFrequencyRangeLabels() - WATERFALL mód, MAX felirat\n");
         // Max frekvencia a spektrum felett középen - csak a címke mögötti kis területet töröljük,
         // hogy ne töröljük a teljes felső keretet.
         String topLabel = Utils::formatFrequencyString(maxDisplayFrequencyHz);
@@ -1985,32 +1892,43 @@ void UICompSpectrumVis::renderFrequencyRangeLabels(uint16_t minDisplayFrequencyH
         if (rectY < bounds.y - 20) {
             rectY = bounds.y - 20;
         }
-        // DEBUG("UICompSpectrumVis::renderFrequencyRangeLabels() - ELŐTTE tft.fillRect() Waterfall MAX bg\n");
         tft.fillRect(rectX, rectY, rectW, rectH, TFT_BLACK);
-        // DEBUG("UICompSpectrumVis::renderFrequencyRangeLabels() - UTÁNA tft.fillRect() Waterfall MAX bg\n");
 
-        // DEBUG("UICompSpectrumVis::renderFrequencyRangeLabels() - ELŐTTE tft.drawString() Waterfall MAX\n");
         tft.drawString(topLabel, centerX, bounds.y - 12); // eredeti -10 helyett -12
-        // DEBUG("UICompSpectrumVis::renderFrequencyRangeLabels() - UTÁNA tft.drawString() Waterfall MAX\n");
 
     } else {
-        // DEBUG("UICompSpectrumVis::renderFrequencyRangeLabels() - SPEKTRUM/TUNING mód\n");
         // Spektrum és tuning aid módokban balra/jobbra igazított a freki címkék elrendezése
 
-        // Balra igazított min frekvencia
-        tft.setTextDatum(BL_DATUM);
-        // DEBUG("UICompSpectrumVis::renderFrequencyRangeLabels() - ELŐTTE tft.drawString() MIN (bal)\n");
-        tft.drawString(Utils::formatFrequencyString(minDisplayFrequencyHz), bounds.x, indicatorY + indicatorH);
-        // DEBUG("UICompSpectrumVis::renderFrequencyRangeLabels() - UTÁNA tft.drawString() MIN (bal)\n");
+        // // Balra igazított min frekvencia
+        // tft.setTextDatum(BL_DATUM);
+        // tft.drawString(Utils::formatFrequencyString(minDisplayFrequencyHz), bounds.x, indicatorY + indicatorH);
 
-        // Jobbra igazított max frekvencia
-        tft.setTextDatum(BR_DATUM);
-        // DEBUG("UICompSpectrumVis::renderFrequencyRangeLabels() - ELŐTTE tft.drawString() MAX (jobb)\n");
-        tft.drawString(Utils::formatFrequencyString(maxDisplayFrequencyHz), bounds.x + bounds.width, indicatorY + indicatorH);
-        // DEBUG("UICompSpectrumVis::renderFrequencyRangeLabels() - UTÁNA tft.drawString() MAX (jobb)\n");
+        // // Jobbra igazított max frekvencia
+        // tft.setTextDatum(BR_DATUM);
+        // tft.drawString(Utils::formatFrequencyString(maxDisplayFrequencyHz), bounds.x + bounds.width, indicatorY + indicatorH);
+
+        // Min/Max + köztes frekvencia címkék összesen 5 darabban
+        constexpr uint8_t LABEL_NUMS = 5;
+        for (uint8_t i = 0; i < LABEL_NUMS; ++i) {
+            float frac = (float)i / (LABEL_NUMS - 1);
+            float freq = minDisplayFrequencyHz + frac * (maxDisplayFrequencyHz - minDisplayFrequencyHz);
+            uint16_t x;
+            if (i == 0) {
+                tft.setTextDatum(TL_DATUM);
+                x = bounds.x;
+            } else if (i == LABEL_NUMS - 1) {
+                tft.setTextDatum(TR_DATUM);
+                x = bounds.x + bounds.width - 1;
+            } else {
+                tft.setTextDatum(TC_DATUM);
+                x = bounds.x + (int)(frac * (bounds.width - 1));
+            }
+
+            char buf[12];
+            snprintf(buf, sizeof(buf), freq >= 1000.0f ? "%uk" : "%u", (uint8_t)(freq >= 1000.0f ? freq / 1000.0f : freq));
+            tft.drawString(buf, x, indicatorY);
+        }
     }
-
-    // DEBUG("UICompSpectrumVis::renderFrequencyRangeLabels() - VÉGE\n");
 
     frequencyLabelsDrawn_ = false;
 }
@@ -2027,7 +1945,7 @@ void UICompSpectrumVis::renderFrequencyRangeLabels(uint16_t minDisplayFrequencyH
  * @param maxBin Maximum megengedett bin index
  * @return Interpolált magnitude érték
  */
-float UICompSpectrumVis::getInterpolatedMagnitude(const int16_t *magnitudeData, float exactBinIndex, int minBin, int maxBin) const {
+float UICompSpectrumVis::getInterpolatedMagnitude(const float *magnitudeData, float exactBinIndex, int minBin, int maxBin) const {
     // Interpoláció a szomszédos bin-ek között
     int bin_low = static_cast<int>(std::floor(exactBinIndex));
     int bin_high = static_cast<int>(std::ceil(exactBinIndex));
@@ -2039,9 +1957,9 @@ float UICompSpectrumVis::getInterpolatedMagnitude(const int16_t *magnitudeData, 
     // Interpolációs súly (0.0 - 1.0)
     float frac = exactBinIndex - bin_low;
 
-    // Lineáris interpoláció nyers int16_t értékekkel (már normalizált az AudioProcessor-ban)
-    float mag_low = static_cast<float>(magnitudeData[bin_low]);
-    float mag_high = static_cast<float>(magnitudeData[bin_high]);
+    // Lineáris interpoláció float értékekkel (Arduino FFT output)
+    float mag_low = magnitudeData[bin_low];
+    float mag_high = magnitudeData[bin_high];
 
-    return mag_low * (1.0 - frac) + mag_high * frac;
+    return mag_low * (1.0f - frac) + mag_high * frac;
 }

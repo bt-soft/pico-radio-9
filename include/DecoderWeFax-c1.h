@@ -1,7 +1,6 @@
 #pragma once
 
 #include "IDecoder.h"
-#include "arm_math.h"
 #include "defines.h"
 
 /**

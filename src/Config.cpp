@@ -51,7 +51,7 @@ const Config_t DEFAULT_CONFIG = {
 
     // AudioFft módok
     .audioFftGainConfigAm = 0.0f,       // Auto Gain
-    .audioFftGainConfigFm = 2.0f,       // Manual Gain 2.0x (alpha-max ~1.4x * UI 2x ≈ 3x total)
+    .audioFftGainConfigFm = 1.0f,       // Manual Gain 1.0x (visszaállítva Arduino FFT-hez)
     .miniAudioFftConfigAnalyzer = 0.0f, // Analyzerhez alapértelmezetten Auto Gain
     .miniAudioFftConfigRtty = 0.0f,     // RTTY-hez alapértelmezetten Auto Gain
 
