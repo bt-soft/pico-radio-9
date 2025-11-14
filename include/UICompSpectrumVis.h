@@ -172,7 +172,7 @@ class UICompSpectrumVis : public UIComponent {
     uint32_t lastGainUpdateTime_;                 // Utolsó gain frissítés ideje
 
     static constexpr uint32_t GAIN_UPDATE_INTERVAL_MS = 750; // Lassabb frissítés a stabilabb működésért
-    static constexpr float TARGET_MAX_UTILIZATION = 0.75f;   // 75%-os maximális kitöltés
+    static constexpr float TARGET_MAX_UTILIZATION = 0.60f;   // 60%-os maximális kitöltés
     static constexpr float GAIN_SMOOTH_FACTOR = 0.2f;        // Lassabb simítási faktor a stabilabb működésért
     static constexpr float MIN_SIGNAL_THRESHOLD = 0.1f;      // Minimum jel küszöb
 
