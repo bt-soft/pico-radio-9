@@ -203,7 +203,7 @@ class UICompSpectrumVis : public UIComponent {
      * @brief Renderelő függvények
      */
     void renderOffMode();
-    void renderSpectrum(bool isHighRes);
+    void renderSpectrumBar(bool isHighRes);
     void renderOscilloscope();
     void renderWaterfall();
     void renderEnvelope();
@@ -222,7 +222,7 @@ class UICompSpectrumVis : public UIComponent {
      * @brief CW/RTTY hangolási segéd függvények
      */
     void setTuningAidType(TuningAidType type);
-    void renderCwOrRttyTuningAid();
+    void renderCwOrRttyTuningAidWaterfall();
 
     /**
      * @brief Segéd függvények

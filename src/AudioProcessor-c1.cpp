@@ -395,7 +395,7 @@ bool AudioProcessorC1::processAndFillSharedData(SharedData &sharedData) {
         // #define LAST_DMA_WORK_OUTPUT_INTERVAL 1000 * 1 // 1 másodperc
         //     static uint32_t lastDmaWorkDebugOutput = 0;
         //     if (Utils::timeHasPassed(lastDmaWorkDebugOutput, LAST_DMA_WORK_OUTPUT_INTERVAL)) {
-        ADPROC_DEBUG("AudioProc-c1: DMA még dolgozik (nem-blokkoló mód)\n");
+        // ADPROC_DEBUG("AudioProc-c1: DMA még dolgozik (nem-blokkoló mód)\n");
         //          lastDmaWorkDebugOutput = millis();
         //     }
         return false;

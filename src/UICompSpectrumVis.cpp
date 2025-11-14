@@ -21,7 +21,28 @@ namespace AudioProcessorConstants {
 
 // Színprofilok
 namespace FftDisplayConstants {
-const uint16_t waterFallColors_0[16] = {0x0000, 0x000F, 0x001F, 0x081F, 0x0810, 0x0800, 0x0C00, 0x1C00, 0xFC00, 0xFDE0, 0xFFE0, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF}; // Cold
+/**
+ * Waterfall színpaletta RGB565 formátumban
+ */
+const uint16_t waterFallColors_0[16] = {
+    0x000C, // sötétkék háttér (gyenge jel)
+    0x001F, // közepes kék
+    0x021F, // világoskék
+    0x07FF, // cián
+    0x07E0, // zöld
+    0x5FE0, // világoszöld
+    0xFFE0, // sárga
+    0xFD20, // narancs
+    0xF800, // piros
+    0xF81F, // pink
+    0xFFFF, // fehér
+    0xFFFF, // fehér
+    0xFFFF, // fehér
+    0xFFFF, // fehér
+    0xFFFF, // fehér
+    0xFFFF, // fehér
+};
+
 const uint16_t waterFallColors_1[16] = {0x0000, 0x1000, 0x2000, 0x4000, 0x8000, 0xC000, 0xF800, 0xF8A0, 0xF9C0, 0xFD20, 0xFFE0, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF}; // Hot
 #define WATERFALL_COLOR_INDEX 0
 
@@ -31,7 +52,7 @@ constexpr uint8_t SPECTRUM_FPS = 25;                              // FPS limitá
 }; // namespace FftDisplayConstants
 
 // Zajküszöb - alacsony szintű zajt nullázza
-constexpr float NOISE_THRESHOLD = 150.0f; // Zajszűrés: zaj magnitúdó értékével
+constexpr float NOISE_THRESHOLD = 120.0f; // Zajszűrés: zaj magnitúdó értékével
 
 // ===== ÉRZÉKENYSÉGI / AMPLITÚDÓ SKÁLÁZÁSI KONSTANSOK =====
 // Minden grafikon mód érzékenységét és amplitúdó skálázását itt lehet módosítani
@@ -42,23 +63,33 @@ namespace SensitivityConstants {
 // TODO: Az érzékenységi értékek az Si4703 50-es hangerőssége mellett a kapcsrajznak megfelelő hardveren lettek beállítva
 //
 
-// Spektrum módok (LowRes és HighRes) - nagyobb érték = nagyobb érzékenység
-constexpr float SPECTRUMBAR_SENSITIVITY_FACTOR = 0.08f; // Spektrum bar-ok amplitúdó skálázása
+// LoweRes Spektrum mód
+constexpr float LOWRES_SPECTRUMBAR_SENSITIVITY_FACTOR = 0.10f; // Spektrum bar-ok amplitúdó skálázása
 
-// Oszcilloszkóp mód - nagyobb érték = nagyobb érzékenység
+// HighRes Spektrum mód
+constexpr float HIGHRES_SPECTRUMBAR_SENSITIVITY_FACTOR = 0.12f; // Spektrum bar-ok amplitúdó skálázása
+
+// Oszcilloszkóp mód
 constexpr float OSCI_SENSITIVITY_FACTOR = 30.0f; // Oszcilloszkóp jel erősítése
 
-// Envelope mód - nagyobb érték = nagyobb amplitúdó
+// Envelope mód
 constexpr float ENVELOPE_SENSITIVITY_FACTOR = 0.20f; // Envelope amplitúdó erősítése
 
-// Waterfall mód - nagyobb érték = élénkebb színek
-constexpr float WATERFALL_SENSITIVITY_FACTOR = 18.0f; // Waterfall intenzitás skálázása
+// Waterfall mód
+constexpr float WATERFALL_SENSITIVITY_FACTOR = 25.0f; // Waterfall intenzitás skálázása
 
-// CW SNR Curve sensitivity constants
-constexpr float CW_SNR_CURVE_SENSITIVITY_FACTOR = 0.8f;
+// CW SNR Curve
+constexpr float CW_TUNING_AID_SNR_CURVE_SENSITIVITY_FACTOR = 0.01f;
 
-// RTTY SNR Curve sensitivity constants
-constexpr float RTTY_SNR_CURVE_SENSITIVITY_FACTOR = 0.9f;
+// CW Tuning Aid Waterfall
+constexpr float CW_TUNING_AID_WATERFALL_SENSITIVITY_FACTOR = 0.01f;
+
+// RTTY SNR Curve
+constexpr float RTTY_TUNING_AID_SNR_CURVE_SENSITIVITY_FACTOR = 0.01f;
+
+// RTTY Tuning Aid Waterfall
+constexpr float RTTY_TUNING_AID_WATERFALL_SENSITIVITY_FACTOR = 0.01f;
+
 }; // namespace SensitivityConstants
 
 // Analizátor konstansok
@@ -248,11 +279,6 @@ UICompSpectrumVis::DisplayMode UICompSpectrumVis::configValueToDisplayMode(uint8
 }
 
 /**
- * Waterfall színpaletta RGB565 formátumban
- */
-const uint16_t UICompSpectrumVis::WATERFALL_COLORS[16] = {0x0000, 0x000F, 0x001F, 0x081F, 0x0810, 0x0800, 0x0C00, 0x1C00, 0xFC00, 0xFDE0, 0xFFE0, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF};
-
-/**
  * @brief Dialog eltűnésekor meghívódó metódus
  */
 void UICompSpectrumVis::onDialogDismissed() {
@@ -334,11 +360,11 @@ void UICompSpectrumVis::draw() {
             break;
 
         case DisplayMode::SpectrumLowRes:
-            renderSpectrum(false);
+            renderSpectrumBar(false);
             break;
 
         case DisplayMode::SpectrumHighRes:
-            renderSpectrum(true);
+            renderSpectrumBar(true);
             break;
 
         case DisplayMode::Oscilloscope:
@@ -355,7 +381,7 @@ void UICompSpectrumVis::draw() {
 
         case DisplayMode::CWWaterfall:
         case DisplayMode::RTTYWaterfall:
-            renderCwOrRttyTuningAid();
+            renderCwOrRttyTuningAidWaterfall();
             break;
 
         case DisplayMode::CwSnrCurve:
@@ -696,7 +722,7 @@ void UICompSpectrumVis::renderOffMode() {
  * @brief Egységes spektrum renderelés (Low és High resolution)
  * @param isHighRes true = HighRes (pixel-per-bin), false = LowRes (sávok)
  */
-void UICompSpectrumVis::renderSpectrum(bool isHighRes) {
+void UICompSpectrumVis::renderSpectrumBar(bool isHighRes) {
     uint8_t graphH = getGraphHeight();
     if (!spriteCreated_ || bounds.width == 0 || graphH <= 0) {
         if (!spriteCreated_) {
@@ -722,7 +748,6 @@ void UICompSpectrumVis::renderSpectrum(bool isHighRes) {
     const uint8_t min_bin_idx = std::max(2, static_cast<int>(std::round(AnalyzerConstants::ANALYZER_MIN_FREQ_HZ / currentBinWidthHz)));
     const uint8_t max_bin_idx = std::min(static_cast<int>(actualFftSize - 1), static_cast<int>(std::round(maxDisplayFrequencyHz_ / currentBinWidthHz)));
 
-    float adaptiveScale = getAdaptiveScale(SensitivityConstants::SPECTRUMBAR_SENSITIVITY_FACTOR);
     float maxMagnitude = 0.0f;
 
     if (isHighRes) {
@@ -747,12 +772,18 @@ void UICompSpectrumVis::renderSpectrum(bool isHighRes) {
             }
 
             // UTÁNA erősítés a tiszta jelen
+            float adaptiveScale = getAdaptiveScale(SensitivityConstants::HIGHRES_SPECTRUMBAR_SENSITIVITY_FACTOR);
             float amplified = magnitude * adaptiveScale;
             maxMagnitude = std::max(maxMagnitude, amplified);
 
             sprite_->drawFastVLine(screen_pixel_x, 0, graphH, TFT_BLACK);
 
             uint8_t scaled_magnitude = static_cast<uint8_t>(constrain(amplified, 0, graphH - 1));
+
+            // Zajküszöb alatti bar legyen 1px magas
+            if (scaled_magnitude == 0) {
+                scaled_magnitude = 1;
+            }
 
             if (scaled_magnitude > 0) {
                 int16_t y_bar_start = graphH - 1 - scaled_magnitude;
@@ -830,9 +861,16 @@ void UICompSpectrumVis::renderSpectrum(bool isHighRes) {
             sprite_->fillRect(x_pos, 0, bar_width, graphH, TFT_BLACK);
 
             // UTÁNA erősítés a tiszta (szűrt) jelen
+            float adaptiveScale = getAdaptiveScale(SensitivityConstants::LOWRES_SPECTRUMBAR_SENSITIVITY_FACTOR);
             float magnitude = band_magnitudes[band_idx] * adaptiveScale;
             uint8_t dsize = static_cast<uint8_t>(constrain(magnitude, 0, actual_low_res_peak_max_height));
 
+            // Zajküszöb alatti bar legyen 1px magas
+            if (dsize == 0) {
+                dsize = 1;
+            }
+
+            // Peak frissítése
             if (dsize > Rpeak_[band_idx] && band_idx < MAX_SPECTRUM_BANDS) {
                 Rpeak_[band_idx] = dsize;
             }
@@ -1306,7 +1344,7 @@ void UICompSpectrumVis::updateTuningAidParameters() {
 /**
  * @brief Hangolási segéd renderelése (CW/RTTY waterfall)
  */
-void UICompSpectrumVis::renderCwOrRttyTuningAid() {
+void UICompSpectrumVis::renderCwOrRttyTuningAidWaterfall() {
     // Audio feldolgozás Core1-en történik, AudioCore1Manager-en keresztül
 
     int graphH = getGraphHeight();
@@ -1342,8 +1380,14 @@ void UICompSpectrumVis::renderCwOrRttyTuningAid() {
     const int max_bin_for_tuning = std::min(static_cast<int>(actualFftSize - 1), static_cast<int>(std::round(currentTuningAidMaxFreqHz_ / currentBinWidthHz)));
     const int num_bins_in_tuning_range = std::max(1, max_bin_for_tuning - min_bin_for_tuning + 1);
 
-    // Adaptív autogain használata waterfall-hoz
-    float adaptiveScale = getAdaptiveScale(SensitivityConstants::WATERFALL_SENSITIVITY_FACTOR);
+    // Adaptív skálázás a módtól függően
+    float adaptiveScale;
+    if (currentMode_ == DisplayMode::CWWaterfall) {
+        adaptiveScale = getAdaptiveScale(SensitivityConstants::CW_TUNING_AID_WATERFALL_SENSITIVITY_FACTOR);
+    } else {
+        adaptiveScale = getAdaptiveScale(SensitivityConstants::RTTY_TUNING_AID_WATERFALL_SENSITIVITY_FACTOR);
+    }
+
     float maxMagnitude = 0.0f;
 
     // 2. Új adatok betöltése a legfelső sorba INTERPOLÁCIÓVAL (simább tuning aid)
@@ -1380,7 +1424,7 @@ void UICompSpectrumVis::renderCwOrRttyTuningAid() {
 
         sprite_->setFreeFont();
         sprite_->setTextSize(1);
-        uint16_t label_y = graphH > 2 ? graphH - 2 : 0;
+        uint16_t label_y = graphH - 4; // Alsó részre
 
         // Hangolási csík kirajzolása
         if (displayed_span_hz > 0) {
@@ -1426,7 +1470,7 @@ void UICompSpectrumVis::renderCwOrRttyTuningAid() {
                     // Mark címke
                     sprite_->setTextDatum(BL_DATUM);
                     sprite_->setTextColor(TUNING_AID_RTTY_MARK_COLOR, TFT_BLACK);
-                    sprite_->drawString(String(static_cast<uint16_t>(round(f_mark))) + "Hz", line_x_mark, label_y);
+                    sprite_->drawString(String(static_cast<uint16_t>(round(f_mark))) + "Hz", line_x_mark + 2, label_y);
                 }
             }
         }
@@ -1505,13 +1549,6 @@ void UICompSpectrumVis::renderSnrCurve() {
     const uint16_t max_bin = std::min(static_cast<int>(actualFftSize - 1), static_cast<int>(std::round(MAX_FREQ_HZ / currentBinWidthHz)));
     const uint16_t num_bins = std::max(1, max_bin - min_bin + 1);
 
-    // Adaptív skálázás a módtól függően
-    float adaptiveScale;
-    if (currentMode_ == DisplayMode::CwSnrCurve) {
-        adaptiveScale = getAdaptiveScale(SensitivityConstants::CW_SNR_CURVE_SENSITIVITY_FACTOR);
-    } else {
-        adaptiveScale = getAdaptiveScale(SensitivityConstants::RTTY_SNR_CURVE_SENSITIVITY_FACTOR);
-    }
     float maxMagnitude = 0.0f;
 
     // Előző pont koordinátái a görbe rajzolásához
@@ -1532,6 +1569,14 @@ void UICompSpectrumVis::renderSnrCurve() {
         // ELŐSZÖR zajszűrés a nyers adaton
         if (rawMagnitude < NOISE_THRESHOLD) {
             rawMagnitude = 0.0f;
+        }
+
+        // Adaptív skálázás a módtól függően
+        float adaptiveScale;
+        if (currentMode_ == DisplayMode::CwSnrCurve) {
+            adaptiveScale = getAdaptiveScale(SensitivityConstants::CW_TUNING_AID_SNR_CURVE_SENSITIVITY_FACTOR);
+        } else {
+            adaptiveScale = getAdaptiveScale(SensitivityConstants::RTTY_TUNING_AID_SNR_CURVE_SENSITIVITY_FACTOR);
         }
 
         // UTÁNA erősítés a tiszta jelen
@@ -1933,8 +1978,19 @@ void UICompSpectrumVis::renderFrequencyRangeLabels(uint16_t minDisplayFrequencyH
                 x = bounds.x + (int)(frac * (bounds.width - 1));
             }
 
-            char buf[12];
-            snprintf(buf, sizeof(buf), freq >= 1000.0f ? "%uk" : "%u", (uint8_t)(freq >= 1000.0f ? freq / 1000.0f : freq));
+            char buf[8];
+            if (freq < 1000) {
+                sprintf(buf, "%d", (int)roundf(freq));
+            } else {
+                float kfreq = freq / 1000.0f;
+                int kint = (int)kfreq;
+                int tizedes = (int)((kfreq - kint) * 10 + 0.5f); // első tizedesjegy kerekítve
+                if (tizedes == 0) {
+                    sprintf(buf, "%dk", kint);
+                } else {
+                    sprintf(buf, "%d.%dk", kint, tizedes);
+                }
+            }
             tft.drawString(buf, x, indicatorY);
         }
     }
