@@ -73,8 +73,9 @@ struct DecoderConfig {
 // --- Megosztott Adatstruktúrák ---
 
 // Nagy sebességű, pillanatkép-szerű adatokhoz (ping-pong bufferelve)
-#define SPECTRUM_SIZE 512
 #define MAX_RAW_SAMPLES_SIZE 1024
+#define MAX_FFT_SPECTRUM_SIZE 512
+
 //--- Dekóder specifikus paraméterek ---
 #define AUDIO_SAMPLING_OVERSAMPLE_FACTOR 1.25f // Az audio mintavételezés túlmintavételezési tényezője
 
@@ -86,7 +87,7 @@ struct SharedData {
 
     // FFT spektrum adatok
     uint16_t fftSpectrumSize;
-    int16_t fftSpectrumData[SPECTRUM_SIZE];
+    int16_t fftSpectrumData[MAX_FFT_SPECTRUM_SIZE];
 
     uint32_t dominantFrequency; // Domináns frekvencia Hz-ben
     int16_t dominantAmplitude;  // Amplitúdó a domináns frekvencián
@@ -102,7 +103,7 @@ struct SharedData {
 
 // FM audio sávszélesség
 #define FM_AF_BANDWIDTH_HZ 15000   // FM dekódolt audio sávszélesség (Hz)
-#define FM_AF_RAW_SAMPLES_SIZE 128 // FM módban a minták száma blokkonként
+#define FM_AF_RAW_SAMPLES_SIZE 256 // FM módban a minták száma blokkonként (128->256: jobb frekvencia felbontás)
 
 // AM audio sávszélesség (Sima Közép Hullámú vagy SW AM demoduláció esetén)
 #define AM_AF_BANDWIDTH_HZ 6000     // AM dekódolt audio sávszélesség (Hz)

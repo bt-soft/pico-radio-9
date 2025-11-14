@@ -10,7 +10,7 @@
 #include "StationData.h"
 
 // Si4735RDS működés debug engedélyezése de csak DEBUG módban
-// #define __SI4735RDS_DEBUG
+#define __SI4735RDS_DEBUG
 #if defined(__DEBUG) && defined(__SI4735RDS_DEBUG)
 #define SI4735RDS_DEBUG(fmt, ...) DEBUG(fmt __VA_OPT__(, ) __VA_ARGS__)
 #else
@@ -206,6 +206,7 @@ bool Si4735Rds::updateRdsDataWithCache() {
         cachedStationName = newStationName;
         dataChanged = true;
         hasValidData = true;
+        SI4735RDS_DEBUG("Si4735Rds: Új RDS állomásnév: '%s', régi: '%s'\n", cachedStationName.c_str(), newStationName.c_str());
     }
     // Akkor is jelzünk az érvényes adatot, ha nem változott, de van adat
     if (!newStationName.isEmpty()) {
@@ -220,6 +221,7 @@ bool Si4735Rds::updateRdsDataWithCache() {
             cachedProgramType = newProgramType;
             dataChanged = true;
             hasValidData = true;
+            SI4735RDS_DEBUG("Si4735Rds: Új RDS program típus: '%s', régi: '%s'\n", cachedProgramType.c_str(), newProgramType.c_str());
         }
         if (!newProgramType.isEmpty()) {
             hasValidData = true;
@@ -232,6 +234,7 @@ bool Si4735Rds::updateRdsDataWithCache() {
         cachedRadioText = newRadioText;
         dataChanged = true;
         hasValidData = true;
+        SI4735RDS_DEBUG("Si4735Rds: Új RDS radio text: '%s', régi: '%s'\n", cachedRadioText.c_str(), newRadioText.c_str());
     }
     if (!newRadioText.isEmpty()) {
         hasValidData = true;
@@ -248,6 +251,7 @@ bool Si4735Rds::updateRdsDataWithCache() {
             cachedDate = newDate;
             dataChanged = true;
             hasValidData = true;
+            SI4735RDS_DEBUG("Si4735Rds: Új RDS dátum: '%s', régi: '%s'\n", cachedDate.c_str(), newDate.c_str());
         }
 
         // Idő formázása: "15:30"
@@ -258,6 +262,7 @@ bool Si4735Rds::updateRdsDataWithCache() {
             cachedTime = newTime;
             dataChanged = true;
             hasValidData = true;
+            SI4735RDS_DEBUG("Si4735Rds: Új RDS idő: '%s', régi: '%s'\n", cachedTime.c_str(), newTime.c_str());
         }
     }
 

@@ -29,7 +29,8 @@ constexpr uint8_t SPECTRUM_FPS = 25;                              // FPS limitá
 
 }; // namespace FftDisplayConstants
 
-// ===== ÉRZÉKENYSÉGI / AMPLITÚDÓ SKÁLÁZÁSI KONSTANSOK =====
+// Zajküszöb - alacsony szintű zajt nullázza (int16_t tartományban, már normalizált az AudioProcessor-ban)
+constexpr float NOISE_THRESHOLD = 30.0f; // Zajszűrés: ennél kisebb értékek nullázva (2x scaling után)
 
 // ===== ÉRZÉKENYSÉGI / AMPLITÚDÓ SKÁLÁZÁSI KONSTANSOK =====
 // Minden grafikon mód érzékenységét és amplitúdó skálázását itt lehet módosítani
@@ -275,12 +276,11 @@ void UICompSpectrumVis::draw() {
     lastFrameTime_ = currentTime;
 
 #ifdef __DEBUG
-    // AGC logolás 1mpént
+    // AGC logolás 1mpént, de csak ha be van kapcsolva az auto agc
     static uint32_t lastAgcLogTime = 0;
-    if (Utils::timeHasPassed(lastAgcLogTime, 1000)) {
+    if (isAutoGainMode() && Utils::timeHasPassed(lastAgcLogTime, 1000)) {
         float avgFrameMax = getAverageFrameMax();
-        bool agc = isAutoGainMode();
-        DEBUG("[UICompSpectrumVis][AGC] displayMode=%d agc=%s adaptiveGainFactor_=%.3f avgFrameMax=%.1f\n", (int)currentMode_, agc ? "true" : "false", adaptiveGainFactor_, avgFrameMax);
+        DEBUG("[UICompSpectrumVis][AGC] displayMode=%d adaptiveGainFactor_=%.3f avgFrameMax=%.1f\n", (int)currentMode_, adaptiveGainFactor_, avgFrameMax);
         lastAgcLogTime = currentTime;
     }
 #endif
@@ -760,16 +760,14 @@ void UICompSpectrumVis::renderSpectrumLowRes() {
     // Adaptív autogain használata
     float adaptiveScale = getAdaptiveScale(SensitivityConstants::SPECTRUMBAR_SENSITIVITY_FACTOR);
 
-    // Zajküszöb - alacsony szintű zajt nullázza
-    constexpr float NOISE_THRESHOLD = 0.003f; // Experimentális érték, finomhangolható
-
     float band_magnitudes[LOW_RES_BANDS] = {0.0f};
 
     // magnitudeData már garantáltan nem nullptr itt
     for (int i = min_bin_idx_low_res; i <= max_bin_idx_low_res; i++) {
         uint8_t band_idx = getBandVal(i, min_bin_idx_low_res, num_bins_in_low_res_range, LOW_RES_BANDS);
         if (band_idx < LOW_RES_BANDS) {
-            float magnitude = magnitudeData[i];
+            // Nyers int16_t -> float konverzió (az AudioProcessor már normalizálta)
+            float magnitude = static_cast<float>(magnitudeData[i]);
 
             // DEBUG: Magnitude értékek kiírása (csak néhány bin-re a spam elkerülése végett)
             // if (i % 10 == 0) {
@@ -879,9 +877,6 @@ void UICompSpectrumVis::renderSpectrumHighRes() {
     float adaptiveScale = getAdaptiveScale(SensitivityConstants::SPECTRUMBAR_SENSITIVITY_FACTOR);
     float maxMagnitude = 0.0f;
 
-    // Zajküszöb - alacsony szintű zajt nullázza
-    constexpr float NOISE_THRESHOLD = 0.003f; // Experimentális érték, finomhangolható
-
     for (int screen_pixel_x = 0; screen_pixel_x < bounds.width; ++screen_pixel_x) {
         int fft_bin_index;
         if (bounds.width == 1) {
@@ -893,7 +888,8 @@ void UICompSpectrumVis::renderSpectrumHighRes() {
         // Constrain to available bin indices (0 .. actualFftSize-1)
         fft_bin_index = constrain(fft_bin_index, 0, static_cast<int>(actualFftSize - 1));
 
-        float magnitude = magnitudeData[fft_bin_index];
+        // Nyers int16_t -> float konverzió (az AudioProcessor már normalizálta)
+        float magnitude = static_cast<float>(magnitudeData[fft_bin_index]);
 
         // DEBUG: Magnitude értékek kiírása (csak néhány oszlopra a spam elkerülése végett)
         // if (screen_pixel_x % 20 == 0) {
@@ -1051,7 +1047,8 @@ void UICompSpectrumVis::renderEnvelope() {
         // 'r' (0 to bounds.height-1) leképezése FFT bin indexre a szűkített tartományon belül
         int fft_bin_index = min_bin_for_env + static_cast<int>(std::round(static_cast<float>(r) / std::max(1, (bounds.height - 1)) * (num_bins_in_env_range - 1)));
         fft_bin_index = constrain(fft_bin_index, min_bin_for_env, max_bin_for_env); // Finomabb gain alkalmazás envelope-hoz
-        float rawMagnitude = magnitudeData[fft_bin_index];
+        // Nyers int16_t -> float konverzió (az AudioProcessor már normalizálta)
+        float rawMagnitude = static_cast<float>(magnitudeData[fft_bin_index]);
 
         // KRITIKUS: Infinity és NaN értékek szűrése!
         if (!isfinite(rawMagnitude) || rawMagnitude < 0.0) {
@@ -1204,7 +1201,6 @@ void UICompSpectrumVis::renderWaterfall() {
     // 2. Új adatok betöltése a wabuf jobb szélére (a wabuf továbbra is bounds.height magas)
 
     // Adaptív autogain használata waterfall-hoz
-    constexpr float NOISE_THRESHOLD = 0.003f; // Experimentális érték, finomhangolható
     float adaptiveScale = getAdaptiveScale(SensitivityConstants::WATERFALL_SENSITIVITY_FACTOR);
     float maxMagnitude = 0.0f;
 
@@ -1214,7 +1210,8 @@ void UICompSpectrumVis::renderWaterfall() {
         fft_bin_index = constrain(fft_bin_index, min_bin_for_wf, max_bin_for_wf);
 
         // Waterfall input scale - adaptív autogain-nel
-        double rawMagnitude = magnitudeData[fft_bin_index];
+        // Nyers int16_t -> double konverzió (az AudioProcessor már normalizálta)
+        double rawMagnitude = static_cast<double>(magnitudeData[fft_bin_index]);
 
         // DEBUG: Magnitude értékek kiírása (csak néhány sorra a spam elkerülése végett)
         // if (r % 10 == 0) {
@@ -1436,6 +1433,7 @@ void UICompSpectrumVis::renderCwOrRttyTuningAid() {
         float exact_bin_index = min_bin_for_tuning + ratio_in_display_width * (num_bins_in_tuning_range - 1);
 
         // Interpolált magnitude érték (közös helper metódus használata)
+        // A getInterpolatedMagnitude már normalizált float-ot ad vissza
         float rawMagnitude = getInterpolatedMagnitude(magnitudeData, exact_bin_index, min_bin_for_tuning, max_bin_for_tuning);
 
         maxMagnitude = std::max(maxMagnitude, static_cast<float>(rawMagnitude));
@@ -1606,6 +1604,7 @@ void UICompSpectrumVis::renderSnrCurve() {
         float exact_bin_index = min_bin + ratio * (num_bins - 1);
 
         // Interpolált magnitude érték (közös helper metódus használata)
+        // A getInterpolatedMagnitude már normalizált float-ot ad vissza
         float rawMagnitude = getInterpolatedMagnitude(magnitudeData, exact_bin_index, min_bin, max_bin);
         maxMagnitude = std::max(maxMagnitude, static_cast<float>(rawMagnitude));
 
@@ -2040,7 +2039,7 @@ float UICompSpectrumVis::getInterpolatedMagnitude(const int16_t *magnitudeData, 
     // Interpolációs súly (0.0 - 1.0)
     float frac = exactBinIndex - bin_low;
 
-    // Lineáris interpoláció
+    // Lineáris interpoláció nyers int16_t értékekkel (már normalizált az AudioProcessor-ban)
     float mag_low = static_cast<float>(magnitudeData[bin_low]);
     float mag_high = static_cast<float>(magnitudeData[bin_high]);
 

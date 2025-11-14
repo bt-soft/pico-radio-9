@@ -558,7 +558,7 @@ void DecoderWeFax_C1::decode_phasing(int gray_value) {
 
             } else {
                 // Outlier detektálva - NEM számítjuk bele az átlagba!
-                WEFAX_DEBUG("WeFax-C1: ⚠ Hibás szinkron (%.1f LPM - érvénytelen, 90-300 tartományon kívül)\n", tmp_lpm);
+                WEFAX_DEBUG("WeFax-C1: 🔴 Hibás szinkron (%.1f LPM - érvénytelen, 90-300 tartományon kívül)\n", tmp_lpm);
             }
 
             // Folyamatosan frissítjük az LPM-et minden phasing sornál

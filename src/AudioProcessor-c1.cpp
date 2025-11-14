@@ -17,7 +17,7 @@
 #include "defines.h"
 
 // AudioProcessor működés debug engedélyezése de csak DEBUG módban
-// #define __ADPROC_DEBUG
+#define __ADPROC_DEBUG
 #if defined(__DEBUG) && defined(__ADPROC_DEBUG)
 #define ADPROC_DEBUG(fmt, ...) DEBUG(fmt __VA_OPT__(, ) __VA_ARGS__)
 #else
@@ -179,11 +179,13 @@ void AudioProcessorC1::applyHanningWindow(q15_t *data, int size) {
     if (hanningWindow.empty() || (int)hanningWindow.size() < size) {
         return; // Biztonsági ellenőrzés
     }
-    arm_mult_q15(data,                 // bemenet
-                 hanningWindow.data(), // előre kiszámított Hanning ablak
-                 data,                 // kimenet (in-place)
-                 size                  // mintaszám
-    );
+    // FONTOS: data formátuma [Re0, Im0, Re1, Im1, ...]
+    // Csak a REAL komponenseket szorozzuk a Hanning ablakkal!
+    for (int i = 0; i < size; i++) {
+        int32_t product = ((int32_t)data[2 * i] * (int32_t)hanningWindow[i]) >> 15;
+        data[2 * i] = (int16_t)constrain(product, -32768, 32767);
+        // data[2*i+1] (Im) változatlan marad (0)
+    }
 }
 
 /**
@@ -238,7 +240,10 @@ void AudioProcessorC1::removeDcAndSmooth(const uint16_t *input, int16_t *output,
 
     if (!useNoiseReduction_ || smoothingPoints_ == 0) {
         // Zajszűrés kikapcsolva - csak DC offset eltávolítás (gyors)
-        arm_offset_q15((q15_t *)input, -ADC_MIDPOINT, (q15_t *)output, count);
+        // JAVÍTVA: Helyes típuskonverzió uint16_t -> int16_t
+        for (uint16_t i = 0; i < count; i++) {
+            output[i] = (int16_t)((int32_t)input[i] - ADC_MIDPOINT);
+        }
         return;
     }
 
@@ -436,12 +441,30 @@ bool AudioProcessorC1::processAndFillSharedData(SharedData &sharedData) {
 
     // 3. Bemenet előkészítése a CFFT-hez a tagváltozó pufferbe
     // A CMSIS CFFT várt bemeneti formátuma: [Re0, Im0, Re1, Im1, ...].
+    // rawSampleData már int16_t DC-mentesített értékek: -2048...+2047
+    // Q15 full scale: -32768...32767 → scaling factor: 32768/2048 = 16 = 2^4
     for (int i = 0; i < adcConfig.sampleCount; i++) {
-        // Shifteljük 12 bites ADC értéket 15 bites q15 formátumra
-        q15_t val = ((q15_t)sharedData.rawSampleData[i]) << (15 - ADC_BIT_DEPTH);
-        this->fftInput[2 * i] = val;   // Re
+        // 4 bit balra shift a teljes Q15 dinamika kihasználásához
+        int16_t val = sharedData.rawSampleData[i] << 4;
+        this->fftInput[2 * i] = val;   // Re (int16_t = q15_t)
         this->fftInput[2 * i + 1] = 0; // Im
     }
+
+#ifdef __ADPROC_DEBUG
+    // Debug: rawSampleData és fftInput első 10 értéke FFT ELŐTT
+    if (adcConfig.sampleCount >= 5) {
+        ADPROC_DEBUG("RAW samples[0-4]: ");
+        for (int i = 0; i < 5; i++) {
+            ADPROC_DEBUG("%d ", sharedData.rawSampleData[i]);
+        }
+        ADPROC_DEBUG("\n");
+        ADPROC_DEBUG("FFT input[Re0-Re4] BEFORE Hanning: ");
+        for (int i = 0; i < 5; i++) {
+            ADPROC_DEBUG("%d ", this->fftInput[2 * i]);
+        }
+        ADPROC_DEBUG("\n");
+    }
+#endif
 
     // 4. Hanning ablak (opcionális - CW/RTTY-hez hasznos, WEFAX-nál nem befolyásolja a domináns frekvenciát jelentősen)
     applyHanningWindow(this->fftInput.data(), adcConfig.sampleCount);
@@ -463,6 +486,14 @@ bool AudioProcessorC1::processAndFillSharedData(SharedData &sharedData) {
     );
 #ifdef __ADPROC_DEBUG
     uint32_t fftTime = micros() - start;
+    // Debug: FFT output első 10 komplex szám (Re, Im párok)
+    if (adcConfig.sampleCount >= 5) {
+        ADPROC_DEBUG("FFT output[Re0-Re4,Im0-Im4] AFTER FFT: ");
+        for (int i = 0; i < 5; i++) {
+            ADPROC_DEBUG("(%d,%d) ", this->fftInput[2 * i], this->fftInput[2 * i + 1]);
+        }
+        ADPROC_DEBUG("\n");
+    }
 #endif
 
     // 6. Spektrum számítása és másolása a megosztott pufferbe
@@ -470,17 +501,54 @@ bool AudioProcessorC1::processAndFillSharedData(SharedData &sharedData) {
     start = micros();
 #endif
     uint16_t spectrumSize = adcConfig.sampleCount / 2;
-    sharedData.fftSpectrumSize = std::min(spectrumSize, (uint16_t)SPECTRUM_SIZE);
-    arm_abs_q15(                        //
-        (q15_t *)this->fftInput.data(), // bemenet (komplex számok)
-        (q15_t *)this->fftInput.data(), // kimenet (abszolút értékek)
-        adcConfig.sampleCount * 2       // mintaszám (2x a komplex miatt)
-    );
+    sharedData.fftSpectrumSize = std::min(spectrumSize, (uint16_t)MAX_FFT_SPECTRUM_SIZE);
 
-    // most minden re és im abszolút értéke megvan, össze kell őket adni (Re + Im)
+    // SAJÁT MAGNITUDE SZÁMÍTÁS - CMSIS Q15 normalizálás NÉLKÜL!
+    // Az arm_cmplx_mag_q15 függvény normalizálja az eredményt, ami itt nem kívánatos
+    // Az fftInput formátuma: [Re0, Im0, Re1, Im1, ...]
+    // Magnitude: sqrt(Re^2 + Im^2) - int16_t tartományban
     for (int i = 0; i < sharedData.fftSpectrumSize; i++) {
-        sharedData.fftSpectrumData[i] = this->fftInput[2 * i] + this->fftInput[2 * i + 1];
+        int32_t re = (int32_t)this->fftInput[2 * i];     // Real
+        int32_t im = (int32_t)this->fftInput[2 * i + 1]; // Imaginary
+
+        // Magnitude^2 = Re^2 + Im^2 (elkerüljük a gyök számítást - gyorsabb!)
+        // int32_t mag_sq = re * re + im * im;
+
+        // Gyök közelítés: sqrt(x) ≈ x >> (bits/2) - gyors, de pontatlan
+        // Helyette:Integer square root (pontos, de lassabb)
+        // VAGY: CMSIS arm_sqrt_q31() ha kell
+
+        // Egyszerű közelítés most: mag ≈ (|Re| + |Im|) / 2 + max(|Re|, |Im|) / 2
+        int32_t abs_re = (re < 0) ? -re : re;
+        int32_t abs_im = (im < 0) ? -im : im;
+        int32_t mag = (abs_re > abs_im) ? abs_re + (abs_im >> 1) : abs_im + (abs_re >> 1);
+
+        // Scaling: 2x erősítés (1 bit balra shift) - elegendő a láthatósághoz
+        // Az FFT eredmények általában kicsik, de 4x túl nagy volt kis zajokhoz
+        mag = mag << 1; // 2x scaling
+
+        // Constrain int16_t tartományba (0..32767)
+        sharedData.fftSpectrumData[i] = (int16_t)constrain(mag, 0, 32767);
     }
+
+    // DC bin (bin[0]) nullázása - a DC komponens nem érdekes a spektrum vizualizációnál
+    // A DC bin mindig a legnagyobb (DC offset + zajszint), de zavaró a megjelenítésnél
+    if (sharedData.fftSpectrumSize > 0) {
+        sharedData.fftSpectrumData[0] = 0;
+    }
+
+#ifdef __ADPROC_DEBUG
+    // Debug: első 10 bin magnitude értéke
+    if (sharedData.fftSpectrumSize >= 10) {
+        ADPROC_DEBUG("FFT magnitudes[0-9]: ");
+        for (int i = 0; i < 10; i++) {
+            ADPROC_DEBUG("%d ", sharedData.fftSpectrumData[i]);
+        }
+        ADPROC_DEBUG("\n");
+    }
+#endif
+
+    // KÉSZ! A sharedData.fftSpectrumData már int16_t magnitude értékeket tartalmaz (0..32767)
 #ifdef __ADPROC_DEBUG
     uint32_t copyTime = micros() - start;
 #endif
