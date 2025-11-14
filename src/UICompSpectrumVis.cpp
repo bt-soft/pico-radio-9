@@ -54,9 +54,6 @@ constexpr uint8_t SPECTRUM_FPS = 25;                              // FPS limitá
 // Zajküszöb - alacsony szintű zajt nullázza
 constexpr float NOISE_THRESHOLD = 120.0f; // Zajszűrés: zaj magnitúdó értékével
 
-// AGC célkitöltés arány (a spektrum magasságából)
-constexpr float TARGET_MAX_UTILIZATION = 0.60f; // 60% a grafikon magasságából (AGC célmagasság)
-
 // ===== ÉRZÉKENYSÉGI / AMPLITÚDÓ SKÁLÁZÁSI KONSTANSOK =====
 // Minden grafikon mód érzékenységét és amplitúdó skálázását itt lehet módosítani
 // EGYSÉGES LOGIKA: nagyobb érték = nagyobb érzékenység (minden módnál)
@@ -180,7 +177,7 @@ void UICompSpectrumVis::updateBarBasedGain(float currentBarMaxValue) {
 
     // Időalapú gain frissítés
     if (Utils::timeHasPassed(barAgcLastUpdateTime_, AGC_UPDATE_INTERVAL_MS)) {
-        float newGain = calculateAgcGain(barAgcHistory_, AGC_HISTORY_SIZE, barAgcGainFactor_);
+        float newGain = calculateBarAgcGain(barAgcHistory_, AGC_HISTORY_SIZE, barAgcGainFactor_);
         if (newGain > 0.0f) {
             barAgcGainFactor_ = newGain;
         }
@@ -201,7 +198,7 @@ void UICompSpectrumVis::updateMagnitudeBasedGain(float currentMagnitudeMaxValue)
 
     // Időalapú gain frissítés
     if (Utils::timeHasPassed(magnitudeAgcLastUpdateTime_, AGC_UPDATE_INTERVAL_MS)) {
-        float newGain = calculateAgcGain(magnitudeAgcHistory_, AGC_HISTORY_SIZE, magnitudeAgcGainFactor_);
+        float newGain = calculateMagnitudeAgcGain(magnitudeAgcHistory_, AGC_HISTORY_SIZE, magnitudeAgcGainFactor_);
         if (newGain > 0.0f) {
             magnitudeAgcGainFactor_ = newGain;
         }
@@ -212,13 +209,13 @@ void UICompSpectrumVis::updateMagnitudeBasedGain(float currentMagnitudeMaxValue)
 }
 
 /**
- * @brief Közös AGC gain számítás
- * @param history History buffer
+ * @brief Bar-alapú AGC gain számítás (pixel magasság alapú)
+ * @param history History buffer (bar magasságok pixelben)
  * @param historySize History buffer mérete
  * @param currentGainFactor Jelenlegi gain faktor
  * @return Új gain faktor
  */
-float UICompSpectrumVis::calculateAgcGain(const float *history, int historySize, float currentGainFactor) const {
+float UICompSpectrumVis::calculateBarAgcGain(const float *history, int historySize, float currentGainFactor) const {
     // History átlag számítása (stabil érték több frame alapján)
     float sum = 0.0f;
     int validCount = 0;
@@ -235,8 +232,41 @@ float UICompSpectrumVis::calculateAgcGain(const float *history, int historySize,
 
     float averageMax = sum / validCount;
     int graphH = getGraphHeight();
-    float targetHeight = graphH * AGC_TARGET_UTILIZATION;
+    float targetHeight = graphH * BAR_AGC_TARGET_UTILIZATION; // Pixel magasság cél
     float idealGain = targetHeight / averageMax;
+
+    // Simított átmenet az új gain-hez
+    float newGain = AGC_SMOOTH_FACTOR * idealGain + (1.0f - AGC_SMOOTH_FACTOR) * currentGainFactor;
+
+    // Biztonsági korlátok
+    return constrain(newGain, 0.001f, 20.0f);
+}
+
+/**
+ * @brief Magnitude-alapú AGC gain számítás (nyers FFT érték alapú)
+ * @param history History buffer (magnitude értékek)
+ * @param historySize History buffer mérete
+ * @param currentGainFactor Jelenlegi gain faktor
+ * @return Új gain faktor
+ */
+float UICompSpectrumVis::calculateMagnitudeAgcGain(const float *history, int historySize, float currentGainFactor) const {
+    // History átlag számítása (stabil érték több frame alapján)
+    float sum = 0.0f;
+    int validCount = 0;
+    for (int i = 0; i < historySize; i++) {
+        if (history[i] > AGC_MIN_SIGNAL_THRESHOLD) {
+            sum += history[i];
+            validCount++;
+        }
+    }
+
+    if (validCount == 0) {
+        return currentGainFactor; // Nincs elég jel, megtartjuk a jelenlegi gain-t
+    }
+
+    float averageMax = sum / validCount;
+    float targetMagnitude = MAGNITUDE_AGC_TARGET_VALUE; // Fix magnitude cél
+    float idealGain = targetMagnitude / averageMax;
 
     // Simított átmenet az új gain-hez
     float newGain = AGC_SMOOTH_FACTOR * idealGain + (1.0f - AGC_SMOOTH_FACTOR) * currentGainFactor;
@@ -909,7 +939,7 @@ void UICompSpectrumVis::renderSpectrumBar(bool isHighRes) {
             float adaptiveScale = getBarAgcScale(SensitivityConstants::LOWRES_SPECTRUMBAR_SENSITIVITY_FACTOR);
             float magnitude = band_magnitudes[band_idx] * adaptiveScale;
 
-            uint8_t maxBarHeight = static_cast<uint8_t>(graphH * TARGET_MAX_UTILIZATION);
+            uint8_t maxBarHeight = static_cast<uint8_t>(graphH * BAR_AGC_TARGET_UTILIZATION);
             uint8_t dsize = static_cast<uint8_t>(constrain(magnitude, 0, maxBarHeight));
 
             // Zajküszöb alatti bar legyen 1px magas

@@ -166,10 +166,15 @@ class UICompSpectrumVis : public UIComponent {
 
     // ===== KÖZÖS AGC KONSTANSOK =====
     static constexpr uint32_t AGC_UPDATE_INTERVAL_MS = 750; // Időalapú AGC frissítés (ms)
-    static constexpr float AGC_TARGET_UTILIZATION = 0.85f;  // 85%-os maximális kitöltés (közös)
     static constexpr float AGC_SMOOTH_FACTOR = 0.2f;        // Simítási faktor (közös)
     static constexpr float AGC_MIN_SIGNAL_THRESHOLD = 0.1f; // Minimum jel küszöb (közös)
     static constexpr int AGC_HISTORY_SIZE = 10;             // History buffer méret (közös)
+
+    // Bar-alapú AGC célértékek (pixel magasságban)
+    static constexpr float BAR_AGC_TARGET_UTILIZATION = 0.80f; // 80%-os maximális bar kitöltés
+
+    // Magnitude-alapú AGC célértékek (nyers FFT magnitude tartomány)
+    static constexpr float MAGNITUDE_AGC_TARGET_VALUE = 8000.0f; // Célérték magnitude módokhoz
 
     // ===== BAR-ALAPÚ AGC (Spektrum módok: LowRes, HighRes) =====
     // Spektrum bar-ok magasságát méri, nem a nyers magnitude-ot
@@ -273,8 +278,9 @@ class UICompSpectrumVis : public UIComponent {
     float getMagnitudeAgcScale(float baseConstant);
     void resetMagnitudeAgc();
 
-    // Közös helper
-    float calculateAgcGain(const float *history, int historySize, float currentGainFactor) const;
+    // AGC gain számítás (külön bar és magnitude verzió)
+    float calculateBarAgcGain(const float *history, int historySize, float currentGainFactor) const;
+    float calculateMagnitudeAgcGain(const float *history, int historySize, float currentGainFactor) const;
     float isMutedDrawn;
 
     /**
