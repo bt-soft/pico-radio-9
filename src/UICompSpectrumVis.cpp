@@ -860,8 +860,15 @@ void UICompSpectrumVis::renderSpectrumBar(bool isHighRes) {
             maxBarMagnitude = std::max(maxBarMagnitude, band_magnitudes[band_idx]);
         }
 
-        // AGC-t a bar-ok maximuma alapján számoljuk
-        updateFrameBasedGain(maxBarMagnitude);
+        // AGC: 5 frame-es bufferbe mentjük a bar maximumot
+        agcBarMaxHistory_[agcBarMaxHistoryIndex_] = maxBarMagnitude;
+        agcBarMaxHistoryIndex_ = (agcBarMaxHistoryIndex_ + 1) % AGC_BAR_MAX_HISTORY;
+        // AGC-t az elmúlt 5 frame legnagyobb bar értéke alapján számoljuk
+        float agcBarHistoryMax = 0.0f;
+        for (uint8_t i = 0; i < AGC_BAR_MAX_HISTORY; ++i) {
+            agcBarHistoryMax = std::max(agcBarHistoryMax, agcBarMaxHistory_[i]);
+        }
+        updateFrameBasedGain(agcBarHistoryMax);
 
         DEBUG("Bar debug ----------------------------\n");
         // Sávok kirajzolása
@@ -889,15 +896,17 @@ void UICompSpectrumVis::renderSpectrumBar(bool isHighRes) {
             peak_release_counter = (peak_release_counter + 1) % 5; // Peak: minden 5. ciklusban
 
             // Oszlop magasság gyorsabb csillapítása
-            static uint8_t bar_height_[MAX_SPECTRUM_BANDS] = {0};
             // A bar magassága mindig az aktuális dsize vagy a csillapított érték közül a nagyobb
-            // Ha nincs új nagyobb érték, minden frame-ben 4-el csökkentjük (gyorsabb csillapítás)
             if (band_idx < MAX_SPECTRUM_BANDS) {
                 if (dsize >= bar_height_[band_idx]) {
                     bar_height_[band_idx] = dsize;
                 } else {
                     if (bar_release_counter == 0 && bar_height_[band_idx] > 1) {
+                        // Ha nincs új nagyobb érték, minden frame-ben 4-el csökkentjük (gyorsabb csillapítás)
                         bar_height_[band_idx] -= 2;
+                        if (bar_height_[band_idx] < 1) {
+                            bar_height_[band_idx] = 0;
+                        }
                     } else if (bar_release_counter == 0 && bar_height_[band_idx] == 1) {
                         bar_height_[band_idx] = 0;
                     }

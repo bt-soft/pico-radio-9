@@ -14,6 +14,7 @@ enum class RadioMode { AM = 0, FM = 1 };
  * @brief Spektrum vizualizáció komponens a radio-2 projekt alapján
  */
 class UICompSpectrumVis : public UIComponent {
+
   public:
     /**
      * @brief Megjelenítési módok
@@ -171,6 +172,11 @@ class UICompSpectrumVis : public UIComponent {
     float adaptiveGainFactor_;                    // Frame-alapú adaptív gain faktor
     uint32_t lastGainUpdateTime_;                 // Utolsó gain frissítés ideje
 
+    // AGC: 5 frame-es buffer a bar maximumhoz
+    static constexpr int AGC_BAR_MAX_HISTORY = 5;
+    float agcBarMaxHistory_[AGC_BAR_MAX_HISTORY] = {0};
+    uint8_t agcBarMaxHistoryIndex_ = 0;
+
     static constexpr uint32_t GAIN_UPDATE_INTERVAL_MS = 750; // Lassabb frissítés a stabilabb működésért
     static constexpr float TARGET_MAX_UTILIZATION = 0.85f;   // 85%-os maximális kitöltés
     static constexpr float GAIN_SMOOTH_FACTOR = 0.2f;        // Lassabb simítási faktor a stabilabb működésért
@@ -184,6 +190,7 @@ class UICompSpectrumVis : public UIComponent {
     // Peak detection buffer (24 bands max)
     static constexpr int MAX_SPECTRUM_BANDS = 24;
     int Rpeak_[MAX_SPECTRUM_BANDS];
+    uint8_t bar_height_[MAX_SPECTRUM_BANDS]; // Bar magasságok csillapításhoz
 
     // CW/RTTY hangolási segéd változók
     TuningAidType currentTuningAidType_;
