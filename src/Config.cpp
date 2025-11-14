@@ -50,10 +50,8 @@ const Config_t DEFAULT_CONFIG = {
     .rotaryAccelerationEnabled = true,                 // Rotary gyorsítás engedélyezése
 
     // AudioFft módok
-    .audioFftGainConfigAm = 0.0f,       // Auto Gain
-    .audioFftGainConfigFm = 1.0f,       // Manual Gain 1.0x (visszaállítva Arduino FFT-hez)
-    .miniAudioFftConfigAnalyzer = 0.0f, // Analyzerhez alapértelmezetten Auto Gain
-    .miniAudioFftConfigRtty = 0.0f,     // RTTY-hez alapértelmezetten Auto Gain
+    .audioFftGainConfigAm = 0.0f, // Auto Gain
+    .audioFftGainConfigFm = 1.0f, // Manual Gain 1.0x (visszaállítva Arduino FFT-hez)
 
     // CW beállítások
     .cwToneFrequencyHz = 850, // x Hz CW frequency

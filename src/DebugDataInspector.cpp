@@ -79,20 +79,6 @@ void DebugDataInspector::printConfigData(const Config_t &configData) {
     } else {
         DEBUG("  audioFftGainConfigFm: Manual Gain %sx\n", Utils::floatToString(configData.audioFftGainConfigFm).c_str());
     }
-    if (configData.miniAudioFftConfigAnalyzer == -1.0f) {
-        DEBUG("  miniAudioFftConfigAnalyzer: Disabled\n");
-    } else if (configData.miniAudioFftConfigAnalyzer == 0.0f) {
-        DEBUG("  miniAudioFftConfigAnalyzer: Auto Gain\n");
-    } else {
-        DEBUG("  miniAudioFftConfigAnalyzer: Manual Gain %sx\n", Utils::floatToString(configData.miniAudioFftConfigAnalyzer).c_str());
-    }
-    if (configData.miniAudioFftConfigRtty == -1.0f) {
-        DEBUG("  miniAudioFftConfigRtty: Disabled\n");
-    } else if (configData.miniAudioFftConfigRtty == 0.0f) {
-        DEBUG("  miniAudioFftConfigRtty: Auto Gain\n");
-    } else {
-        DEBUG("  miniAudioFftConfigRtty: Manual Gain %sx\n", Utils::floatToString(configData.miniAudioFftConfigRtty).c_str());
-    }
     DEBUG("  cwToneFrequencyHz: %u\n", configData.cwToneFrequencyHz);
     DEBUG("  rttyMarkFrequencyHz: %u\n", configData.rttyMarkFrequencyHz);
     DEBUG("  rttyShiftFrequencyHz: %u\n", configData.rttyShiftFrequencyHz);

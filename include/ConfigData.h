@@ -57,9 +57,6 @@ struct Config_t {
     float audioFftGainConfigAm; // -1.0f: Disabled, 0.0f: Auto, >0.0f: Manual Gain Factor
     float audioFftGainConfigFm; // -1.0f: Disabled, 0.0f: Auto, >0.0f: Manual Gain Factor
 
-    float miniAudioFftConfigAnalyzer; // MiniAudioFft erősítés konfigurációja az Analyzerhez
-    float miniAudioFftConfigRtty;     // MiniAudioFft erősítés konfigurációja az RTTY-hez
-
     // CW frekvencia
     uint16_t cwToneFrequencyHz; // CW frekvencia Hz-ben
 
