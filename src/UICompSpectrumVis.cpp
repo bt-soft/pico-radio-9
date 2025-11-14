@@ -240,7 +240,7 @@ float UICompSpectrumVis::calculateBarAgcGain(const float *history, int historySi
 
     float averageMax = sum / validCount;
     int graphH = getGraphHeight();
-    float targetHeight = graphH * BAR_AGC_TARGET_UTILIZATION; // Pixel magasság cél
+    float targetHeight = graphH * BAR_AGC_TARGET_HEIGHT_UTILIZATION; // Pixel magasság cél
     float idealGain = targetHeight / averageMax;
 
     // Simított átmenet az új gain-hez
@@ -947,7 +947,7 @@ void UICompSpectrumVis::renderSpectrumBar(bool isHighRes) {
             float adaptiveScale = getBarAgcScale(SensitivityConstants::LOWRES_SPECTRUMBAR_SENSITIVITY_FACTOR);
             float magnitude = band_magnitudes[band_idx] * adaptiveScale;
 
-            uint8_t maxBarHeight = static_cast<uint8_t>(graphH * BAR_AGC_TARGET_UTILIZATION);
+            uint8_t maxBarHeight = static_cast<uint8_t>(graphH * BAR_AGC_TARGET_HEIGHT_UTILIZATION);
             uint8_t dsize = static_cast<uint8_t>(constrain(magnitude, 0, maxBarHeight));
 
             // Zajküszöb alatti bar legyen 1px magas
