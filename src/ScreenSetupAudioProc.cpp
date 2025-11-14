@@ -212,12 +212,17 @@ void ScreenSetupAudioProc::handleRttyBaudRateDialog(int index) {
  * @return Olvasható string reprezentáció
  */
 String ScreenSetupAudioProc::decodeFFTGain(float value) {
-    if (value == -1.0f) {
-        return "Disabled";
-    } else if (value == 0.0f) {
+    if (value == SPECTRUM_GAIN_MODE_AUTO) {
         return "Auto Gain";
     } else {
-        return "Manual: x " + Utils::floatToString(value, 3);
+        // dB formátumban megjelenítés
+        char buf[16];
+        if (value >= 0.0f) {
+            sprintf(buf, "+%.1f dB", value);
+        } else {
+            sprintf(buf, "%.1f dB", value);
+        }
+        return String(buf);
     }
 }
 
@@ -232,43 +237,34 @@ void ScreenSetupAudioProc::handleFFTGainDialog(int index, bool isAM) {
     float &currentConfig = isAM ? config.data.audioFftGainConfigAm : config.data.audioFftGainConfigFm;
     const char *title = isAM ? "FFT Gain AM" : "FFT Gain FM";
 
-    uint8_t defaultSelection = 0; // Disabled
-    if (currentConfig == 0.0f) {
-        defaultSelection = 1; // Auto Gain
-    } else if (currentConfig > 0.0f) {
-        defaultSelection = 2; // Manual Gain
+    uint8_t defaultSelection = 0; // Auto Gain
+    if (currentConfig != SPECTRUM_GAIN_MODE_AUTO) {
+        defaultSelection = 1; // Manual Gain
     }
 
-    const char *options[] = {"Disabled", "Auto G", "Manual G"};
+    const char *options[] = {"Auto G", "Manual G"};
 
     auto fftDialog = std::make_shared<UIMultiButtonDialog>(
         this, title, "Select FFT gain mode:", options, ARRAY_ITEM_COUNT(options),
         [this, index, isAM, &currentConfig, title](int buttonIndex, const char *buttonLabel, UIMultiButtonDialog *dialog) {
             switch (buttonIndex) {
-                case 0: // Disabled
-                    currentConfig = -1.0f;
-                    settingItems[index].value = "Disabled";
-                    updateListItem(index);
-                    dialog->close(UIDialogBase::DialogResult::Accepted);
-                    break;
-
-                case 1: // Auto Gain
-                    currentConfig = 0.0f;
+                case 0: // Auto Gain
+                    currentConfig = SPECTRUM_GAIN_MODE_AUTO;
                     settingItems[index].value = "Auto Gain";
                     updateListItem(index);
                     dialog->close(UIDialogBase::DialogResult::Accepted);
                     break;
 
-                case 2: // Manual Gain
+                case 1: // Manual Gain
                 {
                     dialog->close(UIDialogBase::DialogResult::Accepted);
 
-                    auto tempGainValuePtr = std::make_shared<float>((currentConfig > 0.0f) ? currentConfig : 1.0f);
+                    auto tempGainValuePtr = std::make_shared<float>((currentConfig != SPECTRUM_GAIN_MODE_AUTO) ? currentConfig : 0.0f);
 
                     auto gainDialog = std::make_shared<UIValueChangeDialog>(
-                        this, (String(title) + " - Manual Gain").c_str(), "Set gain factor (0.001 - 1.0):",                           //
+                        this, (String(title) + " - Manual Gain").c_str(), "Set gain (dB): -40.0 ... +40.0",                           //
                         tempGainValuePtr.get(),                                                                                       // Pointer a temp értékhez
-                        0.01f, 1.0f, 0.01f,                                                                                           // Min, Max, Step
+                        -40.0f, 40.0f, 1.0f,                                                                                          // Min, Max, Step (dB-ben)
                         nullptr,                                                                                                      // Élő előnézet callback (nem szükséges)
                         [this, index, &currentConfig, tempGainValuePtr](UIDialogBase *sender, UIMessageDialog::DialogResult result) { // Eredmény kezelése
                             if (result == UIMessageDialog::DialogResult::Accepted) {

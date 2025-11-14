@@ -18,7 +18,7 @@
 #include "defines.h"
 
 // AudioProcessor működés debug engedélyezése de csak DEBUG módban
-#define __ADPROC_DEBUG
+//#define __ADPROC_DEBUG
 #if defined(__DEBUG) && defined(__ADPROC_DEBUG)
 #define ADPROC_DEBUG(fmt, ...) DEBUG(fmt __VA_OPT__(, ) __VA_ARGS__)
 #else

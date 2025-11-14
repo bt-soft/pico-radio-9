@@ -232,16 +232,15 @@ float UICompSpectrumVis::getAdaptiveScale(float baseConstant) {
         return baseConstant * adaptiveGainFactor_;
     }
 
-    //-1.0f: Disabled, 0.0f: Auto, >0.0f: Manual Gain Factor
-    float gainfactor = this->radioMode_ == RadioMode::AM ? config.data.audioFftGainConfigAm : config.data.audioFftGainConfigFm;
+    // FFT Gain dB-ben: -999.0f = Auto Gain, -40.0 ... +40.0 dB tartomány
+    float gainDb = this->radioMode_ == RadioMode::AM ? config.data.audioFftGainConfigAm : config.data.audioFftGainConfigFm;
 
-    // Ha ki van kapcsolva a gain (Disabled), akkor nincs erősítés
-    if (gainfactor == -1.0f) {
-        gainfactor = 1.0f;
-    }
+    // dB -> lineáris konverzió: gain_linear = 10^(dB/20)
+    // 0 dB = 1.0x, -40 dB = 0.01x, +40 dB = 100x
+    float gainLinear = powf(10.0f, gainDb / 20.0f);
 
     // Az erősítéssel megszorozzuk a bázis konstans értéket
-    return baseConstant * gainfactor;
+    return baseConstant * gainLinear;
 }
 
 /**
@@ -265,7 +264,7 @@ void UICompSpectrumVis::resetAdaptiveGain() {
  */
 bool UICompSpectrumVis::isAutoGainMode() {
     float currentGainConfig = this->radioMode_ == RadioMode::AM ? config.data.audioFftGainConfigAm : config.data.audioFftGainConfigFm;
-    return (currentGainConfig == 0.0f); // 0.0f = Auto Gain
+    return (currentGainConfig == SPECTRUM_GAIN_MODE_AUTO); // -999.0f = Auto Gain (speciális érték)
 }
 
 /**
@@ -1983,12 +1982,13 @@ void UICompSpectrumVis::renderFrequencyRangeLabels(uint16_t minDisplayFrequencyH
                 sprintf(buf, "%d", (int)roundf(freq));
             } else {
                 float kfreq = freq / 1000.0f;
-                int kint = (int)kfreq;
-                int tizedes = (int)((kfreq - kint) * 10 + 0.5f); // első tizedesjegy kerekítve
-                if (tizedes == 0) {
+                uint16_t kint = (uint16_t)kfreq;
+                float frac = kfreq - kint;
+                uint8_t decimal = (uint8_t)(frac * 10.0f);
+                if (decimal == 0) {
                     sprintf(buf, "%dk", kint);
                 } else {
-                    sprintf(buf, "%d.%dk", kint, tizedes);
+                    sprintf(buf, "%d.%dk", kint, decimal);
                 }
             }
             tft.drawString(buf, x, indicatorY);
