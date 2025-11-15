@@ -14,7 +14,7 @@
 #define TEST_DO_NOT_PROCESS_MUTED_STATE
 
 // UICompSpectrumVis működés debug engedélyezése de csak DEBUG módban
-#define __UISPECTRUM_DEBUG
+// #define __UISPECTRUM_DEBUG
 #if defined(__DEBUG) && defined(__UISPECTRUM_DEBUG)
 #define UISPECTRUM_DEBUG(fmt, ...) DEBUG(fmt __VA_OPT__(, ) __VA_ARGS__)
 #else
@@ -87,17 +87,11 @@ constexpr float ENVELOPE_SENSITIVITY_FACTOR = 0.28f; // Envelope amplitúdó er�
 // Waterfall mód
 constexpr float WATERFALL_SENSITIVITY_FACTOR = 0.98f; // Waterfall intenzitás skálázása
 
-// CW SNR Curve
-constexpr float CW_TUNING_AID_SNR_CURVE_SENSITIVITY_FACTOR = 0.3f;
+// CW/RTTY SNR Curve
+constexpr float TUNING_AID_SNR_CURVE_SENSITIVITY_FACTOR = 0.3f;
 
-// CW Tuning Aid Waterfall
-constexpr float CW_TUNING_AID_WATERFALL_SENSITIVITY_FACTOR = 1.0f;
-
-// RTTY SNR Curve
-constexpr float RTTY_TUNING_AID_SNR_CURVE_SENSITIVITY_FACTOR = 0.3f;
-
-// RTTY Tuning Aid Waterfall
-constexpr float RTTY_TUNING_AID_WATERFALL_SENSITIVITY_FACTOR = 1.0f;
+// CW/RTTY Tuning Aid Waterfall
+constexpr float TUNING_AID_WATERFALL_SENSITIVITY_FACTOR = 1.0f;
 
 }; // namespace SensitivityConstants
 
@@ -864,20 +858,20 @@ void UICompSpectrumVis::renderSpectrumBar(bool isHighRes) {
                 maxBinMagnitudeForAgc = std::max(maxBinMagnitudeForAgc, magnitude);
             }
 
-            // ----------------------------------------
-            // AGC vagy manuális erősítés alkalmazása
-            // ----------------------------------------
             // UTÁNA erősítés a tiszta jelen
             float adaptiveScale = getBarAgcScale(SensitivityConstants::HIGHRES_SPECTRUMBAR_SENSITIVITY_FACTOR);
-            // AGC esetén a highresBar túlvezérlődik, csökkentjük az erősítést
-            if (isAutoGainMode()) {
-                adaptiveScale *= 0.07f;
-            }
             float amplified = magnitude * adaptiveScale;
             maxMagnitude = std::max(maxMagnitude, amplified);
 
-            sprite_->drawFastVLine(screen_pixel_x, 0, graphH, TFT_BLACK);
+            // ----------------------------------------
+            // AGC vagy manuális erősítés alkalmazása a maxMagnitude megkeresése UTÁN
+            // ----------------------------------------
+            // AGC esetén a highresBar túlvezérlődik, csökkentjük az erősítést
+            if (isAutoGainMode()) {
+                // amplified *= 0.07f;
+            }
 
+            sprite_->drawFastVLine(screen_pixel_x, 0, graphH, TFT_BLACK);
             uint8_t scaled_magnitude = static_cast<uint8_t>(constrain(amplified, 0, graphH - 1));
 
             // Zajküszöb alatti bar legyen 1px magas
@@ -1547,15 +1541,17 @@ void UICompSpectrumVis::renderCwOrRttyTuningAidWaterfall() {
     const int num_bins_in_tuning_range = std::max(1, max_bin_for_tuning - min_bin_for_tuning + 1);
 
     // Magnitude-alapú adaptív skálázás a módtól függően
-    float adaptiveScale;
-    if (currentMode_ == DisplayMode::CWWaterfall) {
-        adaptiveScale = getMagnitudeAgcScale(SensitivityConstants::CW_TUNING_AID_WATERFALL_SENSITIVITY_FACTOR);
-    } else {
-        adaptiveScale = getMagnitudeAgcScale(SensitivityConstants::RTTY_TUNING_AID_WATERFALL_SENSITIVITY_FACTOR);
+    float adaptiveScale = getMagnitudeAgcScale(SensitivityConstants::TUNING_AID_WATERFALL_SENSITIVITY_FACTOR);
+    adaptiveScale = getMagnitudeAgcScale(SensitivityConstants::TUNING_AID_WATERFALL_SENSITIVITY_FACTOR);
+    // ----------------------------------------
+    // AGC vagy manuális erősítés alkalmazása
+    // ----------------------------------------
+    // AGC esetén a cwwaterfall túlvezérlődik, csökkentjük az erősítést
+    if (isAutoGainMode()) {
+        adaptiveScale *= 0.03f;
     }
 
     float maxRawMagnitude = 0.0f;
-
     // 2. Új adatok betöltése a legfelső sorba INTERPOLÁCIÓVAL (simább tuning aid)
     constexpr int WF_GRADIENT = 100;
 
@@ -1567,8 +1563,8 @@ void UICompSpectrumVis::renderCwOrRttyTuningAidWaterfall() {
         // Interpolált magnitude érték (közös helper metódus használata)
         // A getInterpolatedMagnitude már normalizált float-ot ad vissza
         float rawMagnitude = getInterpolatedMagnitude(magnitudeData, exact_bin_index, min_bin_for_tuning, max_bin_for_tuning);
-
         maxRawMagnitude = std::max(maxRawMagnitude, rawMagnitude);
+
         float scaledMagnitude = rawMagnitude * adaptiveScale;
         uint8_t finalValue = static_cast<uint8_t>(constrain(scaledMagnitude, 0.0, 255.0));
         wabuf[0][c] = finalValue;
@@ -1735,16 +1731,19 @@ void UICompSpectrumVis::renderSnrCurve() {
         }
 
         // Magnitude-alapú adaptív skálázás a módtól függően
-        float adaptiveScale;
-        if (currentMode_ == DisplayMode::CwSnrCurve) {
-            adaptiveScale = getMagnitudeAgcScale(SensitivityConstants::CW_TUNING_AID_SNR_CURVE_SENSITIVITY_FACTOR);
-        } else {
-            adaptiveScale = getMagnitudeAgcScale(SensitivityConstants::RTTY_TUNING_AID_SNR_CURVE_SENSITIVITY_FACTOR);
-        }
+        float adaptiveScale = getMagnitudeAgcScale(SensitivityConstants::TUNING_AID_SNR_CURVE_SENSITIVITY_FACTOR);
 
         // UTÁNA erősítés a tiszta jelen
         float snrValue = rawMagnitude * adaptiveScale;
         maxMagnitude = std::max(maxMagnitude, snrValue);
+
+        // ----------------------------------------
+        // AGC vagy manuális erősítés alkalmazása a maxMagnitude kikeresése UTÁN!!
+        // ----------------------------------------
+        // AGC esetén az snrcurve túlvezérlődik, csökkentjük az erősítést
+        if (isAutoGainMode()) {
+            snrValue *= 0.015f;
+        }
 
         // Y koordináta számítása (invertált, mert a képernyő teteje y=0)
         uint16_t y = graphH - static_cast<int>(constrain(snrValue, 0.0f, static_cast<float>(graphH)));
