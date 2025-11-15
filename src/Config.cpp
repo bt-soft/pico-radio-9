@@ -50,8 +50,8 @@ const Config_t DEFAULT_CONFIG = {
     .rotaryAccelerationEnabled = true,                 // Rotary gyorsítás engedélyezése
 
     // AudioFft módok
-    .audioFftGainConfigAm = SPECTRUM_GAIN_MODE_AUTO, // Auto Gain (speciális érték)
-    .audioFftGainConfigFm = SPECTRUM_GAIN_MODE_AUTO, // Auto Gain (speciális érték)
+    .audioFftGainConfigAm = -18.0,                             // Manuális a sok zaj elnyomására
+    .audioFftGainConfigFm = SPECTRUM_GAIN_MODE_MANUAL_DEFAULT, // Manuális, 0dB
 
     // CW beállítások
     .cwToneFrequencyHz = 850, // x Hz CW frequency

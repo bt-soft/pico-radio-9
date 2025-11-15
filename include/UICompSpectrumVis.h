@@ -171,7 +171,7 @@ class UICompSpectrumVis : public UIComponent {
     static constexpr int AGC_HISTORY_SIZE = 10;              // History buffer méret (közös)
 
     // Bar-alapú magasság AGC célérték
-    static constexpr float BAR_AGC_TARGET_HEIGHT_UTILIZATION = 0.80f; // 80%-os magasságú maximális bar kitöltés
+    static constexpr float BAR_AGC_TARGET_HEIGHT_UTILIZATION = 0.95f; // 95%-os magasságú maximális bar kitöltés
 
     // Magnitude-alapú AGC célértékek (nyers FFT magnitude tartomány)
     static constexpr float MAGNITUDE_AGC_TARGET_VALUE = 8000.0f; // Célérték magnitude módokhoz

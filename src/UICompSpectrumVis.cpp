@@ -21,12 +21,6 @@
 #define UISPECTRUM_DEBUG(fmt, ...) // Üres makró, ha __DEBUG nincs definiálva
 #endif
 
-namespace AudioProcessorConstants {
-// // Audio input konstansok
-// const uint16_t MAX_SAMPLING_FREQUENCY = 30000; // 30kHz mintavételezés a 15kHz Nyquist limithez
-// const uint16_t DEFAULT_FFT_SAMPLES = 256;
-}; // namespace AudioProcessorConstants
-
 // Színprofilok
 namespace FftDisplayConstants {
 /**
@@ -84,19 +78,19 @@ constexpr float OSCI_SENSITIVITY_FACTOR = 30.0f; // Oszcilloszkóp jel erősít�
 constexpr float ENVELOPE_SENSITIVITY_FACTOR = 0.20f; // Envelope amplitúdó erősítése
 
 // Waterfall mód
-constexpr float WATERFALL_SENSITIVITY_FACTOR = 25.0f; // Waterfall intenzitás skálázása
+constexpr float WATERFALL_SENSITIVITY_FACTOR = 20.0f; // Waterfall intenzitás skálázása
 
 // CW SNR Curve
-constexpr float CW_TUNING_AID_SNR_CURVE_SENSITIVITY_FACTOR = 0.01f;
+constexpr float CW_TUNING_AID_SNR_CURVE_SENSITIVITY_FACTOR = 0.3f;
 
 // CW Tuning Aid Waterfall
-constexpr float CW_TUNING_AID_WATERFALL_SENSITIVITY_FACTOR = 0.01f;
+constexpr float CW_TUNING_AID_WATERFALL_SENSITIVITY_FACTOR = 1.0f;
 
 // RTTY SNR Curve
-constexpr float RTTY_TUNING_AID_SNR_CURVE_SENSITIVITY_FACTOR = 0.01f;
+constexpr float RTTY_TUNING_AID_SNR_CURVE_SENSITIVITY_FACTOR = 0.3f;
 
 // RTTY Tuning Aid Waterfall
-constexpr float RTTY_TUNING_AID_WATERFALL_SENSITIVITY_FACTOR = 0.01f;
+constexpr float RTTY_TUNING_AID_WATERFALL_SENSITIVITY_FACTOR = 1.0f;
 
 }; // namespace SensitivityConstants
 
