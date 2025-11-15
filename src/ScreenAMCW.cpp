@@ -2,6 +2,14 @@
 #include "ScreenManager.h"
 #include "defines.h"
 
+// CW Dekóder képernyő működés debug engedélyezése de csak DEBUG módban
+#define __CW_DECODER_DEBUG
+#if defined(__DEBUG) && defined(__CW_DECODER_DEBUG)
+#define CW_DEBUG(fmt, ...) DEBUG(fmt __VA_OPT__(, ) __VA_ARGS__)
+#else
+#define CW_DEBUG(fmt, ...) // Üres makró, ha __DEBUG nincs definiálva
+#endif
+
 /**
  * @brief ScreenAMCW konstruktor
  */
@@ -16,7 +24,7 @@ ScreenAMCW::ScreenAMCW() : ScreenAMRadioBase(SCREEN_NAME_DECODER_CW), lastPublis
 ScreenAMCW::~ScreenAMCW() {
     // TextBox cleanup
     if (cwTextBox) {
-        DEBUG("ScreenAMCW::~ScreenAMCW() - TextBox cleanup\n");
+        CW_DEBUG("ScreenAMCW::~ScreenAMCW() - TextBox cleanup\n");
         removeChild(cwTextBox);
         cwTextBox.reset();
     }

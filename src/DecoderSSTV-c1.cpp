@@ -135,7 +135,7 @@ void DecoderSSTV_C1::processSamples(const int16_t *rawAudioSamples, size_t count
 
         if (sstv_decoder->decode_audio(rawSample, pixel_y, pixel_x, pixel_colour, pixel, frequency)) {
             // Debug log minden találatra (lehet sok, de most kell a hibakereséshez)
-            SSTV_DEBUG("SSTV-C1: decode_audio HIT pixel_y=%u pixel_x=%u colour=%u pixel=%u freq=%d\n", (unsigned)pixel_y, (unsigned)pixel_x, (unsigned)pixel_colour, (unsigned)pixel, frequency);
+            // SSTV_DEBUG("SSTV-C1: decode_audio HIT pixel_y=%u pixel_x=%u colour=%u pixel=%u freq=%d\n", (unsigned)pixel_y, (unsigned)pixel_x, (unsigned)pixel_colour, (unsigned)pixel, frequency);
 
             c_sstv_decoder::e_mode mode = sstv_decoder->get_mode();
             // Ha a felismerés módban változás történt (beleértve az első felismerést is),

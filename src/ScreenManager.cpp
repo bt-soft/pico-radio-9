@@ -22,6 +22,8 @@
 // Dekóder képernyők
 #include "ScreenAMCW.h"
 #include "ScreenAMRTTY.h"
+#include "ScreenAMSSTV.h"
+#include "ScreenAMWeFax.h"
 
 // Fejlesztői képernyők
 // #include "ScreenEmpty.h"
@@ -51,6 +53,8 @@ void ScreenManager::registerDefaultScreenFactories() {
     // Dekóder képernyők regisztrálása
     registerScreenFactory(SCREEN_NAME_DECODER_CW, []() { return std::make_shared<ScreenAMCW>(); });
     registerScreenFactory(SCREEN_NAME_DECODER_RTTY, []() { return std::make_shared<ScreenAMRTTY>(); });
+    registerScreenFactory(SCREEN_NAME_DECODER_SSTV, []() { return std::make_shared<ScreenAMSSTV>(); });
+    registerScreenFactory(SCREEN_NAME_DECODER_WEFAX, []() { return std::make_shared<ScreenAMWeFax>(); });
 
     // Teszt képernyők regisztrálása
     // registerScreenFactory(SCREEN_NAME_TEST, []() { return std::make_shared<ScreenTest>(); });

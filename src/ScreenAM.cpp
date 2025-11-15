@@ -326,16 +326,13 @@ void ScreenAM::handleDecoderButton(const UIButton::ButtonEvent &event) {
                     getScreenManager()->switchToScreen(SCREEN_NAME_DECODER_CW);
                     break;
                 case 1: // RTTY
-                    // TODO: RTTY képernyő implementálása
                     getScreenManager()->switchToScreen(SCREEN_NAME_DECODER_RTTY);
                     break;
                 case 2: // SSTV
-                    // TODO: SSTV képernyő implementálása
-                    DEBUG("SSTV dekóder - még nincs implementálva\n");
+                    getScreenManager()->switchToScreen(SCREEN_NAME_DECODER_SSTV);
                     break;
                 case 3: // HF WeFax
-                    // TODO: HF WeFax képernyő implementálása
-                    DEBUG("HF WeFax dekóder - még nincs implementálva\n");
+                    getScreenManager()->switchToScreen(SCREEN_NAME_DECODER_WEFAX);
                     break;
             }
         },

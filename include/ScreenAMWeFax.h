@@ -1,0 +1,54 @@
+#pragma once
+
+#include "ScreenAMRadioBase.h"
+#include "UICommonVerticalButtons.h"
+#include "UICompTextBox.h"
+
+/**
+ * @brief AM WeFax dekóder képernyő
+ * @details WeFax dekóder megjelenítése és kezelése
+ */
+class ScreenAMWeFax : public ScreenAMRadioBase, public UICommonVerticalButtons::Mixin<ScreenAMWeFax> {
+
+  public:
+    /**
+     * @brief Konstruktor
+     */
+    ScreenAMWeFax();
+
+    /**
+     * @brief Destruktor
+     */
+    virtual ~ScreenAMWeFax() override;
+
+    /**
+     * @brief Képernyő aktiválása
+     */
+    virtual void activate() override;
+
+    /**
+     * @brief Képernyő deaktiválása
+     */
+    virtual void deactivate() override;
+
+    /**
+     * @brief Folyamatos loop hívás
+     */
+    virtual void handleOwnLoop() override;
+
+  protected:
+    /**
+     * @brief UI komponensek létrehozása és képernyőn való elhelyezése
+     */
+    void layoutComponents();
+
+    /**
+     * @brief SSTV specifikus gombok hozzáadása a közös AM gombokhoz
+     * @param buttonConfigs A már meglévő gomb konfigurációk vektora
+     * @details Hozzáadja a SSTV-specifikus gombokat a vízszintes gombsorhoz
+     */
+    virtual void addSpecificHorizontalButtons(std::vector<UIHorizontalButtonBar::ButtonConfig> &buttonConfigs) override;
+
+  private:
+    void checkDecodedData();
+};

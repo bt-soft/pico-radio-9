@@ -52,13 +52,13 @@ void ScreenAMRadioBase::activate() {
 void ScreenAMRadioBase::layoutComponents(Rect sevenSegmentFreqBounds, Rect smeterBounds) {
 
     // Állapotsor komponens létrehozása (felső sáv)
-    ScreenRadioBase::createStatusLine();
+    this->createStatusLine();
 
     // Frekvencia kijelző létrehozása
-    ScreenRadioBase::createSevenSegmentFreq(sevenSegmentFreqBounds);
+    this->createSevenSegmentFreq(sevenSegmentFreqBounds);
 
     // S-Meter létrehozása
-    ScreenRadioBase::createSMeterComponent(smeterBounds);
+    this->createSMeterComponent(smeterBounds);
 
     // Dinamikus szélesség beállítása band típus alapján
     this->updateSevenSegmentFreqWidth();
