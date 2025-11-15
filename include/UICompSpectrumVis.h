@@ -164,17 +164,14 @@ class UICompSpectrumVis : public UIComponent {
     uint16_t maxDisplayFrequencyHz_;
     float envelopeLastSmoothedValue_;
 
+    static constexpr uint8_t BAR_GAP_PIXELS = 1; // lowres bar-ok közötti hézag pixelek száma
+    static constexpr uint8_t LOW_RES_BANDS = 24; // lowres sávok száma
+
     // ===== KÖZÖS AGC KONSTANSOK =====
     static constexpr uint32_t AGC_UPDATE_INTERVAL_MS = 2000; // Időalapú AGC frissítés (ms)
     static constexpr float AGC_SMOOTH_FACTOR = 0.2f;         // Simítási faktor (közös)
     static constexpr float AGC_MIN_SIGNAL_THRESHOLD = 0.1f;  // Minimum jel küszöb (közös)
     static constexpr int AGC_HISTORY_SIZE = 10;              // History buffer méret (közös)
-
-    // Bar-alapú magasság AGC célérték
-    static constexpr float BAR_AGC_TARGET_HEIGHT_UTILIZATION = 0.95f; // 95%-os magasságú maximális bar kitöltés
-
-    // Magnitude-alapú AGC célértékek (nyers FFT magnitude tartomány)
-    static constexpr float MAGNITUDE_AGC_TARGET_VALUE = 8000.0f; // Célérték magnitude módokhoz
 
     // ===== BAR-ALAPÚ AGC (Spektrum módok: LowRes, HighRes) =====
     // Spektrum bar-ok magasságát méri, nem a nyers magnitude-ot
@@ -196,7 +193,7 @@ class UICompSpectrumVis : public UIComponent {
     int indicatorFontHeight_;
 
     // Peak detection buffer (24 bands max)
-    static constexpr int MAX_SPECTRUM_BANDS = 24;
+    static constexpr int MAX_SPECTRUM_BANDS = LOW_RES_BANDS;
     int Rpeak_[MAX_SPECTRUM_BANDS];
     uint8_t bar_height_[MAX_SPECTRUM_BANDS]; // Bar magasságok csillapításhoz
 
