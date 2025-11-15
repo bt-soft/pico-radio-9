@@ -684,6 +684,10 @@ void UICompSpectrumVis::cycleThroughModes() {
 
     // Config-ba is beállítjuk (mentésre) az aktuális módot
     config.data.audioModeAM = nextMode;
+
+    // AGC reset mód váltáskor
+    resetMagnitudeAgc();
+    resetBarAgc();
 }
 
 /**
@@ -848,6 +852,11 @@ void UICompSpectrumVis::renderSpectrumBar(bool isHighRes) {
 
             // UTÁNA erősítés a tiszta jelen
             float adaptiveScale = getBarAgcScale(SensitivityConstants::HIGHRES_SPECTRUMBAR_SENSITIVITY_FACTOR);
+
+            // AGC esetén a highresBar túlvezérlődik, csökkentjük az erősítést
+            if (isAutoGainMode()) {
+                adaptiveScale *= 0.7f;
+            }
             float amplified = magnitude * adaptiveScale;
             maxMagnitude = std::max(maxMagnitude, amplified);
 
@@ -890,8 +899,9 @@ void UICompSpectrumVis::renderSpectrumBar(bool isHighRes) {
         if (bands_to_display > 0) {
             bar_width = static_cast<uint8_t>((bounds.width - (std::max(0, bands_to_display - 1) * BAR_GAP_PIXELS)) / bands_to_display);
         }
-        if (bar_width < 1)
+        if (bar_width < 1) {
             bar_width = 1;
+        }
 
         uint8_t bar_total_width = bar_width + BAR_GAP_PIXELS;
         uint16_t total_drawn_width = (bands_to_display * bar_width) + (std::max(0, bands_to_display - 1) * BAR_GAP_PIXELS);
@@ -1138,6 +1148,11 @@ void UICompSpectrumVis::renderEnvelope() {
             rawMagnitude = 0.0;
         }
 
+        // AGC esetén az envelope túlvezérlődik, csökkentjük az erősítést
+        if (isAutoGainMode()) {
+            adaptiveScale *= 0.7f;
+        }
+
         // UTÁNA erősítés a tiszta jelen
         float gained_val = rawMagnitude * adaptiveScale;
 
@@ -1295,8 +1310,13 @@ void UICompSpectrumVis::renderWaterfall() {
             rawMagnitude = 0.0f;
         }
 
-        // Debug: gyűjtjük a legnagyobb nyers magnitude-ot az AGC-hez
+        // Gyűjtjük a legnagyobb nyers magnitude-ot az AGC-hez
         maxRawMagnitude = std::max(maxRawMagnitude, rawMagnitude);
+
+        // AGC esetén a waterfall túlvezérlődik, csökkentjük az erősítést
+        if (isAutoGainMode()) {
+            adaptiveScale *= 0.95f;
+        }
 
         // UTÁNA erősítés a tiszta jelen
         float amplified = rawMagnitude * adaptiveScale;
