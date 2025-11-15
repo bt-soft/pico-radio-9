@@ -10,10 +10,21 @@
 #define WEFAX_DEBUG(fmt, ...) // Üres makró, ha __DEBUG nincs definiálva
 #endif
 
+// #define WEFAX_SCALE 300.0f / WEFAX_MAX_OUTPUT_WIDTH                                  // Kép skálázási tényező
+// #define WEFAX_SCALED_WIDTH ((uint16_t)(WEFAX_MAX_OUTPUT_WIDTH * WEFAX_SCALE + 0.5f)) // Új szélesség skálázva
+//  #define WEFAX_SCALED_HEIGHT ((uint16_t)(WEFAX_LINE_HEIGHT * WEFAX_SCALE + 0.5f))     // Új magasság skálázva
+#define WEFAX_SCALED_WIDTH 400  // Fix szélesség a skálázott képnek
+#define WEFAX_SCALED_HEIGHT 190 // Fix magasság a skálázott képnek
+
+#define WEFAX_PICTURE_START_X 2  // Kép kezdő X pozíciója
+#define WEFAX_PICTURE_START_Y 90 // Kép kezdő Y pozíciója
+
 /**
  * @brief ScreenAMWeFax konstruktor
  */
-ScreenAMWeFax::ScreenAMWeFax() : ScreenAMRadioBase(SCREEN_NAME_DECODER_WEFAX), UICommonVerticalButtons::Mixin<ScreenAMWeFax>() {
+ScreenAMWeFax::ScreenAMWeFax()
+    : ScreenAMRadioBase(SCREEN_NAME_DECODER_WEFAX), UICommonVerticalButtons::Mixin<ScreenAMWeFax>(), //
+      cachedMode(-1), cachedDisplayWidth(-1), displayWidth(0), sourceWidth(0), sourceHeight(0), scale(1.0f), targetHeight(0), lastDrawnTargetLine(-1), accumulatedTargetLine(0.0f) {
     // UI komponensek létrehozása és elhelyezése
     layoutComponents();
 }
@@ -28,15 +39,14 @@ ScreenAMWeFax::~ScreenAMWeFax() {}
  */
 void ScreenAMWeFax::layoutComponents() {
 
+    // Állapotsor komponens létrehozása (felső sáv)
+    ScreenRadioBase::createStatusLine();
+
     // Frekvencia kijelző pozicionálás
     uint16_t FreqDisplayY = 20;
     Rect sevenSegmentFreqBounds(0, FreqDisplayY, UICompSevenSegmentFreq::SEVEN_SEGMENT_FREQ_WIDTH, UICompSevenSegmentFreq::SEVEN_SEGMENT_FREQ_HEIGHT + 10);
-
-    // S-Meter komponens pozícionálása
-    Rect smeterBounds(2, FreqDisplayY + UICompSevenSegmentFreq::SEVEN_SEGMENT_FREQ_HEIGHT - 10, SMeterConstants::SMETER_WIDTH, 70);
-
-    // Szülő osztály layout meghívása (állapotsor, frekvencia, S-Meter)
-    ScreenAMRadioBase::layoutComponents(sevenSegmentFreqBounds, smeterBounds);
+    ScreenRadioBase::createSevenSegmentFreq(sevenSegmentFreqBounds); // SevenSegmentFreq komponens létrehozása
+    this->updateSevenSegmentFreqWidth();                             // Dinamikus szélesség beállítása band típus alapján
 
     // Függőleges gombok létrehozása
     Mixin::createCommonVerticalButtons(); // UICommonVerticalButtons-ban definiált UIButtonsGroupManager alapú függőleges gombsor egyedi Memo kezelővel
@@ -45,16 +55,8 @@ void ScreenAMWeFax::layoutComponents() {
     // addDefaultButtons = false -> NEM rakja be a HAM, Band, Scan gombokat
     ScreenRadioBase::createCommonHorizontalButtons(false);
 
-    // ===================================================================
-    // Spektrum vizualizáció komponens létrehozása
-    // ===================================================================
-    ScreenRadioBase::createSpectrumComponent(Rect(255, 40, 150, 80), RadioMode::AM);
-
-    // Induláskor beállítjuk a Waterfall megjelenítési módot
-    ScreenRadioBase::spectrumComp->setCurrentDisplayMode(UICompSpectrumVis::DisplayMode::Waterfall);
-
-    // MEGJEGYZÉS: Az audioController indítása az activate() metódusban történik
-    // hogy képernyőváltáskor megfelelően leálljon és újrainduljon
+    // Wefax kép helyének kirajzolása
+    clearPictureArea();
 }
 
 /**
@@ -114,6 +116,16 @@ void ScreenAMWeFax::deactivate() {
 }
 
 /**
+ * @brief Képterület törlése
+ */
+void ScreenAMWeFax::clearPictureArea() {
+    // WEFAX kép helye
+    tft.fillRect(WEFAX_PICTURE_START_X, WEFAX_PICTURE_START_Y, WEFAX_SCALED_WIDTH, WEFAX_SCALED_HEIGHT, TFT_BLACK);
+    // Fehér keret rajzolása a kép körül (1px-el kívül)
+    tft.drawRect(WEFAX_PICTURE_START_X - 1, WEFAX_PICTURE_START_Y - 1, WEFAX_SCALED_WIDTH + 2, WEFAX_SCALED_HEIGHT + 2, TFT_WHITE);
+}
+
+/**
  * @brief Folyamatos loop hívás
  */
 void ScreenAMWeFax::handleOwnLoop() {
@@ -127,4 +139,119 @@ void ScreenAMWeFax::handleOwnLoop() {
 /**
  * @brief WeFax dekódolt kép ellenőrzése és frissítése
  */
-void ScreenAMWeFax::checkDecodedData() {}
+void ScreenAMWeFax::checkDecodedData() {
+
+    bool modeChanged = false;
+    if (decodedData.modeChanged) {
+        decodedData.modeChanged = false;
+        modeChanged = true;
+        // Mód név lekérése és kiírása
+        const char *modeName = (decodedData.currentMode == 0) ? "IOC576" : "IOC288";
+        WEFAX_DEBUG("core-0: WEFAX mód változás: %s\n", modeName);
+
+#define TFT_BANNER_HEIGHT 15
+#define MODE_TXT_X WEFAX_PICTURE_START_X
+#define MODE_TXT_Y WEFAX_PICTURE_START_Y - TFT_BANNER_HEIGHT
+        // Kijelző felső sávjának törlése a korábbi mód név eltávolításához
+        tft.fillRect(MODE_TXT_X, MODE_TXT_Y, WEFAX_SCALED_WIDTH, TFT_BANNER_HEIGHT - 5, TFT_BLACK);
+        tft.setTextColor(TFT_YELLOW, TFT_BLACK);
+        tft.setTextDatum(BC_DATUM);
+        tft.setTextFont(0);
+        tft.setTextSize(1);
+        tft.setCursor(MODE_TXT_X, MODE_TXT_Y);
+        tft.printf("HF WeFax:");
+
+        tft.setTextColor(TFT_GREEN, TFT_BLACK);
+        tft.setCursor(MODE_TXT_X + 55, MODE_TXT_Y);
+        tft.print(modeName);
+
+        clearPictureArea();
+    }
+
+    // Új kép kezdés ellenőrzése
+    static bool hasWrapped = false; // Jelzi hogy már volt wraparound (fekete vonal csak ekkor kell)
+    if (decodedData.newImageStarted) {
+        decodedData.newImageStarted = false;
+        WEFAX_DEBUG("core-0: Új WEFAX kép kezdődött - képterület törlése\n");
+        clearPictureArea();
+        // A Scroll állapot nullázása új kép esetén
+        accumulatedTargetLine = 0.0f;
+        lastDrawnTargetLine = -1;
+        hasWrapped = false; // Új kép, még nem volt wraparound
+    }
+
+    // A nem változó értékek cache-elése, kivéve ha a mód vagy a kijelző mérete változik
+    uint8_t currentMode = decodedData.currentMode;
+    uint16_t currentDisplayWidth = WEFAX_SCALED_WIDTH;
+    if (currentMode != cachedMode || currentDisplayWidth != cachedDisplayWidth) {
+        displayWidth = currentDisplayWidth;
+        sourceWidth = (currentMode == 0) ? WEFAX_IOC576_WIDTH : WEFAX_IOC288_WIDTH;
+#define WEFAX_IMAGE_HEIGHT 1024 // Maximum WEFAX magasság a kép átméretezéséhez
+        sourceHeight = WEFAX_IMAGE_HEIGHT;
+        scale = (float)displayWidth / (float)sourceWidth;
+        targetHeight = (uint16_t)(sourceHeight * scale);
+        cachedMode = currentMode;
+        cachedDisplayWidth = currentDisplayWidth;
+    }
+
+    // WEFAX képsorok kiolvasása és scrollozás
+    DecodedLine dline;
+    if (decodedData.lineBuffer.get(dline)) {
+        // Minden bejövő forrás sorhoz növeljük az akkumulátort
+        accumulatedTargetLine += scale;
+
+        // Amíg van kirajzolható cél sor, rajzoljuk ki
+        while (accumulatedTargetLine >= 1.0f) {
+            lastDrawnTargetLine++;
+            accumulatedTargetLine -= 1.0f;
+
+            // Displaybuffer méret ellenőrzés
+            if (displayWidth > WEFAX_MAX_DISPLAY_WIDTH) {
+                break;
+            }
+
+            // Wraparound: Ha eléri a kijelző alját, ugorjon vissza a tetejére
+            if (lastDrawnTargetLine >= WEFAX_SCALED_HEIGHT) {
+                lastDrawnTargetLine = 0;
+                hasWrapped = true; // Jelezzük hogy volt wraparound
+                WEFAX_DEBUG("core-0: WEFAX wraparound - vissza a kép tetejére\n");
+                // Fekete vonal a következő sorba
+                tft.drawFastHLine(0, WEFAX_PICTURE_START_Y, displayWidth, TFT_ORANGE);
+            }
+
+            // Minden cél pixelhez kiszámoljuk, hogy melyik forrás pixelek tartoznak hozzá
+            float invScale = (float)sourceWidth / (float)displayWidth;
+            for (uint16_t x = 0; x < displayWidth; x++) {
+                float srcPos = x * invScale;
+                uint16_t srcStart = (uint16_t)srcPos;
+                uint16_t srcEnd = (uint16_t)(srcPos + invScale);
+                if (srcEnd > sourceWidth) {
+                    srcEnd = sourceWidth;
+                }
+
+                uint16_t sum = 0;
+                uint16_t count = 0;
+                for (uint16_t sx = srcStart; sx < srcEnd && sx < sourceWidth; sx++) {
+                    sum += dline.wefaxPixels[sx]; // 8-bit grayscale
+                    count++;
+                }
+
+                uint8_t grayscale = (count > 0) ? (sum / count) : 255;
+
+                // Grayscale → RGB565 konverzió
+                uint16_t gray5 = grayscale >> 3;
+                uint16_t gray6 = grayscale >> 2;
+                displayBuffer[x] = (gray5 << 11) | (gray6 << 5) | gray5;
+            }
+
+            // Kirajzolás a cél sorpozícióra (arányos magasság)
+            tft.pushImage(0, WEFAX_PICTURE_START_Y + lastDrawnTargetLine, displayWidth, 1, displayBuffer);
+
+            // Színes kurzor vonal CSAK wraparound után (jelzi a régi kép felülírását)
+            if (hasWrapped) {
+                uint16_t nextLine = (lastDrawnTargetLine + 1) % (WEFAX_SCALED_HEIGHT);
+                tft.drawFastHLine(0, WEFAX_PICTURE_START_Y + nextLine, displayWidth, TFT_ORANGE);
+            }
+        }
+    }
+}

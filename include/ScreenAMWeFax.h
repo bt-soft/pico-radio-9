@@ -50,5 +50,19 @@ class ScreenAMWeFax : public ScreenAMRadioBase, public UICommonVerticalButtons::
     virtual void addSpecificHorizontalButtons(std::vector<UIHorizontalButtonBar::ButtonConfig> &buttonConfigs) override;
 
   private:
+    // WEFAX mód változás ellenőrzése
+    uint8_t cachedMode;
+    uint16_t cachedDisplayWidth;
+    uint16_t displayWidth;
+    uint16_t sourceWidth;
+    uint16_t sourceHeight;
+    float scale;
+    uint16_t targetHeight;
+#define WEFAX_MAX_DISPLAY_WIDTH 800
+    uint16_t displayBuffer[WEFAX_MAX_DISPLAY_WIDTH];
+    float accumulatedTargetLine;
+    uint16_t lastDrawnTargetLine;
+
+    void clearPictureArea();
     void checkDecodedData();
 };
