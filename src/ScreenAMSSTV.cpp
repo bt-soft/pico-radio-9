@@ -92,6 +92,7 @@ void ScreenAMSSTV::activate() {
 
     // Szülő osztály aktiválása
     ScreenAMRadioBase::activate();
+    Mixin::updateAllVerticalButtonStates(); // Univerzális funkcionális gombok (mixin method)
 
     // SSTV audio dekóder indítása
     ::audioController.startAudioController( //

@@ -78,6 +78,12 @@ class ScreenAMRadioBase : public ScreenRadioBase {
     virtual void layoutComponents(Rect sevenSegmentFreqBounds, Rect smeterBounds);
 
     /**
+     * @brief Frissíti a vízszintes gombok állapotát
+     * @details Közös gombok állapot frissítése az aktuális rádió állapot alapján
+     */
+    virtual void updateHorizontalButtonStates();
+
+    /**
      * @brief Frissíti a SevenSegmentFreq szélességét az aktuális band típus alapján
      * @details Dinamikusan állítja be a frekvencia kijelző szélességét
      */

@@ -111,6 +111,7 @@ void ScreenAMCW::activate() {
 
     // Szülő osztály aktiválása
     ScreenAMRadioBase::activate();
+    Mixin::updateAllVerticalButtonStates(); // Univerzális funkcionális gombok (mixin method)
 
     // CW audio dekóder indítása
     ::audioController.startAudioController( //

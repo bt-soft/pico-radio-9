@@ -35,9 +35,9 @@ void ScreenAMRadioBase::activate() {
 
     // Szülő osztály aktiválása (ScreenRadioBase -> ScreenFrequDisplayBase -> UIScreen)
     ScreenRadioBase::activate();
-
-    updateCommonHorizontalButtonStates();             // Közös gombok szinkronizálása
-    ScreenAMRadioBase::updateSevenSegmentFreqWidth(); // SevenSegmentFreq szélességének frissítése
+    ScreenRadioBase::updateCommonHorizontalButtonStates(); // Közös gombok szinkronizálása
+    this->updateHorizontalButtonStates();                  // AM-specifikus gombok szinkronizálása
+    this->updateSevenSegmentFreqWidth();                   // SevenSegmentFreq szélességének frissítése
 }
 
 /**
@@ -81,6 +81,27 @@ void ScreenAMRadioBase::addSpecificHorizontalButtons(std::vector<UIHorizontalBut
 
     // AfBW - Audio Filter Bandwidth
     buttonConfigs.push_back({ScreenAMRadioBase::AFBW_BUTTON, "AfBW", UIButton::ButtonType::Pushable, UIButton::ButtonState::Off, [this](const UIButton::ButtonEvent &event) { this->handleAfBWButton(event); }});
+}
+
+/**
+ * @brief Frissíti a vízszintes gombok állapotát
+ * @details Közös gombok állapot frissítése az aktuális rádió állapot alapján
+ */
+void ScreenAMRadioBase::updateHorizontalButtonStates() {
+    ScreenRadioBase::updateCommonHorizontalButtonStates(); // Közös gombok állapot frissítése
+
+    // Többi AM specifikus gomb alapértelmezett állapotban
+    if (ScreenRadioBase::horizontalButtonBar) {
+        ScreenRadioBase::horizontalButtonBar->setButtonState(ScreenAMRadioBase::AFBW_BUTTON, UIButton::ButtonState::Off);
+        ScreenRadioBase::horizontalButtonBar->setButtonState(ScreenAMRadioBase::ANTCAP_BUTTON, UIButton::ButtonState::Off);
+        ScreenRadioBase::horizontalButtonBar->setButtonState(ScreenAMRadioBase::DEMOD_BUTTON, UIButton::ButtonState::Off);
+    }
+
+    // BFO gomb update
+    this->updateBFOButtonState();
+
+    // Step gomb update
+    this->updateStepButtonState();
 }
 
 /**
@@ -275,7 +296,7 @@ void ScreenAMRadioBase::handleBFOButton(const UIButton::ButtonEvent &event) {
     rtv::bfoTr = true; // BFO animáció trigger beállítása
 
     // A Step gombok állapotának frissítése
-    updateStepButtonState();
+    this->updateStepButtonState();
 
     // Frissítjük a frekvencia kijelzőt is, hogy BFO állapot változás volt
     sevenSegmentFreq->forceFullRedraw();
@@ -413,8 +434,8 @@ void ScreenAMRadioBase::handleDemodButton(const UIButton::ButtonEvent &event) {
 
             // A demod mód változása után frissítjük a BFO és Step gombok állapotát
             // (fontos, mert SSB/CW módban mindkét gomb állapota más)
-            updateBFOButtonState();
-            updateStepButtonState();
+            this->updateBFOButtonState();
+            this->updateStepButtonState();
 
         },
         true,                                           // Automatikusan bezárja-e a dialógust gomb kattintáskor

@@ -83,19 +83,6 @@ class ScreenAM : public ScreenAMRadioBase, public UICommonVerticalButtons::Mixin
     void layoutComponents();
 
     // ===================================================================
-    // Event-driven gombállapot szinkronizálás
-    // ===================================================================
-
-    /**
-     * @brief AM specifikus vízszintes gombsor állapotainak szinkronizálása
-     * @details CSAK aktiváláskor hívódik meg! Event-driven architektúra.
-     *
-     * Szinkronizált állapotok:
-     * - AM specifikus gombok alapértelmezett állapotai
-     */
-    void updateHorizontalButtonStates();
-
-    // ===================================================================
     // AM specifikus gomb eseménykezelők
     // ===================================================================
 

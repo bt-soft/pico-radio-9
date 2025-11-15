@@ -102,6 +102,7 @@ void ScreenAMRTTY::activate() {
 
     // Szülő osztály aktiválása
     ScreenAMRadioBase::activate();
+    Mixin::updateAllVerticalButtonStates(); // Univerzális funkcionális gombok (mixin method)
 
     // RTTY audio dekóder indítása
     ::audioController.startAudioController( //

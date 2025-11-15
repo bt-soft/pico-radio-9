@@ -61,9 +61,7 @@ void ScreenAM::activate() {
 
     // Szülő osztály aktiválása
     ScreenAMRadioBase::activate();
-
     Mixin::updateAllVerticalButtonStates(); // Univerzális funkcionális gombok (mixin method)
-    updateHorizontalButtonStates();         // AM-specifikus gombok szinkronizálása
 
     // AM audio dekóder indítása (csak FFT, nincs dekóder)
     ::audioController.startAudioController(DecoderId::ID_DECODER_ONLY_FFT, AM_AF_RAW_SAMPLES_SIZE, AM_AF_BANDWIDTH_HZ);
@@ -106,10 +104,10 @@ void ScreenAM::onDialogClosed(UIDialogBase *closedDialog) {
 
     // Ha ez volt az utolsó dialógus, frissítsük a gombállapotokat
     if (!isDialogActive()) {
-        updateAllVerticalButtonStates();                  // Függőleges gombok szinkronizálása
-        updateCommonHorizontalButtonStates();             // Közös gombok szinkronizálása
-        updateHorizontalButtonStates();                   // AM specifikus gombok szinkronizálása
-        ScreenAMRadioBase::updateSevenSegmentFreqWidth(); // SevenSegmentFreq szélességének frissítése
+        updateAllVerticalButtonStates();                       // Függőleges gombok szinkronizálása
+        ScreenRadioBase::updateCommonHorizontalButtonStates(); // Közös gombok szinkronizálása
+        ScreenAMRadioBase::updateHorizontalButtonStates();     // AM specifikus gombok szinkronizálása
+        ScreenAMRadioBase::updateSevenSegmentFreqWidth();      // SevenSegmentFreq szélességének frissítése
 
         // A gombsor konténer teljes újrarajzolása, hogy biztosan megjelenjenek a gombok
         if (horizontalButtonBar) {
@@ -181,33 +179,6 @@ void ScreenAM::addSpecificHorizontalButtons(std::vector<UIHorizontalButtonBar::B
          [this](const UIButton::ButtonEvent &event) { //
              handleDecoderButton(event);
          }});
-}
-
-// =====================================================================
-// EVENT-DRIVEN GOMBÁLLAPOT SZINKRONIZÁLÁS
-// =====================================================================
-
-/**
- * @brief AM specifikus vízszintes gombsor állapotainak szinkronizálása
- * @details Event-driven architektúra: CSAK aktiváláskor hívódik meg!
- *
- * Szinkronizált állapotok:
- * - AM specifikus gombok alapértelmezett állapotai
- */
-void ScreenAM::updateHorizontalButtonStates() {
-
-    // BFO gomb update
-    ScreenAMRadioBase::updateBFOButtonState();
-
-    // Step gomb update
-    ScreenAMRadioBase::updateStepButtonState();
-
-    // Többi AM specifikus gomb alapértelmezett állapotban
-    if (horizontalButtonBar) {
-        horizontalButtonBar->setButtonState(ScreenAMRadioBase::AFBW_BUTTON, UIButton::ButtonState::Off);
-        horizontalButtonBar->setButtonState(ScreenAMRadioBase::ANTCAP_BUTTON, UIButton::ButtonState::Off);
-        horizontalButtonBar->setButtonState(ScreenAMRadioBase::DEMOD_BUTTON, UIButton::ButtonState::Off);
-    }
 }
 
 // =====================================================================

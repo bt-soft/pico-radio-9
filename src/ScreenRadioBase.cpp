@@ -247,8 +247,9 @@ void ScreenRadioBase::createCommonHorizontalButtons(bool addDefaultButtons) {
  * @details Csak aktiváláskor hívódik meg! Event-driven architektúra.
  */
 void ScreenRadioBase::updateCommonHorizontalButtonStates() {
-    if (!horizontalButtonBar)
+    if (!horizontalButtonBar) {
         return;
+    }
 
     // Alapértelmezett állapotok - a leszármazott osztályok felülírhatják
     // Ham gomb: alapértelmezetten kikapcsolva
