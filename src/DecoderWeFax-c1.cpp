@@ -15,7 +15,7 @@
 extern DecodedData decodedData;
 
 // WEFAX működés debug engedélyezése de csak DEBUG módban
-// #define __WEFAX_DEBUG
+#define __WEFAX_DEBUG
 #if defined(__DEBUG) && defined(__WEFAX_DEBUG)
 #define WEFAX_DEBUG(fmt, ...) DEBUG(fmt __VA_OPT__(, ) __VA_ARGS__)
 #else

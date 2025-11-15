@@ -216,7 +216,7 @@ void ScreenAMWeFax::checkDecodedData() {
                 hasWrapped = true; // Jelezzük hogy volt wraparound
                 WEFAX_DEBUG("core-0: WEFAX wraparound - vissza a kép tetejére\n");
                 // Fekete vonal a következő sorba
-                tft.drawFastHLine(0, WEFAX_PICTURE_START_Y, displayWidth, TFT_ORANGE);
+                tft.drawFastHLine(WEFAX_PICTURE_START_X, WEFAX_PICTURE_START_Y, displayWidth, TFT_ORANGE);
             }
 
             // Minden cél pixelhez kiszámoljuk, hogy melyik forrás pixelek tartoznak hozzá
@@ -245,12 +245,12 @@ void ScreenAMWeFax::checkDecodedData() {
             }
 
             // Kirajzolás a cél sorpozícióra (arányos magasság)
-            tft.pushImage(0, WEFAX_PICTURE_START_Y + lastDrawnTargetLine, displayWidth, 1, displayBuffer);
+            tft.pushImage(WEFAX_PICTURE_START_X, WEFAX_PICTURE_START_Y + lastDrawnTargetLine, displayWidth, 1, displayBuffer);
 
             // Színes kurzor vonal CSAK wraparound után (jelzi a régi kép felülírását)
             if (hasWrapped) {
                 uint16_t nextLine = (lastDrawnTargetLine + 1) % (WEFAX_SCALED_HEIGHT);
-                tft.drawFastHLine(0, WEFAX_PICTURE_START_Y + nextLine, displayWidth, TFT_ORANGE);
+                tft.drawFastHLine(WEFAX_PICTURE_START_X, WEFAX_PICTURE_START_Y + nextLine, displayWidth, TFT_ORANGE);
             }
         }
     }
