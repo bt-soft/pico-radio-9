@@ -326,8 +326,7 @@ void processFifoCommands() {
             bool useBlockingDma = (decoderConfig.decoderId == ID_DECODER_SSTV || decoderConfig.decoderId == ID_DECODER_WEFAX);
 
             // DMA és audio processzor inicializálása
-            CORE1_DEBUG("core-1: CMD_SET_CONFIG - AudioProcessor inicializálása (sampleCount=%d, samplingRate=%d, useFFT=%d, blocking=%d)...\n", adcDmaConfig.sampleCount, adcDmaConfig.samplingRate, useFFT,
-                        useBlockingDma);
+            CORE1_DEBUG("core-1: CMD_SET_CONFIG - AudioProcessor inicializálása (sampleCount=%d, samplingRate=%d, useFFT=%d, blocking=%d)\n", adcDmaConfig.sampleCount, adcDmaConfig.samplingRate, useFFT, useBlockingDma);
             audioProcC1.initialize(adcDmaConfig, useFFT, useBlockingDma);
             audioProcC1.reconfigureAudioSampling(adcDmaConfig.sampleCount, adcDmaConfig.samplingRate, decoderConfig.bandwidthHz);
 

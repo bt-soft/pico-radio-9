@@ -67,6 +67,11 @@ bool AudioProcessorC1::initialize(const AdcDmaC1::CONFIG &config, bool useFFT, b
     this->useFFT = useFFT;
     this->adcConfig = config;
     this->useBlockingDma = useBlockingDma;
+
+    // Default AGC és erősítés beállítások
+    this->setAgcEnabled(false); // AGC kikapcsolása
+    this->setManualGain(1.0f);  // Manuális erősítés (1.0 = nincs extra erősítés)
+
     return true;
 }
 

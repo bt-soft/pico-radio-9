@@ -122,6 +122,7 @@ void ScreenAMCW::activate() {
     );
     ::audioController.setNoiseReductionEnabled(true); // Zajszűrés beapcsolva (tisztább spektrum)
     ::audioController.setSmoothingPoints(5);          // Zajszűrés simítási pontok száma = 5 (erősebb zajszűrés, nincs frekvencia felbontási igény)
+    ::audioController.setManualGain(2.0f);            // Manuális erősítés: a kissebb HF sávszéleség miatt erősítünk rajta
 }
 
 /**
