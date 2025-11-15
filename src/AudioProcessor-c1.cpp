@@ -502,16 +502,16 @@ bool AudioProcessorC1::processAndFillSharedData(SharedData &sharedData) {
     }
 
     // 7.2 Frekvenciatartomány erősítés: 600-9000 Hz között 2x, máshol 1x
-    // Valamiért a kütyüm 7.5-8.5kHz között gyengébben látja a jeleket
+    // Valamiért a kütyüm 5.5-8.5kHz között gyengébben látja a jeleket
     // Ezért itt - jobb ötlet hijján - kézzel erősítem ezt a tartományt.
-    // applyFftGaussianWindow(         //
-    //     sharedData.fftSpectrumData, // FFT bemeneti/kimeneti adatok
-    //     sharedData.fftSpectrumSize, // FFT bin-ek száma
-    //     sharedData.fftBinWidthHz,   // egy bin szélessége Hz-ben
-    //     600.0f,                     // alsó frekvencia
-    //     9000.0f,                    // felső frekvencia
-    //     2.8f                        // erősítés 2x
-    // );
+    applyFftGaussianWindow(         //
+        sharedData.fftSpectrumData, // FFT bemeneti/kimeneti adatok
+        sharedData.fftSpectrumSize, // FFT bin-ek száma
+        sharedData.fftBinWidthHz,   // egy bin szélessége Hz-ben
+        5500.0f,                    // alsó frekvencia
+        8500.0f,                    // felső frekvencia
+        8.0f                        // erősítés a csúcsnál
+    );
 
     // // 7.5. Alacsony frekvenciás zajszűrés (300Hz alatt csillapítás)
     // // Ez javítja a spektrum megjelenítés minőségét
