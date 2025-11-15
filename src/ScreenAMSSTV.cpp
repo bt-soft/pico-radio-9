@@ -11,12 +11,12 @@
 #define SSTV_DEBUG(fmt, ...) // Üres makró, ha __DEBUG nincs definiálva
 #endif
 
-#define SSTV_SCALE 0.8f
-#define SSTV_SCALED_WIDTH ((uint16_t)(SSTV_LINE_WIDTH * SSTV_SCALE + 0.5f))
-#define SSTV_SCALED_HEIGHT ((uint16_t)(SSTV_LINE_HEIGHT * SSTV_SCALE + 0.5f))
+#define SSTV_SCALE 0.7f                                                       // Kép skálázási tényező
+#define SSTV_SCALED_WIDTH ((uint16_t)(SSTV_LINE_WIDTH * SSTV_SCALE + 0.5f))   // Új szélesség skálázva
+#define SSTV_SCALED_HEIGHT ((uint16_t)(SSTV_LINE_HEIGHT * SSTV_SCALE + 0.5f)) // Új magasság skálázva
 
-#define SSTV_PICTURE_START_X 100
-#define SSTV_PICTURE_START_Y 50
+#define SSTV_PICTURE_START_X 2 // Kép kezdő X pozíciója
+#define SSTV_PICTURE_START_Y 90  // Kép kezdő Y pozíciója
 
 /**
  * @brief ScreenAMSSTV konstruktor
@@ -158,59 +158,46 @@ void ScreenAMSSTV::checkDecodedData() {
         // Scaling állapot reset
         accumulatedTargetLine = 0.0f;
         lastDrawnTargetLine = 0;
+
+        // SSTV mód név lekérése és kiírása a TFT-re
+        const char *modeName = c_sstv_decoder::getSstvModeName((c_sstv_decoder::e_mode)decodedData.currentMode);
+        DEBUG("core-0: SSTV mód változás: %s (ID: %d)\n", modeName, decodedData.currentMode);
+
+#define TFT_BANNER_HEIGHT 15
+#define MODE_TXT_X SSTV_PICTURE_START_X
+#define MODE_TXT_Y SSTV_PICTURE_START_Y - TFT_BANNER_HEIGHT
+        // Kijelző felső sávjának törlése a korábbi mód név eltávolításához
+        tft.fillRect(MODE_TXT_X, MODE_TXT_Y, SSTV_SCALED_WIDTH, TFT_BANNER_HEIGHT - 5, TFT_BLACK);
+        tft.setTextColor(TFT_YELLOW, TFT_BLACK);
+        tft.setTextDatum(BC_DATUM);
+        tft.setTextFont(0);
+        tft.setTextSize(1);
+        tft.setCursor(MODE_TXT_X, MODE_TXT_Y);
+        tft.printf("Mode:");
+
+        tft.setTextColor(TFT_GREEN, TFT_BLACK);
+        tft.setCursor(MODE_TXT_X + 45, MODE_TXT_Y);
+        tft.print(modeName);
     }
 
     // SSTV képsorok kiolvasása a közös lineBuffer-ből
     DecodedLine dline;
     if (decodedData.lineBuffer.get(dline)) {
 
-        // Minden bejövő forrás sorhoz növeljük az akkumulátort
-        accumulatedTargetLine += SSTV_SCALE;
+        // Egyszerű nearest neighbor scaling - gyors és tiszta
+        static uint16_t scaledBuffer[SSTV_SCALED_WIDTH];
 
-        // Amíg van kirajzolható cél sor, rajzoljuk ki
-        while (accumulatedTargetLine >= 1.0f && lastDrawnTargetLine < SSTV_SCALED_HEIGHT) {
-            accumulatedTargetLine -= 1.0f;
+        for (uint16_t x = 0; x < SSTV_SCALED_WIDTH; ++x) {
+            // Nearest neighbor: legközelebbi forrás pixel
+            uint16_t srcX = (uint16_t)((x * SSTV_LINE_WIDTH) / SSTV_SCALED_WIDTH);
+            uint16_t v = dline.sstvPixels[srcX];
+            scaledBuffer[x] = (v >> 8) | (v << 8); // Byte-swap
+        }
 
-            // Box averaging scaling (vízszintesen)
-            static uint16_t scaledBuffer[SSTV_SCALED_WIDTH];
-            float invScale = (float)SSTV_LINE_WIDTH / (float)SSTV_SCALED_WIDTH;
-
-            for (uint16_t x = 0; x < SSTV_SCALED_WIDTH; ++x) {
-                float srcPos = x * invScale;
-                uint16_t srcStart = (uint16_t)srcPos;
-                uint16_t srcEnd = (uint16_t)(srcPos + invScale);
-                if (srcEnd > SSTV_LINE_WIDTH) {
-                    srcEnd = SSTV_LINE_WIDTH;
-                }
-                uint16_t sumR = 0, sumG = 0, sumB = 0;
-                uint8_t count = 0;
-                for (uint16_t sx = srcStart; sx < srcEnd; ++sx) {
-                    // Byte-swap előtt bontsuk RGB565-re (dline.sstvPixels byte-swapped formátumban van)
-                    uint16_t v = dline.sstvPixels[sx];
-                    uint16_t vSwapped = (v >> 8) | (v << 8); // Byte-swap: natív RGB565
-                    uint8_t r = (vSwapped >> 11) & 0x1F;
-                    uint8_t g = (vSwapped >> 5) & 0x3F;
-                    uint8_t b = vSwapped & 0x1F;
-                    sumR += r;
-                    sumG += g;
-                    sumB += b;
-                    count++;
-                }
-                uint8_t avgR = count ? sumR / count : 0;
-                uint8_t avgG = count ? sumG / count : 0;
-                uint8_t avgB = count ? sumB / count : 0;
-                // Az RGB565 értékek érvényes tartományba kényszerítése
-                if (avgR > 31)
-                    avgR = 31;
-                if (avgG > 63)
-                    avgG = 63;
-                if (avgB > 31)
-                    avgB = 31;
-                scaledBuffer[x] = (avgR << 11) | (avgG << 5) | avgB;
-            }
-            // Kirajzolás: scaledBuffer, scaled szélességgel
-            tft.pushImage(SSTV_PICTURE_START_X, SSTV_PICTURE_START_Y + lastDrawnTargetLine, SSTV_SCALED_WIDTH, 1, scaledBuffer);
-            lastDrawnTargetLine++;
+        // Függőleges pozíció számítása nearest neighbor módszerrel
+        uint16_t scaledY = (uint16_t)((dline.lineNum * SSTV_SCALED_HEIGHT) / SSTV_LINE_HEIGHT);
+        if (scaledY < SSTV_SCALED_HEIGHT) {
+            tft.pushImage(SSTV_PICTURE_START_X, SSTV_PICTURE_START_Y + scaledY, SSTV_SCALED_WIDTH, 1, scaledBuffer);
         }
     }
 }

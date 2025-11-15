@@ -11,7 +11,7 @@
 #include "DecoderSSTV-c1.h"
 #include "defines.h"
 
-#define __SSTV_DEBUG // SstvDecoder debug
+// #define __SSTV_DEBUG // SstvDecoder debug
 #if defined(__DEBUG) && defined(__SSTV_DEBUG)
 #define SSTV_DEBUG(fmt, ...) DEBUG(fmt __VA_OPT__(, ) __VA_ARGS__)
 #else
