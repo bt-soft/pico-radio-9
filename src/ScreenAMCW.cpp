@@ -49,7 +49,8 @@ void ScreenAMCW::layoutComponents() {
     // ===================================================================
     ScreenRadioBase::createSpectrumComponent(Rect(255, 40, 150, 80), RadioMode::AM);
 
-    // Induláskor beállítjuk a CWWaterfall megjelenítési módot (Az CwSnrCurve induláskor lefagy)
+    // Induláskor beállítjuk a CWWaterfall megjelenítési módot
+    // TODO: Az CwSnrCurve induláskor lefagy, ezt még javítani kell
     ScreenRadioBase::spectrumComp->setCurrentDisplayMode(UICompSpectrumVis::DisplayMode::CWWaterfall);
 
     // MEGJEGYZÉS: Az audioController indítása az activate() metódusban történik
