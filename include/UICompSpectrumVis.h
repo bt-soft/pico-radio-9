@@ -165,10 +165,10 @@ class UICompSpectrumVis : public UIComponent {
     float envelopeLastSmoothedValue_;
 
     // ===== KÖZÖS AGC KONSTANSOK =====
-    static constexpr uint32_t AGC_UPDATE_INTERVAL_MS = 750; // Időalapú AGC frissítés (ms)
-    static constexpr float AGC_SMOOTH_FACTOR = 0.2f;        // Simítási faktor (közös)
-    static constexpr float AGC_MIN_SIGNAL_THRESHOLD = 0.1f; // Minimum jel küszöb (közös)
-    static constexpr int AGC_HISTORY_SIZE = 10;             // History buffer méret (közös)
+    static constexpr uint32_t AGC_UPDATE_INTERVAL_MS = 2000; // Időalapú AGC frissítés (ms)
+    static constexpr float AGC_SMOOTH_FACTOR = 0.2f;         // Simítási faktor (közös)
+    static constexpr float AGC_MIN_SIGNAL_THRESHOLD = 0.1f;  // Minimum jel küszöb (közös)
+    static constexpr int AGC_HISTORY_SIZE = 10;              // History buffer méret (közös)
 
     // Bar-alapú magasság AGC célérték
     static constexpr float BAR_AGC_TARGET_HEIGHT_UTILIZATION = 0.80f; // 80%-os magasságú maximális bar kitöltés

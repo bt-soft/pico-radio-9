@@ -57,11 +57,6 @@ AudioProcessorC1::AudioProcessorC1()
 AudioProcessorC1::~AudioProcessorC1() { stop(); }
 
 /**
- * @brief Visszaadja a mintavételezési sebességet Hz-ben.
- */
-uint32_t AudioProcessorC1::getSamplingRate() { return adcDmaC1.getSamplingRate(); }
-
-/**
  * @brief Inicializálja az AudioProcessorC1 osztályt a megadott konfigurációval.
  * @param config Az ADC és DMA konfigurációs beállításai.
  * @param useFFT Jelzi, hogy FFT-t használunk-e a feldolgozáshoz.
@@ -370,6 +365,37 @@ void AudioProcessorC1::applyAgc(int16_t *samples, uint16_t count) {
 }
 
 /**
+ * @brief Egy frekvencia-tartománybeli erősítést alkalmaz az FFT adatokra "lapított" Gauss-ablak formájában.
+ * @param data FFT bemeneti/kimeneti adatok (FLOAT)
+ * @param size Az adatok mérete (bin-ek száma)
+ * @param fftBinWidthHz Egy bin szélessége Hz-ben
+ * @param boostMinHz Az erősítési tartomány alsó határa Hz-ben
+ * @param boostMaxHz Az erősítési tartomány felső határa Hz-ben
+ * @param boostGain Az erősítési tényező (pl. 10.0 = 10x erősítés)
+ *
+ */
+void AudioProcessorC1::applyFftGaussianWindow(float *data, uint16_t size, float fftBinWidthHz, float boostMinHz, float boostMaxHz, float boostGain) {
+
+    // Lapított Gauss-szerű erősítés: a tartományon belül a maximumhoz közel Gauss, széleken lapított
+    float centerFreq = (boostMinHz + boostMaxHz) / 2.0f;
+    float sigma = (boostMaxHz - boostMinHz) * 1.2f; // még laposabb, szélesebb görbe
+    float minGain = 1.0f;
+
+    for (uint16_t i = 0; i < size; i++) {
+        float freq = i * fftBinWidthHz;
+        float gain = minGain;
+
+        if (freq >= boostMinHz && freq <= boostMaxHz) {
+            // Lapítottabb Gauss: a széleken még lassabb esés, gyök alatt
+            float gauss = expf(-powf(freq - centerFreq, 2) / (2.0f * sigma * sigma));
+            gauss = powf(gauss, 0.5f); // gyök alatt: még lassabb esés
+            gain = minGain + (boostGain - minGain) * gauss;
+        }
+        data[i] *= gain;
+    }
+}
+
+/**
  * @brief Feldolgozza a legfrissebb audio blokkot és feltölti a megadott SharedData struktúrát.
  * SSTV és WEFAX módban csak a nyers mintákat másoljuk, FFT nélkül.
  * Más módokban lefuttatja az FFT-t, kiszámolja a spektrumot és a domináns frekvenciát.
@@ -474,6 +500,18 @@ bool AudioProcessorC1::processAndFillSharedData(SharedData &sharedData) {
     if (sharedData.fftSpectrumSize > 0) {
         sharedData.fftSpectrumData[0] = 0.0f;
     }
+
+    // 7.2 Frekvenciatartomány erősítés: 600-9000 Hz között 2x, máshol 1x
+    // Valamiért a kütyüm 7.5-8.5kHz között gyengébben látja a jeleket
+    // Ezért itt - jobb ötlet hijján - kézzel erősítem ezt a tartományt.
+    // applyFftGaussianWindow(         //
+    //     sharedData.fftSpectrumData, // FFT bemeneti/kimeneti adatok
+    //     sharedData.fftSpectrumSize, // FFT bin-ek száma
+    //     sharedData.fftBinWidthHz,   // egy bin szélessége Hz-ben
+    //     600.0f,                     // alsó frekvencia
+    //     9000.0f,                    // felső frekvencia
+    //     2.8f                        // erősítés 2x
+    // );
 
     // // 7.5. Alacsony frekvenciás zajszűrés (300Hz alatt csillapítás)
     // // Ez javítja a spektrum megjelenítés minőségét

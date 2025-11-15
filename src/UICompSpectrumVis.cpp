@@ -191,7 +191,7 @@ void UICompSpectrumVis::updateBarBasedGain(float currentBarMaxValue) {
         }
         barAgcLastUpdateTime_ = millis();
 
-        UISPECTRUM_DEBUG("Bar AGC: currentMax=%.1f gainFactor=%.3f\n", currentBarMaxValue, barAgcGainFactor_);
+        UISPECTRUM_DEBUG("UICompSpectrumVis [Bar AGC]: currentMax=%.1f gainFactor=%.3f\n", currentBarMaxValue, barAgcGainFactor_);
     }
 }
 
@@ -212,7 +212,7 @@ void UICompSpectrumVis::updateMagnitudeBasedGain(float currentMagnitudeMaxValue)
         }
         magnitudeAgcLastUpdateTime_ = millis();
 
-        UISPECTRUM_DEBUG("Magnitude AGC: currentMax=%.1f gainFactor=%.3f\n", currentMagnitudeMaxValue, magnitudeAgcGainFactor_);
+        UISPECTRUM_DEBUG("UICompSpectrumVis [Magnitude AGC]: currentMax=%.1f gainFactor=%.3f\n", currentMagnitudeMaxValue, magnitudeAgcGainFactor_);
     }
 }
 
@@ -386,7 +386,7 @@ void UICompSpectrumVis::draw() {
     // AGC logolás 1mpént, de csak ha be van kapcsolva az auto agc
     static uint32_t lastAgcLogTime = 0;
     if (isAutoGainMode() && Utils::timeHasPassed(lastAgcLogTime, 1000)) {
-        UISPECTRUM_DEBUG("[UICompSpectrumVis][auto AGC] mode=%d barGain=%.3f magGain=%.3f\n", (int)currentMode_, barAgcGainFactor_, magnitudeAgcGainFactor_);
+        UISPECTRUM_DEBUG("UICompSpectrumVis [Auto AGC] mode=%d barGain=%.3f magGain=%.3f\n", (int)currentMode_, barAgcGainFactor_, magnitudeAgcGainFactor_);
         lastAgcLogTime = currentTime;
     }
 #endif
