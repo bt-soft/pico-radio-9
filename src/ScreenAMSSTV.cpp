@@ -15,8 +15,8 @@
 #define SSTV_SCALED_WIDTH ((uint16_t)(SSTV_LINE_WIDTH * SSTV_SCALE + 0.5f))   // Új szélesség skálázva
 #define SSTV_SCALED_HEIGHT ((uint16_t)(SSTV_LINE_HEIGHT * SSTV_SCALE + 0.5f)) // Új magasság skálázva
 
-#define SSTV_PICTURE_START_X 2  // Kép kezdő X pozíciója
-#define SSTV_PICTURE_START_Y 90 // Kép kezdő Y pozíciója
+#define SSTV_PICTURE_START_X 100 // Kép kezdő X pozíciója
+#define SSTV_PICTURE_START_Y 90  // Kép kezdő Y pozíciója
 
 /**
  * @brief ScreenAMSSTV konstruktor
@@ -55,15 +55,7 @@ void ScreenAMSSTV::layoutComponents() {
     // addDefaultButtons = false -> NEM rakja be a HAM, Band, Scan gombokat
     ScreenRadioBase::createCommonHorizontalButtons(false);
 
-    // ===================================================================
-    // Spektrum vizualizáció komponens létrehozása
-    // ===================================================================
-    ScreenRadioBase::createSpectrumComponent(Rect(250, SSTV_PICTURE_START_Y, 150, 80), RadioMode::AM);
-
-    // Induláskor beállítjuk a Waterfall megjelenítési módot
-    ScreenRadioBase::spectrumComp->setCurrentDisplayMode(UICompSpectrumVis::DisplayMode::Waterfall);
-
-    // SSTV kép helye
+    // SSTV kép helyének kirajzolása
     clearPictureArea();
 }
 
@@ -109,9 +101,7 @@ void ScreenAMSSTV::activate() {
     );
     ::audioController.setNoiseReductionEnabled(true); // Zajszűrés beapcsolva (tisztább spektrum)
     ::audioController.setSmoothingPoints(5);          // Zajszűrés simítási pontok száma = 5 (erősebb zajszűrés, nincs frekvencia felbontási igény)
-    ::audioController.setUseFftEnabled(false);        // FFT használat bekapcsolva SSTV-hez
 }
-
 /**
  * @brief Képernyő deaktiválása
  */
