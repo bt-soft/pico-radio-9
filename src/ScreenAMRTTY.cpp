@@ -48,8 +48,8 @@ void ScreenAMRTTY::layoutComponents() {
     // Spektrum vizualizáció komponens létrehozása
     // ===================================================================
     ScreenRadioBase::createSpectrumComponent(Rect(255, 40, 150, 80), RadioMode::AM);
-    // Induláskor beállítjuk a RttySnrCurve megjelenítési módot
-    ScreenRadioBase::spectrumComp->setCurrentDisplayMode(UICompSpectrumVis::DisplayMode::RttySnrCurve);
+    // Induláskor beállítjuk a RTTYWaterfall megjelenítési módot (Az RttySnrCurve induláskor lefagy)
+    ScreenRadioBase::spectrumComp->setCurrentDisplayMode(UICompSpectrumVis::DisplayMode::RTTYWaterfall);
 
     // MEGJEGYZÉS: Az audioController indítása az activate() metódusban történik
     // hogy képernyőváltáskor megfelelően leálljon és újrainduljon

@@ -48,8 +48,9 @@ void ScreenAMCW::layoutComponents() {
     // Spektrum vizualizáció komponens létrehozása
     // ===================================================================
     ScreenRadioBase::createSpectrumComponent(Rect(255, 40, 150, 80), RadioMode::AM);
-    // Induláskor beállítjuk a CwSnrCurve megjelenítési módot
-    ScreenRadioBase::spectrumComp->setCurrentDisplayMode(UICompSpectrumVis::DisplayMode::CwSnrCurve);
+
+    // Induláskor beállítjuk a CWWaterfall megjelenítési módot (Az CwSnrCurve induláskor lefagy)
+    ScreenRadioBase::spectrumComp->setCurrentDisplayMode(UICompSpectrumVis::DisplayMode::CWWaterfall);
 
     // MEGJEGYZÉS: Az audioController indítása az activate() metódusban történik
     // hogy képernyőváltáskor megfelelően leálljon és újrainduljon
@@ -109,6 +110,8 @@ void ScreenAMCW::activate() {
         CW_AF_BANDWIDTH_HZ,                 // bandwidthHz
         config.data.cwToneFrequencyHz       // cwCenterFreqHz
     );
+    ::audioController.setNoiseReductionEnabled(true); // Zajszűrés beapcsolva (tisztább spektrum)
+    ::audioController.setSmoothingPoints(5);          // Zajszűrés simítási pontok száma = 5 (erősebb zajszűrés, nincs frekvencia felbontási igény)
 }
 
 /**

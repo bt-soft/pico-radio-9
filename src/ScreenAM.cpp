@@ -62,8 +62,8 @@ void ScreenAM::activate() {
     // Szülő osztály aktiválása
     ScreenAMRadioBase::activate();
 
-    updateAllVerticalButtonStates(); // Univerzális funkcionális gombok (mixin method)
-    updateHorizontalButtonStates();  // AM-specifikus gombok szinkronizálása
+    Mixin::updateAllVerticalButtonStates(); // Univerzális funkcionális gombok (mixin method)
+    updateHorizontalButtonStates();         // AM-specifikus gombok szinkronizálása
 
     // AM audio dekóder indítása (csak FFT, nincs dekóder)
     ::audioController.startAudioController(DecoderId::ID_DECODER_ONLY_FFT, AM_AF_RAW_SAMPLES_SIZE, AM_AF_BANDWIDTH_HZ);
