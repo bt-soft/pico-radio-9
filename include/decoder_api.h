@@ -9,30 +9,32 @@
  */
 enum DecoderId : uint32_t {
     ID_DECODER_NONE = 0,
-    ID_DECODER_DOMINANT_FREQ = 1,
-    ID_DECODER_SSTV = 2,
-    ID_DECODER_CW = 3,
-    ID_DECODER_RTTY = 4,
-    ID_DECODER_WEFAX = 5,
-    ID_DECODER_ONLY_FFT = 6, // Nincs dekóder csak FFT feldolgozás
+    ID_DECODER_DOMINANT_FREQ,
+    ID_DECODER_SSTV,
+    ID_DECODER_CW,
+    ID_DECODER_RTTY,
+    ID_DECODER_WEFAX,
+    ID_DECODER_ONLY_FFT, // Nincs dekóder csak FFT feldolgozás
 };
 
 /**
  * @brief RP2040 Parancskódok a core0 -> core1 kommunikációhoz
  */
 enum RP2040CommandCode : uint32_t {
-    CMD_SET_MANUAL_GAIN = 10,
-    CMD_SET_BLOCKING_DMA_MODE = 11,
     CMD_NOP = 0,
-    CMD_STOP = 1,
-    CMD_SET_CONFIG = 2,
-    // CMD_GET_CONFIG = 3,
-    // CMD_PING = 4,
-    CMD_GET_DATA_BLOCK = 5,    //  megosztott adatblokk indexének lekérésére
-    CMD_GET_SAMPLING_RATE = 6, //  mintavételezési sebesség lekérésére
-    CMD_SET_AGC_ENABLED = 7,
-    CMD_SET_NOISE_REDUCTION_ENABLED = 8,
-    CMD_SET_SMOOTHING_POINTS = 9
+    CMD_STOP,
+    CMD_SET_CONFIG,
+    // CMD_GET_CONFIG,
+    // CMD_PING,
+    CMD_GET_DATA_BLOCK,    //  megosztott adatblokk indexének lekérésére
+    CMD_GET_SAMPLING_RATE, //  mintavételezési sebesség lekérésére
+    CMD_SET_AGC_ENABLED,
+    CMD_SET_NOISE_REDUCTION_ENABLED,
+    CMD_SET_SMOOTHING_POINTS,
+    CMD_SET_MANUAL_GAIN,
+    CMD_SET_BLOCKING_DMA_MODE,
+    CMD_SET_USE_FFT_ENABLED,
+    CMD_GET_USE_FFT_ENABLED
 };
 
 /**
@@ -44,8 +46,9 @@ enum RP2040ResponseCode : uint32_t {
     RESP_NACK = 201,
     // RESP_ACTUAL_RATE = 202,
     // RESP_CONFIG = 203,
-    RESP_DATA_BLOCK = 204,   // az aktív puffer indexét tartalmazza
-    RESP_SAMPLING_RATE = 205 // a mintavételezési sebességhez tartozó válasz
+    RESP_DATA_BLOCK = 204,     // az aktív puffer indexét tartalmazza
+    RESP_SAMPLING_RATE = 205,  // a mintavételezési sebességhez tartozó válasz
+    RESP_USE_FFT_ENABLED = 206 // FFT engedélyezés lekérdezéséhez
 };
 
 /**

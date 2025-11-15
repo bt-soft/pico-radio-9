@@ -134,6 +134,33 @@ bool AudioController::setSmoothingPoints(uint32_t points) {
     return rp2040.fifo.pop() == RP2040ResponseCode::RESP_ACK; // ACK jött?
 }
 
+/**
+ * @brief AudioProcessorC1 FFT használatának engedélyezése/letiltása Core1-en.
+ */
+bool AudioController::setUseFftEnabled(bool enabled) {
+    rp2040.fifo.push(RP2040CommandCode::CMD_SET_USE_FFT_ENABLED);
+    rp2040.fifo.push(enabled ? 1 : 0);
+    return rp2040.fifo.pop() == RP2040ResponseCode::RESP_ACK; // ACK jött?
+}
+
+/**
+ * @brief Lekérdezi, hogy az AudioProcessorC1 használja-e az FFT-t Core1-en.
+ * @return true, ha használja, false, ha nem, vagy hiba esetén false.
+ */
+bool AudioController::getUseFftEnabled() {
+    rp2040.fifo.push(RP2040CommandCode::CMD_GET_USE_FFT_ENABLED);
+    uint32_t response_code = rp2040.fifo.pop();
+    if (response_code == RP2040ResponseCode::RESP_USE_FFT_ENABLED) {
+        uint32_t enabled = rp2040.fifo.pop();
+        return enabled != 0;
+    } else {
+        // Hiba vagy timeout esetén ürítsük a FIFO-t, ha van benne valami
+        while (rp2040.fifo.available()) {
+            rp2040.fifo.pop();
+        }
+        return false;
+    }
+}
 void AudioController::setManualGain(float gain) {
     // Float átküldése FIFO-n uint32_t bit patternként
     uint32_t gainBits;

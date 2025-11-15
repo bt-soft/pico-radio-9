@@ -38,6 +38,10 @@ class AudioController {
     void setManualGain(float gain);
     bool setBlockingDmaMode(bool blocking);
 
+    // FFT vezérlés
+    bool setUseFftEnabled(bool enabled);
+    bool getUseFftEnabled();
+
   private:
     DecoderId activeDecoderCore0 = ID_DECODER_NONE;
     // DecoderId oldActiveDecoderCore0 = ID_DECODER_NONE;

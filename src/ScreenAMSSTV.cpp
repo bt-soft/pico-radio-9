@@ -15,13 +15,16 @@
 #define SSTV_SCALED_WIDTH ((uint16_t)(SSTV_LINE_WIDTH * SSTV_SCALE + 0.5f))   // Új szélesség skálázva
 #define SSTV_SCALED_HEIGHT ((uint16_t)(SSTV_LINE_HEIGHT * SSTV_SCALE + 0.5f)) // Új magasság skálázva
 
-#define SSTV_PICTURE_START_X 2 // Kép kezdő X pozíciója
-#define SSTV_PICTURE_START_Y 90  // Kép kezdő Y pozíciója
+#define SSTV_PICTURE_START_X 2  // Kép kezdő X pozíciója
+#define SSTV_PICTURE_START_Y 90 // Kép kezdő Y pozíciója
 
 /**
  * @brief ScreenAMSSTV konstruktor
  */
-ScreenAMSSTV::ScreenAMSSTV() : ScreenAMRadioBase(SCREEN_NAME_DECODER_SSTV), UICommonVerticalButtons::Mixin<ScreenAMSSTV>() {
+ScreenAMSSTV::ScreenAMSSTV()
+    : ScreenAMRadioBase(SCREEN_NAME_DECODER_SSTV), UICommonVerticalButtons::Mixin<ScreenAMSSTV>(), //
+      accumulatedTargetLine(0.0f), lastDrawnTargetLine(0) {
+
     // UI komponensek létrehozása és elhelyezése
     layoutComponents();
 }
@@ -55,16 +58,13 @@ void ScreenAMSSTV::layoutComponents() {
     // ===================================================================
     // Spektrum vizualizáció komponens létrehozása
     // ===================================================================
-    // ScreenRadioBase::createSpectrumComponent(Rect(255, 40, 150, 80), RadioMode::AM);
+    ScreenRadioBase::createSpectrumComponent(Rect(250, SSTV_PICTURE_START_Y, 150, 80), RadioMode::AM);
 
     // Induláskor beállítjuk a Waterfall megjelenítési módot
-    // ScreenRadioBase::spectrumComp->setCurrentDisplayMode(UICompSpectrumVis::DisplayMode::Waterfall);
+    ScreenRadioBase::spectrumComp->setCurrentDisplayMode(UICompSpectrumVis::DisplayMode::Waterfall);
 
     // SSTV kép helye
-    // Képterület törlése (50,50) pozíciótól 320x256 méretben
-    tft.fillRect(SSTV_PICTURE_START_X, SSTV_PICTURE_START_Y, SSTV_SCALED_WIDTH, SSTV_SCALED_HEIGHT, TFT_BLACK);
-    // Fehér keret rajzolása a kép körül (1px-el kívül)
-    tft.drawRect(SSTV_PICTURE_START_X - 1, SSTV_PICTURE_START_Y - 1, SSTV_SCALED_WIDTH + 2, SSTV_SCALED_HEIGHT + 2, TFT_WHITE);
+    clearPictureArea();
 }
 
 /**
@@ -109,6 +109,7 @@ void ScreenAMSSTV::activate() {
     );
     ::audioController.setNoiseReductionEnabled(true); // Zajszűrés beapcsolva (tisztább spektrum)
     ::audioController.setSmoothingPoints(5);          // Zajszűrés simítási pontok száma = 5 (erősebb zajszűrés, nincs frekvencia felbontási igény)
+    ::audioController.setUseFftEnabled(false);        // FFT használat bekapcsolva SSTV-hez
 }
 
 /**
@@ -121,6 +122,16 @@ void ScreenAMSSTV::deactivate() {
 
     // Szülő osztály deaktiválása
     ScreenAMRadioBase::deactivate();
+}
+
+/**
+ * @brief Képterület törlése
+ */
+void ScreenAMSSTV::clearPictureArea() {
+    // SSTV kép helye
+    tft.fillRect(SSTV_PICTURE_START_X, SSTV_PICTURE_START_Y, SSTV_SCALED_WIDTH, SSTV_SCALED_HEIGHT, TFT_BLACK);
+    // Fehér keret rajzolása a kép körül (1px-el kívül)
+    tft.drawRect(SSTV_PICTURE_START_X - 1, SSTV_PICTURE_START_Y - 1, SSTV_SCALED_WIDTH + 2, SSTV_SCALED_HEIGHT + 2, TFT_WHITE);
 }
 
 /**
@@ -139,25 +150,14 @@ void ScreenAMSSTV::handleOwnLoop() {
  */
 void ScreenAMSSTV::checkDecodedData() {
 
-    // Static változók a függőleges scaling akkumulálásához
-    static float accumulatedTargetLine = 0.0f;
-    static uint16_t lastDrawnTargetLine = 0;
-
     // Új kép kezdés ellenőrzése
     if (decodedData.newImageStarted) {
-        decodedData.newImageStarted = false; // Flag törlése
+        decodedData.newImageStarted = false; // Új kép flag törlése
 
         SSTV_DEBUG("ScreenAMSSTV::checkDecodedData: Új SSTV kép kezdődött - képterület törlése\n");
 
         // Képterület törlése
-        tft.fillRect(SSTV_PICTURE_START_X, SSTV_PICTURE_START_Y, SSTV_SCALED_WIDTH, SSTV_SCALED_HEIGHT, TFT_BLACK);
-
-        // Fehér keret rajzolása a kép körül (1px-el kívül)
-        tft.drawRect(SSTV_PICTURE_START_X - 1, SSTV_PICTURE_START_Y - 1, SSTV_SCALED_WIDTH + 2, SSTV_SCALED_HEIGHT + 2, TFT_WHITE);
-
-        // Scaling állapot reset
-        accumulatedTargetLine = 0.0f;
-        lastDrawnTargetLine = 0;
+        clearPictureArea();
 
         // SSTV mód név lekérése és kiírása a TFT-re
         const char *modeName = c_sstv_decoder::getSstvModeName((c_sstv_decoder::e_mode)decodedData.currentMode);
@@ -178,6 +178,10 @@ void ScreenAMSSTV::checkDecodedData() {
         tft.setTextColor(TFT_GREEN, TFT_BLACK);
         tft.setCursor(MODE_TXT_X + 45, MODE_TXT_Y);
         tft.print(modeName);
+
+        // Scaling állapot reset
+        accumulatedTargetLine = 0.0f;
+        lastDrawnTargetLine = 0;
     }
 
     // SSTV képsorok kiolvasása a közös lineBuffer-ből

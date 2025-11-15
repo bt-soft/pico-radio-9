@@ -408,6 +408,19 @@ void processFifoCommands() {
             rp2040.fifo.push(RP2040ResponseCode::RESP_ACK);
             break;
         }
+
+        case RP2040CommandCode::CMD_SET_USE_FFT_ENABLED: {
+            bool enabled = (rp2040.fifo.pop() != 0);
+            audioProcC1.useFFT = enabled;
+            rp2040.fifo.push(RP2040ResponseCode::RESP_ACK);
+            break;
+        }
+
+        case RP2040CommandCode::CMD_GET_USE_FFT_ENABLED: {
+            rp2040.fifo.push(RP2040ResponseCode::RESP_USE_FFT_ENABLED);
+            rp2040.fifo.push(audioProcC1.useFFT ? 1 : 0);
+            break;
+        }
     }
 }
 

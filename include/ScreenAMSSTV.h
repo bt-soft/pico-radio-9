@@ -50,5 +50,10 @@ class ScreenAMSSTV : public ScreenAMRadioBase, public UICommonVerticalButtons::M
     virtual void addSpecificHorizontalButtons(std::vector<UIHorizontalButtonBar::ButtonConfig> &buttonConfigs) override;
 
   private:
+    // Static változók a függőleges scaling akkumulálásához
+    float accumulatedTargetLine;
+    uint16_t lastDrawnTargetLine;
+
     void checkDecodedData();
+    void clearPictureArea();
 };

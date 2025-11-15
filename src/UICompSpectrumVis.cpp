@@ -14,7 +14,7 @@
 #define TEST_DO_NOT_PROCESS_MUTED_STATE
 
 // UICompSpectrumVis működés debug engedélyezése de csak DEBUG módban
-#define __UISPECTRUM_DEBUG
+// #define __UISPECTRUM_DEBUG
 #if defined(__DEBUG) && defined(__UISPECTRUM_DEBUG)
 #define UISPECTRUM_DEBUG(fmt, ...) DEBUG(fmt __VA_OPT__(, ) __VA_ARGS__)
 #else

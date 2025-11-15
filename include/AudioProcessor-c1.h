@@ -61,6 +61,9 @@ class AudioProcessorC1 {
     inline bool isNoiseReductionEnabled() const { return useNoiseReduction_; }
     inline uint8_t getSmoothingPoints() const { return smoothingPoints_; }
 
+  public:
+    bool useFFT;
+
   private:
     void removeDcAndSmooth(const uint16_t *input, int16_t *output, uint16_t count);
     void applyAgc(int16_t *samples, uint16_t count);
@@ -69,7 +72,6 @@ class AudioProcessorC1 {
 
     AdcDmaC1 adcDmaC1;
     AdcDmaC1::CONFIG adcConfig;
-    bool useFFT;
     bool is_running;
     bool useBlockingDma; // Blokkoló (true) vagy nem-blokkoló (false) DMA mód
 

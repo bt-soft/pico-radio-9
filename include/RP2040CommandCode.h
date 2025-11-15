@@ -1,0 +1,16 @@
+#pragma once
+
+// Command codes for RP2040 FIFO communication
+enum class RP2040CommandCode : uint32_t {
+    CMD_SET_CONFIG = 1,
+    CMD_STOP = 2,
+    CMD_GET_SAMPLING_RATE = 3,
+    CMD_GET_DATA_BLOCK = 4,
+    CMD_SET_AGC_ENABLED = 5,
+    CMD_SET_NOISE_REDUCTION_ENABLED = 6,
+    CMD_SET_SMOOTHING_POINTS = 7,
+    CMD_SET_MANUAL_GAIN = 8,
+    CMD_SET_BLOCKING_DMA_MODE = 9,
+    CMD_SET_USE_FFT_ENABLED = 10,
+    CMD_GET_USE_FFT_ENABLED = 11
+};

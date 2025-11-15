@@ -93,6 +93,11 @@ bool DecoderSSTV_C1::start(const DecoderConfig &decoderConfig) {
         }
     }
 
+    // Állapot változók visszaállítása új vételhez
+    last_pixel_y = 0;
+    first_image_sent = false;
+    last_mode_id = -1;
+
     return true;
 };
 
@@ -104,6 +109,11 @@ void DecoderSSTV_C1::stop() {
     if (sstv_decoder != nullptr) {
         sstv_decoder.reset();
     }
+
+    // Állapot változók visszaállítása
+    last_pixel_y = 0;
+    first_image_sent = false;
+    last_mode_id = -1;
 };
 
 /**
@@ -157,7 +167,8 @@ void DecoderSSTV_C1::processSamples(const int16_t *rawAudioSamples, size_t count
             // Kezeljük a speciális esetet is: ha még sosem küldtünk első képet (kezdeti állapot),
             // akkor az első pixel_y==0 helyzetet is vegyük új kép kezdetnek, hogy a banner és a
             // képterület törlése megtörténjen.
-            if ((pixel_y == 0 && last_pixel_y != 0) || (pixel_y == 0 && !first_image_sent)) {
+            // FONTOS: Ha pixel_y visszaugrott (pl. timeout után új adás), akkor is új kép!
+            if ((pixel_y == 0 && last_pixel_y != 0) || (pixel_y == 0 && !first_image_sent) || (pixel_y < last_pixel_y && last_pixel_y > 10)) {
 
                 SSTV_DEBUG("SSTV-C1: Új kép kezdődik, pixel_y=0, mode_id=%d, név=%s\n", //
                            (uint8_t)mode,                                               //
