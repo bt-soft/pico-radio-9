@@ -510,7 +510,8 @@ bool AudioProcessorC1::processAndFillSharedData(SharedData &sharedData) {
         sharedData.fftBinWidthHz,   // egy bin szélessége Hz-ben
         5500.0f,                    // alsó frekvencia
         8500.0f,                    // felső frekvencia
-        8.0f                        // erősítés a csúcsnál
+        // 8.0f                        // erősítés a csúcsnál
+        2.0f // erősítés a csúcsnál
     );
 
     // // 7.5. Alacsony frekvenciás zajszűrés (300Hz alatt csillapítás)

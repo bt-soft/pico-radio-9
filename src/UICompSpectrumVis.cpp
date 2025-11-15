@@ -14,7 +14,7 @@
 #define TEST_DO_NOT_PROCESS_MUTED_STATE
 
 // UICompSpectrumVis működés debug engedélyezése de csak DEBUG módban
-// #define __UISPECTRUM_DEBUG
+#define __UISPECTRUM_DEBUG
 #if defined(__DEBUG) && defined(__UISPECTRUM_DEBUG)
 #define UISPECTRUM_DEBUG(fmt, ...) DEBUG(fmt __VA_OPT__(, ) __VA_ARGS__)
 #else
@@ -54,7 +54,8 @@ constexpr uint8_t SPECTRUM_FPS = 25;                              // FPS limitá
 }; // namespace FftDisplayConstants
 
 // Zajküszöb - alacsony szintű zajt nullázza
-constexpr float NOISE_THRESHOLD = 120.0f; // Zajszűrés: zaj magnitúdó értékével
+constexpr float NOISE_THRESHOLD_FM = 0.0f;   // Zajszűrés: zaj magnitúdó értékével
+constexpr float NOISE_THRESHOLD_AM = 150.0f; // Zajszűrés: zaj magnitúdó értékével
 
 // ===== ÉRZÉKENYSÉGI / AMPLITÚDÓ SKÁLÁZÁSI KONSTANSOK =====
 // Minden grafikon mód érzékenységét és amplitúdó skálázását itt lehet módosítani
@@ -72,13 +73,13 @@ constexpr float LOWRES_SPECTRUMBAR_SENSITIVITY_FACTOR = 0.2f; // Spektrum bar-ok
 constexpr float HIGHRES_SPECTRUMBAR_SENSITIVITY_FACTOR = 0.12f; // Spektrum bar-ok amplitúdó skálázása
 
 // Oszcilloszkóp mód
-constexpr float OSCI_SENSITIVITY_FACTOR = 30.0f; // Oszcilloszkóp jel erősítése
+constexpr float OSCI_SENSITIVITY_FACTOR = 28.0f; // Oszcilloszkóp jel erősítése
 
 // Envelope mód
-constexpr float ENVELOPE_SENSITIVITY_FACTOR = 0.20f; // Envelope amplitúdó erősítése
+constexpr float ENVELOPE_SENSITIVITY_FACTOR = 0.28f; // Envelope amplitúdó erősítése
 
 // Waterfall mód
-constexpr float WATERFALL_SENSITIVITY_FACTOR = 20.0f; // Waterfall intenzitás skálázása
+constexpr float WATERFALL_SENSITIVITY_FACTOR = 0.98f; // Waterfall intenzitás skálázása
 
 // CW SNR Curve
 constexpr float CW_TUNING_AID_SNR_CURVE_SENSITIVITY_FACTOR = 0.3f;
@@ -841,7 +842,7 @@ void UICompSpectrumVis::renderSpectrumBar(bool isHighRes) {
 
             // ELŐSZÖR zajszűrés a nyers adaton
             float magnitude = magnitudeData[fft_bin_index];
-            if (magnitude < NOISE_THRESHOLD) {
+            if (magnitude < (this->radioMode_ == RadioMode::AM ? NOISE_THRESHOLD_AM : NOISE_THRESHOLD_FM)) {
                 magnitude = 0.0f;
             }
 
@@ -915,7 +916,7 @@ void UICompSpectrumVis::renderSpectrumBar(bool isHighRes) {
             if (band_idx < LOW_RES_BANDS) {
                 float magnitude = magnitudeData[i];
                 // ELŐSZÖR zajszűrés a nyers adaton
-                if (magnitude < NOISE_THRESHOLD) {
+                if (magnitude < (this->radioMode_ == RadioMode::AM ? NOISE_THRESHOLD_AM : NOISE_THRESHOLD_FM)) {
                     magnitude = 0.0f;
                 }
                 band_magnitudes[band_idx] = std::max(band_magnitudes[band_idx], magnitude);
@@ -1133,7 +1134,7 @@ void UICompSpectrumVis::renderEnvelope() {
         }
 
         // ELŐSZÖR zajszűrés a nyers adaton (NOISE_THRESHOLD)
-        if (rawMagnitude < NOISE_THRESHOLD) {
+        if (rawMagnitude < (this->radioMode_ == RadioMode::AM ? NOISE_THRESHOLD_AM : NOISE_THRESHOLD_FM)) {
             rawMagnitude = 0.0;
         }
 
@@ -1290,7 +1291,7 @@ void UICompSpectrumVis::renderWaterfall() {
 
         // ELŐSZÖR zajszűrés a nyers adaton
         float rawMagnitude = magnitudeData[fft_bin_index];
-        if (rawMagnitude < NOISE_THRESHOLD) {
+        if (rawMagnitude < (this->radioMode_ == RadioMode::AM ? NOISE_THRESHOLD_AM : NOISE_THRESHOLD_FM)) {
             rawMagnitude = 0.0f;
         }
 
@@ -1679,7 +1680,7 @@ void UICompSpectrumVis::renderSnrCurve() {
         float rawMagnitude = getInterpolatedMagnitude(magnitudeData, exact_bin_index, min_bin, max_bin);
 
         // ELŐSZÖR zajszűrés a nyers adaton
-        if (rawMagnitude < NOISE_THRESHOLD) {
+        if (rawMagnitude < (this->radioMode_ == RadioMode::AM ? NOISE_THRESHOLD_AM : NOISE_THRESHOLD_FM)) {
             rawMagnitude = 0.0f;
         }
 

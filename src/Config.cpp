@@ -32,7 +32,7 @@ const Config_t DEFAULT_CONFIG = {
     .rdsEnabled = true,
 
     // Hangerő
-    .currVolume = 50,
+    .currVolume = 50, // hangerő
 
     // AGC
     .agcGain = 1,        // static_cast<uint8_t>(Si4735Runtime::AgcGainMode::Automatic),        // -> 1,
