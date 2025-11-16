@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
  * -----                                                                                                               *
- * Last Modified: 2025.11.16, Sunday  09:40:54                                                                         *
+ * Last Modified: 2025.11.16, Sunday  01:35:14                                                                         *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -30,7 +30,7 @@
 #include "defines.h"
 
 // RTTY működés debug engedélyezése de csak DEBUG módban
-#define __RTTY_DEBUG
+// #define __RTTY_DEBUG
 #if defined(__DEBUG) && defined(__RTTY_DEBUG)
 #define RTTY_DEBUG(fmt, ...) DEBUG(fmt __VA_OPT__(, ) __VA_ARGS__)
 #else

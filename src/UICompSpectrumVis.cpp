@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
  * -----                                                                                                               *
- * Last Modified: 2025.11.16, Sunday  09:45:02                                                                         *
+ * Last Modified: 2025.11.16, Sunday  11:51:41                                                                         *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -35,7 +35,7 @@
 #include "utils.h"
 
 // Ezt tesztre használjuk, hogy a némított állapotot figyelmen kívül hagyjuk (Az AD + FFT hangolásához)
-#define TEST_DO_NOT_PROCESS_MUTED_STATE
+ #define TEST_DO_NOT_PROCESS_MUTED_STATE
 
 // UICompSpectrumVis működés debug engedélyezése de csak DEBUG módban
 // #define __UISPECTRUM_DEBUG
@@ -198,6 +198,10 @@ UICompSpectrumVis::~UICompSpectrumVis() {
  * @param currentBarMaxValue Jelenlegi frame legnagyobb bar magassága (már erősített érték)
  */
 void UICompSpectrumVis::updateBarBasedGain(float currentBarMaxValue) {
+    // Ha némított állapotban vagyunk, az AGC ne működjön!
+    if (rtv::muteStat) {
+        return;
+    }
     // Bar maximum hozzáadása a history bufferhez
     barAgcHistory_[barAgcHistoryIndex_] = currentBarMaxValue;
     barAgcHistoryIndex_ = (barAgcHistoryIndex_ + 1) % AGC_HISTORY_SIZE;
@@ -219,6 +223,10 @@ void UICompSpectrumVis::updateBarBasedGain(float currentBarMaxValue) {
  * @param currentMagnitudeMaxValue Jelenlegi frame legnagyobb magnitude értéke (nyers FFT adat)
  */
 void UICompSpectrumVis::updateMagnitudeBasedGain(float currentMagnitudeMaxValue) {
+    // Ha némított állapotban vagyunk, az AGC ne működjön!
+    if (rtv::muteStat) {
+        return;
+    }
     // Magnitude maximum hozzáadása a history bufferhez
     magnitudeAgcHistory_[magnitudeAgcHistoryIndex_] = currentMagnitudeMaxValue;
     magnitudeAgcHistoryIndex_ = (magnitudeAgcHistoryIndex_ + 1) % AGC_HISTORY_SIZE;
