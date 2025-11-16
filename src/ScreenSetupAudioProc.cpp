@@ -24,6 +24,7 @@
 
 #include "ScreenSetupAudioProc.h"
 #include "Config.h"
+#include "RTTYParamDialogs.h"
 #include "UIMultiButtonDialog.h"
 #include "UIValueChangeDialog.h"
 
@@ -118,9 +119,9 @@ void ScreenSetupAudioProc::handleCwToneFrequencyDialog(int index) {
 
     auto cwToneFrequencyDialog = std::make_shared<UIValueChangeDialog>(
         this, "CW Tone Frequency", "CW Tone Frequency (Hz):", tempValuePtr.get(),
-        static_cast<int>(400),  // Min: 400Hz
-        static_cast<int>(1900), // Max: 1900Hz
-        static_cast<int>(10),   // Step: 10Hz
+        static_cast<int>(400),  // Minimális: 400Hz
+        static_cast<int>(1900), // Maximális: 1900Hz
+        static_cast<int>(10),   // Lépés: 10Hz
         [this, index](const std::variant<int, float, bool> &liveNewValue) {
             if (std::holds_alternative<int>(liveNewValue)) {
                 int currentDialogVal = std::get<int>(liveNewValue);
@@ -145,28 +146,15 @@ void ScreenSetupAudioProc::handleCwToneFrequencyDialog(int index) {
  * @param index A menüpont indexe a lista frissítéséhez
  */
 void ScreenSetupAudioProc::handleRttyMarkFrequencyDialog(int index) {
-    auto tempValuePtr = std::make_shared<int>(static_cast<int>(config.data.rttyMarkFrequencyHz));
-
-    auto rttyMarkDialog = std::make_shared<UIValueChangeDialog>(
-        this, "RTTY Mark Freq", "RTTY Mark Frequency (Hz):", tempValuePtr.get(),
-        static_cast<int>(600),  // Min: 600Hz
-        static_cast<int>(2500), // Max: 2500Hz
-        static_cast<int>(25),   // Step: 25Hz
-        [this, index](const std::variant<int, float, bool> &liveNewValue) {
-            if (std::holds_alternative<int>(liveNewValue)) {
-                int currentDialogVal = std::get<int>(liveNewValue);
-                config.data.rttyMarkFrequencyHz = static_cast<uint16_t>(currentDialogVal);
-            }
-        },
-        [this, index, tempValuePtr](UIDialogBase *sender, UIMessageDialog::DialogResult dialogResult) {
-            if (dialogResult == UIMessageDialog::DialogResult::Accepted) {
-                config.data.rttyMarkFrequencyHz = static_cast<uint16_t>(*tempValuePtr);
+    {
+        std::function<void(UIDialogBase *, UIDialogBase::DialogResult)> cb = [this, index](UIDialogBase *sender, UIDialogBase::DialogResult result) {
+            if (result == UIDialogBase::DialogResult::Accepted) {
                 settingItems[index].value = String(config.data.rttyMarkFrequencyHz) + " Hz";
                 updateListItem(index);
             }
-        },
-        Rect(-1, -1, 280, 0));
-    this->showDialog(rttyMarkDialog);
+        };
+        RTTYParamDialogs::showMarkFreqDialog(this, &config, cb);
+    }
 }
 
 /**
@@ -175,28 +163,15 @@ void ScreenSetupAudioProc::handleRttyMarkFrequencyDialog(int index) {
  * @param index A menüpont indexe a lista frissítéséhez
  */
 void ScreenSetupAudioProc::handleRttyShiftFrequencyDialog(int index) {
-    auto tempValuePtr = std::make_shared<int>(static_cast<int>(config.data.rttyShiftFrequencyHz));
-
-    auto rttyShiftFrequencyDialog = std::make_shared<UIValueChangeDialog>(
-        this, "RTTY Shift", "RTTY Shift Frequency (Hz):", tempValuePtr.get(),
-        static_cast<int>(80),   // Min: 80Hz
-        static_cast<int>(1000), // Max: 1000Hz
-        static_cast<int>(10),   // Step: 10Hz
-        [this, index](const std::variant<int, float, bool> &liveNewValue) {
-            if (std::holds_alternative<int>(liveNewValue)) {
-                int currentDialogVal = std::get<int>(liveNewValue);
-                config.data.rttyShiftFrequencyHz = static_cast<uint16_t>(currentDialogVal);
-            }
-        },
-        [this, index, tempValuePtr](UIDialogBase *sender, UIMessageDialog::DialogResult dialogResult) {
-            if (dialogResult == UIMessageDialog::DialogResult::Accepted) {
-                config.data.rttyShiftFrequencyHz = static_cast<uint16_t>(*tempValuePtr);
+    {
+        std::function<void(UIDialogBase *, UIDialogBase::DialogResult)> cb = [this, index](UIDialogBase *sender, UIDialogBase::DialogResult result) {
+            if (result == UIDialogBase::DialogResult::Accepted) {
                 settingItems[index].value = String(config.data.rttyShiftFrequencyHz) + " Hz";
                 updateListItem(index);
             }
-        },
-        Rect(-1, -1, 280, 0));
-    this->showDialog(rttyShiftFrequencyDialog);
+        };
+        RTTYParamDialogs::showSpaceFreqDialog(this, &config, cb);
+    }
 }
 
 /**
@@ -205,28 +180,15 @@ void ScreenSetupAudioProc::handleRttyShiftFrequencyDialog(int index) {
  * @param index A menüpont indexe a lista frissítéséhez
  */
 void ScreenSetupAudioProc::handleRttyBaudRateDialog(int index) {
-    auto tempValuePtr = std::make_shared<float>(static_cast<float>(config.data.rttyBaudRate));
-
-    auto rttyBaudRateDialog = std::make_shared<UIValueChangeDialog>(
-        this, "RTTY Baud Rate", "RTTY Baud Rate (bps):", tempValuePtr.get(),
-        20.0f,  // Min: 20bps
-        150.0f, // Max: 150bps
-        0.5f,   // Step: 0.5bps
-        [this, index](const std::variant<int, float, bool> &liveNewValue) {
-            if (std::holds_alternative<float>(liveNewValue)) {
-                float currentDialogVal = std::get<float>(liveNewValue);
-                config.data.rttyBaudRate = static_cast<float>(currentDialogVal);
-            }
-        },
-        [this, index, tempValuePtr](UIDialogBase *sender, UIMessageDialog::DialogResult dialogResult) {
-            if (dialogResult == UIMessageDialog::DialogResult::Accepted) {
-                config.data.rttyBaudRate = static_cast<float>(*tempValuePtr);
+    {
+        std::function<void(UIDialogBase *, UIDialogBase::DialogResult)> cb = [this, index](UIDialogBase *sender, UIDialogBase::DialogResult result) {
+            if (result == UIDialogBase::DialogResult::Accepted) {
                 settingItems[index].value = String(config.data.rttyBaudRate) + " bps";
                 updateListItem(index);
             }
-        },
-        Rect(-1, -1, 280, 0));
-    this->showDialog(rttyBaudRateDialog);
+        };
+        RTTYParamDialogs::showBaudRateDialog(this, &config, cb);
+    }
 }
 
 /**

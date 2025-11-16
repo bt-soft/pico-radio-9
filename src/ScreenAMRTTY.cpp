@@ -23,7 +23,9 @@
  */
 
 #include "ScreenAMRTTY.h"
+#include "RTTYParamDialogs.h"
 #include "ScreenManager.h"
+#include "UIMultiButtonDialog.h"
 #include "defines.h"
 
 /**
@@ -104,19 +106,57 @@ void ScreenAMRTTY::addSpecificHorizontalButtons(std::vector<UIHorizontalButtonBa
     // Ez tartalmazza: BFO, AFBW, ANTCAP, DEMOD gombokat
     ScreenAMRadioBase::addSpecificHorizontalButtons(buttonConfigs);
 
+    // Hozzáadunk egy RTTY Paraméterek gombot a Back elé. Megnyomáskor
+    // megjelenít egy 3 gombos dialógust (Mark / Space / Baud), amely elindítja
+    // a megfelelő paraméter dialógust, és a gyerek bezárásakor visszaállítja
+    // a 3 gombos szülő dialógust (ahogy a ScreenTest-ben látható).
+    constexpr uint8_t RTTY_PARAMS_BUTTON = 150;
+    buttonConfigs.push_back({RTTY_PARAMS_BUTTON, "Params", UIButton::ButtonType::Pushable, UIButton::ButtonState::Off, [this](const UIButton::ButtonEvent &event) {
+                                 if (event.state != UIButton::EventButtonState::Clicked)
+                                     return;
+
+                                 static const char *options[] = {"Mark", "Space", "Baud"};
+
+                                 // Létrehozzuk a szülő 3-gombos dialógust automatikus bezárás nélkül,
+                                 // így manuálisan tudjuk bezárni, amikor gyereket nyitunk, majd
+                                 // újra megjeleníteni, amikor a gyerek bezáródik.
+                                 auto paramsDlg = std::make_shared<UIMultiButtonDialog>(this, "RTTY Params", "Select parameter to edit:", options, 3,
+                                                                                        nullptr, // callback set later
+                                                                                        false    // autoClose = false
+                                 );
+
+                                 // Beállítjuk a gombkattintás callback-et (capture shared_ptr)
+                                 paramsDlg->setButtonClickCallback([this, paramsDlg](int idx, const char *label, UIMultiButtonDialog *sender) {
+                                     // Bezárjuk a szülő dialógust, hogy helyet adjunk a gyerek dialógusnak
+                                     paramsDlg->close(UIDialogBase::DialogResult::Accepted);
+
+                                     // A gyerek bezárulásakor a callback újra megjeleníti a szülő dialógust
+                                     auto childClosedCb = [this, paramsDlg](UIDialogBase *childSender, UIMessageDialog::DialogResult result) {
+                                         // A gyerek bezárulása után a szülő 3-gombos dialógust újra megjelenítjük
+                                         this->showDialog(paramsDlg);
+                                     };
+
+                                     // Elindítjuk a kiválasztott paraméter dialógust
+                                     if (idx == 0) { // Mark
+                                         RTTYParamDialogs::showMarkFreqDialog(this, &::config, childClosedCb);
+                                     } else if (idx == 1) { // Space
+                                         RTTYParamDialogs::showSpaceFreqDialog(this, &::config, childClosedCb);
+                                     } else if (idx == 2) { // Baud
+                                         RTTYParamDialogs::showBaudRateDialog(this, &::config, childClosedCb);
+                                     }
+                                 });
+
+                                 // Megjelenítjük a szülő dialógust
+                                 this->showDialog(paramsDlg);
+                             }});
+
+    // Back button
     constexpr uint8_t BACK_BUTTON = 100;
-    buttonConfigs.push_back(             //
-        {                                //
-         BACK_BUTTON,                    //
-         "Back",                         //
-         UIButton::ButtonType::Pushable, //
-         UIButton::ButtonState::Off,     //
-         [this](const UIButton::ButtonEvent &event) {
-             if (getScreenManager()) {
-                 getScreenManager()->goBack();
-             }
-         }} //
-    );
+    buttonConfigs.push_back({BACK_BUTTON, "Back", UIButton::ButtonType::Pushable, UIButton::ButtonState::Off, [this](const UIButton::ButtonEvent &event) {
+                                 if (getScreenManager()) {
+                                     getScreenManager()->goBack();
+                                 }
+                             }});
 }
 
 /**
