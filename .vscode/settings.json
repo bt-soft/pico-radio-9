@@ -1,6 +1,117 @@
 {
     "files.associations": {
         "variant": "cpp",
-        "cmath": "cpp"
+        "cmath": "cpp",
+        "cstdint": "cpp"
+    },
+
+    "psi-header.config": {
+        "forceToTop": true,
+        "blankLinesAfter": 1,
+        "spacesBetweenYears": false,
+        "license": "MIT",
+        "author": "BT-Soft",
+        "company": "BT-Soft"
+    },
+
+    "psi-header.changes-tracking": {
+        "isActive": true,
+        "modAuthor": "Modified By:",
+        "modDate": "Last Modified:",
+        "modDateFormat": "YYYY.MM.DD. HH:mm:ss",
+        "include": [],
+        "includeGlob": [],
+        "exclude": ["markdown", "json", "jsonc", "shellscript"],
+        "excludeGlob": ["./**/*/ignoreme.*"],
+        "autoHeader": "autoSave",
+        "enforceHeader": true,
+        "replace": [
+            "Filename:",
+            "Project"
+        ],
+        "updateLicenseVariables": false
+    },
+
+    "psi-header.variables": [
+        ["projectCreationYear", "2025"],
+        ["projectname", "[pico-radio-9] Raspberry Pi Pico Si4735 Radio"],
+        ["github", "https://github.com/bt-soft"],
+        ["blog", "https://electrodiy.blog.hu/"]
+    ],
+
+    "psi-header.lang-config": [
+        {
+            "language": "cpp",
+            "begin": "/*",
+            "prefix": " * ",
+            "suffix": " *",
+            "lineLength": 120,
+            "end": " */",
+            "forceToTop": true,
+            "blankLinesAfter": 3,
+            "rootDirFileName": "main.cpp",
+            "modAuthor": "Modified By:",
+            "modDate": "Last Modified:",
+            "replace": [
+                "Filename:",
+                "Project"
+            ],
+            "ignoreLines": []
+        },
+        {
+            "language": "c",
+            "mapTo": "cpp"
+        }
+    ],
+
+    "psi-header.templates": [
+        {
+            "language": "cpp",
+            "template": [
+                "Project: <<projectname>>",
+                "File: <<filename>>",
+                "Created Date: <<filecreated('YYYY.MM.DD.')>>",
+                "",
+                "Author: <<author>>",
+                "GitHub: <<github>>",
+                "Blog: <<blog>>",
+                "-----",
+                "Copyright (c) <<yeartoyear(fc, now)>> <<company>>",
+                "License: MIT License",
+                "\tBárki szabadon használhatja, módosíthatja, terjeszthet, beépítheti más",
+                "\tprojektbe (akár zártkódúba is), akár pénzt is kereshet vele",
+                "\tEgyetlen feltétel:",
+                "\t\ta licencet és a szerző nevét meg kell tartani a forrásban!",
+                "-----",
+                "Last Modified: <<dateformat('YYYY.MM.DD, dddd  hh:mm:ss')>>",
+                "Modified By: <<author>>",
+                "-----",
+                "HISTORY:",
+                "Date      \tBy\tComments",
+                "----------\t---\t-------------------------------------------------------------------------------------------------"
+            ],
+            "changeLogCaption": "HISTORY",
+            "changeLogHeaderLineCount": 2,
+            "changeLogEntryTemplate": [
+                "",
+                "<<dateformat('YYYY.MM.DD')>>\t<<initials>>\t"
+            ],
+            "changeLogNaturalOrder": false,
+            "changeLogFooterLineCount": 0
+        },
+        {
+            "language": "c",
+            "mapTo": "cpp"
+        }
+    ],
+
+    "psi-header.license-text": [
+        "This will never show because it is only relevant if",
+        "psi-header.config.license equals Custom"
+    ],
+
+    "psi-header.license-reference": {
+        "uri": "path/to/license.file",
+        "uriIsLocalFile": true
     }
 }

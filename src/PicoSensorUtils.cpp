@@ -1,12 +1,27 @@
-/**
- * @file PicoSensorUtils.cpp
- * @brief Pico érzékelő funkciók implementációja - CORE1 ALAPÚ MÉRÉSEK
- * @author BT-Soft (https://github.com/bt-soft, https://electrodiy.blog.hu/)
- * @project Pico Radio
- *
- * Változások a korábbi verziókhoz képest:
- *  Az ADC méréseket TELJES EGÉSZÉBEN a Core1 végzi (main-c1.cpp / readSensorsOnCore1()).
- *  A core0-core1 nem képes osztozni az ADC-ken, így elkerüljük a csatornaváltás problémáit.
+/*
+ * Project: [pico-radio-9] Raspberry Pi Pico Si4735 Radio                                                              *
+ * File: PicoSensorUtils.cpp                                                                                           *
+ * Created Date: 2025.11.08.                                                                                           *
+ *                                                                                                                     *
+ * Author: BT-Soft                                                                                                     *
+ * GitHub: https://github.com/bt-soft                                                                                  *
+ * Blog: https://electrodiy.blog.hu/                                                                                   *
+ * -----                                                                                                               *
+ * Copyright (c) 2025 BT-Soft                                                                                          *
+ * License: MIT License                                                                                                *
+ * 	Bárki szabadon használhatja, módosíthatja, terjeszthet, beépítheti más                                             *
+ * 	projektbe (akár zártkódúba is), akár pénzt is kereshet vele                                                        *
+ * 	Egyetlen feltétel:                                                                                                 *
+ * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
+ * -----                                                                                                               *
+ * Last Modified: 2025.11.16, Sunday  09:39:19                                                                         *
+ * Modified By: BT-Soft                                                                                                *
+ * -----                                                                                                               *
+ * HISTORY:                                                                                                            *
+ * Date      	By	Comments                                                                                           *
+ * 2025.11.10   BT   Az ADC méréseket TELJES EGÉSZÉBEN a Core1 végzi (main-c1.cpp / readSensorsOnCore1()).             *
+ *                   A core0-core1 nem képes osztozni az ADC-ken, így elkerüljük a csatornaváltás problémáit.          *
+ * ----------	---	-------------------------------------------------------------------------------------------------  *
  */
 
 #include "PicoSensorUtils.h"

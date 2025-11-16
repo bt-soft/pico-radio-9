@@ -1,3 +1,27 @@
+/*
+ * Project: [pico-radio-9] Raspberry Pi Pico Si4735 Radio                                                              *
+ * File: UIHorizontalButtonBar.cpp                                                                                     *
+ * Created Date: 2025.11.08.                                                                                           *
+ *                                                                                                                     *
+ * Author: BT-Soft                                                                                                     *
+ * GitHub: https://github.com/bt-soft                                                                                  *
+ * Blog: https://electrodiy.blog.hu/                                                                                   *
+ * -----                                                                                                               *
+ * Copyright (c) 2025 BT-Soft                                                                                          *
+ * License: MIT License                                                                                                *
+ * 	Bárki szabadon használhatja, módosíthatja, terjeszthet, beépítheti más                                             *
+ * 	projektbe (akár zártkódúba is), akár pénzt is kereshet vele                                                        *
+ * 	Egyetlen feltétel:                                                                                                 *
+ * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
+ * -----                                                                                                               *
+ * Last Modified: 2025.11.16, Sunday  09:45:33                                                                         *
+ * Modified By: BT-Soft                                                                                                *
+ * -----                                                                                                               *
+ * HISTORY:                                                                                                            *
+ * Date      	By	Comments                                                                                           *
+ * ----------	---	-------------------------------------------------------------------------------------------------  *
+ */
+
 #include "UIHorizontalButtonBar.h"
 #include "defines.h"
 
@@ -62,7 +86,8 @@ void UIHorizontalButtonBar::createButtons(const std::vector<ButtonConfig> &butto
         }
 
         // Gomb létrehozása
-        auto button = std::make_shared<UIButton>(config.id, Rect(buttonX, buttonY, buttonWidth, buttonHeight), config.label, config.type, config.initialState, config.callback, UIColorPalette::createDefaultButtonScheme(), false, config.initiallyDisabled);
+        auto button = std::make_shared<UIButton>(config.id, Rect(buttonX, buttonY, buttonWidth, buttonHeight), config.label, config.type, config.initialState, config.callback, UIColorPalette::createDefaultButtonScheme(),
+                                                 false, config.initiallyDisabled);
 
         // Hozzáadás a konténerhez és a belső listához
         addChild(button);

@@ -1,14 +1,25 @@
-/**
- * @file ScreenScan.cpp
- * @brief Spektrum analizátor scan képernyő implementáció
- *
- * Ez az osztály a spektrum analizátor fő funkcionalitását valósítja meg:
- * - Frekvencia spektrum vizualizáció
- * - Dinamikus zoom és pan funkcionalitás
- * - Érintőképernyős és rotary encoder navigáció
- * - RSSI és SNR mérések megjelenítése
- * - Állomás észlelés és jelölés
- * - Intelligens adatmegőrzés zoom műveletekkor
+/*
+ * Project: [pico-radio-9] Raspberry Pi Pico Si4735 Radio                                                              *
+ * File: ScreenScan.cpp                                                                                                *
+ * Created Date: 2025.11.08.                                                                                           *
+ *                                                                                                                     *
+ * Author: BT-Soft                                                                                                     *
+ * GitHub: https://github.com/bt-soft                                                                                  *
+ * Blog: https://electrodiy.blog.hu/                                                                                   *
+ * -----                                                                                                               *
+ * Copyright (c) 2025 BT-Soft                                                                                          *
+ * License: MIT License                                                                                                *
+ * 	Bárki szabadon használhatja, módosíthatja, terjeszthet, beépítheti más                                             *
+ * 	projektbe (akár zártkódúba is), akár pénzt is kereshet vele                                                        *
+ * 	Egyetlen feltétel:                                                                                                 *
+ * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
+ * -----                                                                                                               *
+ * Last Modified: 2025.11.16, Sunday  09:43:19                                                                         *
+ * Modified By: BT-Soft                                                                                                *
+ * -----                                                                                                               *
+ * HISTORY:                                                                                                            *
+ * Date      	By	Comments                                                                                           *
+ * ----------	---	-------------------------------------------------------------------------------------------------  *
  */
 
 #include "ScreenScan.h"
@@ -576,9 +587,6 @@ void ScreenScan::resetScan() {
     if (pSi4735Manager) {
         pSi4735Manager->getSi4735().setAudioMute(false);
     }
-
-    // Megjegyzés: NE rajzoljunk itt semmit - az UI rendszer automatikusan
-    // meghívja a drawContent()-et ami teljes képernyőt rajzol
 }
 
 /**
