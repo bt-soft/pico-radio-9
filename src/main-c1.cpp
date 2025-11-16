@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
  * -----                                                                                                               *
- * Last Modified: 2025.11.16, Sunday  08:06:39                                                                         *
+ * Last Modified: 2025.11.16, Sunday  08:24:01                                                                         *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -512,7 +512,7 @@ void setup1() {
     core1_VbusVoltage = 0.0f;
     core1_CpuTemperature = 0.0f;
 
-    // Az első szenzor olvasás
+    // Az első szenzor olvasás rögtön az induláskor
     readSensorsOnCore1();
 
     delay(3000); // Várakozás a Core-0 indulására és inicializálására
