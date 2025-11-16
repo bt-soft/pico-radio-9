@@ -20,7 +20,7 @@ Egy Raspberry Pi Pico alapú rádióprojekt (Si4735 vezérléssel) — fejlett d
 - Fejlesztési környezet: PlatformIO 
 - Framework: Arduino (RP2040 / Arduino core) 
 - Nyelv: C++17 
-- TFT vezérlés: `TFT_eSPI` — grafikus megjelenítés és touch kezelése.
+- TFT vezérlés: `TFT_eSPI` — ILI9844 3.5" TFT grafikus megjelenítés és touch kezelése.
 - Si4735 vezérlés: `PU2CLR SI4735` wrapper és a projekt saját `Si4735*` moduljai (I2C/SPI integráció és rádiófunkciók).
 - Audio feldolgozás: FFT alapú spektrum- és vízesés (waterfall) megjelenítés, AGC és egyedi AudioProcessor pipeline.
 - Dekóderek: RTTY, CW, SSTV, WeFax implementációk (saját `Decoder*` modulok).
@@ -31,7 +31,7 @@ Egy Raspberry Pi Pico alapú rádióprojekt (Si4735 vezérléssel) — fejlett d
 
 
 ## Felhasznált könyvtárak
-
+- `Arduino-Pico`: https://github.com/earlephilhower/arduino-pico
 - `TFT_eSPI`: https://github.com/Bodmer/TFT_eSPI
 - `RPI_PICO_TimerInterrupt`: https://github.com/khoih-prog/RPI_PICO_TimerInterrupt
 - `PU2CLR SI4735`: https://github.com/pu2clr/SI4735
@@ -83,7 +83,7 @@ Egy Raspberry Pi Pico alapú rádióprojekt (Si4735 vezérléssel) — fejlett d
 Az alábbi forrás nyújtottak inspirációkat a projekt fejlesztése és megvalósítása során.
 
  - **SI4735 + TFT példa (IU4ALH)**: https://github.com/IU4ALH/IU4ALH
-  - Használat: Alsősorban a repó  `SI4735_2.8_TFT_SI5351_V.5.2b_Dark.zip` állományában található forrásokat használtam fel, amelyek inspirációt adtak a szolgáltatások, a képernyő felépítéséhez valamint az Si4735 beállítások kezeléséhez.
+  - Használat: Elsősorban a repó  `SI4735_2.8_TFT_SI5351_V.5.2b_Dark.zip` állományában található forrásokat használtam fel, amelyek inspirációt adtak a szolgáltatások, a képernyők felépítéséhez valamint az Si4735 beállítások kezeléséhez.
 
 - **Rotary encoder / forgókapcsoló referencia**: https://www.mikrocontroller.net/articles/Drehgeber
   - Használat: A forgató encoder kezelésének elméleti háttere és debouncing/step logika inspirálására; segített a `RotaryEncoder` osztály és a forgóvezérlők finomhangolásában.
