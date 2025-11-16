@@ -88,10 +88,10 @@ Az alábbi forrás nyújtottak inspirációkat a projekt fejlesztése és megval
 - **Rotary encoder / forgókapcsoló referencia**: https://www.mikrocontroller.net/articles/Drehgeber
   - Használat: A forgató encoder kezelésének elméleti háttere és debouncing/step logika inspirálására; segített a `RotaryEncoder` osztály és a forgóvezérlők finomhangolásában.
 
-- **Pico SSTV implementáció **: https://github.com/dawsonjon/PicoSSTV
+- **Pico SSTV implementáció**: https://github.com/dawsonjon/PicoSSTV
   - Használat: SSTV dekóder és mintafeldolgozó technikák inspirációjára használtam a projekt `DecoderSSTV` moduljának kialakításához.
 
-- **fldigi **: https://github.com/w1hkj/fldigi
+- **fldigi**: https://github.com/w1hkj/fldigi
   - Használat: HF WeFax dekóder kiakalítása, technikai megoldások, szoftveres szűrők
 ---
 
