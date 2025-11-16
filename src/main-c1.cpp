@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
  * -----                                                                                                               *
- * Last Modified: 2025.11.16, Sunday  09:41:28                                                                         *
+ * Last Modified: 2025.11.16, Sunday  07:40:14                                                                         *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -33,6 +33,7 @@
 #include "DecoderRTTY-c1.h"
 #include "DecoderSSTV-c1.h"
 #include "DecoderWeFax-c1.h"
+#include "Utils.h"
 #include "defines.h"
 
 // Core-1 debug engedélyezése de csak DEBUG módban
@@ -507,7 +508,7 @@ void loop1() {
 // --- Core1 Szenzor Mérések Konstansok ---
 #define CORE1_SENSOR_READ_INTERVAL_MS 30000 // 30 másodperc szenzor frissítési időköz
     static uint32_t lastSensorRead = 0;
-    if (millis() - lastSensorRead > CORE1_SENSOR_READ_INTERVAL_MS) {
+    if (Utils::timeHasPassed(lastSensorRead, CORE1_SENSOR_READ_INTERVAL_MS)) {
         readSensorsOnCore1();
         lastSensorRead = millis();
     }
