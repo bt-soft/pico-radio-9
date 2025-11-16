@@ -14,7 +14,7 @@ Egy Raspberry Pi Pico alapú rádióprojekt (Si4735 vezérléssel) — fejlett d
  - RP2040 / multicore: A Raspberry Pi Pico kétmagos RP2040 mikrovezérlője lehetővé teszi a feladatok elkülönítését (audio-feldolgozás a második magon, míg az első mag a UI/Si4735 vezérlést végzi). Ezt a projekt kihasználja a valós idejű audio dekódolás és UI reakciók párhuzamosítása érdekében.
 
 
-## Használt technológiák
+## Technológiák
 
 - Platform: Raspberry Pi Pico (RP2040)
 - Fejlesztési környezet: PlatformIO 
@@ -37,7 +37,7 @@ Egy Raspberry Pi Pico alapú rádióprojekt (Si4735 vezérléssel) — fejlett d
 - `kosme/arduinoFFT@^2.0.2` — FFT alapú spektrum- és frekvencia-elemzéshez.
 - Lokális `lib/pico_sstv` — beágyazott SSTV dekódoló implementáció és kapcsolódó segédfüggvények.
 
-Ha szeretnéd, hozzáadom a pontos verzióhitelesítést és a `library.json`/`library.properties` file-okra mutató hivatkozásokat.
+
 ## Fájlok és modulok (összefoglaló)
 - `src/` - forráskód (képernyők, dekóderek, UI komponensek, vezérlők)
   - `main.cpp`, `main-c1.cpp` - indító fájlok
@@ -55,7 +55,6 @@ Ha szeretnéd, hozzáadom a pontos verzióhitelesítést és a `library.json`/`l
 - `test/` - teszt erőforrások és példa adatállományok (pl. cw, rtty tesztek)
 
 
-
 ## Konfiguráció és mentés
 - Konfigurációk a `Config` struktúrában találhatók (`include/Config.h`, `include/ConfigData.h`).
 - Station / memory store beállítások EEPROM-ban tárolódnak (lásd `StationStore*` és `Eeprom*` fájlok).
@@ -67,7 +66,7 @@ Ha szeretnéd, hozzáadom a pontos verzióhitelesítést és a `library.json`/`l
 - A projektben új segédek találhatók a paraméter-dialógusokhoz: `RTTYParamDialogs`, `CWParamDialogs` (egységesítve a használatukat és a visszatérést a szülő dialógushoz).
 
 
-## Gyakori helyek a kiterjesztéshez
+## Szoftverarchitektúra
 - Dekóderek: `src/Decoder*.cpp` — új dekóderek hozzáadása egyszerű az `IDecoder` interfész implementálásával.
 - UI komponensek: `include/UI*`, `src/UI*` — gombok, dialógusok, új vizualizációk hozzáadása.
 - Audio pipeline: `AudioController.cpp` és `AudioProcessor-*.cpp` fájlok tartalmazzák a feldolgozás logikáját.
