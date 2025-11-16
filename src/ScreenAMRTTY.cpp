@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
  * -----                                                                                                               *
- * Last Modified: 2025.11.16, Sunday  03:04:37                                                                         *
+ * Last Modified: 2025.11.16, Sunday  03:08:40                                                                         *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -171,7 +171,7 @@ void ScreenAMRTTY::activate() {
     // Biztonságos újragenerálás: ha a vízszintes gombsor már létrejött a szülőben,
     // beállítjuk kisebb gombszélességet, így az új gombok elférnek egy sorban.
     if (horizontalButtonBar) {
-        horizontalButtonBar->recreateWithButtonWidth(60);
+        horizontalButtonBar->recreateWithButtonWidth(65);
     }
 
     // RTTY audio dekóder indítása
