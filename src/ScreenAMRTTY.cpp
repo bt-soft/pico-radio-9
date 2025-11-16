@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
  * -----                                                                                                               *
- * Last Modified: 2025.11.16, Sunday  09:42:22                                                                         *
+ * Last Modified: 2025.11.16, Sunday  02:39:56                                                                         *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -127,6 +127,12 @@ void ScreenAMRTTY::activate() {
     // Szülő osztály aktiválása
     ScreenAMRadioBase::activate();
     Mixin::updateAllVerticalButtonStates(); // Univerzális funkcionális gombok (mixin method)
+
+    // Biztonságos újragenerálás: ha a vízszintes gombsor már létrejött a szülőben,
+    // beállítjuk kisebb gombszélességet, így az új gombok elférnek egy sorban.
+    if (horizontalButtonBar) {
+        horizontalButtonBar->recreateWithButtonWidth(50); // 50px-re csökkentve a gombok szélességét
+    }
 
     // RTTY audio dekóder indítása
     ::audioController.startAudioController( //

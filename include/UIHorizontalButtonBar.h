@@ -89,12 +89,21 @@ class UIHorizontalButtonBar : public UIContainerComponent {
      */
     std::shared_ptr<UIButton> getButton(uint8_t buttonId) const;
 
+    /**
+     * @brief Futás közbeni gombszélesség változtatás és a gombok újraépítése
+     * @param newButtonWidth Az új gomb szélesség pixelben
+     * Megjegyzés: a meglévő konfigurációkat a konstruktor tárolja, így elég csak az új szélességet megadni.
+     */
+    void recreateWithButtonWidth(uint16_t newButtonWidth);
+
   private:
     uint16_t buttonWidth;
     uint16_t buttonHeight;
     uint16_t buttonGap;
     uint16_t rowGap; // Távolság sorok között
     std::vector<std::shared_ptr<UIButton>> buttons;
+    // A konstruktorban átadott gomb konfigurációk tárolása, hogy később újra tudjuk építeni a sort
+    std::vector<ButtonConfig> storedButtonConfigs;
 
     /**
      * @brief Gombok létrehozása és elhelyezése többsoros támogatással

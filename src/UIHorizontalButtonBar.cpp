@@ -31,7 +31,9 @@
 UIHorizontalButtonBar::UIHorizontalButtonBar(const Rect &bounds, const std::vector<ButtonConfig> &buttonConfigs, uint16_t buttonWidth, uint16_t buttonHeight, uint16_t buttonGap, uint16_t rowGap)
     : UIContainerComponent(bounds), buttonWidth(buttonWidth), buttonHeight(buttonHeight), buttonGap(buttonGap), rowGap(rowGap) {
 
-    createButtons(buttonConfigs);
+    // A kapott konfigurációkat eltároljuk későbbi újraépítéshez
+    storedButtonConfigs = buttonConfigs;
+    createButtons(storedButtonConfigs);
 }
 
 /**
@@ -95,6 +97,25 @@ void UIHorizontalButtonBar::createButtons(const std::vector<ButtonConfig> &butto
 
         buttonInRow++;
     }
+}
+
+/**
+ * @brief Futás közbeni gombszélesség változtatás és újraépítés
+ * @param newButtonWidth Az új gomb szélesség pixelben
+ */
+void UIHorizontalButtonBar::recreateWithButtonWidth(uint16_t newButtonWidth) {
+    // 1) frissítjük az új szélességet
+    this->buttonWidth = newButtonWidth;
+
+    // 2) eltávolítjuk a korábbi gombokat a konténerből és kiürítjük a listát
+    for (auto &b : buttons) {
+        // removeChild implementációt feltételezünk az UIContainerComponent-ben
+        removeChild(b);
+    }
+    buttons.clear();
+
+    // 3) újraépítjük a gombokat a tárolt konfiguráció alapján
+    createButtons(storedButtonConfigs);
 }
 
 /**
