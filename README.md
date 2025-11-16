@@ -61,10 +61,10 @@ Egy Raspberry Pi Pico alapú rádióprojekt (Si4735 vezérléssel) — fejlett d
 - Station / memory store beállítások EEPROM-ban tárolódnak (lásd `StationStore*` és `Eeprom*` fájlok).
 
 
-## UI viselkedés és dialógusok
+## UI felületek, dialógusok
 - Rétegzett dialógus rendszer: a `UIScreen` tartalmaz egy dialógusstack-et, a `showDialog()` és `onDialogClosed()` mechanizmusokkal.
-- Többgombos dialógusok: `UIMultiButtonDialog` (háromgombos paraméterválasztók) + `UIValueChangeDialog` az értékek szerkesztéséhez.
-- A projektben új segédek találhatók a paraméter-dialógusokhoz: `RTTYParamDialogs`, `CWParamDialogs` (egységesítve a használatukat és a visszatérést a szülő dialógushoz).
+- Többgombos dialógusok: `UIMultiButtonDialog` + `UIValueChangeDialog` az értékek szerkesztéséhez.
+
 
 
 ## Szoftverarchitektúra
