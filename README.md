@@ -31,11 +31,12 @@ Egy Raspberry Pi Pico alapú rádióprojekt (Si4735 vezérléssel) — fejlett d
 
 
 ## Felhasznált könyvtárak
-- `bodmer/TFT_eSPI@^2.5.43` — TFT kijelző kezeléséhez (grafikus és touch funkcionalitás).
-- `khoih-prog/RPI_PICO_TimerInterrupt@^1.3.1` — időzítők és megszakítás alapú időzítési segédek a Pico-hoz.
-- `pu2clr/PU2CLR SI4735@^2.1.8` — SI4735 rádióchip Arduino/Pico wrapper és példa kódok.
-- `kosme/arduinoFFT@^2.0.2` — FFT alapú spektrum- és frekvencia-elemzéshez.
-- Lokális `lib/pico_sstv` — beágyazott SSTV dekódoló implementáció és kapcsolódó segédfüggvények.
+
+- `TFT_eSPI`: https://github.com/Bodmer/TFT_eSPI
+- `RPI_PICO_TimerInterrupt`: https://github.com/khoih-prog/RPI_PICO_TimerInterrupt
+- `PU2CLR SI4735`: https://github.com/pu2clr/SI4735
+- `arduinoFFT`: https://github.com/kosme/arduinoFFT
+- `lib/pico_sstv`: https://github.com/dawsonjon/PicoSSTV
 
 
 ## Fájlok és modulok (összefoglaló)
