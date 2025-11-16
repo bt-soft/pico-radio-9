@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                       *
  * -----                                                                                                               *
- * Last Modified: 2025.11.16, Sunday  09:53:37                                                                         *
+ * Last Modified: 2025.11.16, Sunday  10:45:57                                                                         *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -48,9 +48,11 @@ class UICompRDS : public UIComponent {
     static constexpr uint16_t PROGRAM_TYPE_AREA_HEIGHT = 20;
     static constexpr uint16_t RADIO_TEXT_AREA_HEIGHT = 20;
     static constexpr uint16_t DATETIME_AREA_HEIGHT = 20;
+
+    // Scroll beállítások
     static constexpr uint32_t RDS_UPDATE_INTERVAL_MS = 2000; // RDS frissítési időköz - 2 másodperc
     static constexpr uint32_t SCROLL_INTERVAL_MS = 100;      // Scroll lépések közötti idő
-    static constexpr uint8_t SCROLL_STEP_PIXELS = 2;         // Scroll lépés mérete pixelben
+    static constexpr uint8_t SCROLL_STEP_PIXELS = 4;         // Scroll lépés mérete pixelben
 
   private:
     // Időzítés és UI kezelés
@@ -122,7 +124,7 @@ class UICompRDS : public UIComponent {
      * @param radioText A feldolgozandó radio text
      * @return String A feldolgozott radio text
      */
-    String normalizeRadioText(const String &radioText);
+    // String normalizeRadioText(const String &radioText);
 
     /**
      * @brief Alapértelmezett layout számítása

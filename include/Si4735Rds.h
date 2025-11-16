@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                       *
  * -----                                                                                                               *
- * Last Modified: 2025.11.16, Sunday  09:52:23                                                                         *
+ * Last Modified: 2025.11.16, Sunday  11:00:39                                                                         *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -160,7 +160,7 @@ class Si4735Rds : public Si4735Band {
      * Minden PTY kódhoz tartozik egy szöveges leírás.
      */
     static const char *RDS_PTY_NAMES[];
-    static const uint8_t RDS_PTY_COUNT;
+    // static const uint8_t RDS_PTY_COUNT;
 
     // RDS cache változók
     String cachedStationName;

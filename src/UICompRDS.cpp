@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
  * -----                                                                                                               *
- * Last Modified: 2025.11.16, Sunday  09:44:42                                                                         *
+ * Last Modified: 2025.11.16, Sunday  10:51:48                                                                         *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -135,43 +135,43 @@ void UICompRDS::setRdsColors(uint16_t stationColor, uint16_t typeColor, uint16_t
 // Scroll sprite kezelés
 // ===================================================================
 
-/**
- * @brief Radio text feldolgozása - többszörös szóközök kezelése
- * @param radioText A feldolgozandó radio text
- * @return String A feldolgozott radio text
- */
-String UICompRDS::normalizeRadioText(const String &radioText) {
-    if (radioText.isEmpty()) {
-        return radioText;
-    }
+// /**
+//  * @brief Radio text feldolgozása - többszörös szóközök kezelése
+//  * @param radioText A feldolgozandó radio text
+//  * @return String A feldolgozott radio text
+//  */
+// String UICompRDS::normalizeRadioText(const String &radioText) {
+//     if (radioText.isEmpty()) {
+//         return radioText;
+//     }
 
-    String result = radioText;
-    int spaceCount = 0;
-    int cutPosition = -1;
+//     String result = radioText;
+//     int spaceCount = 0;
+//     int cutPosition = -1;
 
-    // Végigmegyünk a stringen és keressük a többszörös szóközöket
-    for (int i = 0; i < result.length(); i++) {
-        if (result.charAt(i) == ' ') {
-            spaceCount++;
-            // Ha több mint 2 egymás utáni szóköz van
-            if (spaceCount > 2 && cutPosition == -1) {
-                // Az első szóköznél vágjuk le (i - spaceCount + 1 az első szóköz pozíciója)
-                cutPosition = i - spaceCount + 1;
-                break;
-            }
-        } else {
-            spaceCount = 0; // Reset, ha nem szóköz karakter
-        }
-    }
+//     // Végigmegyünk a stringen és keressük a többszörös szóközöket
+//     for (int i = 0; i < result.length(); i++) {
+//         if (result.charAt(i) == ' ') {
+//             spaceCount++;
+//             // Ha több mint 2 egymás utáni szóköz van
+//             if (spaceCount > 2 && cutPosition == -1) {
+//                 // Az első szóköznél vágjuk le (i - spaceCount + 1 az első szóköz pozíciója)
+//                 cutPosition = i - spaceCount + 1;
+//                 break;
+//             }
+//         } else {
+//             spaceCount = 0; // Reset, ha nem szóköz karakter
+//         }
+//     }
 
-    // Ha találtunk levágási pontot, levágjuk a stringet
-    if (cutPosition >= 0) {
-        result = result.substring(0, cutPosition);
-        result.trim(); // Eltávolítjuk a felesleges szóközöket a végéről
-    }
+//     // Ha találtunk levágási pontot, levágjuk a stringet
+//     if (cutPosition >= 0) {
+//         result = result.substring(0, cutPosition);
+//         result.trim(); // Eltávolítjuk a felesleges szóközöket a végéről
+//     }
 
-    return result;
-}
+//     return result;
+// }
 
 /**
  * @brief Scroll sprite inicializálása
@@ -226,12 +226,12 @@ bool UICompRDS::updateRdsData() {
         String newRadioText = ::pSi4735Manager->getCachedRadioText();
         if (!newRadioText.isEmpty()) {
             // Radio text feldolgozása - ha több mint 2 egymás utáni szóköz van, levágás az elsőnél
-            String processedRadioText = normalizeRadioText(newRadioText);
+            // String processedRadioText = normalizeRadioText(newRadioText);
 
             // Radio text változott - scroll újraszámítás
             tft.setFreeFont();
             tft.setTextSize(2);
-            radioTextPixelWidth = tft.textWidth(processedRadioText);
+            radioTextPixelWidth = tft.textWidth(newRadioText);
             needsScrolling = (radioTextPixelWidth > radioTextRect.width);
             scrollOffset = 0; // Scroll restart
         } else {
@@ -311,7 +311,7 @@ void UICompRDS::drawRadioText() {
     String radioText = ::pSi4735Manager->getCachedRadioText();
 
     // Radio text feldolgozása - többszörös szóközök kezelése
-    String processedRadioText = normalizeRadioText(radioText);
+    // String processedRadioText = normalizeRadioText(radioText);
 
     // Terület törlése
     tft.fillRect(radioTextRect.x, radioTextRect.y, radioTextRect.width, radioTextRect.height, backgroundColor);
@@ -320,7 +320,7 @@ void UICompRDS::drawRadioText() {
     // DEBUG KERET - sárga
     tft.drawRect(radioTextRect.x, radioTextRect.y, radioTextRect.width, radioTextRect.height, TFT_YELLOW);
 #endif
-    if (processedRadioText.isEmpty()) {
+    if (radioText.isEmpty()) {
         return;
     }
     if (!needsScrolling) {
@@ -332,7 +332,7 @@ void UICompRDS::drawRadioText() {
 
         // Szöveg kirajzolása - függőlegesen középre + 1px gap
         int16_t centerY = radioTextRect.y + radioTextRect.height / 2;
-        tft.drawString(processedRadioText, radioTextRect.x + 5, centerY); // +5px gap a bal oldaltól
+        tft.drawString(radioText, radioTextRect.x + 5, centerY); // +5px gap a bal oldaltól
     } else {
         // Scroll esetén sprite használata
         if (!scrollSpriteCreated) {
@@ -379,26 +379,26 @@ void UICompRDS::handleRadioTextScroll() {
         return;
     }
 
-    uint32_t currentTime = millis();
+    // Sebesség szabályozása
     if (!Utils::timeHasPassed(lastScrollUpdate, SCROLL_INTERVAL_MS)) {
         return;
     }
-    lastScrollUpdate = currentTime;
+    lastScrollUpdate = millis();
 
     // Sprite törlése
     scrollSprite->fillScreen(backgroundColor); // Aktuális radio text lekérése és feldolgozása
     String radioText = ::pSi4735Manager->getCachedRadioText();
-    String processedRadioText = normalizeRadioText(radioText);
+    // String processedRadioText = normalizeRadioText(radioText);
 
     // Fő szöveg rajzolása (balra mozog)
-    scrollSprite->drawString(processedRadioText, -scrollOffset, 0);
+    scrollSprite->drawString(radioText, -scrollOffset, 0);
 
     // Ha szükséges, "újra beúszó" szöveg rajzolása
     const int gapPixels = radioTextRect.width; // Szóköz a szöveg vége és újrakezdés között
     int secondTextX = -scrollOffset + radioTextPixelWidth + gapPixels;
 
     if (secondTextX < radioTextRect.width) {
-        scrollSprite->drawString(processedRadioText, secondTextX, 0);
+        scrollSprite->drawString(radioText, secondTextX, 0);
     }
 
     // Sprite kirakása a képernyőre

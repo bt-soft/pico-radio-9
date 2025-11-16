@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
  * -----                                                                                                               *
- * Last Modified: 2025.11.16, Sunday  09:53:30                                                                         *
+ * Last Modified: 2025.11.16, Sunday  11:20:39                                                                         *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -28,6 +28,7 @@
 
 #include "IScreenManager.h"
 #include "UIColorPalette.h"
+#include "Utils.h"
 #include "defines.h"
 
 // A main.cpp-ben definiálva
@@ -232,7 +233,7 @@ class UIComponent {
 
             // Debounce logika: csak akkor kezeljük a kattintást, ha a touchDuration érvényes és nem túl gyors
             if (releaseInside && touchDuration >= 30 && touchDuration <= 2000) { // Érvényes touch duration feltételek
-                if (millis() - lastClickTime > getDebounceDelay()) {
+                if (Utils::timeHasPassed(lastClickTime, getDebounceDelay())) {
                     lastClickTime = millis(); // Frissítjük az utolsó kattintás idejét
                     touchHandled = onClick(event);
                     // DEBUG("UIComponent: Valid click detected (debounced): duration=%dms\n", touchDuration);

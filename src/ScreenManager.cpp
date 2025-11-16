@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
  * -----                                                                                                               *
- * Last Modified: 2025.11.16, Sunday  09:42:59                                                                         *
+ * Last Modified: 2025.11.16, Sunday  11:16:09                                                                         *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -322,7 +322,8 @@ void ScreenManager::loop() {
     if (screenSaverTimeoutMs > 0 &&                                                    // Ha a képernyővédő engedélyezve van (idő > 0)
         !STREQ(currentScreen->getName(), SCREEN_NAME_SCREENSAVER) &&                   // És nem a képernyővédőn vagyunk
         lastActivityTime != 0 &&                                                       // És volt már aktivitás
-        (millis() - lastActivityTime > screenSaverTimeoutMs)) {                        // És lejárt az idő
+        Utils::timeHasPassed(lastActivityTime, screenSaverTimeoutMs))                  // És az idő érkezett
+    {                                                                                  // És lejárt az idő
 
         switchToScreen(SCREEN_NAME_SCREENSAVER);
         // lastActivityTime frissül, amikor a felhasználó újra interakcióba lép a képernyővédőn,

@@ -14,14 +14,14 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
  * -----                                                                                                               *
- * Last Modified: 2025.11.16, Sunday  09:44:11                                                                         *
+ * Last Modified: 2025.11.16, Sunday  11:02:41                                                                         *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
  * Date      	By	Comments                                                                                           *
  * ----------	---	-------------------------------------------------------------------------------------------------  *
+ * 2025.11.07.	BT-Soft	trimAndCutSpaces használata az RDS szövegben                                                   *
  */
-
 #include "Si4735Rds.h"
 #include "Config.h"
 #include "StationData.h"
@@ -74,7 +74,6 @@ const char *Si4735Rds::RDS_PTY_NAMES[] = {
     "Alarm Test",            // 30
     "Alarm"                  // 31
 };
-const uint8_t Si4735Rds::RDS_PTY_COUNT = ARRAY_ITEM_COUNT(Si4735Rds::RDS_PTY_NAMES);
 
 /**
  * @brief Lekérdezi az RDS állomásnevet (Program Service)
@@ -95,6 +94,9 @@ String Si4735Rds::getRdsStationName() {
         char tempName[32];
         strncpy(tempName, rdsStationName, sizeof(tempName) - 1);
         tempName[sizeof(tempName) - 1] = '\0';
+
+//        SI4735RDS_DEBUG("Si4735Rds: Nyers RDS állomásnév: '%s'\n", tempName);
+
         Utils::trimSpaces(tempName);
         String result = String(tempName);
         return result;
@@ -139,11 +141,12 @@ String Si4735Rds::getRdsRadioText() {
         char tempText[128];
         strncpy(tempText, rdsText, sizeof(tempText) - 1);
         tempText[sizeof(tempText) - 1] = '\0';
-        Utils::trimSpaces(tempText);
-        String result = String(tempText);
+
+        SI4735RDS_DEBUG("Si4735Rds: Nyers RDS radio text: '%s'\n", tempText);
+
+        String result = Utils::trimAndCutSpaces(tempText);
         return result;
     }
-
     return "";
 }
 
@@ -220,10 +223,10 @@ bool Si4735Rds::updateRdsDataWithCache() {
     String newStationName = getRdsStationName();
     // Csak akkor frissíti a cache-t, ha tényleg változott az adat
     if (!newStationName.isEmpty() && newStationName.length() >= VALID_STATION_NAME_MIN_LENGHT && newStationName != cachedStationName) {
+        SI4735RDS_DEBUG("Si4735Rds: Új RDS állomásnév: '%s', régi: '%s'\n", cachedStationName.c_str(), newStationName.c_str());
         cachedStationName = newStationName;
         dataChanged = true;
         hasValidData = true;
-        SI4735RDS_DEBUG("Si4735Rds: Új RDS állomásnév: '%s', régi: '%s'\n", cachedStationName.c_str(), newStationName.c_str());
     }
     // Akkor is jelzünk az érvényes adatot, ha nem változott, de van adat
     if (!newStationName.isEmpty()) {
@@ -235,10 +238,10 @@ bool Si4735Rds::updateRdsDataWithCache() {
     if (newPtyCode != 255) { // 255 = nincs RDS
         String newProgramType = convertPtyCodeToString(newPtyCode);
         if (!newProgramType.isEmpty() && newProgramType != cachedProgramType) {
+            SI4735RDS_DEBUG("Si4735Rds: Új RDS program típus: '%s', régi: '%s'\n", cachedProgramType.c_str(), newProgramType.c_str());
             cachedProgramType = newProgramType;
             dataChanged = true;
             hasValidData = true;
-            SI4735RDS_DEBUG("Si4735Rds: Új RDS program típus: '%s', régi: '%s'\n", cachedProgramType.c_str(), newProgramType.c_str());
         }
         if (!newProgramType.isEmpty()) {
             hasValidData = true;
@@ -248,10 +251,10 @@ bool Si4735Rds::updateRdsDataWithCache() {
     // --- Radio text frissítése
     String newRadioText = getRdsRadioText();
     if (!newRadioText.isEmpty() && newRadioText != cachedRadioText) {
+        SI4735RDS_DEBUG("Si4735Rds: Új RDS radio text: '%s', régi: '%s'\n", cachedRadioText.c_str(), newRadioText.c_str());
         cachedRadioText = newRadioText;
         dataChanged = true;
         hasValidData = true;
-        SI4735RDS_DEBUG("Si4735Rds: Új RDS radio text: '%s', régi: '%s'\n", cachedRadioText.c_str(), newRadioText.c_str());
     }
     if (!newRadioText.isEmpty()) {
         hasValidData = true;
@@ -265,10 +268,10 @@ bool Si4735Rds::updateRdsDataWithCache() {
 
         // Dátum ellenőrzése és frissítése
         if (newDate != cachedDate) {
+            SI4735RDS_DEBUG("Si4735Rds: Új RDS dátum: '%s', régi: '%s'\n", cachedDate.c_str(), newDate.c_str());
             cachedDate = newDate;
             dataChanged = true;
             hasValidData = true;
-            SI4735RDS_DEBUG("Si4735Rds: Új RDS dátum: '%s', régi: '%s'\n", cachedDate.c_str(), newDate.c_str());
         }
 
         // Idő formázása: "15:30"
@@ -276,10 +279,10 @@ bool Si4735Rds::updateRdsDataWithCache() {
 
         // Idő ellenőrzése és frissítése
         if (newTime != cachedTime) {
+            SI4735RDS_DEBUG("Si4735Rds: Új RDS idő: '%s', régi: '%s'\n", cachedTime.c_str(), newTime.c_str());
             cachedTime = newTime;
             dataChanged = true;
             hasValidData = true;
-            SI4735RDS_DEBUG("Si4735Rds: Új RDS idő: '%s', régi: '%s'\n", cachedTime.c_str(), newTime.c_str());
         }
     }
 
@@ -331,7 +334,7 @@ void Si4735Rds::clearRdsCache() {
  * @return String A PTY szöveges leírása
  */
 String Si4735Rds::convertPtyCodeToString(uint8_t ptyCode) {
-    if (ptyCode <= RDS_PTY_COUNT - 1) {
+    if (ptyCode <= ARRAY_ITEM_COUNT(Si4735Rds::RDS_PTY_NAMES) - 1) {
         return String(RDS_PTY_NAMES[ptyCode]);
     }
     return "Unknown";

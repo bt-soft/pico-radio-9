@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
  * -----                                                                                                               *
- * Last Modified: 2025.11.16, Sunday  09:55:23                                                                         *
+ * Last Modified: 2025.11.16, Sunday  10:31:12                                                                         *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -61,11 +61,24 @@ String elapsedUSecStr(uint32_t startMicros, uint32_t endMicros);
 String elapsedUSecStr(uint32_t startMicros);
 
 /**
+ * @brief C string space kezelése a megadott szabályok szerint
+ * @param input A bemeneti C string (char*)
+ * @return Az átalakított std::string
+ *
+ * Szabályok:
+ * - Ha az elején több mint 3 space van, üres stringet ad vissza
+ * - Az elején lévő összes space-t levágja az első nem whitespace-ig
+ * - Az első szó után, ha több space van, az első space után vágja le a stringet
+ */
+String trimAndCutSpaces(const char *input);
+
+/**
  * Frekvencia formázása: ha egész, akkor csak egész, ha van tizedes, akkor max 1 tizedesjegy (ha nem nulla)
  * @param freqHz frekvencia Hz-ben
  * @return String, pl. "10kHz", "10.5kHz", "950Hz"
  */
 String formatFrequencyString(float freqHz);
+
 /**
  * Biztonságos string másolás
  * @param dest cél string

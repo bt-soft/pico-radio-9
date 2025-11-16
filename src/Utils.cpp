@@ -14,12 +14,13 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
  * -----                                                                                                               *
- * Last Modified: 2025.11.16, Sunday  09:46:26                                                                         *
+ * Last Modified: 2025.11.16, Sunday  10:31:02                                                                         *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
  * Date      	By	Comments                                                                                           *
  * ----------	---	-------------------------------------------------------------------------------------------------  *
+ * 2025.11.07.	BT-Soft	trimAndCutSpaces függvény hozzáadva                                                            *
  */
 
 #include "Utils.h"
@@ -58,6 +59,58 @@ String usecToString(uint32_t val) {
         result += String(msec) + " msec, ";
     }
     result += String(usec) + " usec";
+    return result;
+}
+
+/**
+ * @brief C string space kezelése a megadott szabályok szerint
+ * @param input A bemeneti C string (char*)
+ * @return Az átalakított std::string
+ *
+ * Szabályok:
+ * - Ha az elején több mint 3 space van, üres stringet ad vissza
+ * - Az elején lévő összes space-t levágja az első nem whitespace-ig
+ * - Az első szó után, ha több space van, az első space után vágja le a stringet
+ */
+String trimAndCutSpaces(const char *input) {
+    if (!input) {
+        return "";
+    }
+
+    // Számoljuk meg az elején lévő space-eket
+    int leadingSpaces = 0;
+    const char *p = input;
+    while (*p && isspace(static_cast<unsigned char>(*p))) {
+        ++leadingSpaces;
+        ++p;
+    }
+    if (leadingSpaces > 3) {
+        // Ha több mint 3 space van az elején, dobjuk el
+        return "";
+    }
+
+    // 1. Trim leading spaces
+    const char *start = input + leadingSpaces;
+
+    // 2. Másolás az első szó végéig, és ha több space követi, ott vágja le a stringet
+    String result;
+    bool inWord = false;
+    bool spaceAfterWord = false;
+    for (const char *q = start; *q; ++q) {
+        if (!inWord && !isspace(static_cast<unsigned char>(*q))) {
+            inWord = true;
+        }
+        if (inWord) {
+            if (isspace(static_cast<unsigned char>(*q))) {
+                // Check if next char is also space (multiple spaces after word)
+                if (*(q + 1) && isspace(static_cast<unsigned char>(*(q + 1)))) {
+                    spaceAfterWord = true;
+                    break;
+                }
+            }
+        }
+        result += *q;
+    }
     return result;
 }
 
