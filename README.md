@@ -75,24 +75,24 @@ Egy Raspberry Pi Pico alapú rádióprojekt (Si4735 vezérléssel) — fejlett d
 
 ## Hibakeresés / debug
 - A forrásban `DEBUG(...)` makrók és logolási segédek találhatók. A debug build beállítása és a `__DEBUG` makró használata segíthet a problémakeresésben.
-- A `doc/` mappában található leírások (AGC, FFT) segítenek az audio-feldolgozó beállításában.
 
 
 ---
 
 ## Harmadik féltől származó források
-Az alábbi forrásokat a projekt fejlesztése és megvalósítási ötletek inspirálására használtam.
+Az alábbi forrás nyújtottak inspirációkat a projekt fejlesztése és megvalósítása során.
 
  - **SI4735 + TFT példa (IU4ALH)**: https://github.com/IU4ALH/IU4ALH
-  - Használat: Tartalmaz SI4735 és TFT integrációs példákat (pl. `SI4735_2.8_TFT_SI5351_V.5.2b_Dark.zip`), amelyek inspirációt adtak a képernyő felépítéséhez és a Si4735 beállítások kezeléséhez.
+  - Használat: Alsősorban a repó  `SI4735_2.8_TFT_SI5351_V.5.2b_Dark.zip` állományában található forrásokat használtam fel, amelyek inspirációt adtak a szolgáltatások, a képernyő felépítéséhez valamint az Si4735 beállítások kezeléséhez.
 
 - **Rotary encoder / forgókapcsoló referencia**: https://www.mikrocontroller.net/articles/Drehgeber
   - Használat: A forgató encoder kezelésének elméleti háttere és debouncing/step logika inspirálására; segített a `RotaryEncoder` osztály és a forgóvezérlők finomhangolásában.
 
-- **Pico SSTV implementáció (inspiráció)**: https://github.com/dawsonjon/PicoSSTV
-  - Használat: SSTV dekóder és mintafeldolgozó technikák inspirációjára használtuk a projekt `DecoderSSTV` moduljának kialakításához.
+- **Pico SSTV implementáció **: https://github.com/dawsonjon/PicoSSTV
+  - Használat: SSTV dekóder és mintafeldolgozó technikák inspirációjára használtam a projekt `DecoderSSTV` moduljának kialakításához.
 
-
+- **fldigi **: https://github.com/w1hkj/fldigi
+  - Használat: HF WeFax dekóder kiakalítása, technikai megoldások, szoftveres szűrők
 ---
 
 ## License
