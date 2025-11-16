@@ -5,8 +5,8 @@ Egy Raspberry Pi Pico alapú rádióprojekt (Si4735 vezérléssel) — fejlett d
 **Fő funkciók**
 - Si4735 vezérlés (AM/FM/SDR jellegű demodok és RDS)
 - Dekóderek: RTTY, CW, SSTV, WeFax, RTTY feldolgozó
-- Valós idejű spektrum- és vízesés (waterfall) megjelenítők
-- Hangfeldolgozó pipeline (AGC, FFT alapú vizualizáció)
+- Valós idejű spektrum- és vízesés (low/high res bar, oscilloscope, envelope, waterfall, CW/RTTY hangolássegéd waterfall és SNR burkoló) megjelenítők
+- Hangfeldolgozó pipeline (AGC, FFT alapú vizualizáció manuális vagy automatikus erősítéssel)
 - Rétegzett dialógus rendszer: többgombos dialógusok, értékmódosítók (rotary/touch)
 - Konfigurációs tárolás EEPROM-ban (station/setting store)
 
