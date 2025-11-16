@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
  * -----                                                                                                               *
- * Last Modified: 2025.11.16, Sunday  03:27:32                                                                         *
+ * Last Modified: 2025.11.16, Sunday  03:31:17                                                                         *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -232,12 +232,16 @@ void ScreenAMRTTY::checkDecodedData() {
     // Időzítés: 2 másodpercenként frissítünk (TFT terhelés csökkentése)
     bool timeToUpdate = Utils::timeHasPassed(lastRTTYDisplayUpdate, 2000);
 
-    // Frissítés csak ha eltelt az idő ÉS történt változás
-    // VAGY ha ez az első megjelenítés (lastRTTYDisplayUpdate == 0)
-    if ((timeToUpdate && anyDataChanged) || lastRTTYDisplayUpdate == 0) {
-        lastPublishedRttyMark = currentMark;
-        lastPublishedRttySpace = currentSpace;
-        lastPublishedRttyBaud = currentBaud;
+    // Frissítés: ha ez az első megjelenítés vagy lejárt a 2s timeout, újrarajzolunk.
+    // A 'lastPublished...' értékeket csak akkor frissítjük, ha tényleges változás történt
+    // vagy ha ez az első rajzolás.
+    if (timeToUpdate || lastRTTYDisplayUpdate == 0) {
+        bool updatePublished = anyDataChanged || lastRTTYDisplayUpdate == 0;
+        if (updatePublished) {
+            lastPublishedRttyMark = currentMark;
+            lastPublishedRttySpace = currentSpace;
+            lastPublishedRttyBaud = currentBaud;
+        }
         lastRTTYDisplayUpdate = millis();
 
         // A textbox komponens fölött, jobbra igazítva jelenjen meg a kiírás
@@ -248,7 +252,7 @@ void ScreenAMRTTY::checkDecodedData() {
         uint16_t textBoxTop = rttyTextBox->getBounds().y;
         uint16_t labelY = textBoxTop - gap - textHeight; // Szöveg alja 2px-re a textbox teteje fölött
 
-        tft.fillRect(labelX, labelY, labelW, textHeight, TFT_RED); // Csak a szöveg magasságát töröljük
+        tft.fillRect(labelX, labelY, labelW, textHeight, TFT_BLACK); // Csak a szöveg magasságát töröljük
         tft.setCursor(labelX, labelY);
         tft.setTextSize(1);
         tft.setTextColor(TFT_SILVER, TFT_BLACK);
