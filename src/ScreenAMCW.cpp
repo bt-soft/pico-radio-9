@@ -14,16 +14,19 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
  * -----                                                                                                               *
- * Last Modified: 2025.11.16, Sunday  09:42:10                                                                         *
+ * Last Modified: 2025.11.16, Sunday  03:04:59                                                                         *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
  * Date      	By	Comments                                                                                           *
  * ----------	---	-------------------------------------------------------------------------------------------------  *
  */
+#include <memory>
 
+#include "CWParamDialogs.h"
 #include "ScreenAMCW.h"
 #include "ScreenManager.h"
+#include "UIMultiButtonDialog.h"
 #include "defines.h"
 
 // CW Dekóder képernyő működés debug engedélyezése de csak DEBUG módban
@@ -113,6 +116,25 @@ void ScreenAMCW::addSpecificHorizontalButtons(std::vector<UIHorizontalButtonBar:
     // Ez tartalmazza: BFO, AFBW, ANTCAP, DEMOD gombokat
     ScreenAMRadioBase::addSpecificHorizontalButtons(buttonConfigs);
 
+    // CW paraméterek gomb (Params) a Back előtt: megjelenít egy 3-gombos dialógust,
+    // amely elindítja a CW tone frequency szerkesztő dialógust és visszatér a szülőhöz.
+    constexpr uint8_t CW_PARAMS_BUTTON = 151;
+    buttonConfigs.insert(buttonConfigs.end() - 1, {CW_PARAMS_BUTTON, "Parms", UIButton::ButtonType::Pushable, UIButton::ButtonState::Off, [this](const UIButton::ButtonEvent &event) {
+                                                       if (event.state != UIButton::EventButtonState::Clicked)
+                                                           return;
+
+                                                       static const char *options[] = {"Tone"};
+                                                       auto paramsDlg = std::make_shared<UIMultiButtonDialog>(this, "CW Params", "Select parameter to edit:", options, 1, nullptr, false);
+                                                       paramsDlg->setButtonClickCallback([this, paramsDlg](int idx, const char *label, UIMultiButtonDialog *sender) {
+                                                           paramsDlg->close(UIDialogBase::DialogResult::Accepted);
+                                                           auto childClosedCb = [this, paramsDlg](UIDialogBase *childSender, UIDialogBase::DialogResult result) { this->showDialog(paramsDlg); };
+                                                           if (idx == 0) {
+                                                               CWParamDialogs::showCwToneFreqDialog(this, &::config, childClosedCb);
+                                                           }
+                                                       });
+                                                       this->showDialog(paramsDlg);
+                                                   }});
+
     constexpr uint8_t BACK_BUTTON = 100;
     buttonConfigs.push_back(             //
         {                                //
@@ -136,6 +158,12 @@ void ScreenAMCW::activate() {
     // Szülő osztály aktiválása
     ScreenAMRadioBase::activate();
     Mixin::updateAllVerticalButtonStates(); // Univerzális funkcionális gombok (mixin method)
+
+    // Biztonságos újragenerálás: ha a vízszintes gombsor már létrejött a szülőben,
+    // csökkentjük a gombok szélességét, hogy az extra "Params" gomb elférjen egy sorban.
+    if (horizontalButtonBar) {
+        horizontalButtonBar->recreateWithButtonWidth(50);
+    }
 
     // CW audio dekóder indítása
     ::audioController.startAudioController( //

@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
  * -----                                                                                                               *
- * Last Modified: 2025.11.16, Sunday  02:39:56                                                                         *
+ * Last Modified: 2025.11.16, Sunday  03:04:37                                                                         *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -111,7 +111,7 @@ void ScreenAMRTTY::addSpecificHorizontalButtons(std::vector<UIHorizontalButtonBa
     // a megfelelő paraméter dialógust, és a gyerek bezárásakor visszaállítja
     // a 3 gombos szülő dialógust (ahogy a ScreenTest-ben látható).
     constexpr uint8_t RTTY_PARAMS_BUTTON = 150;
-    buttonConfigs.push_back({RTTY_PARAMS_BUTTON, "Params", UIButton::ButtonType::Pushable, UIButton::ButtonState::Off, [this](const UIButton::ButtonEvent &event) {
+    buttonConfigs.push_back({RTTY_PARAMS_BUTTON, "Parms", UIButton::ButtonType::Pushable, UIButton::ButtonState::Off, [this](const UIButton::ButtonEvent &event) {
                                  if (event.state != UIButton::EventButtonState::Clicked)
                                      return;
 
@@ -171,7 +171,7 @@ void ScreenAMRTTY::activate() {
     // Biztonságos újragenerálás: ha a vízszintes gombsor már létrejött a szülőben,
     // beállítjuk kisebb gombszélességet, így az új gombok elférnek egy sorban.
     if (horizontalButtonBar) {
-        horizontalButtonBar->recreateWithButtonWidth(50); // 50px-re csökkentve a gombok szélességét
+        horizontalButtonBar->recreateWithButtonWidth(60);
     }
 
     // RTTY audio dekóder indítása

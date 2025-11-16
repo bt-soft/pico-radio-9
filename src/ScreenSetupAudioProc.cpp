@@ -23,6 +23,7 @@
  */
 
 #include "ScreenSetupAudioProc.h"
+#include "CWParamDialogs.h"
 #include "Config.h"
 #include "RTTYParamDialogs.h"
 #include "UIMultiButtonDialog.h"
@@ -115,29 +116,13 @@ void ScreenSetupAudioProc::handleItemAction(int index, int action) {
  * @param index A menüpont indexe a lista frissítéséhez
  */
 void ScreenSetupAudioProc::handleCwToneFrequencyDialog(int index) {
-    auto tempValuePtr = std::make_shared<int>(static_cast<int>(config.data.cwToneFrequencyHz));
-
-    auto cwToneFrequencyDialog = std::make_shared<UIValueChangeDialog>(
-        this, "CW Tone Frequency", "CW Tone Frequency (Hz):", tempValuePtr.get(),
-        static_cast<int>(400),  // Minimális: 400Hz
-        static_cast<int>(1900), // Maximális: 1900Hz
-        static_cast<int>(10),   // Lépés: 10Hz
-        [this, index](const std::variant<int, float, bool> &liveNewValue) {
-            if (std::holds_alternative<int>(liveNewValue)) {
-                int currentDialogVal = std::get<int>(liveNewValue);
-                config.data.cwToneFrequencyHz = static_cast<uint16_t>(currentDialogVal);
-                DEBUG("ScreenSetupAudioProc: CW tone frequency: %u Hz\n", config.data.cwToneFrequencyHz);
-            }
-        },
-        [this, index, tempValuePtr](UIDialogBase *sender, UIMessageDialog::DialogResult dialogResult) {
-            if (dialogResult == UIMessageDialog::DialogResult::Accepted) {
-                config.data.cwToneFrequencyHz = static_cast<uint16_t>(*tempValuePtr);
-                settingItems[index].value = String(config.data.cwToneFrequencyHz) + " Hz";
-                updateListItem(index);
-            }
-        },
-        Rect(-1, -1, 280, 0));
-    this->showDialog(cwToneFrequencyDialog);
+    std::function<void(UIDialogBase *, UIDialogBase::DialogResult)> cb = [this, index](UIDialogBase *sender, UIDialogBase::DialogResult result) {
+        if (result == UIDialogBase::DialogResult::Accepted) {
+            settingItems[index].value = String(config.data.cwToneFrequencyHz) + " Hz";
+            updateListItem(index);
+        }
+    };
+    CWParamDialogs::showCwToneFreqDialog(this, &config, cb);
 }
 
 /**

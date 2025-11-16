@@ -27,6 +27,7 @@
 #include "ScreenAMRadioBase.h"
 #include "UICommonVerticalButtons.h"
 #include "UICompTextBox.h"
+#include "UIMultiButtonDialog.h"
 
 /**
  * @brief AM CW dekóder képernyő
