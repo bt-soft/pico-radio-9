@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
  * -----                                                                                                               *
- * Last Modified: 2025.11.16, Sunday  07:40:14                                                                         *
+ * Last Modified: 2025.11.16, Sunday  07:42:21                                                                         *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -89,7 +89,7 @@ std::unique_ptr<IDecoder> activeDecoderCore1 = nullptr;
  * 3. ADC csatorna visszaállítás ADC0-ra
  * 4. Audio DMA FOLYTATÁSA
  */
-static void readSensorsOnCore1() {
+void readSensorsOnCore1() {
 
     // BIZTONSÁGI ELLENŐRZÉS: Csak akkor mérünk, ha az audio DMA NEM fut
     // Ha bármilyen audio feldolgozás aktív (FFT, CW, RTTY), NE szakítsuk meg a DMA-t
@@ -122,7 +122,7 @@ static void readSensorsOnCore1() {
  * @brief Frissíti a megjelenítési javaslatokat a megadott dekóder konfiguráció alapján.
  * @param cfg A dekóder konfiguráció
  */
-static void updateDisplayHints(const DecoderConfig &cfg) {
+void updateDisplayHints(const DecoderConfig &cfg) {
 
     uint8_t backBufferIndex = 1 - activeSharedDataIndex;
 
