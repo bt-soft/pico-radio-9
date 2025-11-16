@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
  * -----                                                                                                               *
- * Last Modified: 2025.11.16, Sunday  07:42:21                                                                         *
+ * Last Modified: 2025.11.16, Sunday  08:06:39                                                                         *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -37,7 +37,7 @@
 #include "defines.h"
 
 // Core-1 debug engedélyezése de csak DEBUG módban
-// #define __CORE1_DEBUG
+#define __CORE1_DEBUG
 #if defined(__DEBUG) && defined(__CORE1_DEBUG)
 #define CORE1_DEBUG(fmt, ...) DEBUG(fmt __VA_OPT__(, ) __VA_ARGS__)
 #else
@@ -80,6 +80,23 @@ std::unique_ptr<IDecoder> activeDecoderCore1 = nullptr;
 #define CORE1_CONVERSION_FACTOR (1 << CORE1_ADC_RESOLUTION) // 4096
 #define CORE1_VBUSDIVIDER_RATIO ((VBUS_DIVIDER_R1 + VBUS_DIVIDER_R2) / VBUS_DIVIDER_R2)
 
+//--- EEprom safe Writer segédfüggvények -------------------------------------------------------------------------------------
+
+/**
+ * @brief Core1 audio mintavételezés indítása
+ */
+void startAudioSamplingC1() { audioProcC1.start(); }
+
+/**
+ * @brief Core1 audio mintavételezés leállítása
+ */
+void stopAudioSamplingC1() { audioProcC1.stop(); }
+
+/**
+ * @brief Core1 audio mintavételezés fut?
+ */
+bool isAudioSamplingRunningC1() { return audioProcC1.isRunning(); }
+
 /**
  * @brief Core1 szenzor mérések - VBUS feszültség és CPU hőmérséklet
  * @details Ez a függvény a Core1-en fut, így TELJES KONTROLLJA van az ADC felett.
@@ -91,18 +108,25 @@ std::unique_ptr<IDecoder> activeDecoderCore1 = nullptr;
  */
 void readSensorsOnCore1() {
 
-    // BIZTONSÁGI ELLENŐRZÉS: Csak akkor mérünk, ha az audio DMA NEM fut
-    // Ha bármilyen audio feldolgozás aktív (FFT, CW, RTTY), NE szakítsuk meg a DMA-t
-    // → race condition elkerülése a Core0 TFT műveletekkel (spectrum rajzolás, stb.)
-    bool isAudioRunning = audioProcC1.isRunning();
+    // // BIZTONSÁGI ELLENŐRZÉS: Csak akkor mérünk, ha az audio DMA NEM fut
+    // // Ha bármilyen audio feldolgozás aktív (FFT, CW, RTTY), NE szakítsuk meg a DMA-t
+    // // → race condition elkerülése a Core0 TFT műveletekkel (spectrum rajzolás, stb.)
+    // bool isAudioRunning = audioProcC1.isRunning();
 
-    if (isAudioRunning) {
-        // Ha audio DMA fut, NE szakítsuk meg - a cache-olt értékek továbbra is elérhetők
-        // (core1_VbusVoltage, core1_CpuTemperature)
-        return;
+    // if (isAudioRunning) {
+    //     // Ha audio DMA fut, NE szakítsuk meg - a cache-olt értékek továbbra is elérhetők
+    //     // (core1_VbusVoltage, core1_CpuTemperature)
+    //     return;
+    // }
+
+    // Ha fut az Audio DMA, akkor lecsukjuk a mérés idejéig
+    bool wasAudioActive = isAudioSamplingRunningC1();
+    if (wasAudioActive) {
+        stopAudioSamplingC1();
     }
 
     // CSAK akkor mérünk, ha az audio DMA teljesen inaktív (BIZTONSAGOS)
+
     // VBUS feszültség mérése 12-bit ADC olvasással
     float voltageOut = (analogRead(PIN_VBUS_EXTERNAL_MEASURE_INPUT) * CORE1_V_REFERENCE) / CORE1_CONVERSION_FACTOR;
     core1_VbusVoltage = voltageOut * CORE1_VBUSDIVIDER_RATIO;
@@ -113,8 +137,13 @@ void readSensorsOnCore1() {
     // KRITIKUS: ADC csatorna VISSZAÁLLÍTÁSA az audio bemenetre (ADC0)!
     adc_select_input(0); // ADC0 (GPIO26 = A0)
 
-    CORE1_DEBUG("core-1: Sensors: VBUS=%.2fV, Temp=%.1f°C - (measured safely, audio was stopped)\n", //
-                core1_VbusVoltage,                                                                   //
+    // Audio DMA visszaindítása, ha előtte futott
+    if (wasAudioActive) {
+        startAudioSamplingC1();
+    }
+
+    CORE1_DEBUG("core-1: Sensors: VBUS=%.2fV, Temp=%.1f°C\n", //
+                core1_VbusVoltage,                            //
                 core1_CpuTemperature);
 }
 
@@ -468,13 +497,6 @@ void processAudioAndDecoding() {
     }
 }
 
-//--- EEprom safe Writer segédfüggvények -------------------------------------------------------------------------------------
-void startAudioSamplingC1() { audioProcC1.start(); }
-
-void stopAudioSamplingC1() { audioProcC1.stop(); }
-
-bool isAudioSamplingRunningC1() { return audioProcC1.isRunning(); }
-
 //--- Core-1 Arduino belépési pontok -----------------------------------------------------------------------------------------
 
 /**
@@ -505,8 +527,15 @@ void loop1() {
     // Parancsok kezelése a Core 0-tól
     processFifoCommands();
 
-// --- Core1 Szenzor Mérések Konstansok ---
-#define CORE1_SENSOR_READ_INTERVAL_MS 30000 // 30 másodperc szenzor frissítési időköz
+    // --- Core1 Szenzor Mérések  ---
+    // #ifdef __DEBUG
+    // #define CORE1_SENSOR_READ_INTERVAL_MS 30 * 1000 //  30 másodperc szenzor frissítési időköz (DEBUG módban gyakoribb)
+    // #else
+
+#define CORE1_SENSOR_READ_INTERVAL_MS 15 * 60 * 1000 // 5 perc a szenzor frissítési időköz
+
+    // #endif
+
     static uint32_t lastSensorRead = 0;
     if (Utils::timeHasPassed(lastSensorRead, CORE1_SENSOR_READ_INTERVAL_MS)) {
         readSensorsOnCore1();

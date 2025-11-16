@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
  * -----                                                                                                               *
- * Last Modified: 2025.11.16, Sunday  11:02:41                                                                         *
+ * Last Modified: 2025.11.16, Sunday  07:53:04                                                                         *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -27,7 +27,7 @@
 #include "StationData.h"
 
 // Si4735RDS működés debug engedélyezése de csak DEBUG módban
-#define __SI4735RDS_DEBUG
+// #define __SI4735RDS_DEBUG
 #if defined(__DEBUG) && defined(__SI4735RDS_DEBUG)
 #define SI4735RDS_DEBUG(fmt, ...) DEBUG(fmt __VA_OPT__(, ) __VA_ARGS__)
 #else
@@ -95,7 +95,7 @@ String Si4735Rds::getRdsStationName() {
         strncpy(tempName, rdsStationName, sizeof(tempName) - 1);
         tempName[sizeof(tempName) - 1] = '\0';
 
-//        SI4735RDS_DEBUG("Si4735Rds: Nyers RDS állomásnév: '%s'\n", tempName);
+        //        SI4735RDS_DEBUG("Si4735Rds: Nyers RDS állomásnév: '%s'\n", tempName);
 
         Utils::trimSpaces(tempName);
         String result = String(tempName);
