@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
  * -----                                                                                                               *
- * Last Modified: 2025.11.16, Sunday  09:42:01                                                                         *
+ * Last Modified: 2025.11.16, Sunday  11:42:41                                                                         *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -86,6 +86,9 @@ void ScreenAM::activate() {
     // Szülő osztály aktiválása
     ScreenAMRadioBase::activate();
     Mixin::updateAllVerticalButtonStates(); // Univerzális funkcionális gombok (mixin method)
+
+    // StatusLine frissítése
+    ScreenRadioBase::checkAndUpdateMemoryStatus();
 
     // AM audio dekóder indítása (csak FFT, nincs dekóder)
     ::audioController.startAudioController(DecoderId::ID_DECODER_ONLY_FFT, AM_AF_RAW_SAMPLES_SIZE, AM_AF_BANDWIDTH_HZ);

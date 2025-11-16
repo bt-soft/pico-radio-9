@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
  * -----                                                                                                               *
- * Last Modified: 2025.11.16, Sunday  09:42:52                                                                         *
+ * Last Modified: 2025.11.16, Sunday  11:42:36                                                                         *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -174,9 +174,10 @@ void ScreenFM::activate() {
 
     // Szülő osztály aktiválása (ScreenRadioBase -> ScreenFrequDisplayBase -> UIScreen)
     ScreenRadioBase::activate();
+    Mixin::updateAllVerticalButtonStates(); // Univerzális funkcionális gombok (mixin method)
 
     // StatusLine frissítése
-    checkAndUpdateMemoryStatus();
+    ScreenRadioBase::checkAndUpdateMemoryStatus();
 
     // FM audio dekóder indítása (csak FFT, nincs dekóder)
     ::audioController.startAudioController(DecoderId::ID_DECODER_ONLY_FFT, FM_AF_RAW_SAMPLES_SIZE, FM_AF_BANDWIDTH_HZ);
