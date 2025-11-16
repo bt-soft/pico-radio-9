@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
  * -----                                                                                                               *
- * Last Modified: 2025.11.16, Sunday  09:47:37                                                                         *
+ * Last Modified: 2025.11.16, Sunday  03:22:56                                                                         *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -154,7 +154,7 @@ struct SharedData {
 // Mintavételezési frekvencia a sávszélességből számítódik.
 // FONTOS: Az RTTY_RAW_SAMPLES_SIZE szabadon változtatható, de a dekóder belsőleg
 //         64 mintás Goertzel blokkokkal dolgozik (TONE_BLOCK_SIZE = 64, ez NE változzon!)
-#define RTTY_AF_BANDWIDTH_HZ 3000 // RTTY audio sávszélesség (szabadon változtatható) -> 15kHz volt ..
+#define RTTY_AF_BANDWIDTH_HZ 6000 // RTTY audio sávszélesség (szabadon változtatható) -> 15kHz volt ..
 // RTTY bemeneti audio minták száma blok (lehet több, mint a belső blokk méret)
 #define RTTY_RAW_SAMPLES_SIZE 512 // A zoom miatt ilyen magas, hogy a waterfall is kinézzen valahogyan. -> 1024 volt...
 

@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
  * -----                                                                                                               *
- * Last Modified: 2025.11.16, Sunday  03:08:40                                                                         *
+ * Last Modified: 2025.11.16, Sunday  03:27:32                                                                         *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -31,7 +31,7 @@
 /**
  * @brief ScreenAMRTTY konstruktor
  */
-ScreenAMRTTY::ScreenAMRTTY() : ScreenAMRadioBase(SCREEN_NAME_DECODER_RTTY), lastPublishedRttyMark(0), lastPublishedRttySpace(0), lastPublishedRttyBaud(0.0f) {
+ScreenAMRTTY::ScreenAMRTTY() : ScreenAMRadioBase(SCREEN_NAME_DECODER_RTTY), lastPublishedRttyMark(0), lastPublishedRttySpace(0), lastPublishedRttyBaud(0.0f), lastRTTYDisplayUpdate(0) {
     // UI komponensek létrehozása és elhelyezése
     layoutComponents();
 }
@@ -131,7 +131,9 @@ void ScreenAMRTTY::addSpecificHorizontalButtons(std::vector<UIHorizontalButtonBa
                                      paramsDlg->close(UIDialogBase::DialogResult::Accepted);
 
                                      // A gyerek bezárulásakor a callback újra megjeleníti a szülő dialógust
-                                     auto childClosedCb = [this, paramsDlg](UIDialogBase *childSender, UIMessageDialog::DialogResult result) {
+                                     auto childClosedCb = [this, paramsDlg](UIDialogBase *childSender, UIDialogBase::DialogResult result) {
+                                         // Nullázzuk az időzítőt, hogy a következő ciklusban azonnal frissüljön a kiírás
+                                         this->lastRTTYDisplayUpdate = 0;
                                          // A gyerek bezárulása után a szülő 3-gombos dialógust újra megjelenítjük
                                          this->showDialog(paramsDlg);
                                      };
@@ -184,6 +186,9 @@ void ScreenAMRTTY::activate() {
         config.data.rttyShiftFrequencyHz,   // RTTY Space frekvencia
         config.data.rttyBaudRate            // RTTY Baud rate
     );
+
+    // RTTY infókat frissítsük!
+    lastRTTYDisplayUpdate = 0;
 }
 
 /**
@@ -225,7 +230,6 @@ void ScreenAMRTTY::checkDecodedData() {
     bool anyDataChanged = (markChanged || spaceChanged || baudChanged);
 
     // Időzítés: 2 másodpercenként frissítünk (TFT terhelés csökkentése)
-    static unsigned long lastRTTYDisplayUpdate = 0;
     bool timeToUpdate = Utils::timeHasPassed(lastRTTYDisplayUpdate, 2000);
 
     // Frissítés csak ha eltelt az idő ÉS történt változás

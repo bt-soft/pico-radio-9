@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                       *
  * -----                                                                                                               *
- * Last Modified: 2025.11.16, Sunday  09:50:27                                                                         *
+ * Last Modified: 2025.11.16, Sunday  03:21:37                                                                         *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -84,4 +84,5 @@ class ScreenAMRTTY : public ScreenAMRadioBase, public UICommonVerticalButtons::M
     uint16_t lastPublishedRttyMark;
     uint16_t lastPublishedRttySpace;
     float lastPublishedRttyBaud;
+    uint32_t lastRTTYDisplayUpdate;
 };
