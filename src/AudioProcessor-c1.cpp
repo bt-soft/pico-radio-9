@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
  * -----                                                                                                               *
- * Last Modified: 2025.11.16, Sunday  09:40:03                                                                         *
+ * Last Modified: 2025.11.17, Monday  07:19:37                                                                         *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -36,7 +36,7 @@
 #include "defines.h"
 
 // AudioProcessor működés debug engedélyezése de csak DEBUG módban
-// #define __ADPROC_DEBUG
+#define __ADPROC_DEBUG
 #if defined(__DEBUG) && defined(__ADPROC_DEBUG)
 #define ADPROC_DEBUG(fmt, ...) DEBUG(fmt __VA_OPT__(, ) __VA_ARGS__)
 #else
@@ -57,7 +57,7 @@ AudioProcessorC1::AudioProcessorC1()
       agcAlpha_(0.02f),         //
       agcTargetPeak_(20000.0f), //
       agcMinGain_(0.1f),        //
-      agcMaxGain_(50.0f),       // 20.0 -> 50.0 (gyenge jel kompenzálás)
+      agcMaxGain_(20.0f),       // 20.0
       currentAgcGain_(1.0f),    //
 
       //------------- állítható értékek
@@ -240,8 +240,23 @@ void AudioProcessorC1::removeDcAndSmooth(const uint16_t *input, int16_t *output,
     if (!useNoiseReduction_ || smoothingPoints_ == 0) {
         // Zajszűrés kikapcsolva - csak DC offset eltávolítás (gyors)
         // JAVÍTVA: Helyes típuskonverzió uint16_t -> int16_t
-        for (uint16_t i = 0; i < count; i++) {
-            output[i] = (int16_t)((int32_t)input[i] - ADC_MIDPOINT);
+        // Alkalmazzuk a legacy q15 skálázást itt: balra shift (15 - ADC_BIT_DEPTH)
+        // így a sharedData.rawSampleData már azonos numerikus skálán lesz, mint a régi CMSIS-q15 út.
+        const int shift = (15 - ADC_BIT_DEPTH);
+        if (shift <= 0) {
+            for (uint16_t i = 0; i < count; i++) {
+                output[i] = (int16_t)((int32_t)input[i] - ADC_MIDPOINT);
+            }
+        } else {
+            for (uint16_t i = 0; i < count; i++) {
+                int32_t val = ((int32_t)input[i] - ADC_MIDPOINT) << shift;
+                // Clamp to int16_t range after shift
+                if (val > 32767)
+                    val = 32767;
+                if (val < -32768)
+                    val = -32768;
+                output[i] = (int16_t)val;
+            }
         }
         return;
     }
@@ -274,7 +289,18 @@ void AudioProcessorC1::removeDcAndSmooth(const uint16_t *input, int16_t *output,
                 divisor++;
             }
 
-            output[i] = (int16_t)(sum / divisor);
+            // Alkalmazzuk a skálázást (shift) a simított értékre is
+            const int shift = (15 - ADC_BIT_DEPTH);
+            if (shift <= 0) {
+                output[i] = (int16_t)(sum / divisor);
+            } else {
+                int32_t val = (sum / divisor) << shift;
+                if (val > 32767)
+                    val = 32767;
+                if (val < -32768)
+                    val = -32768;
+                output[i] = (int16_t)val;
+            }
         }
     } else {
         // 3-pontos mozgó átlag (gyorsabb, enyhébb simítás)
@@ -292,7 +318,18 @@ void AudioProcessorC1::removeDcAndSmooth(const uint16_t *input, int16_t *output,
                 divisor++;
             }
 
-            output[i] = (int16_t)(sum / divisor);
+            // Alkalmazzuk a skálázást (shift) a simított értékre is
+            const int shift = (15 - ADC_BIT_DEPTH);
+            if (shift <= 0) {
+                output[i] = (int16_t)(sum / divisor);
+            } else {
+                int32_t val = (sum / divisor) << shift;
+                if (val > 32767)
+                    val = 32767;
+                if (val < -32768)
+                    val = -32768;
+                output[i] = (int16_t)val;
+            }
         }
     }
 }
@@ -387,36 +424,36 @@ void AudioProcessorC1::applyAgc(int16_t *samples, uint16_t count) {
 #endif
 }
 
-/**
- * @brief Egy frekvencia-tartománybeli erősítést alkalmaz az FFT adatokra "lapított" Gauss-ablak formájában.
- * @param data FFT bemeneti/kimeneti adatok (FLOAT)
- * @param size Az adatok mérete (bin-ek száma)
- * @param fftBinWidthHz Egy bin szélessége Hz-ben
- * @param boostMinHz Az erősítési tartomány alsó határa Hz-ben
- * @param boostMaxHz Az erősítési tartomány felső határa Hz-ben
- * @param boostGain Az erősítési tényező (pl. 10.0 = 10x erősítés)
- *
- */
-void AudioProcessorC1::applyFftGaussianWindow(float *data, uint16_t size, float fftBinWidthHz, float boostMinHz, float boostMaxHz, float boostGain) {
+// /**
+//  * @brief Egy frekvencia-tartománybeli erősítést alkalmaz az FFT adatokra "lapított" Gauss-ablak formájában.
+//  * @param data FFT bemeneti/kimeneti adatok (FLOAT)
+//  * @param size Az adatok mérete (bin-ek száma)
+//  * @param fftBinWidthHz Egy bin szélessége Hz-ben
+//  * @param boostMinHz Az erősítési tartomány alsó határa Hz-ben
+//  * @param boostMaxHz Az erősítési tartomány felső határa Hz-ben
+//  * @param boostGain Az erősítési tényező (pl. 10.0 = 10x erősítés)
+//  *
+//  */
+// void AudioProcessorC1::applyFftGaussianWindow(float *data, uint16_t size, float fftBinWidthHz, float boostMinHz, float boostMaxHz, float boostGain) {
 
-    // Lapított Gauss-szerű erősítés: a tartományon belül a maximumhoz közel Gauss, széleken lapított
-    float centerFreq = (boostMinHz + boostMaxHz) / 2.0f;
-    float sigma = (boostMaxHz - boostMinHz) * 1.2f; // még laposabb, szélesebb görbe
-    float minGain = 1.0f;
+//     // Lapított Gauss-szerű erősítés: a tartományon belül a maximumhoz közel Gauss, széleken lapított
+//     float centerFreq = (boostMinHz + boostMaxHz) / 2.0f;
+//     float sigma = (boostMaxHz - boostMinHz) * 1.2f; // még laposabb, szélesebb görbe
+//     float minGain = 1.0f;
 
-    for (uint16_t i = 0; i < size; i++) {
-        float freq = i * fftBinWidthHz;
-        float gain = minGain;
+//     for (uint16_t i = 0; i < size; i++) {
+//         float freq = i * fftBinWidthHz;
+//         float gain = minGain;
 
-        if (freq >= boostMinHz && freq <= boostMaxHz) {
-            // Lapítottabb Gauss: a széleken még lassabb esés, gyök alatt
-            float gauss = expf(-powf(freq - centerFreq, 2) / (2.0f * sigma * sigma));
-            gauss = powf(gauss, 0.5f); // gyök alatt: még lassabb esés
-            gain = minGain + (boostGain - minGain) * gauss;
-        }
-        data[i] *= gain;
-    }
-}
+//         if (freq >= boostMinHz && freq <= boostMaxHz) {
+//             // Lapítottabb Gauss: a széleken még lassabb esés, gyök alatt
+//             float gauss = expf(-powf(freq - centerFreq, 2) / (2.0f * sigma * sigma));
+//             gauss = powf(gauss, 0.5f); // gyök alatt: még lassabb esés
+//             gain = minGain + (boostGain - minGain) * gauss;
+//         }
+//         data[i] *= gain;
+//     }
+// }
 
 /**
  * @brief Feldolgozza a legfrissebb audio blokkot és feltölti a megadott SharedData struktúrát.
@@ -482,9 +519,19 @@ bool AudioProcessorC1::processAndFillSharedData(SharedData &sharedData) {
     // 3. FFT bemeneti adatok feltöltése (FLOAT - Arduino FFT)
     // rawSampleData már int16_t DC-mentesített értékek AGC/manual gain után
     // Itt az int16_t -> float konverzió történik, nem lehet a memcpy-t használni
+    // A nyers minták már DC-mentesítve és skálázva vannak a removeDcAndSmooth()-ben
     for (int i = 0; i < adcConfig.sampleCount; i++) {
-        vReal[i] = (float)sharedData.rawSampleData[i]; // int16_t -> float konverzió
+        vReal[i] = (float)sharedData.rawSampleData[i]; // int16_t -> float (skálázás már megtörtént)
     }
+
+#ifdef __ADPROC_DEBUG
+    // Debug: néhány kezdeti bin érték (ritkán írjuk ki)
+    static uint32_t dbgCounter = 0;
+    if (++dbgCounter >= 100) {
+        ADPROC_DEBUG("AudioProc-c1: firstBins=%.1f,%.1f,%.1f\n", vReal[0], vReal[1], vReal[2]);
+        dbgCounter = 0;
+    }
+#endif
     // Imaginárius rész nullázása (gyors memset)
     memset(vImag.data(), 0, adcConfig.sampleCount * sizeof(float));
 
@@ -524,18 +571,18 @@ bool AudioProcessorC1::processAndFillSharedData(SharedData &sharedData) {
         sharedData.fftSpectrumData[0] = 0.0f;
     }
 
-    // 7.2 Frekvenciatartomány erősítés: 600-9000 Hz között 2x, máshol 1x
-    // Valamiért a kütyüm 5.5-8.5kHz között gyengébben látja a jeleket
-    // Ezért itt - jobb ötlet hijján - kézzel erősítem ezt a tartományt.
-    applyFftGaussianWindow(         //
-        sharedData.fftSpectrumData, // FFT bemeneti/kimeneti adatok
-        sharedData.fftSpectrumSize, // FFT bin-ek száma
-        sharedData.fftBinWidthHz,   // egy bin szélessége Hz-ben
-        5500.0f,                    // alsó frekvencia
-        8500.0f,                    // felső frekvencia
-        // 8.0f                        // erősítés a csúcsnál
-        2.0f // erősítés a csúcsnál
-    );
+    // // 7.2 Frekvenciatartomány erősítés: 600-9000 Hz között 2x, máshol 1x
+    // // Valamiért a kütyüm 5.5-8.5kHz között gyengébben látja a jeleket
+    // // Ezért itt - jobb ötlet hijján - kézzel erősítem ezt a tartományt.
+    // applyFftGaussianWindow(         //
+    //     sharedData.fftSpectrumData, // FFT bemeneti/kimeneti adatok
+    //     sharedData.fftSpectrumSize, // FFT bin-ek száma
+    //     sharedData.fftBinWidthHz,   // egy bin szélessége Hz-ben
+    //     5500.0f,                    // alsó frekvencia
+    //     8500.0f,                    // felső frekvencia
+    //     // 8.0f                        // erősítés a csúcsnál
+    //     2.0f // erősítés a csúcsnál
+    // );
 
     // // 7.5. Alacsony frekvenciás zajszűrés (300Hz alatt csillapítás)
     // // Ez javítja a spektrum megjelenítés minőségét

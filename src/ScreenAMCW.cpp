@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
  * -----                                                                                                               *
- * Last Modified: 2025.11.16, Sunday  03:10:55                                                                         *
+ * Last Modified: 2025.11.17, Monday  06:51:28                                                                         *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -172,9 +172,10 @@ void ScreenAMCW::activate() {
         CW_AF_BANDWIDTH_HZ,                 // bandwidthHz
         config.data.cwToneFrequencyHz       // cwCenterFreqHz
     );
-    ::audioController.setNoiseReductionEnabled(true); // Zajszűrés beapcsolva (tisztább spektrum)
-    ::audioController.setSmoothingPoints(5);          // Zajszűrés simítási pontok száma = 5 (erősebb zajszűrés, nincs frekvencia felbontási igény)
-    ::audioController.setManualGain(2.0f);            // Manuális erősítés: a kissebb HF sávszéleség miatt erősítünk rajta
+    ::audioController.setNoiseReductionEnabled(false); // Zajszűrés beapcsolva (tisztább spektrum)
+    ::audioController.setSmoothingPoints(0);           // Zajszűrés simítási pontok száma = 5 (erősebb zajszűrés, nincs frekvencia felbontási igény)
+    ::audioController.setManualGain(1.0f);             // Manuális erősítés: a kissebb HF sávszéleség miatt erősítünk rajta
+    ::audioController.setAgcEnabled(false);            // AGC kikapcsolva
 }
 
 /**

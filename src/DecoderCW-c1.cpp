@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
  * -----                                                                                                               *
- * Last Modified: 2025.11.16, Sunday  09:40:49                                                                         *
+ * Last Modified: 2025.11.17, Monday  07:39:37                                                                         *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -32,7 +32,7 @@
 extern DecodedData decodedData;
 
 // CW működés debug engedélyezése de csak DEBUG módban
-// #define __CW_DEBUG
+#define __CW_DEBUG
 #if defined(__DEBUG) && defined(__CW_DEBUG)
 #define CW_DEBUG(fmt, ...) DEBUG(fmt __VA_OPT__(, ) __VA_ARGS__)
 #else
@@ -80,6 +80,9 @@ bool DecoderCW_C1::start(const DecoderConfig &decoderConfig) {
     initGoertzel();
     resetDecoder();
 
+    // Hann ablak inicializálása a Goertzel blokkokhoz
+    windowApplier.build(GOERTZEL_N, WindowType::Hann, true);
+
     // Publikáljuk a kezdő állapotot
     decodedData.cwCurrentFreq = static_cast<uint16_t>(scanFrequencies_[currentFreqIndex_]);
     decodedData.cwCurrentWpm = 0;
@@ -125,18 +128,18 @@ void DecoderCW_C1::initGoertzel() {
  * @param coeff Goertzel együttható
  * @return Jelszint (magnitude)
  */
-float DecoderCW_C1::processGoertzelBlock(const int16_t *samples, size_t count, float coeff) {
+float DecoderCW_C1::processGoertzelBlock(const float *samples, size_t count, float coeff) {
     float q1 = 0.0f;
     float q2 = 0.0f;
 
     for (size_t i = 0; i < count && i < GOERTZEL_N; i++) {
-        float q0 = coeff * q1 - q2 + (float)samples[i];
+        float q0 = coeff * q1 - q2 + samples[i];
         q2 = q1;
         q1 = q0;
     }
 
     float magnitudeSquared = (q1 * q1) + (q2 * q2) - q1 * q2 * coeff;
-    return sqrt(magnitudeSquared);
+    return sqrtf(magnitudeSquared);
 }
 
 /**
@@ -153,8 +156,12 @@ bool DecoderCW_C1::detectTone(const int16_t *samples, size_t count) {
     // Minden blokkban mérjük a legerősebb frekvenciát
     float maxMagnitude = 0.0f;
     int bestIndex = currentFreqIndex_;
+
+    // Az ablak alkalmazása a mintákra a helyi pufferbe
+    float buf[GOERTZEL_N];
+    windowApplier.apply(samples, buf, GOERTZEL_N);
     for (size_t i = 0; i < FREQ_SCAN_STEPS; i++) {
-        float mag = processGoertzelBlock(samples, count, scanCoeffs_[i]);
+        float mag = processGoertzelBlock(buf, GOERTZEL_N, scanCoeffs_[i]);
         if (mag > maxMagnitude) {
             maxMagnitude = mag;
             bestIndex = i;
@@ -164,13 +171,25 @@ bool DecoderCW_C1::detectTone(const int16_t *samples, size_t count) {
     float magnitude = maxMagnitude;
 
     // --- AGC: threshold_ dinamikus optimalizálása ---
-    agcLevel_ = (1.0f - agcAlpha_) * agcLevel_ + agcAlpha_ * magnitude;
-    threshold_ = agcLevel_ * 0.5f;
-    if (threshold_ < minThreshold_)
+    if (useAdaptiveThreshold_) {
+        agcLevel_ = (1.0f - agcAlpha_) * agcLevel_ + agcAlpha_ * magnitude;
+        threshold_ = agcLevel_ * 0.5f;
+        if (threshold_ < minThreshold_)
+            threshold_ = minThreshold_;
+    } else {
+        // Ha az adaptív küszöb ki van kapcsolva, használjuk a fix minThreshold_-t
         threshold_ = minThreshold_;
+    }
 
     // Tónus detekció küszöb alapján
     bool newToneState = (magnitude > threshold_);
+
+    // Debug: kiíratás a Goertzel magnitúdóról és a használt küszöbről (ritkítottan)
+    static int __cw_dbg_cnt = 0;
+    if (++__cw_dbg_cnt >= 10) {
+        CW_DEBUG("CW-C1: detectTone: mag=%.1f, agcLevel=%.1f, threshold=%.1f, bestIdx=%d\n", magnitude, agcLevel_, threshold_, bestIndex);
+        __cw_dbg_cnt = 0;
+    }
 
     // Ha tónus változás történt, ellenőrizzük a frekvencia követést
     if (newToneState != toneDetected_) {
@@ -202,8 +221,11 @@ void DecoderCW_C1::updateFrequencyTracking() {
     float maxMagnitude = 0.0f;
     uint8_t bestIndex = currentFreqIndex_;
 
+    // Az ablak alkalmazása az utolsó mintákra a helyi pufferbe
+    float buf[GOERTZEL_N];
+    windowApplier.apply(lastSamples, buf, GOERTZEL_N);
     for (size_t i = 0; i < FREQ_SCAN_STEPS; i++) {
-        float magnitude = processGoertzelBlock(lastSamples, GOERTZEL_N, scanCoeffs_[i]);
+        float magnitude = processGoertzelBlock(buf, GOERTZEL_N, scanCoeffs_[i]);
         if (magnitude > maxMagnitude) {
             maxMagnitude = magnitude;
             bestIndex = i;

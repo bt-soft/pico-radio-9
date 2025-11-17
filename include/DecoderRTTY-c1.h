@@ -27,6 +27,7 @@
 
 #include "IDecoder.h"
 #include "RingBuffer.h"
+#include "WindowApplier.h"
 
 /**
  * @brief RTTY dekóder Core1-en
@@ -102,6 +103,10 @@ class DecoderRTTY_C1 : public IDecoder {
     // Debug/diagnosztika
     float lastDominantMagnitude;
     float lastOppositeMagnitude;
+
+    // Windowing helper for Goertzel blocks
+    WindowApplier windowApplier;
+    bool useWindow_ = true;
 
     static const char BAUDOT_LTRS_TABLE[32];
     static const char BAUDOT_FIGS_TABLE[32];

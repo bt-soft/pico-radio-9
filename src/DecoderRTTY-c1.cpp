@@ -22,19 +22,19 @@
  * ----------	---	-------------------------------------------------------------------------------------------------  *
  */
 
-// test decoding: https://www.youtube.com/watch?v=-4UWeo-wSmA
+// teszt dekódolás: https://www.youtube.com/watch?v=-4UWeo-wSmA
 
 #include <cmath>
 
 #include "DecoderRTTY-c1.h"
 #include "defines.h"
 
-// RTTY működés debug engedélyezése de csak DEBUG módban
+// RTTY működés debug engedélyezése, de csak ha __DEBUG definiált
 // #define __RTTY_DEBUG
 #if defined(__DEBUG) && defined(__RTTY_DEBUG)
 #define RTTY_DEBUG(fmt, ...) DEBUG(fmt __VA_OPT__(, ) __VA_ARGS__)
 #else
-#define RTTY_DEBUG(fmt, ...) // Empty macro if __DEBUG is not defined
+#define RTTY_DEBUG(fmt, ...) // Üres makró, ha __DEBUG nincs definiálva
 #endif
 
 extern DecodedData decodedData;
@@ -54,7 +54,7 @@ extern DecodedData decodedData;
 static constexpr float ENVELOPE_ATTACK = 0.05f; // Gyors felfutás
 static constexpr float ENVELOPE_DECAY = 0.001f; // Lassú lecsengés
 
-// Baudot LTRS (Letters) table - ITA2 standard
+// Baudot LTRS (betűk) tábla - ITA2 szabvány
 const char DecoderRTTY_C1::BAUDOT_LTRS_TABLE[32] = {
     '\0', 'E', '\n', 'A',  ' ', 'S', 'I', 'U', // 0-7
     '\r', 'D', 'R',  'J',  'N', 'F', 'C', 'K', // 8-15
@@ -62,7 +62,7 @@ const char DecoderRTTY_C1::BAUDOT_LTRS_TABLE[32] = {
     'O',  'B', 'G',  '\0', 'M', 'X', 'V', '\0' // 24-31 (27=FIGS, 31=LTRS)
 };
 
-// Baudot FIGS (Figures) table - ITA2 standard
+// Baudot FIGS (szimbólumok) tábla - ITA2 szabvány
 const char DecoderRTTY_C1::BAUDOT_FIGS_TABLE[32] = {
     '\0', '3', '\n', '-',  ' ', '\'', '8', '7', // 0-7
     '\r', '$', '4',  '\a', ',', '!',  ':', '(', // 8-15
@@ -110,6 +110,11 @@ bool DecoderRTTY_C1::start(const DecoderConfig &decoderConfig) {
     initializeToneDetector();
     initializePLL();
     resetDecoder();
+
+    // Hann ablak előgenerálása a Goertzel blokkokhoz (ha engedélyezett)
+    if (useWindow_) {
+        windowApplier.build(TONE_BLOCK_SIZE, WindowType::Hann, true);
+    }
 
     // Publikáljuk a paramétereket a DecodedData-ba
     decodedData.rttyMarkFreq = static_cast<uint16_t>(markFreq);
@@ -185,42 +190,71 @@ void DecoderRTTY_C1::resetGoertzelState() {
  * @brief Tone blokkok feldolgozása és PLL frissítés
  */
 void DecoderRTTY_C1::processToneBlock(const int16_t *samples, size_t count) {
-    for (size_t i = 0; i < count; ++i) {
-        float sample = static_cast<float>(samples[i]);
+    // Bejövő mintákat TONE_BLOCK_SIZE blokkokban dolgozunk fel.
+    // Minden teljes blokkot float típusúvá alakítunk, opcionálisan alkalmazzuk a
+    // előre kiszámolt ablakot, majd bin-enként lefuttatjuk a Goertzel algoritmust
+    // a windowolt float pufferre.
+    size_t idx = 0;
+    while (idx < count) {
+        size_t take = std::min((size_t)TONE_BLOCK_SIZE - toneBlockAccumulated, count - idx);
 
-        // Goertzel számítás
-        for (auto &bin : markBins) {
-            float q0 = bin.coeff * bin.q1 - bin.q2 + sample;
-            bin.q2 = bin.q1;
-            bin.q1 = q0;
+        // A bejövő minták másolása egy statikus összegző pufferbe
+        static int16_t accum[TONE_BLOCK_SIZE];
+        for (size_t i = 0; i < take; ++i) {
+            accum[toneBlockAccumulated + i] = samples[idx + i];
         }
-        for (auto &bin : spaceBins) {
-            float q0 = bin.coeff * bin.q1 - bin.q2 + sample;
-            bin.q2 = bin.q1;
-            bin.q1 = q0;
-        }
-
-        toneBlockAccumulated++;
+        toneBlockAccumulated += take;
+        idx += take;
 
         if (toneBlockAccumulated >= TONE_BLOCK_SIZE) {
+            // Float puffer előkészítése és ablak alkalmazása, ha engedélyezett
+            float buf[TONE_BLOCK_SIZE];
+            if (useWindow_) {
+                windowApplier.apply(accum, buf, TONE_BLOCK_SIZE);
+            } else {
+                for (size_t i = 0; i < TONE_BLOCK_SIZE; ++i)
+                    buf[i] = static_cast<float>(accum[i]);
+            }
+
+            // Goertzel futtatása az előkészített pufferen
+            for (auto &bin : markBins) {
+                float q1 = 0.0f;
+                float q2 = 0.0f;
+                for (size_t n = 0; n < TONE_BLOCK_SIZE; ++n) {
+                    float q0 = bin.coeff * q1 - q2 + buf[n];
+                    q2 = q1;
+                    q1 = q0;
+                }
+                float magSq = (q1 * q1) + (q2 * q2) - (q1 * q2 * bin.coeff);
+                bin.magnitude = (magSq > 0.0f) ? sqrtf(magSq) : 0.0f;
+            }
+            for (auto &bin : spaceBins) {
+                float q1 = 0.0f;
+                float q2 = 0.0f;
+                for (size_t n = 0; n < TONE_BLOCK_SIZE; ++n) {
+                    float q0 = bin.coeff * q1 - q2 + buf[n];
+                    q2 = q1;
+                    q1 = q0;
+                }
+                float magSq = (q1 * q1) + (q2 * q2) - (q1 * q2 * bin.coeff);
+                bin.magnitude = (magSq > 0.0f) ? sqrtf(magSq) : 0.0f;
+            }
+
+            // A magnitúdók kiszámítása után: tónus detektálása és PLL előreléptetése
             toneBlockAccumulated = 0;
 
             bool isMark = false;
-            float confidence = 0.0f; // nem használt változó
+            float confidence = 0.0f;
 
             if (detectTone(isMark, confidence)) {
-                // Tone detektálva, frissítsük a PLL-t
                 bool bitSample = false;
                 bool bitReady = false;
-
                 updatePLL(isMark, bitSample, bitReady);
-
                 if (bitReady) {
                     processBit(bitSample);
                 }
-
                 lastToneIsMark = isMark;
-                lastToneConfidence = confidence; // nem használt változó
+                lastToneConfidence = confidence;
             }
 
             resetGoertzelState();
@@ -231,11 +265,11 @@ void DecoderRTTY_C1::processToneBlock(const int16_t *samples, size_t count) {
 /**
  * @brief Tone detektálás a Goertzel eredményekből
  *
- * Implementálja a log domain ATC (Automatic Threshold Control) metódusát:
- * - Envelope tracking (gyors felfutás, lassú lecsengés)
- * - Noise floor tracking
- * - Clipping AGC (limitálja a csúcsokat)
- * - Log domain decision (v3 metódus - a legjobb zajos körülmények között)
+ * Implementálja a log domain ATC (Automatikus Küszöbvezérlés) metódusát:
+ * - Envelope követés (gyors felfutás, lassú lecsengés)
+ * - Zajpadló követés
+ * - Clipping AGC (a csúcsok korlátozása)
+ * - Log domain döntés (v3 metódus - zajos körülményekhez optimalizált)
  */
 bool DecoderRTTY_C1::detectTone(bool &isMark, float &confidence) {
 

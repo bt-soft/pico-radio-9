@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                       *
  * -----                                                                                                               *
- * Last Modified: 2025.11.16, Sunday  09:47:43                                                                         *
+ * Last Modified: 2025.11.17, Monday  07:45:40                                                                         *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -26,6 +26,7 @@
 #include <Arduino.h>
 
 #include "IDecoder.h"
+#include "WindowApplier.h"
 #include "defines.h"
 
 /**
@@ -51,6 +52,8 @@ class DecoderCW_C1 : public IDecoder {
     void stop() override;
 
     void processSamples(const int16_t *rawAudioSamples, size_t count) override;
+    // Dekóder adaptív küszöb használatának beállítása (alapértelmezés: true)
+    void setUseAdaptiveThreshold(bool use) { useAdaptiveThreshold_ = use; }
 
   private:
     // --- Konfiguráció ---
@@ -65,11 +68,17 @@ class DecoderCW_C1 : public IDecoder {
     float goertzelCoeff_;                    // Goertzel együttható
     float goertzelQ1_;
     float goertzelQ2_;
-    float threshold_;             // Jelszint küszöb
-                                  // --- AGC paraméterek ---
-    float agcLevel_ = 2000.0f;    // AGC szint (mozgó átlag)
-    float agcAlpha_ = 0.02f;      // AGC szűrési állandó (lassabb követés)
-    float minThreshold_ = 300.0f; // Minimális threshold_ érték
+    float threshold_; // Jelszint küszöb
+
+    // --- AGC paraméterek ---
+    // Ha true, a dekóder adaptív küszöböt számol (agc-szerű viselkedés)
+    // Ha false, csak a `minThreshold_` értéket használjuk (fix küszöb)
+    bool useAdaptiveThreshold_ = false;
+
+    // AGC runtime paraméterek
+    float agcLevel_ = 2000.0f;   // AGC szint (mozgó átlag)
+    float agcAlpha_ = 0.02f;     // AGC szűrési állandó (lassabb követés)
+    float minThreshold_ = 80.0f; // Minimális threshold_ érték
 
     // --- Frekvencia követés ---
     static constexpr size_t FREQ_SCAN_STEPS = 9; // 9 lépés: -200, -150, -100, -50, 0, +50, +100, +150, +200 Hz
@@ -166,7 +175,11 @@ class DecoderCW_C1 : public IDecoder {
     // --- Segéd függvények ---
     void initGoertzel();
     float calculateGoertzelCoeff(float frequency);
-    float processGoertzelBlock(const int16_t *samples, size_t count, float coeff);
+    float processGoertzelBlock(const float *samples, size_t count, float coeff);
+
+    // Hann ablak a Goertzel blokkok számára (alapértelmezett Hann)
+    WindowApplier windowApplier;
+    bool useWindow_ = true;
     bool detectTone(const int16_t *samples, size_t count);
     void updateFrequencyTracking();
     void processDot();
