@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
  * -----                                                                                                               *
- * Last Modified: 2025.11.16, Sunday  07:52:51                                                                         *
+ * Last Modified: 2025.11.17, Monday  03:49:09                                                                         *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -26,7 +26,7 @@
 #include "Si4735Manager.h"
 
 // RDS működés debug engedélyezése de csak DEBUG módban
-// #define __RDS_DEBUG
+#define __RDS_DEBUG
 #if defined(__DEBUG) && defined(__RDS_DEBUG)
 #define RDS_DEBUG(fmt, ...) DEBUG(fmt __VA_OPT__(, ) __VA_ARGS__)
 #else
@@ -130,48 +130,6 @@ void UICompRDS::setRdsColors(uint16_t stationColor, uint16_t typeColor, uint16_t
         scrollSprite->setTextColor(radioTextColor, backgroundColor);
     }
 }
-
-// ===================================================================
-// Scroll sprite kezelés
-// ===================================================================
-
-// /**
-//  * @brief Radio text feldolgozása - többszörös szóközök kezelése
-//  * @param radioText A feldolgozandó radio text
-//  * @return String A feldolgozott radio text
-//  */
-// String UICompRDS::normalizeRadioText(const String &radioText) {
-//     if (radioText.isEmpty()) {
-//         return radioText;
-//     }
-
-//     String result = radioText;
-//     int spaceCount = 0;
-//     int cutPosition = -1;
-
-//     // Végigmegyünk a stringen és keressük a többszörös szóközöket
-//     for (int i = 0; i < result.length(); i++) {
-//         if (result.charAt(i) == ' ') {
-//             spaceCount++;
-//             // Ha több mint 2 egymás utáni szóköz van
-//             if (spaceCount > 2 && cutPosition == -1) {
-//                 // Az első szóköznél vágjuk le (i - spaceCount + 1 az első szóköz pozíciója)
-//                 cutPosition = i - spaceCount + 1;
-//                 break;
-//             }
-//         } else {
-//             spaceCount = 0; // Reset, ha nem szóköz karakter
-//         }
-//     }
-
-//     // Ha találtunk levágási pontot, levágjuk a stringet
-//     if (cutPosition >= 0) {
-//         result = result.substring(0, cutPosition);
-//         result.trim(); // Eltávolítjuk a felesleges szóközöket a végéről
-//     }
-
-//     return result;
-// }
 
 /**
  * @brief Scroll sprite inicializálása

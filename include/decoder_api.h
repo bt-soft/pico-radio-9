@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
  * -----                                                                                                               *
- * Last Modified: 2025.11.16, Sunday  03:22:56                                                                         *
+ * Last Modified: 2025.11.17, Monday  05:57:03                                                                         *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -148,7 +148,7 @@ struct SharedData {
 // FONTOS: A CW_RAW_SAMPLES_SIZE szabadon változtatható, de a dekóder belsőleg
 //         128 mintás blokkokkal dolgozik (SAMPLES_PER_BLOCK = 128, ez NE változzon!)
 #define CW_AF_BANDWIDTH_HZ 1500 // CW audio sávszélesség (szabadon változtatható)
-#define CW_RAW_SAMPLES_SIZE 256 // CW bemeneti audio minták száma blok (jelenleg egyenlő a belső blokk mérettel)
+#define CW_RAW_SAMPLES_SIZE 128 // CW bemeneti audio minták száma blok (jelenleg egyenlő a belső blokk mérettel)
 
 // RTTY paraméterek
 // Mintavételezési frekvencia a sávszélességből számítódik.
