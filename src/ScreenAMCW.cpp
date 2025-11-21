@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
  * -----                                                                                                               *
- * Last Modified: 2025.11.17, Monday  06:51:28                                                                         *
+ * Last Modified: 2025.11.21, Friday  06:55:03                                                                         *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -235,6 +235,7 @@ void ScreenAMCW::checkDecodedData() {
 
         tft.fillRect(labelX, labelY, labelW, textHeight, TFT_BLACK); // Csak a szöveg magasságát töröljük
         tft.setCursor(labelX, labelY);
+        tft.setFreeFont();
         tft.setTextSize(1);
         tft.setTextColor(TFT_SILVER, TFT_BLACK);
 
