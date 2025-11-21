@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
  * -----                                                                                                               *
- * Last Modified: 2025.11.21, Friday  06:55:03                                                                         *
+ * Last Modified: 2025.11.21, Friday  07:29:31                                                                         *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -119,21 +119,22 @@ void ScreenAMCW::addSpecificHorizontalButtons(std::vector<UIHorizontalButtonBar:
     // CW paraméterek gomb (Params) a Back előtt: megjelenít egy 3-gombos dialógust,
     // amely elindítja a CW tone frequency szerkesztő dialógust és visszatér a szülőhöz.
     constexpr uint8_t CW_PARAMS_BUTTON = 150;
-    buttonConfigs.push_back({CW_PARAMS_BUTTON, "Parms", UIButton::ButtonType::Pushable, UIButton::ButtonState::Off, [this](const UIButton::ButtonEvent &event) {
-                                 if (event.state != UIButton::EventButtonState::Clicked)
-                                     return;
+    buttonConfigs.push_back(
+        {CW_PARAMS_BUTTON, "Parms", UIButton::ButtonType::Pushable, UIButton::ButtonState::Off, [this](const UIButton::ButtonEvent &event) {
+             if (event.state != UIButton::EventButtonState::Clicked)
+                 return;
 
-                                 static const char *options[] = {"Tone"};
-                                 auto paramsDlg = std::make_shared<UIMultiButtonDialog>(this, "CW Params", "Select parameter to edit:", options, 1, nullptr, false);
-                                 paramsDlg->setButtonClickCallback([this, paramsDlg](int idx, const char *label, UIMultiButtonDialog *sender) {
-                                     paramsDlg->close(UIDialogBase::DialogResult::Accepted);
-                                     auto childClosedCb = [this, paramsDlg](UIDialogBase *childSender, UIDialogBase::DialogResult result) { this->showDialog(paramsDlg); };
-                                     if (idx == 0) {
-                                         CWParamDialogs::showCwToneFreqDialog(this, &::config, childClosedCb);
-                                     }
-                                 });
-                                 this->showDialog(paramsDlg);
-                             }});
+             static const char *options[] = {"Tone"};
+             auto paramsDlg = std::make_shared<UIMultiButtonDialog>(this, "CW Params", "Select parameter to edit:", options, 1, nullptr, false);
+             paramsDlg->setButtonClickCallback([this, paramsDlg](int idx, const char *label, UIMultiButtonDialog *sender) {
+                 paramsDlg->close(UIDialogBase::DialogResult::Accepted);
+                 auto childClosedCb = [this, paramsDlg](UIDialogBase *childSender, UIDialogBase::DialogResult result) { this->showDialog(paramsDlg); };
+                 if (idx == 0) {
+                     CWParamDialogs::showCwToneFreqDialog(this, &::config, childClosedCb);
+                 }
+             });
+             this->showDialog(paramsDlg);
+         }});
 
     constexpr uint8_t BACK_BUTTON = 100;
     buttonConfigs.push_back(             //
@@ -174,8 +175,8 @@ void ScreenAMCW::activate() {
     );
     ::audioController.setNoiseReductionEnabled(false); // Zajszűrés beapcsolva (tisztább spektrum)
     ::audioController.setSmoothingPoints(0);           // Zajszűrés simítási pontok száma = 5 (erősebb zajszűrés, nincs frekvencia felbontási igény)
+    ::audioController.setAgcEnabled(false);            // AGC bekapcsolva
     ::audioController.setManualGain(1.0f);             // Manuális erősítés: a kissebb HF sávszéleség miatt erősítünk rajta
-    ::audioController.setAgcEnabled(false);            // AGC kikapcsolva
 }
 
 /**

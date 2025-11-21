@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
  * -----                                                                                                               *
- * Last Modified: 2025.11.17, Monday  07:39:37                                                                         *
+ * Last Modified: 2025.11.21, Friday  07:18:35                                                                         *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -42,10 +42,10 @@ extern DecodedData decodedData;
 // Morse szimbólum tömb inicializálása
 constexpr char DecoderCW_C1::morseSymbols_[128];
 
-/**
+/** 
  * @brief CwDecoderC1 konstruktor - inicializálja az alapértelmezett értékeket
  */
-DecoderCW_C1::DecoderCW_C1()
+DecoderCW_C1::DecoderCW_C1() 
     : samplingRate_(0), targetFreq_(800.0f), goertzelCoeff_(0.0f), goertzelQ1_(0.0f), goertzelQ2_(0.0f), threshold_(2000.0f), currentFreqIndex_(4), toneDetected_(false), leadingEdgeTime_(0), trailingEdgeTime_(0),
       startReference_(200), reference_(200), toneMin_(9999), toneMax_(0), lastElement_(0), currentWpm_(0), toneIndex_(0), symbolIndex_(63), symbolOffset_(32), symbolCount_(0), started_(false), measuring_(false),
       wpmHistoryIndex_(0), freqHistoryCount_(0), lastPublishedWpm_(0), lastPublishedFreq_(0.0f) {
@@ -100,7 +100,7 @@ void DecoderCW_C1::stop() {
     decodedData.cwCurrentWpm = 0;
     decodedData.cwCurrentFreq = 0;
 }
-
+ 
 /**
  * @brief Goertzel együttható számítása adott frekvenciára
  * @param frequency Célfrekvencia Hz-ben

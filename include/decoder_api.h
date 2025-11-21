@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
  * -----                                                                                                               *
- * Last Modified: 2025.11.17, Monday  05:57:03                                                                         *
+ * Last Modified: 2025.11.21, Friday  10:41:10                                                                         *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -95,7 +95,10 @@ struct DecoderConfig {
 #define PIN_AUDIO_INPUT A0 // A0/GPIO26 az FFT audio bemenethez
 
 // ADC paraméterek
-#define ADC_BIT_DEPTH 12
+#define ADC_REFERENCE_VOLTAGE_MV 3300.0f                                           // ADC referencia feszültség mV-ban
+#define ADC_LSB_VOLTAGE_MV ADC_REFERENCE_VOLTAGE_MV / (float)(1 << ADC_BIT_DEPTH); // 1 ADC LSB minta hány mV?
+
+#define ADC_BIT_DEPTH 12                        // ADC felbontás bit-ben
 #define ADC_MIDPOINT (1 << (ADC_BIT_DEPTH - 1)) // DC offset az ADC-hez (2048 a 12 bithez)
 
 // --- Megosztott Adatstruktúrák ---

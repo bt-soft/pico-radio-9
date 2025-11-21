@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
  * -----                                                                                                               *
- * Last Modified: 2025.11.17, Monday  07:19:37                                                                         *
+ * Last Modified: 2025.11.21, Friday  10:44:54                                                                         *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -53,12 +53,12 @@ AudioProcessorC1::AudioProcessorC1()
 
       //-------
       // AGC alapértelmezett értékek inicializálása
-      agcLevel_(2000.0f),       //
-      agcAlpha_(0.02f),         //
-      agcTargetPeak_(20000.0f), //
-      agcMinGain_(0.1f),        //
-      agcMaxGain_(20.0f),       // 20.0
-      currentAgcGain_(1.0f),    //
+      agcLevel_(1000.0f),      //
+      agcAlpha_(0.02f),        //
+      agcTargetPeak_(8000.0f), //
+      agcMinGain_(0.1f),       //
+      agcMaxGain_(100.0f),     // 20.0
+      currentAgcGain_(1.0f),   //
 
       //------------- állítható értékek
       useAgc_(false),    // Alapértelmezetten az AGC ki van kapcsolva
@@ -99,7 +99,8 @@ bool AudioProcessorC1::initialize(const AdcDmaC1::CONFIG &config, bool useFFT, b
 void AudioProcessorC1::start() {
     adcDmaC1.initialize(this->adcConfig);
     is_running = true;
-    ADPROC_DEBUG("core1: AudioProc-c1 start: elindítva, sampleCount=%d, samplingRate=%d Hz, useFFT=%d, is_running=%d\n", adcConfig.sampleCount, adcConfig.samplingRate, useFFT, is_running);
+    ADPROC_DEBUG("core1: AudioProc-c1 start: elindítva, sampleCount=%d, samplingRate=%d Hz, useFFT=%d, is_running=%d\n", adcConfig.sampleCount,
+                 adcConfig.samplingRate, useFFT, is_running);
 }
 
 /**
@@ -125,7 +126,8 @@ void AudioProcessorC1::reconfigureAudioSampling(uint16_t sampleCount, uint16_t s
 
     this->stop();
 
-    ADPROC_DEBUG("AudioProc-c1::reconfigureAudioSampling() HÍVÁS - sampleCount=%d, samplingRate=%d Hz, bandwidthHz=%d Hz\n", sampleCount, samplingRate, bandwidthHz);
+    ADPROC_DEBUG("AudioProc-c1::reconfigureAudioSampling() HÍVÁS - sampleCount=%d, samplingRate=%d Hz, bandwidthHz=%d Hz\n", sampleCount, samplingRate,
+                 bandwidthHz);
 
     const float oversampleFactor = 1.25f;
     uint32_t finalRate = samplingRate;
@@ -170,8 +172,8 @@ void AudioProcessorC1::reconfigureAudioSampling(uint16_t sampleCount, uint16_t s
 
 #ifdef __ADPROC_DEBUG
         // Kiírjuk a FFT-hez kapcsolódó paramétereket
-        uint32_t afBandwidth = bandwidthHz;                                                                                                   // hangfrekvenciás sávszélesség
-        uint16_t bins = (sampleCount / 2);                                                                                                    // bin-ek száma
+        uint32_t afBandwidth = bandwidthHz; // hangfrekvenciás sávszélesség
+        uint16_t bins = (sampleCount / 2);  // bin-ek száma
         ADPROC_DEBUG("AudioProc-c1 Arduino FFT paraméterek: afBandwidth=%u Hz, finalRate=%u Hz, sampleCount=%u, bins=%u, binWidth=%.2f Hz\n", //
                      afBandwidth, finalRate, (unsigned)sampleCount, (unsigned)bins, binWidth);
 #endif
@@ -183,39 +185,40 @@ void AudioProcessorC1::reconfigureAudioSampling(uint16_t sampleCount, uint16_t s
     adcConfig.sampleCount = sampleCount;
     adcConfig.samplingRate = static_cast<uint16_t>(finalRate);
 
-    ADPROC_DEBUG("AudioProc-c1::reconfigureAudioSampling() - adcConfig frissítve: sampleCount=%d, samplingRate=%d Hz\n", adcConfig.sampleCount, adcConfig.samplingRate);
+    ADPROC_DEBUG("AudioProc-c1::reconfigureAudioSampling() - adcConfig frissítve: sampleCount=%d, samplingRate=%d Hz\n", adcConfig.sampleCount,
+                 adcConfig.samplingRate);
     this->start();
 }
 
-/**
- * @brief Ellenőrzi, hogy a bemeneti jel meghaladja-e a küszöbértéket.
- * @param sharedData A SharedData struktúra referencia, amit fel kell tölteni.
- * @return true, ha a jel meghaladja a küszöböt, különben false.
- */
-[[maybe_unused]] // sehol sem használjuk
-bool AudioProcessorC1::checkSignalThreshold(SharedData &sharedData) {
+// /**
+//  * @brief Ellenőrzi, hogy a bemeneti jel meghaladja-e a küszöbértéket.
+//  * @param sharedData A SharedData struktúra referencia, amit fel kell tölteni.
+//  * @return true, ha a jel meghaladja a küszöböt, különben false.
+//  */
+// [[maybe_unused]] // sehol sem használjuk
+// bool AudioProcessorC1::checkSignalThreshold(SharedData &sharedData) {
 
-    int32_t maxAbsRaw = 0;
-    for (int i = 0; i < (int)sharedData.rawSampleCount; ++i) {
-        int32_t v = (int32_t)sharedData.rawSampleData[i];
-        if (v < 0) {
-            v = -v;
-        }
-        if (v > maxAbsRaw) {
-            maxAbsRaw = v;
-        }
-    }
-    // Küszöb: ha a bemenet túl kicsi, akkor ne vegyen fel hamis spektrum-csúcsot.
-    constexpr int32_t RAW_SIGNAL_THRESHOLD = 80; // nyers ADC egységben, hangolandó
-    if (maxAbsRaw < RAW_SIGNAL_THRESHOLD) {
-        // Ha túl kicsi a jel, rögtön jelezzük
-        ADPROC_DEBUG("AudioProc-c1: nincs audió jel (maxAbsRaw=%d) -- FFT kihagyva\n", (int)maxAbsRaw);
-        return false;
-    }
+//     int32_t maxAbsRaw = 0;
+//     for (int i = 0; i < (int)sharedData.rawSampleCount; ++i) {
+//         int32_t v = (int32_t)sharedData.rawSampleData[i];
+//         if (v < 0) {
+//             v = -v;
+//         }
+//         if (v > maxAbsRaw) {
+//             maxAbsRaw = v;
+//         }
+//     }
+//     // Küszöb: ha a bemenet túl kicsi, akkor ne vegyen fel hamis spektrum-csúcsot.
+//     constexpr int32_t RAW_SIGNAL_THRESHOLD = 80; // nyers ADC egységben, hangolandó
+//     if (maxAbsRaw < RAW_SIGNAL_THRESHOLD) {
+//         // Ha túl kicsi a jel, rögtön jelezzük
+//         ADPROC_DEBUG("AudioProc-c1: nincs audió jel (maxAbsRaw=%d) -- FFT kihagyva\n", (int)maxAbsRaw);
+//         return false;
+//     }
 
-    // Jel meghaladja a küszöböt
-    return true;
-}
+//     // Jel meghaladja a küszöböt
+//     return true;
+// }
 
 /**
  * @brief DC komponens eltávolítása és zajszűrés mozgó átlaggal
@@ -238,11 +241,12 @@ bool AudioProcessorC1::checkSignalThreshold(SharedData &sharedData) {
 void AudioProcessorC1::removeDcAndSmooth(const uint16_t *input, int16_t *output, uint16_t count) {
 
     if (!useNoiseReduction_ || smoothingPoints_ == 0) {
+
         // Zajszűrés kikapcsolva - csak DC offset eltávolítás (gyors)
-        // JAVÍTVA: Helyes típuskonverzió uint16_t -> int16_t
-        // Alkalmazzuk a legacy q15 skálázást itt: balra shift (15 - ADC_BIT_DEPTH)
-        // így a sharedData.rawSampleData már azonos numerikus skálán lesz, mint a régi CMSIS-q15 út.
-        const int shift = (15 - ADC_BIT_DEPTH);
+
+        // const uint8_t shift = (15 - ADC_BIT_DEPTH); // x8 lesz, ha ADC_BIT_DEPTH=12
+        const uint8_t shift = 0;
+
         if (shift <= 0) {
             for (uint16_t i = 0; i < count; i++) {
                 output[i] = (int16_t)((int32_t)input[i] - ADC_MIDPOINT);
@@ -250,7 +254,7 @@ void AudioProcessorC1::removeDcAndSmooth(const uint16_t *input, int16_t *output,
         } else {
             for (uint16_t i = 0; i < count; i++) {
                 int32_t val = ((int32_t)input[i] - ADC_MIDPOINT) << shift;
-                // Clamp to int16_t range after shift
+                // Szélsőértékek clamp-elése int16_t tartományra shift után
                 if (val > 32767)
                     val = 32767;
                 if (val < -32768)
@@ -289,18 +293,7 @@ void AudioProcessorC1::removeDcAndSmooth(const uint16_t *input, int16_t *output,
                 divisor++;
             }
 
-            // Alkalmazzuk a skálázást (shift) a simított értékre is
-            const int shift = (15 - ADC_BIT_DEPTH);
-            if (shift <= 0) {
-                output[i] = (int16_t)(sum / divisor);
-            } else {
-                int32_t val = (sum / divisor) << shift;
-                if (val > 32767)
-                    val = 32767;
-                if (val < -32768)
-                    val = -32768;
-                output[i] = (int16_t)val;
-            }
+            output[i] = (int16_t)(sum / divisor);
         }
     } else {
         // 3-pontos mozgó átlag (gyorsabb, enyhébb simítás)
@@ -318,18 +311,7 @@ void AudioProcessorC1::removeDcAndSmooth(const uint16_t *input, int16_t *output,
                 divisor++;
             }
 
-            // Alkalmazzuk a skálázást (shift) a simított értékre is
-            const int shift = (15 - ADC_BIT_DEPTH);
-            if (shift <= 0) {
-                output[i] = (int16_t)(sum / divisor);
-            } else {
-                int32_t val = (sum / divisor) << shift;
-                if (val > 32767)
-                    val = 32767;
-                if (val < -32768)
-                    val = -32768;
-                output[i] = (int16_t)val;
-            }
+            output[i] = (int16_t)(sum / divisor);
         }
     }
 }
@@ -418,7 +400,8 @@ void AudioProcessorC1::applyAgc(int16_t *samples, uint16_t count) {
     // Debug kimenet ritkítva (minden 100. blokkban)
     static uint32_t agcDebugCounter = 0;
     if (++agcDebugCounter >= 100) {
-        ADPROC_DEBUG("AudioProcessorC1::applyAgc: AUTO AGC mode, maxAbs=%d, agcLevel=%.1f, targetGain=%.2f, currentGain=%.2f\n", (int)maxAbs, agcLevel_, targetGain, currentAgcGain_);
+        ADPROC_DEBUG("AudioProcessorC1::applyAgc: AUTO AGC mode, maxAbs=%d, agcLevel=%.1f, targetGain=%.2f, currentGain=%.2f\n", (int)maxAbs, agcLevel_,
+                     targetGain, currentAgcGain_);
         agcDebugCounter = 0;
     }
 #endif
@@ -496,11 +479,12 @@ bool AudioProcessorC1::processAndFillSharedData(SharedData &sharedData) {
 
     // 1. A nyers minták feldolgozása: DC offset eltávolítás + zajszűrés
     sharedData.rawSampleCount = std::min((uint16_t)adcConfig.sampleCount, (uint16_t)MAX_RAW_SAMPLES_SIZE); // Biztonsági ellenőrzés
-    removeDcAndSmooth(completePingPongBufferPtr, sharedData.rawSampleData, sharedData.rawSampleCount);     // DC komponens eltávolítása és opcionális zajszűrés (mozgó átlag simítás)
+    // DC komponens eltávolítása és opcionális zajszűrés (mozgó átlag simítás)
+    this->removeDcAndSmooth(completePingPongBufferPtr, sharedData.rawSampleData, sharedData.rawSampleCount);
 
     // 2. AGC (Automatikus Erősítésszabályozás) vagy manuális gain alkalmazása
     // Ez javítja a dinamikát gyenge jelek esetén, és véd a túlvezéreléstől
-    applyAgc(sharedData.rawSampleData, sharedData.rawSampleCount);
+    this->applyAgc(sharedData.rawSampleData, sharedData.rawSampleCount);
 
     // Ha nem kell FFT (pl. SSTV, WEFAX), akkor nem megyünk tovább
     if (!useFFT) {
@@ -520,18 +504,10 @@ bool AudioProcessorC1::processAndFillSharedData(SharedData &sharedData) {
     // rawSampleData már int16_t DC-mentesített értékek AGC/manual gain után
     // Itt az int16_t -> float konverzió történik, nem lehet a memcpy-t használni
     // A nyers minták már DC-mentesítve és skálázva vannak a removeDcAndSmooth()-ben
-    for (int i = 0; i < adcConfig.sampleCount; i++) {
+    for (uint16_t i = 0; i < adcConfig.sampleCount; i++) {
         vReal[i] = (float)sharedData.rawSampleData[i]; // int16_t -> float (skálázás már megtörtént)
     }
 
-#ifdef __ADPROC_DEBUG
-    // Debug: néhány kezdeti bin érték (ritkán írjuk ki)
-    static uint32_t dbgCounter = 0;
-    if (++dbgCounter >= 100) {
-        ADPROC_DEBUG("AudioProc-c1: firstBins=%.1f,%.1f,%.1f\n", vReal[0], vReal[1], vReal[2]);
-        dbgCounter = 0;
-    }
-#endif
     // Imaginárius rész nullázása (gyors memset)
     memset(vImag.data(), 0, adcConfig.sampleCount * sizeof(float));
 
@@ -584,16 +560,6 @@ bool AudioProcessorC1::processAndFillSharedData(SharedData &sharedData) {
     //     2.0f // erősítés a csúcsnál
     // );
 
-    // // 7.5. Alacsony frekvenciás zajszűrés (300Hz alatt csillapítás)
-    // // Ez javítja a spektrum megjelenítés minőségét
-    // const int attenuation_cutoff_bin = static_cast<int>(LOW_FREQ_ATTENUATION_THRESHOLD_HZ / currentBinWidthHz);
-    // for (int i = 1; i < sharedData.fftSpectrumSize && i < attenuation_cutoff_bin; i++) {
-    //     float oldValue = sharedData.fftSpectrumData[i];
-    //     sharedData.fftSpectrumData[i] /= LOW_FREQ_ATTENUATION_FACTOR;
-    //     ADPROC_DEBUG("AudioProc-c1: FFT bin[%d] alacsony frekvenciás (%.2fHz, %.2fHz) csillapítás: régi érték=%.1f, új érték=%.1f\n", i, i * currentBinWidthHz, currentBinWidthHz, oldValue,
-    //      sharedData.fftSpectrumData[i]);
-    // }
-
     // Az aktuális FFT bin szélesség beállítása a sharedData-ban
     sharedData.fftBinWidthHz = this->currentBinWidthHz;
 
@@ -601,30 +567,39 @@ bool AudioProcessorC1::processAndFillSharedData(SharedData &sharedData) {
 #ifdef __ADPROC_DEBUG
     start = micros();
 #endif
+
+    // Max érték keresése float tömbben (DC bin nélkül, i=1-től indítva) a DC (0. bin) értékét nulláztuk feljebb
     uint32_t maxIndex = 0;
     float maxValue = 0.0f;
-
-    // Keresés float tömbben (DC bin nélkül, i=1-től indítva)
-    for (int i = 1; i < sharedData.fftSpectrumSize; i++) {
+    for (uint16_t i = 1; i < sharedData.fftSpectrumSize; i++) {
         if (sharedData.fftSpectrumData[i] > maxValue) {
             maxValue = sharedData.fftSpectrumData[i];
             maxIndex = i;
         }
     }
+    sharedData.dominantAmplitude = maxValue;
 
-    sharedData.dominantAmplitude = maxValue; // FLOAT → FLOAT (nincs típuskonverzió!)
-    sharedData.dominantFrequency = (adcConfig.samplingRate / adcConfig.sampleCount) * maxIndex;
+    // Domináns frekvencia kiszámítása a bin indexéből Hz-ben
+    float dominantFreqHz = 0.0f;
+    if (adcConfig.sampleCount > 0) {
+        dominantFreqHz = ((float)adcConfig.samplingRate / (float)adcConfig.sampleCount) * (float)maxIndex;
+    }
+    sharedData.dominantFrequency = (uint32_t)dominantFreqHz;
 
 #ifdef __ADPROC_DEBUG
     uint32_t dominantTime = micros() - start;
-    uint32_t totalSum = waitTime + preprocTime + fftTime + dominantTime;
     uint32_t totalTime = (micros() >= methodStartTime) ? (micros() - methodStartTime) : 0;
 
-    // DEBUG kimenet: időmérések olvasható formában - minden 100. iterációban
-    static uint32_t debugCounter = 0;
+    // Futási idők, domináns frekvencia és a csúcsfeszültség (mV) kiírása minden 100. blokkban
+    static uint8_t debugCounter = 0;
     if (++debugCounter >= 100) {
-        ADPROC_DEBUG("AudioProc-c1: Total(micros()-methodStart)=%lu usec, Total(sumParts)=%lu usec, Wait=%lu usec, PreProc=%lu usec, FFT=%lu usec, DomSearch=%lu usec, maxIndex=%d, amp=%.1f\n", //
-                     totalTime, totalSum, waitTime, preprocTime, fftTime, dominantTime, maxIndex, maxValue);
+        const float N = (float)adcConfig.sampleCount;
+        float amp_counts = (N > 0.0f) ? ((2.0f / N) * maxValue) : 0.0f; // egyszerű közelítés a csúcs amplitúdóra (ADC counts)
+        float amp_mV_peak = amp_counts * ADC_LSB_VOLTAGE_MV;            // csúcs amplitúdó mV-ban
+
+        ADPROC_DEBUG("AudioProc-c1: Total=%lu us, Wait=%lu us, PreProc=%lu us, FFT=%lu us, DomSearch=%lu us, DomFreq=%.1f Hz, peak=%.3f mV\n", totalTime,
+                     waitTime, preprocTime, fftTime, dominantTime, dominantFreqHz, amp_mV_peak);
+
         debugCounter = 0;
     }
 #endif
