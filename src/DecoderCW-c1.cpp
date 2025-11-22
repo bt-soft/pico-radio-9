@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
  * -----                                                                                                               *
- * Last Modified: 2025.11.22, Saturday  10:38:39                                                                       *
+ * Last Modified: 2025.11.22, Saturday  10:57:38                                                                       *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -160,8 +160,10 @@ float DecoderCW_C1::processGoertzelBlock(const float *samples, size_t count, flo
  * @return true ha tónus detektálva
  */
 bool DecoderCW_C1::detectTone(const int16_t *samples, size_t count) {
+
+    // Ha nem elég a minta, akkor megtartjuk az előző állapotot
     if (count < GOERTZEL_N) {
-        return toneDetected_; // Nem elég minta, megtartjuk az előző állapotot
+        return toneDetected_;
     }
 
     // Minden blokkban mérjük a legerősebb frekvenciát
@@ -247,7 +249,7 @@ void DecoderCW_C1::updateFrequencyTracking() {
         return; // Még nincs elég minta
     }
 
-    // Keressük meg a legerősebb frekvenciát
+    // Keressük meg a legerősebb frekvenciát (minden index magnitúdójának meghatározása)
     float maxMagnitude = 0.0f;
     uint8_t bestIndex = currentFreqIndex_;
 
@@ -262,19 +264,44 @@ void DecoderCW_C1::updateFrequencyTracking() {
         memcpy(temp + tail, lastSamples_, lastSamplePos_ * sizeof(int16_t));
         windowApplier.apply(temp, buf, GOERTZEL_N);
     }
+
+    // Tároljuk az egyes frekvenciaindexek magnitúdóit, hogy összehasonlíthassuk az aktuálissal
+    float mags[FREQ_SCAN_STEPS] = {0};
     for (size_t i = 0; i < FREQ_SCAN_STEPS; i++) {
         float magnitude = processGoertzelBlock(buf, GOERTZEL_N, scanCoeffs_[i]);
+        mags[i] = magnitude;
         if (magnitude > maxMagnitude) {
             maxMagnitude = magnitude;
             bestIndex = i;
         }
     }
 
-    // Ha változott a frekvencia és a különbség nagyobb mint CHANGE_TONE_THRESHOLD Hz, akkor frissítjük a beállításokat
-    if (bestIndex != currentFreqIndex_ || abs(scanFrequencies_[bestIndex] - scanFrequencies_[currentFreqIndex_]) > CHANGE_TONE_THRESHOLD) {
+    // Döntési logika: csak akkor váltsunk frekvenciát, ha az új magnitúdó elég nagy
+    // és jelentősen nagyobb, mint az aktuális magnitúdó (zajos környezetben elkerüli a fluktuációkat)
+    const float MAG_RATIO = 1.5f; // új magnitúdónak ennyivel kell nagyobbnak lennie
+    float newMag = mags[bestIndex];
+    float curMag = mags[currentFreqIndex_];
+    float freqDiff = fabsf(scanFrequencies_[bestIndex] - scanFrequencies_[currentFreqIndex_]);
+
+    bool shouldSwitch = false;
+    if (bestIndex != currentFreqIndex_) {
+        if (newMag >= CHANGE_TONE_MAG_THRESHOLD && newMag > curMag * MAG_RATIO && freqDiff > CHANGE_TONE_THRESHOLD) {
+            shouldSwitch = true;
+        }
+    }
+
+    if (shouldSwitch) {
         currentFreqIndex_ = bestIndex;
         goertzelCoeff_ = scanCoeffs_[currentFreqIndex_];
-        CW_DEBUG("CW-C1: Frekvencia váltás: %.1f Hz\n", scanFrequencies_[currentFreqIndex_]);
+        CW_DEBUG("CW-C1: Frekvencia váltás: %.1f Hz (mag=%.1f, cur=%.1f)\n", scanFrequencies_[currentFreqIndex_], newMag, curMag);
+    } else {
+        // Nem váltottunk: ritkán debugoljuk, hogy lásd mi történik zajos esetben
+        static int __cw_fs_dbg = 0;
+        if (++__cw_fs_dbg >= 50) {
+            CW_DEBUG("CW-C1: Frekv. nem vált. best=%.1fHz(mag=%.1f) cur=%.1fHz(mag=%.1f) diff=%.1f\n", scanFrequencies_[bestIndex], newMag,
+                     scanFrequencies_[currentFreqIndex_], curMag, freqDiff);
+            __cw_fs_dbg = 0;
+        }
     }
 }
 

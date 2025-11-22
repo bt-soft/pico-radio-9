@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                       *
  * -----                                                                                                               *
- * Last Modified: 2025.11.22, Saturday  10:38:49                                                                       *
+ * Last Modified: 2025.11.22, Saturday  11:05:44                                                                       *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -64,9 +64,8 @@ class DecoderCW_C1 : public IDecoder {
 
   private:
     // --- Konfiguráció ---
-    uint32_t samplingRate_;              // Mintavételezési sebesség (Hz)
-    float targetFreq_;                   // Cél frekvencia (Hz)
-    const float freqTolerance_ = 200.0f; // ±200 Hz frekvencia tolerancia
+    uint32_t samplingRate_; // Mintavételezési sebesség (Hz)
+    float targetFreq_;      // Cél frekvencia (Hz)
     const uint16_t minWpm_ = 5;
     const uint16_t maxWpm_ = 40;
 
@@ -86,7 +85,7 @@ class DecoderCW_C1 : public IDecoder {
     // Kezdeti AGC értékek a gyakoribb mért magnitúdókhoz igazítva
     float agcLevel_ = 30.0f;           // AGC szint (mozgó átlag) - kezdeti tipp a mérések alapján
     float agcAlpha_ = 0.05f;           // AGC szűrési állandó (gyorsabb követés)
-    float minThreshold_ = 20.0f;       // Minimális threshold_ érték, efölött a detectone már jelez, erre kell hangolni a zajos vételt!!
+    float minThreshold_ = 15.0f;       // Minimális threshold_ érték, efölött a detectone már jelez, erre kell hangolni a zajos vételt!!
     const float THRESH_FACTOR = 0.40f; // Jelszint küszöbfaktor - 0,5 alatt érzékenyebb
 
     // Jelzi, hogy az AGC egyszer már inicializálva lett valódi mérésből
@@ -96,7 +95,8 @@ class DecoderCW_C1 : public IDecoder {
     static constexpr size_t FREQ_SCAN_STEPS = 7; // 7 lépés:
     // 7 lépés:  -150, -100, -50, 0, +50, +100, +150 Hz
     static constexpr float FREQ_STEPS[FREQ_SCAN_STEPS] = {-150.0f, -100.0f, -50.0f, 0.0f, 50.0f, 100.0f, 150.0f};
-    static constexpr float CHANGE_TONE_THRESHOLD = 70.0f; // Váltás küszöbértéke
+    static constexpr float CHANGE_TONE_THRESHOLD = 70.0f;     // Váltás küszöbértéke
+    static constexpr float CHANGE_TONE_MAG_THRESHOLD = 10.0f; // Minimális magnitúdó a frekvia váltáshoz
 
     // Frekvencia követéshez szükséges adatok
     float scanFrequencies_[FREQ_SCAN_STEPS];
