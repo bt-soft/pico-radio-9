@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                       *
  * -----                                                                                                               *
- * Last Modified: 2025.11.16, Sunday  09:47:49                                                                         *
+ * Last Modified: 2025.11.22, Saturday  10:10:26                                                                       *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -25,6 +25,7 @@
 #pragma once
 #include <array>
 
+#include "BiquadFilter.h"
 #include "IDecoder.h"
 #include "RingBuffer.h"
 #include "WindowApplier.h"
@@ -41,6 +42,12 @@ class DecoderRTTY_C1 : public IDecoder {
     void stop() override;
     const char *getDecoderName() const override { return "RTTY"; }
     void processSamples(const int16_t *samples, size_t count) override;
+
+    // Sávszűrő engedélyezése / tiltása
+    void enableBandpass(bool enabled) override { useBandpass_ = enabled; }
+
+    // Dekóder resetelése
+    void reset() override { this->resetDecoder(); };
 
   private:
     // RTTY állapotgépe
@@ -73,14 +80,21 @@ class DecoderRTTY_C1 : public IDecoder {
     uint8_t toneBlockAccumulated;
     bool lastToneIsMark;
 
-    // Ha a confidence érték kicsi (pl. < 0.1), akkor a dekóder bizonytalan a döntésben. Ilyenkor eldobhatod vagy figyelmen kívül hagyhatod az adott bitet/blokkot, így kevesebb hibás karakter kerül a kimenetre.
-    // Jelminőség kijelzése: A confidence értéket kiírhatod a debug logba vagy a felhasználói felületre, így látható, mennyire jó a dekódolás minősége.
-    // Adaptív küszöbölés: Ha a confidence tartósan alacsony, automatikusan módosíthatod a zajküszöböt, AGC-t vagy más paramétereket, hogy javítsd a dekódolás minőségét.
-    // Statisztika, hibaarány mérés: Gyűjtheted a confidence értékeket, és ezekből statisztikát készíthetsz a dekódolás megbízhatóságáról, hibaarányról.
-    // Soft-decision dekódolás: Ha nem csak bináris döntést hozol, hanem a confidence alapján súlyozottan dekódolsz (pl. FEC, error correction), akkor a confidence értékek segítenek a hibajavításban.
+    // Ha a confidence érték kicsi (pl. < 0.1), akkor a dekóder bizonytalan a döntésben.
+    // Ilyenkor el lehet dobni vagy figyelmen kívül hagyni az adott bitet/blokkot,
+    // így kevesebb hibás karakter kerül a kimenetre.
+    // -- Jelminőség kijelzése: A confidence értéket ki lehet írni a debug logba vagy a felhasználói
+    //    felületre, így látható, mennyire jó a dekódolás minősége.
+    // -- Adaptív küszöbölés: Ha a confidence tartósan alacsony, automatikusan módosítható a zajküszöb,
+    //    az AGC vagy más paraméter, hogy javítható legyen a dekódolás minőségét.
+    // -- Statisztika, hibaarány mérés: Gyűjthető a confidence értékek, és ezekből statisztikát lehet készíteni
+    //    a dekódolás megbízhatóságáról, hibaarányról.
+    // -- Soft-decision dekódolás: Ha nem csak bináris döntés a cél, hanem a confidence alapján súlyozottan történik
+    //    a dekódolás (pl. FEC, error correction), akkor a confidence értékek segítenek a hibajavításban.
+    //
     float lastToneConfidence; // az utolsó detektált tone döntés biztonsága
-                              // Hibás vagy bizonytalan blokkok szűrése:
 
+    // Hibás vagy bizonytalan blokkok szűrése:
     // Bit Recovery PLL
     static constexpr float PLL_BANDWIDTH = 0.01f; // PLL sávszélesség
     static constexpr float PLL_DAMPING = 0.707f;  // Kritikus csillapítás
@@ -108,11 +122,18 @@ class DecoderRTTY_C1 : public IDecoder {
     WindowApplier windowApplier;
     bool useWindow_ = true;
 
+    // Két külön bandpass szűrő: egy mark-hoz és egy space-hez
+    BiquadBandpass markBandpassFilter_;
+    BiquadBandpass spaceBandpassFilter_;
+    bool useBandpass_ = false; // alapértelmezetten kikapcsolva
+    float bandpassMarkBWHz_;   // a start() számolja ki
+    float bandpassSpaceBWHz_;  // a start() számolja ki
+
+  private:
     static const char BAUDOT_LTRS_TABLE[32];
     static const char BAUDOT_FIGS_TABLE[32];
     char decodeBaudotCharacter(uint8_t baudotCode);
 
-    void resetDecoder();
     void initializeToneDetector();
     void configureToneBins(float centerFreq, std::array<GoertzelBin, BINS_PER_TONE> &bins);
     void resetGoertzelState();
@@ -122,4 +143,5 @@ class DecoderRTTY_C1 : public IDecoder {
     void initializePLL();
     void updatePLL(bool currentTone, bool &bitSample, bool &bitReady);
     void processBit(bool bitValue);
+    void resetDecoder();
 };

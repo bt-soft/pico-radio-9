@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
  * -----                                                                                                               *
- * Last Modified: 2025.11.22, Saturday  06:46:01                                                                       *
+ * Last Modified: 2025.11.22, Saturday  09:55:55                                                                       *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -97,4 +97,10 @@ class IDecoder {
      * @brief Dekóder resetelése
      */
     virtual void reset() { DEBUG("IDecoder::reset - Alapértelmezett üres implementáció\n"); }
+
+    /**
+     * @brief Sávszűrő engedélyezése / tiltása
+     * @param enabled true: engedélyezve, false: letiltva
+     */
+    virtual void enableBandpass(bool enabled) { DEBUG("IDecoder::enableBandpass - Alapértelmezett üres implementáció\n"); }
 };

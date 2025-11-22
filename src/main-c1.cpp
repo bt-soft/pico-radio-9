@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
  * -----                                                                                                               *
- * Last Modified: 2025.11.22, Saturday  09:30:14                                                                       *
+ * Last Modified: 2025.11.22, Saturday  09:51:47                                                                       *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -441,6 +441,18 @@ void processFifoCommands() {
             break;
         }
 
+        case RP2040CommandCode::CMD_AUDIOPROC_SET_SPECTRUM_AVERAGING_COUNT: {
+            uint32_t n = rp2040.fifo.pop();
+            // Biztonsági korlátozás: ha túl nagy érték jön, korlátozzuk (pl. 1..32)
+            if (n == 0)
+                n = 1;
+            if (n > 64)
+                n = 64;
+            audioProcC1.setSpectrumAveragingCount(static_cast<uint8_t>(n));
+            rp2040.fifo.push(RP2040ResponseCode::RESP_ACK);
+            break;
+        }
+
         case RP2040CommandCode::CMD_AUDIOPROC_SET_MANUAL_GAIN: {
             uint32_t gainBits = rp2040.fifo.pop();
             float gain;
@@ -478,6 +490,16 @@ void processFifoCommands() {
             if (activeDecoderCore1 != nullptr) {
                 activeDecoderCore1->reset();
                 CORE1_DEBUG("core-1: CMD_DECODER_RESET - Aktív dekóder resetelve\n");
+            }
+            rp2040.fifo.push(RP2040ResponseCode::RESP_ACK);
+            break;
+        }
+
+        case RP2040CommandCode::CMD_DECODER_SET_BANDPASS_ENABLED: {
+            bool enabled = (rp2040.fifo.pop() != 0);
+            if (activeDecoderCore1 != nullptr) {
+                activeDecoderCore1->enableBandpass(enabled);
+                CORE1_DEBUG("core-1: CMD_DECODER_SET_BANDPASS_ENABLED -> %d\n", enabled);
             }
             rp2040.fifo.push(RP2040ResponseCode::RESP_ACK);
             break;

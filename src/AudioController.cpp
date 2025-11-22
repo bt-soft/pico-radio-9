@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
  * -----                                                                                                               *
- * Last Modified: 2025.11.22, Saturday  06:59:33                                                                       *
+ * Last Modified: 2025.11.22, Saturday  10:01:21                                                                       *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -140,6 +140,34 @@ bool AudioController::setUseFftEnabled(bool enabled) {
     rp2040.fifo.push(RP2040CommandCode::CMD_AUDIOPROC_SET_USE_FFT_ENABLED);
     rp2040.fifo.push(enabled ? 1 : 0);
     return rp2040.fifo.pop() == RP2040ResponseCode::RESP_ACK; // ACK jött?
+}
+
+/**
+ * @brief Beállítja a spektrum nem-koherens átlagolásának keretszámát a Core1-en.
+ * @param n Az átlagolandó keretek száma (1 = nincs átlagolás)
+ */
+bool AudioController::setSpectrumAveragingCount(uint32_t n) {
+    if (n == 0) {
+        n = 1;
+        DEBUG("AudioController: setSpectrumAveragingCount() - n érték beállítva 1-re (nincs átlagolás)\n");
+    }
+    if (n > 8) {
+        n = 8; // Maximum korlátozás
+        DEBUG("AudioController: setSpectrumAveragingCount() - n érték korlátozva 8-ra\n");
+    }
+    rp2040.fifo.push(RP2040CommandCode::CMD_AUDIOPROC_SET_SPECTRUM_AVERAGING_COUNT);
+    rp2040.fifo.push(n);
+    return rp2040.fifo.pop() == RP2040ResponseCode::RESP_ACK;
+}
+
+/**
+ * @brief Engedélyezi vagy tiltja a dekóder oldali bandpass szűrőt a Core1-en.
+ * @param enabled true = engedélyez, false = tiltás
+ */
+bool AudioController::setDecoderBandpassEnabled(bool enabled) {
+    rp2040.fifo.push(RP2040CommandCode::CMD_DECODER_SET_BANDPASS_ENABLED);
+    rp2040.fifo.push(enabled ? 1 : 0);
+    return rp2040.fifo.pop() == RP2040ResponseCode::RESP_ACK;
 }
 
 /**

@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
  * -----                                                                                                               *
- * Last Modified: 2025.11.22, Saturday  04:59:30                                                                       *
+ * Last Modified: 2025.11.22, Saturday  09:26:16                                                                       *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -51,8 +51,10 @@ DecoderCW_C1::DecoderCW_C1()
       toneIndex_(0), symbolIndex_(63), symbolOffset_(32), symbolCount_(0), started_(false), measuring_(false), wpmHistoryIndex_(0), lastPublishedWpm_(0) {
     memset(toneDurations_, 0, sizeof(toneDurations_));
     memset(wpmHistory_, 0, sizeof(wpmHistory_));
-    // Initialize sliding buffer for frequency tracking
+
+    // Inicializáljuk a csúszó puffer a frekvencia követéséhez
     memset(lastSamples_, 0, sizeof(lastSamples_));
+
     // A `processSamples()` által feltöltött csúszó puffer használata
     lastSampleCount_ = 0;
     lastSamplePos_ = 0;
@@ -69,6 +71,12 @@ bool DecoderCW_C1::start(const DecoderConfig &decoderConfig) {
 
     samplingRate_ = decoderConfig.samplingRate;
     targetFreq_ = decoderConfig.cwCenterFreqHz > 0 ? (float)decoderConfig.cwCenterFreqHz : 800.0f;
+
+    // Ha engedélyezve: a bandpass szűrő inicializálása
+    if (useBandpass_) {
+        // A targetFreq-et használjuk centerként, 60 Hz sávszélességgel
+        bandpassFilter_.init((float)samplingRate_, targetFreq_, 60.0f);
+    }
 
     // Egyszerűsítés: nem inicializálunk több frekvenciát, csak a célt használjuk.
     goertzelCoeff_ = calculateGoertzelCoeff(targetFreq_);
@@ -150,9 +158,15 @@ bool DecoderCW_C1::detectTone(const int16_t *samples, size_t count) {
         return toneDetected_;
     }
 
-    // Egyszerűsítés: csak a konfigurált frekvenciára nézzük a magnitude-ot
+    // Alap: lehetőségnk, hogy előszűrjük a mintát keskeny sávú bandpass-szal a targetFreq körül
     float buf[GOERTZEL_N];
-    windowApplier.apply(samples, buf, GOERTZEL_N);
+    int16_t filtered[GOERTZEL_N];
+    if (useBandpass_ && bandpassFilter_.isInitialized()) {
+        bandpassFilter_.processInPlace(samples, filtered, GOERTZEL_N);
+        windowApplier.apply(filtered, buf, GOERTZEL_N);
+    } else {
+        windowApplier.apply(samples, buf, GOERTZEL_N);
+    }
     float magnitude = processGoertzelBlock(buf, GOERTZEL_N, goertzelCoeff_);
 
     // --- AGC: threshold_ dinamikus optimalizálása ---

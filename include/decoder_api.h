@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
  * -----                                                                                                               *
- * Last Modified: 2025.11.22, Saturday  07:35:39                                                                       *
+ * Last Modified: 2025.11.22, Saturday  09:51:47                                                                       *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -51,18 +51,20 @@ enum RP2040CommandCode : uint32_t {
     CMD_GET_SAMPLING_RATE, //  mintavételezési sebesség lekérésére
 
     // AudioProcessor specifikus parancsok
-    CMD_AUDIOPROC_SET_BLOCKING_DMA_MODE,       // ADC DMA blokkoló/nem-blokkoló mód beállítása
-    CMD_AUDIOPROC_SET_AGC_ENABLED,             // AudioProcessor AGC engedélyezése
-    CMD_AUDIOPROC_SET_NOISE_REDUCTION_ENABLED, // AudioProcessor zajcsökkentés engedélyezése
-    CMD_AUDIOPROC_SET_SMOOTHING_POINTS,        // AudioProcessor zajcsökkentés simítási pontjainak beállítása
-    CMD_AUDIOPROC_SET_MANUAL_GAIN,             // AudioProcessor manuális erősítés beállítása
-    CMD_AUDIOPROC_SET_USE_FFT_ENABLED,         // AudioProcessor FFT engedélyezés beállítása
-    CMD_AUDIOPROC_GET_USE_FFT_ENABLED,         // AudioProcessor FFT engedélyezés lekérdezése
+    CMD_AUDIOPROC_SET_BLOCKING_DMA_MODE,        // ADC DMA blokkoló/nem-blokkoló mód beállítása
+    CMD_AUDIOPROC_SET_AGC_ENABLED,              // AudioProcessor AGC engedélyezése
+    CMD_AUDIOPROC_SET_NOISE_REDUCTION_ENABLED,  // AudioProcessor zajcsökkentés engedélyezése
+    CMD_AUDIOPROC_SET_SMOOTHING_POINTS,         // AudioProcessor zajcsökkentés simítási pontjainak beállítása
+    CMD_AUDIOPROC_SET_MANUAL_GAIN,              // AudioProcessor manuális erősítés beállítása
+    CMD_AUDIOPROC_SET_SPECTRUM_AVERAGING_COUNT, // AudioProcessor spektrum nem-koherens átlagolási keretszámának beállítása
+    CMD_AUDIOPROC_SET_USE_FFT_ENABLED,          // AudioProcessor FFT engedélyezés beállítása
+    CMD_AUDIOPROC_GET_USE_FFT_ENABLED,          // AudioProcessor FFT engedélyezés lekérdezése
 
     // Dekóder specifikus parancsok
     CMD_DECODER_SET_USE_ADAPTIVE_THRESHOLD, // Dekóder adaptív küszöb használatának beállítása
     CMD_DECODER_GET_USE_ADAPTIVE_THRESHOLD, // Dekóder adaptív küszöb lekérdezése
     CMD_DECODER_RESET,                      // Dekóder reset parancs
+    CMD_DECODER_SET_BANDPASS_ENABLED,       // Dekóder sávszűrő engedélyezés/tiltás
 };
 
 /**

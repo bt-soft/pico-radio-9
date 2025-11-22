@@ -68,6 +68,10 @@ class AudioController {
     // FFT vezérlés
     bool setUseFftEnabled(bool enabled);
     bool getUseFftEnabled();
+    // Spektrális átlagolás beállítása (1 = nincs átlagolás)
+    bool setSpectrumAveragingCount(uint32_t n);
+    // Engedélyezi/tiltja a dekóder oldali bandpass szűrőt (ha a dekóder implementálja)
+    bool setDecoderBandpassEnabled(bool enabled);
 
   private:
     DecoderId activeDecoderCore0 = ID_DECODER_NONE;

@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
  * -----                                                                                                               *
- * Last Modified: 2025.11.16, Sunday  03:31:17                                                                         *
+ * Last Modified: 2025.11.22, Saturday  10:19:26                                                                       *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -31,7 +31,8 @@
 /**
  * @brief ScreenAMRTTY konstruktor
  */
-ScreenAMRTTY::ScreenAMRTTY() : ScreenAMRadioBase(SCREEN_NAME_DECODER_RTTY), lastPublishedRttyMark(0), lastPublishedRttySpace(0), lastPublishedRttyBaud(0.0f), lastRTTYDisplayUpdate(0) {
+ScreenAMRTTY::ScreenAMRTTY()
+    : ScreenAMRadioBase(SCREEN_NAME_DECODER_RTTY), lastPublishedRttyMark(0), lastPublishedRttySpace(0), lastPublishedRttyBaud(0.0f), lastRTTYDisplayUpdate(0) {
     // UI komponensek létrehozása és elhelyezése
     layoutComponents();
 }
@@ -110,55 +111,73 @@ void ScreenAMRTTY::addSpecificHorizontalButtons(std::vector<UIHorizontalButtonBa
     // megjelenít egy 3 gombos dialógust (Mark / Space / Baud), amely elindítja
     // a megfelelő paraméter dialógust, és a gyerek bezárásakor visszaállítja
     // a 3 gombos szülő dialógust (ahogy a ScreenTest-ben látható).
-    constexpr uint8_t RTTY_PARAMS_BUTTON = 150;
-    buttonConfigs.push_back({RTTY_PARAMS_BUTTON, "Parms", UIButton::ButtonType::Pushable, UIButton::ButtonState::Off, [this](const UIButton::ButtonEvent &event) {
-                                 if (event.state != UIButton::EventButtonState::Clicked)
-                                     return;
+    buttonConfigs.push_back(                          //
+        {                                             //
+         150,                                         // ID
+         "Parms",                                     // Címke
+         UIButton::ButtonType::Pushable,              // Típus
+         UIButton::ButtonState::Off,                  // Állapot
+         [this](const UIButton::ButtonEvent &event) { // lambda callback
+             if (event.state != UIButton::EventButtonState::Clicked) {
+                 return;
+             }
 
-                                 static const char *options[] = {"Mark", "Space", "Baud"};
+             // RTTY Paraméterek gomb megnyomva -> megjelenítjük a 3 gombos dialógust
+             static const char *options[] = {"Mark", "Space", "Baud"};
 
-                                 // Létrehozzuk a szülő 3-gombos dialógust automatikus bezárás nélkül,
-                                 // így manuálisan tudjuk bezárni, amikor gyereket nyitunk, majd
-                                 // újra megjeleníteni, amikor a gyerek bezáródik.
-                                 auto paramsDlg = std::make_shared<UIMultiButtonDialog>(this, "RTTY Params", "Select parameter to edit:", options, 3,
-                                                                                        nullptr, // callback set later
-                                                                                        false    // autoClose = false
-                                 );
+             // Létrehozzuk a szülő 3-gombos dialógust automatikus bezárás nélkül,
+             // így manuálisan tudjuk bezárni, amikor gyereket nyitunk, majd
+             // újra megjeleníteni, amikor a gyerek bezáródik.
+             auto paramsDlg = std::make_shared<UIMultiButtonDialog>( //
+                 this,                                               // szülő képernyő
+                 "RTTY Params",                                      // cím
+                 "Select parameter to edit:",                        // üzenet
+                 options,                                            // gombok
+                 3,                                                  // gombok száma
+                 nullptr,                                            // a callback-ot később állítjuk be
+                 false                                               // autoClose = false
+             );
 
-                                 // Beállítjuk a gombkattintás callback-et (capture shared_ptr)
-                                 paramsDlg->setButtonClickCallback([this, paramsDlg](int idx, const char *label, UIMultiButtonDialog *sender) {
-                                     // Bezárjuk a szülő dialógust, hogy helyet adjunk a gyerek dialógusnak
-                                     paramsDlg->close(UIDialogBase::DialogResult::Accepted);
+             // Beállítjuk a gombkattintás callback-et (capture shared_ptr)
+             paramsDlg->setButtonClickCallback([this, paramsDlg](int idx, const char *label, UIMultiButtonDialog *sender) {
+                 // Bezárjuk a szülő dialógust, hogy helyet adjunk a gyerek dialógusnak
+                 paramsDlg->close(UIDialogBase::DialogResult::Accepted);
 
-                                     // A gyerek bezárulásakor a callback újra megjeleníti a szülő dialógust
-                                     auto childClosedCb = [this, paramsDlg](UIDialogBase *childSender, UIDialogBase::DialogResult result) {
-                                         // Nullázzuk az időzítőt, hogy a következő ciklusban azonnal frissüljön a kiírás
-                                         this->lastRTTYDisplayUpdate = 0;
-                                         // A gyerek bezárulása után a szülő 3-gombos dialógust újra megjelenítjük
-                                         this->showDialog(paramsDlg);
-                                     };
+                 // A gyerek bezárulásakor a callback újra megjeleníti a szülő dialógust
+                 auto childClosedCb = [this, paramsDlg](UIDialogBase *childSender, UIDialogBase::DialogResult result) {
+                     // Nullázzuk az időzítőt, hogy a következő ciklusban azonnal frissüljön a kiírás
+                     this->lastRTTYDisplayUpdate = 0;
 
-                                     // Elindítjuk a kiválasztott paraméter dialógust
-                                     if (idx == 0) { // Mark
-                                         RTTYParamDialogs::showMarkFreqDialog(this, &::config, childClosedCb);
-                                     } else if (idx == 1) { // Space
-                                         RTTYParamDialogs::showSpaceFreqDialog(this, &::config, childClosedCb);
-                                     } else if (idx == 2) { // Baud
-                                         RTTYParamDialogs::showBaudRateDialog(this, &::config, childClosedCb);
-                                     }
-                                 });
+                     // A gyerek bezárulása után a szülő 3-gombos dialógust újra megjelenítjük
+                     this->showDialog(paramsDlg);
+                 };
 
-                                 // Megjelenítjük a szülő dialógust
-                                 this->showDialog(paramsDlg);
-                             }});
+                 // Elindítjuk a kiválasztott paraméter dialógust
+                 if (idx == 0) { // Mark
+                     RTTYParamDialogs::showMarkFreqDialog(this, &::config, childClosedCb);
+                 } else if (idx == 1) { // Space
+                     RTTYParamDialogs::showSpaceFreqDialog(this, &::config, childClosedCb);
+                 } else if (idx == 2) { // Baud
+                     RTTYParamDialogs::showBaudRateDialog(this, &::config, childClosedCb);
+                 }
+             });
+
+             // Megjelenítjük a szülő dialógust
+             this->showDialog(paramsDlg);
+         }});
 
     // Back button
-    constexpr uint8_t BACK_BUTTON = 100;
-    buttonConfigs.push_back({BACK_BUTTON, "Back", UIButton::ButtonType::Pushable, UIButton::ButtonState::Off, [this](const UIButton::ButtonEvent &event) {
-                                 if (getScreenManager()) {
-                                     getScreenManager()->goBack();
-                                 }
-                             }});
+    buttonConfigs.push_back(                          //
+        {                                             //
+         100,                                         // ID
+         "Back",                                      // Címke
+         UIButton::ButtonType::Pushable,              //  Típus
+         UIButton::ButtonState::Off,                  // Kezdeti állapot
+         [this](const UIButton::ButtonEvent &event) { // lambda callback
+             if (getScreenManager()) {
+                 getScreenManager()->goBack();
+             }
+         }});
 }
 
 /**
@@ -186,6 +205,16 @@ void ScreenAMRTTY::activate() {
         config.data.rttyShiftFrequencyHz,   // RTTY Space frekvencia
         config.data.rttyBaudRate            // RTTY Baud rate
     );
+
+    // AudioProc-C1 beállítások az RTTY módhoz
+    ::audioController.setNoiseReductionEnabled(false); // Zajszűrés kikapcsolva (tisztább spektrum)
+    ::audioController.setSmoothingPoints(0);           // Zajszűrés simítási pontok száma = 5 (erősebb zajszűrés, nincs frekvencia felbontási igény)
+    ::audioController.setAgcEnabled(false);            // AGC kikapcsolva
+    ::audioController.setManualGain(1.0f);             // Manuális erősítés: a kissebb HF sávszéleség miatt erősítünk rajta
+    ::audioController.setSpectrumAveragingCount(2);    // Spektrum nem-koherens átlagolás: 2 keret átlagolása
+
+    // RTTY Dekóder specifikus beállítások
+    ::audioController.setDecoderBandpassEnabled(true); // Engedélyezzük a dekóder oldali bandpass szűrőt
 
     // RTTY infókat frissítsük!
     lastRTTYDisplayUpdate = 0;

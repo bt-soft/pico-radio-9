@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                       *
  * -----                                                                                                               *
- * Last Modified: 2025.11.22, Saturday  04:41:10                                                                       *
+ * Last Modified: 2025.11.22, Saturday  10:06:03                                                                       *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -25,6 +25,7 @@
 #pragma once
 #include <Arduino.h>
 
+#include "BiquadFilter.h"
 #include "IDecoder.h"
 #include "WindowApplier.h"
 #include "defines.h"
@@ -60,7 +61,14 @@ class DecoderCW_C1 : public IDecoder {
         if (!use)
             agcInitialized_ = false;
     }
+
+    // Dekóder adaptív küszöb lekérdezése
     inline bool getUseAdaptiveThreshold() const override { return useAdaptiveThreshold_; }
+
+    // Sávszűrő engedélyezése / tiltása
+    void enableBandpass(bool enabled) override { useBandpass_ = enabled; }
+
+    void reset() override { this->resetDecoder(); };
 
   private:
     // --- Konfiguráció ---
@@ -193,10 +201,15 @@ class DecoderCW_C1 : public IDecoder {
     // Hysteresis / debounce számlálók a zajos jel miatt fellépő flicker csökkentésére
     uint8_t consecutiveAboveCount_ = 0; // hány egymás utáni blokk volt a küszöb fölött
     uint8_t consecutiveBelowCount_ = 0; // hány egymás utáni blokk volt a küszöb alatt
+
+    // Keskenysávú sávszűrő a célfrekvencia körül
+    BiquadBandpass bandpassFilter_;
+    bool useBandpass_ = false; // sávszűrő tiltva
+
     void processDot();
     void processDash();
     bool decodeSymbol();
-    void resetDecoder();
     void calculateWpm(unsigned long letterDuration);
     void updateTracking(unsigned long dit, unsigned long dah);
+    void resetDecoder();
 };

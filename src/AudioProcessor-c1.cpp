@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
  * -----                                                                                                               *
- * Last Modified: 2025.11.22, Saturday  04:07:49                                                                       *
+ * Last Modified: 2025.11.22, Saturday  09:46:27                                                                       *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -182,6 +182,14 @@ void AudioProcessorC1::reconfigureAudioSampling(uint16_t sampleCount, uint16_t s
         this->currentBinWidthHz = binWidth;
     }
 
+    // Átlagoló puffer inicializálása ha szükséges (az előző tartalom törlése)
+    if (useFFT) {
+        uint16_t spectrumSize = (sampleCount / 2);
+        avgBuffer.clear();
+        avgBuffer.resize(spectrumSize * spectrumAveragingCount_, 0.0f);
+        avgWriteIndex_ = 0;
+    }
+
     adcConfig.sampleCount = sampleCount;
     adcConfig.samplingRate = static_cast<uint16_t>(finalRate);
 
@@ -210,10 +218,10 @@ bool AudioProcessorC1::checkSignalThreshold(int16_t *samples, uint16_t count) {
     if (maxAbsRaw < RAW_SIGNAL_THRESHOLD) {
 #ifdef __ADPROC_DEBUG
         // Ha túl kicsi a jel akkor azt jelezzük
-        static uint8_t tresholdDebugCounter = 0;
-        if (++tresholdDebugCounter >= 100) {
+        static uint8_t thresholdDebugCounter = 0;
+        if (++thresholdDebugCounter >= 100) {
             ADPROC_DEBUG("AudioProc-c1: nincs audió jel (maxAbsRaw=%d) -- FFT kihagyva\n", (int)maxAbsRaw);
-            tresholdDebugCounter = 0;
+            thresholdDebugCounter = 0;
         }
 #endif
         return false;
@@ -551,6 +559,71 @@ bool AudioProcessorC1::processAndFillSharedData(SharedData &sharedData) {
     // Ez javítja a dinamikát gyenge jelek esetén, és véd a túlvezéreléstől
     this->applyAgc(sharedData.rawSampleData, sharedData.rawSampleCount);
 
+    // Másolat mentése a feldolgozott nyers mintákról segéd detektorokhoz (Goertzel stb.)
+    lastRawSamples.resize(sharedData.rawSampleCount);
+    memcpy(lastRawSamples.data(), sharedData.rawSampleData, sharedData.rawSampleCount * sizeof(int16_t));
+    lastRawSampleCount = sharedData.rawSampleCount;
+
+#ifdef __ADPROC_DEBUG
+    // --- Gyors mérés: RMS, maxAbs, medián zajbecslés, SNR becslés ---
+    auto computeRms = [](const int16_t *buf, uint16_t n) -> float {
+        double sumsq = 0.0;
+        for (uint16_t i = 0; i < n; ++i) {
+            double v = (double)buf[i];
+            sumsq += v * v;
+        }
+        return (n > 0) ? (float)sqrt(sumsq / (double)n) : 0.0f;
+    };
+
+    auto computeMaxAbs = [](const int16_t *buf, uint16_t n) -> int32_t {
+        int32_t m = 0;
+        for (uint16_t i = 0; i < n; ++i) {
+            int32_t a = std::abs((int32_t)buf[i]);
+            if (a > m)
+                m = a;
+        }
+        return m;
+    };
+
+    auto computeMedianAbs = [](int16_t *work, const int16_t *buf, uint16_t n) -> float {
+        // copy absolute values to work (caller must provide buffer length >= n)
+        for (uint16_t i = 0; i < n; ++i)
+            work[i] = (int16_t)std::abs((int32_t)buf[i]);
+        // simple nth_element for median
+        uint16_t mid = n / 2;
+        std::nth_element(work, work + mid, work + n);
+        if (n % 2 == 1)
+            return (float)work[mid];
+        // even -> average two
+        int16_t a = work[mid];
+        std::nth_element(work, work + mid - 1, work + n);
+        int16_t b = work[mid - 1];
+        return ((float)a + (float)b) * 0.5f;
+    };
+
+    // Metrikák számítása minden 50. blokknál, hogy ne árasztson el minket a debug
+    static uint16_t debugCounter = 0;
+    if (++debugCounter >= 50) {
+        debugCounter = 0;
+        float rms = computeRms(sharedData.rawSampleData, sharedData.rawSampleCount);
+        int32_t maxAbs = computeMaxAbs(sharedData.rawSampleData, sharedData.rawSampleCount);
+
+        // reuse local stack array for median (safe size check)
+        static std::vector<int16_t> medianWork;
+        medianWork.resize(sharedData.rawSampleCount);
+        float medianAbs = computeMedianAbs(medianWork.data(), sharedData.rawSampleData, sharedData.rawSampleCount);
+
+        // crude SNR estimate: assume signal peak ~ maxAbs, noise ~ medianAbs
+        float snr_db = 0.0f;
+        if (medianAbs > 0.0f) {
+            float ratio = ((float)maxAbs) / medianAbs;
+            snr_db = 20.0f * log10f(ratio);
+        }
+
+        ADPROC_DEBUG("AudioProc-c1 METRICS: rms=%.1f, maxAbs=%ld, medianAbs=%.1f, estSNR(dB)=%.2f\n", rms, (long)maxAbs, medianAbs, snr_db);
+    }
+#endif
+
     // Ha nem kell FFT (pl. SSTV, WEFAX), akkor nem megyünk tovább
     if (!useFFT) {
         sharedData.fftSpectrumSize = 0;      // nincs spektrum
@@ -609,12 +682,41 @@ bool AudioProcessorC1::processAndFillSharedData(SharedData &sharedData) {
 #endif
 
     // Arduino FFT után a vReal tömb tartalmazza a magnitude értékeket
-    // Átmásoljuk a SharedData-ba memcpy-val
+    // Nem-koherens spektrális átlagolás: az aktuális magnitúdó-keret mentése a körkörös avgBufferbe
     uint16_t spectrumSize = adcConfig.sampleCount / 2;
     sharedData.fftSpectrumSize = std::min(spectrumSize, (uint16_t)MAX_FFT_SPECTRUM_SIZE);
-    memcpy(sharedData.fftSpectrumData, vReal.data(), sharedData.fftSpectrumSize * sizeof(float));
 
-    // DC bin (bin[0]) nullázása, ezt úgy sem használjuk
+    if (spectrumAveragingCount_ <= 1) {
+        // Nincs átlagolás, közvetlen átmásolás
+        memcpy(sharedData.fftSpectrumData, vReal.data(), sharedData.fftSpectrumSize * sizeof(float));
+    } else {
+        // ensure avgBuffer size
+        if (avgBuffer.size() < (size_t)spectrumAveragingCount_ * (size_t)spectrumSize) {
+            avgBuffer.clear();
+            avgBuffer.resize((size_t)spectrumAveragingCount_ * (size_t)spectrumSize, 0.0f);
+            avgWriteIndex_ = 0;
+        }
+
+        // write current frame into avgBuffer at avgWriteIndex_
+        size_t base = (size_t)avgWriteIndex_ * (size_t)spectrumSize;
+        for (uint16_t i = 0; i < sharedData.fftSpectrumSize; ++i) {
+            avgBuffer[base + i] = vReal[i];
+        }
+
+        // átlagolás számítása a keretek között
+        for (uint16_t i = 0; i < sharedData.fftSpectrumSize; ++i) {
+            float sum = 0.0f;
+            for (uint8_t k = 0; k < spectrumAveragingCount_; ++k) {
+                sum += avgBuffer[(size_t)k * (size_t)spectrumSize + i];
+            }
+            sharedData.fftSpectrumData[i] = sum / (float)spectrumAveragingCount_;
+        }
+
+        // advance circular index
+        avgWriteIndex_ = (uint8_t)((avgWriteIndex_ + 1) % spectrumAveragingCount_);
+    }
+
+    // DC bin (bin[0]) nullázása, ezt nem használjuk
     if (sharedData.fftSpectrumSize > 0) {
         sharedData.fftSpectrumData[0] = 0.0f;
     }
@@ -650,8 +752,8 @@ bool AudioProcessorC1::processAndFillSharedData(SharedData &sharedData) {
     uint32_t totalTime = (micros() >= methodStartTime) ? (micros() - methodStartTime) : 0;
 
     // Futási idők, domináns frekvencia és a csúcsfeszültség (mV) kiírása minden 100. blokkban
-    static uint8_t debugCounter = 0;
-    if (++debugCounter >= 100) {
+    static uint8_t runDebugCounter = 0;
+    if (++runDebugCounter >= 100) {
 
         const float N = (float)adcConfig.sampleCount;
         float amp_counts = (N > 0.0f) ? ((2.0f / N) * maxValue) : 0.0f; // egyszerű közelítés a csúcs amplitúdóra (ADC counts)
@@ -661,7 +763,7 @@ bool AudioProcessorC1::processAndFillSharedData(SharedData &sharedData) {
             "AudioProc-c1: Total=%lu us, Wait=%lu us, PreProc=%lu us, FFT=%lu us, DomSearch=%lu us, DomFreq=%.1f Hz, amp=%.3f (counts), peak=%.3f mV\n",
             totalTime, waitTime, preprocTime, fftTime, dominantTime, dominantFreqHz, amp_counts, amp_mV_peak);
 
-        debugCounter = 0;
+        runDebugCounter = 0;
     }
 #endif
 
@@ -671,4 +773,61 @@ bool AudioProcessorC1::processAndFillSharedData(SharedData &sharedData) {
     }
 
     return true;
+}
+
+/**
+ * @brief Beállítja a spektrum átlagolásának keretszámát.
+ * @param n Az átlagolandó keretek száma (1 = nincs átlagolás)
+ */
+void AudioProcessorC1::setSpectrumAveragingCount(uint8_t n) {
+    if (n == 0) {
+        n = 1;
+    }
+
+    spectrumAveragingCount_ = n;
+    if (currentFftSize > 0 && useFFT) {
+        uint16_t spectrumSizeLocal = currentFftSize / 2;
+        avgBuffer.clear();
+        avgBuffer.resize((size_t)spectrumAveragingCount_ * (size_t)spectrumSizeLocal, 0.0f);
+        avgWriteIndex_ = 0;
+    }
+}
+
+/**
+ * @brief Lekéri a spektrum átlagolásának keretszámát.
+ * @return Az átlagolandó keretek száma (1 = nincs átlagolás)
+ */
+uint8_t AudioProcessorC1::getSpectrumAveragingCount() const { return spectrumAveragingCount_; }
+
+// Compute Goertzel magnitude for a target frequency using the last processed rawSampleData
+float AudioProcessorC1::computeGoertzelMagnitude(float targetFreqHz) {
+    if (lastRawSampleCount == 0 || lastRawSamples.empty())
+        return -1.0f;
+    if (adcConfig.samplingRate == 0)
+        return -1.0f;
+
+    const uint16_t N = lastRawSampleCount;
+    const float fs = (float)adcConfig.samplingRate;
+    // Closest bin index
+    float kf = (targetFreqHz * (float)N) / fs;
+    int k = (int)roundf(kf);
+    if (k < 0 || k >= (int)N)
+        return -1.0f;
+
+    const float omega = 2.0f * M_PI * (float)k / (float)N;
+    const float sine = sinf(omega);
+    const float cosine = cosf(omega);
+    const float coeff = 2.0f * cosine;
+
+    float q0 = 0.0f, q1 = 0.0f, q2 = 0.0f;
+    for (uint16_t i = 0; i < N; ++i) {
+        q0 = coeff * q1 - q2 + (float)lastRawSamples[i];
+        q2 = q1;
+        q1 = q0;
+    }
+
+    float real = q1 - q2 * cosine;
+    float imag = q2 * sine;
+    float magnitude = sqrtf(real * real + imag * imag);
+    return magnitude;
 }

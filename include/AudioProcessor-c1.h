@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                       *
  * -----                                                                                                               *
- * Last Modified: 2025.11.22, Saturday  02:49:11                                                                       *
+ * Last Modified: 2025.11.22, Saturday  09:46:22                                                                       *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -44,6 +44,10 @@ class AudioProcessorC1 {
     inline uint16_t getSampleCount() { return adcDmaC1.getSampleCount(); }                                // visszaadja a mintaszámot blokkonként
     inline uint32_t getSamplingRate() { return adcDmaC1.getSamplingRate(); }                              // visszaadja a mintavételezési sebességet Hz-ben
     void reconfigureAudioSampling(uint16_t sampleCount, uint16_t samplingRate, uint32_t bandwidthHz = 0); // átméretezi a mintavételezési konfigurációt
+
+    // Spektrális átlagolás beállítása: hány keretet átlagoljunk (nem koherens)
+    void setSpectrumAveragingCount(uint8_t n);
+    uint8_t getSpectrumAveragingCount() const;
 
     /**
      * @brief Beállítja a DMA blokkoló/nem-blokkoló módját.
@@ -94,6 +98,10 @@ class AudioProcessorC1 {
     bool checkSignalThreshold(int16_t *samples, uint16_t count);
     void applyFftGaussianWindow(float *data, uint16_t size, float fftBinWidthHz, float boostMinHz, float boostMaxHz, float boostGain);
 
+    // Goertzel detektor API: számolja a magnitúdót egy célfrekvenciára az utolsó feldolgozott minták alapján
+    // Visszatérési érték: magnitúdó (lineáris) vagy -1 hibára
+    float computeGoertzelMagnitude(float targetFreqHz);
+
     AdcDmaC1 adcDmaC1;
     AdcDmaC1::CONFIG adcConfig;
     bool is_running;
@@ -106,12 +114,17 @@ class AudioProcessorC1 {
     std::vector<float> fftMagnitude; // FFT magnitúdó (output)
     uint16_t currentFftSize;         // Aktuális FFT méret
 
+    // Spektrális átlagoló puffer: körkörös puffer a korábbi magnitúdó-keretekhez (nem koherens átlagolás)
+    uint8_t spectrumAveragingCount_ = 1; // alapértelmezés: 1 -> nincs átlagolás
+    std::vector<float> avgBuffer;        // méret = spectrumSize * spectrumAveragingCount_
+    uint8_t avgWriteIndex_ = 0;
+
+    // Az utolsó feldolgozott nyers minták (DC eltávolítva, AGC alkalmazva) a segéd detektorokhoz (Goertzel)
+    std::vector<int16_t> lastRawSamples;
+    uint16_t lastRawSampleCount = 0;
+
     // Az aktuális FFT bin szélesség, amelyet a konfiguráció során számoltunk ki (Hz)
     float currentBinWidthHz = 0.0f;
-
-    // // Alacsony frekvenciás szűrés konstansai (a spektrum megjelenítés minőségének javítása)
-    // static constexpr float LOW_FREQ_ATTENUATION_THRESHOLD_HZ = 300.0f; // Ez alatti frekvenciákat csillapítunk
-    // static constexpr float LOW_FREQ_ATTENUATION_FACTOR = 50.0f;          // Ezzel a faktorral osztjuk az alacsony frekvenciák magnitúdóját
 
     // AGC (Automatikus Erősítésszabályozás) paraméterek
     float agcLevel_;       // AGC mozgó átlag szint

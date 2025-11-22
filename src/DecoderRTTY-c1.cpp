@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
  * -----                                                                                                               *
- * Last Modified: 2025.11.16, Sunday  01:35:14                                                                         *
+ * Last Modified: 2025.11.22, Saturday  09:35:57                                                                       *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -74,8 +74,9 @@ const char DecoderRTTY_C1::BAUDOT_FIGS_TABLE[32] = {
  * @brief RTTY dekóder konstruktor - inicializálja az alapértelmezett értékeket
  */
 DecoderRTTY_C1::DecoderRTTY_C1()
-    : currentState(IDLE), markFreq(0.0f), spaceFreq(0.0f), baudRate(45.45f), samplingRate(7500.0f), toneBlockAccumulated(0), lastToneIsMark(true), lastToneConfidence(0.0f), markNoiseFloor(0.0f), spaceNoiseFloor(0.0f),
-      markEnvelope(0.0f), spaceEnvelope(0.0f), pllPhase(0.0f), pllFrequency(0.0f), pllDPhase(0.0f), pllAlpha(0.0f), pllBeta(0.0f), pllLocked(false), pllLockCounter(0), bitsReceived(0), currentByte(0), figsShift(false),
+    : currentState(IDLE), markFreq(0.0f), spaceFreq(0.0f), baudRate(45.45f), samplingRate(7500.0f), toneBlockAccumulated(0), lastToneIsMark(true),
+      lastToneConfidence(0.0f), markNoiseFloor(0.0f), spaceNoiseFloor(0.0f), markEnvelope(0.0f), spaceEnvelope(0.0f), pllPhase(0.0f), pllFrequency(0.0f),
+      pllDPhase(0.0f), pllAlpha(0.0f), pllBeta(0.0f), pllLocked(false), pllLockCounter(0), bitsReceived(0), currentByte(0), figsShift(false),
       lastDominantMagnitude(0.0f), lastOppositeMagnitude(0.0f) {
     initializeToneDetector();
     resetDecoder();
@@ -116,13 +117,21 @@ bool DecoderRTTY_C1::start(const DecoderConfig &decoderConfig) {
         windowApplier.build(TONE_BLOCK_SIZE, WindowType::Hann, true);
     }
 
+    // Ha engedélyezve: inicializáljuk a mark/space bandpass-szűrőket
+    if (useBandpass_) {
+        bandpassMarkBWHz_ = std::max(200.0f, fabsf(markFreq - spaceFreq) * 1.2f);
+        bandpassSpaceBWHz_ = std::max(200.0f, fabsf(markFreq - spaceFreq) * 1.2f);
+        markBandpassFilter_.init(samplingRate, markFreq, bandpassMarkBWHz_);
+        spaceBandpassFilter_.init(samplingRate, spaceFreq, bandpassSpaceBWHz_);
+    }
+
     // Publikáljuk a paramétereket a DecodedData-ba
     decodedData.rttyMarkFreq = static_cast<uint16_t>(markFreq);
     decodedData.rttySpaceFreq = static_cast<uint16_t>(spaceFreq);
     decodedData.rttyBaudRate = baudRate;
 
-    RTTY_DEBUG("RTTY-C1: RTTY dekóder elindítva: Mark=%.1f Hz, Space=%.1f Hz, Shift=%.1f Hz, Baud=%.2f, Fs=%.0f Hz, ToneBlock=%u, BinSpacing=%.1f Hz\n", markFreq, spaceFreq, fabsf(markFreq - spaceFreq), baudRate,
-               samplingRate, TONE_BLOCK_SIZE, BIN_SPACING_HZ);
+    RTTY_DEBUG("RTTY-C1: RTTY dekóder elindítva: Mark=%.1f Hz, Space=%.1f Hz, Shift=%.1f Hz, Baud=%.2f, Fs=%.0f Hz, ToneBlock=%u, BinSpacing=%.1f Hz\n",
+               markFreq, spaceFreq, fabsf(markFreq - spaceFreq), baudRate, samplingRate, TONE_BLOCK_SIZE, BIN_SPACING_HZ);
     return true;
 }
 
@@ -216,23 +225,73 @@ void DecoderRTTY_C1::processToneBlock(const int16_t *samples, size_t count) {
                     buf[i] = static_cast<float>(accum[i]);
             }
 
-            // Goertzel futtatása az előkészített pufferen
+            // Két külön bandpass szűrőt használunk, alkalmazzuk őket és külön Goertzel-t futtatunk
+            static int16_t markFiltered[TONE_BLOCK_SIZE];
+            static int16_t spaceFiltered[TONE_BLOCK_SIZE];
+
+            if (useBandpass_ && markBandpassFilter_.isInitialized()) {
+                markBandpassFilter_.processInPlace(accum, markFiltered, TONE_BLOCK_SIZE);
+            }
+            if (useBandpass_ && spaceBandpassFilter_.isInitialized()) {
+                spaceBandpassFilter_.processInPlace(accum, spaceFiltered, TONE_BLOCK_SIZE);
+            }
+
+            // Float bufferek a windowolt adatokhoz
+            float bufMark[TONE_BLOCK_SIZE];
+            float bufSpace[TONE_BLOCK_SIZE];
+
+            if (useBandpass_ && markBandpassFilter_.isInitialized()) {
+                if (useWindow_) {
+                    windowApplier.apply(markFiltered, bufMark, TONE_BLOCK_SIZE);
+                } else {
+                    for (size_t i = 0; i < TONE_BLOCK_SIZE; ++i)
+                        bufMark[i] = static_cast<float>(markFiltered[i]);
+                }
+            } else {
+                // ha nincs mark szűrő, használjuk az eredeti blokkot
+                if (useWindow_) {
+                    windowApplier.apply(accum, bufMark, TONE_BLOCK_SIZE);
+                } else {
+                    for (size_t i = 0; i < TONE_BLOCK_SIZE; ++i)
+                        bufMark[i] = static_cast<float>(accum[i]);
+                }
+            }
+
+            if (useBandpass_ && spaceBandpassFilter_.isInitialized()) {
+                if (useWindow_) {
+                    windowApplier.apply(spaceFiltered, bufSpace, TONE_BLOCK_SIZE);
+                } else {
+                    for (size_t i = 0; i < TONE_BLOCK_SIZE; ++i)
+                        bufSpace[i] = static_cast<float>(spaceFiltered[i]);
+                }
+            } else {
+                if (useWindow_) {
+                    windowApplier.apply(accum, bufSpace, TONE_BLOCK_SIZE);
+                } else {
+                    for (size_t i = 0; i < TONE_BLOCK_SIZE; ++i)
+                        bufSpace[i] = static_cast<float>(accum[i]);
+                }
+            }
+
+            // Goertzel a mark-hoz a mark buf-en
             for (auto &bin : markBins) {
                 float q1 = 0.0f;
                 float q2 = 0.0f;
                 for (size_t n = 0; n < TONE_BLOCK_SIZE; ++n) {
-                    float q0 = bin.coeff * q1 - q2 + buf[n];
+                    float q0 = bin.coeff * q1 - q2 + bufMark[n];
                     q2 = q1;
                     q1 = q0;
                 }
                 float magSq = (q1 * q1) + (q2 * q2) - (q1 * q2 * bin.coeff);
                 bin.magnitude = (magSq > 0.0f) ? sqrtf(magSq) : 0.0f;
             }
+
+            // Goertzel a space-hoz a space buf-en
             for (auto &bin : spaceBins) {
                 float q1 = 0.0f;
                 float q2 = 0.0f;
                 for (size_t n = 0; n < TONE_BLOCK_SIZE; ++n) {
-                    float q0 = bin.coeff * q1 - q2 + buf[n];
+                    float q0 = bin.coeff * q1 - q2 + bufSpace[n];
                     q2 = q1;
                     q1 = q0;
                 }
@@ -380,11 +439,11 @@ bool DecoderRTTY_C1::detectTone(bool &isMark, float &confidence) {
     if (++debugCounter >= 20 && toneDetected) {
 
 #if ENABLE_AGC
-        RTTY_DEBUG("RTTY-C1: M=%.0f/%.0f, S=%.0f/%.0f, Mc=%.0f, Sc=%.0f, gain=%.2f/%.2f, AGC=%.0f/%.0f, metric=%.3f, %s\n", markPeak, markEnvelope, spacePeak, spaceEnvelope, markClipped, spaceClipped, markGain,
-                   spaceGain, markAgc, spaceAgc, metric, isMark ? "MARK" : "SPACE");
+        RTTY_DEBUG("RTTY-C1: M=%.0f/%.0f, S=%.0f/%.0f, Mc=%.0f, Sc=%.0f, gain=%.2f/%.2f, AGC=%.0f/%.0f, metric=%.3f, %s\n", markPeak, markEnvelope, spacePeak,
+                   spaceEnvelope, markClipped, spaceClipped, markGain, spaceGain, markAgc, spaceAgc, metric, isMark ? "MARK" : "SPACE");
 #else
-        RTTY_DEBUG("RTTY-C1: M=%.0f/%.0f, S=%.0f/%.0f, Mc=%.0f, Sc=%.0f, metric=%.3f, %s (confidence: %.2f)\n", markPeak, markEnvelope, spacePeak, spaceEnvelope, markClipped, spaceClipped, metric,
-                   isMark ? "MARK" : "SPACE", confidence);
+        RTTY_DEBUG("RTTY-C1: M=%.0f/%.0f, S=%.0f/%.0f, Mc=%.0f, Sc=%.0f, metric=%.3f, %s (confidence: %.2f)\n", markPeak, markEnvelope, spacePeak,
+                   spaceEnvelope, markClipped, spaceClipped, metric, isMark ? "MARK" : "SPACE", confidence);
 #endif
         debugCounter = 0;
     }
