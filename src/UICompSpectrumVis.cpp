@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
  * -----                                                                                                               *
- * Last Modified: 2025.11.22, Saturday  01:20:20                                                                       *
+ * Last Modified: 2025.11.22, Saturday  01:25:43                                                                       *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -86,7 +86,7 @@ constexpr uint8_t SPECTRUM_FPS = 25;                              // FPS limitá
 
 // Zajküszöb - alacsony szintű zajt nullázza
 constexpr float NOISE_THRESHOLD_FM = 0.0f;   // Zajszűrés: zaj magnitúdó értékével
-constexpr float NOISE_THRESHOLD_AM = 150.0f; // Zajszűrés: zaj magnitúdó értékével
+constexpr float NOISE_THRESHOLD_AM = 0.0f; // Zajszűrés: zaj magnitúdó értékével
 
 // ===== ÉRZÉKENYSÉGI / AMPLITÚDÓ SKÁLÁZÁSI KONSTANSOK =====
 // Minden grafikon mód érzékenységét és amplitúdó skálázását itt lehet módosítani
