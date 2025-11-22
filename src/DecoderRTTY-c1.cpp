@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
  * -----                                                                                                               *
- * Last Modified: 2025.11.22, Saturday  10:38:00                                                                       *
+ * Last Modified: 2025.11.22, Saturday  10:54:59                                                                       *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -142,7 +142,14 @@ void DecoderRTTY_C1::stop() {
     RTTY_DEBUG("RTTY-C1: RTTY dekóder leállítva.\n");
 }
 
-void DecoderRTTY_C1::processSamples(const int16_t *samples, size_t count) { processToneBlock(samples, count); }
+/**
+ * @brief Minták feldolgozása
+ * @param samples Pointer a mintákhoz
+ * @param count A minták száma
+ */
+void DecoderRTTY_C1::processSamples(const int16_t *samples, size_t count) { //
+    processToneBlock(samples, count);
+}
 
 /**
  * @brief Tone detector inicializálása

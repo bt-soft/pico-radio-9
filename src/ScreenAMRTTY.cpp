@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
  * -----                                                                                                               *
- * Last Modified: 2025.11.22, Saturday  10:43:24                                                                       *
+ * Last Modified: 2025.11.22, Saturday  10:50:34                                                                       *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -214,7 +214,7 @@ void ScreenAMRTTY::activate() {
     ::audioController.setSpectrumAveragingCount(0);    // Spektrum nem-koherens átlagolás: x db keret átlagolása
 
     // RTTY Dekóder specifikus beállítások
-    ::audioController.setDecoderBandpassEnabled(true); // Engedélyezzük a dekóder oldali bandpass szűrőt
+    ::audioController.setDecoderBandpassEnabled(false); // Engedélyezzük a dekóder oldali bandpass szűrőt
 
     // RTTY infókat frissítsük!
     lastRTTYDisplayUpdate = 0;
