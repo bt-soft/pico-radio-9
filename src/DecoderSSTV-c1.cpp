@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
  * -----                                                                                                               *
- * Last Modified: 2025.11.16, Sunday  09:41:16                                                                         *
+ * Last Modified: 2025.11.22, Saturday  05:56:43                                                                       *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -29,7 +29,7 @@
 #include "DecoderSSTV-c1.h"
 #include "defines.h"
 
-// #define __SSTV_DEBUG // SstvDecoder debug
+#define __SSTV_DEBUG // SstvDecoder debug
 #if defined(__DEBUG) && defined(__SSTV_DEBUG)
 #define SSTV_DEBUG(fmt, ...) DEBUG(fmt __VA_OPT__(, ) __VA_ARGS__)
 #else
@@ -97,7 +97,8 @@ bool DecoderSSTV_C1::start(const DecoderConfig &decoderConfig) {
 
     // Létrehozzuk az SSTV dekódert a megadott mintavételezési frekvenciával
     // sstv_decoder = std::make_unique<c_sstv_decoder>(decoderConfig.samplingRate);
-    sstv_decoder = std::make_unique<c_sstv_decoder>(static_cast<float>(decoderConfig.samplingRate)); // Korábban a dekóderbe be volt "bevasalva" egy 15kHz-es Fs; most a futó samplingRate-et adjuk meg.
+    sstv_decoder = std::make_unique<c_sstv_decoder>(
+        static_cast<float>(decoderConfig.samplingRate)); // Korábban a dekóderbe be volt "bevasalva" egy 15kHz-es Fs; most a futó samplingRate-et adjuk meg.
 
     // Beállítjuk az elcsúsztatás korrekciót
     sstv_decoder->set_auto_slant_correction(ENABLE_SLANT_CORRECTION);
@@ -163,7 +164,8 @@ void DecoderSSTV_C1::processSamples(const int16_t *rawAudioSamples, size_t count
 
         if (sstv_decoder->decode_audio(rawSample, pixel_y, pixel_x, pixel_colour, pixel, frequency)) {
             // Debug log minden találatra (lehet sok, de most kell a hibakereséshez)
-            // SSTV_DEBUG("SSTV-C1: decode_audio HIT pixel_y=%u pixel_x=%u colour=%u pixel=%u freq=%d\n", (unsigned)pixel_y, (unsigned)pixel_x, (unsigned)pixel_colour, (unsigned)pixel, frequency);
+            // SSTV_DEBUG("SSTV-C1: decode_audio HIT pixel_y=%u pixel_x=%u colour=%u pixel=%u freq=%d\n", (unsigned)pixel_y, (unsigned)pixel_x,
+            // (unsigned)pixel_colour, (unsigned)pixel, frequency);
 
             c_sstv_decoder::e_mode mode = sstv_decoder->get_mode();
             // Ha a felismerés módban változás történt (beleértve az első felismerést is),
