@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
  * -----                                                                                                               *
- * Last Modified: 2025.11.22, Saturday  09:13:53                                                                       *
+ * Last Modified: 2025.11.22, Saturday  11:46:39                                                                       *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -34,11 +34,11 @@
 #include "rtVars.h"
 #include "utils.h"
 
-// Ezt tesztre használjuk, hogy a némított állapotot figyelmen kívül hagyjuk (Az AD + FFT hangolásához)
+// Ezt tesztre használjuk, hogy a rádió némított állapotát figyelmen kívül hagyjuk (Az AD + FFT hangolásához)
 #define TEST_DO_NOT_PROCESS_MUTED_STATE
 
 // UICompSpectrumVis működés debug engedélyezése de csak DEBUG módban
-// #define __UISPECTRUM_DEBUG
+#define __UISPECTRUM_DEBUG
 #if defined(__DEBUG) && defined(__UISPECTRUM_DEBUG)
 #define UISPECTRUM_DEBUG(fmt, ...) DEBUG(fmt __VA_OPT__(, ) __VA_ARGS__)
 #else
@@ -653,24 +653,18 @@ void UICompSpectrumVis::setFftParametersForDisplayMode() {
         setTuningAidType(TuningAidType::RTTY_TUNING);
     }
 
-    // Megpróbáljuk lekérdezni a Core1 által közzétett futásidejű megjelenítési tippeket.
-    // Core1 általában a hátsó pufferbe (1 - activeIndex) írja a tippeket az
-    // aktuális audio puffer csere előtt. Annak elkerülése érdekében, hogy a UI
-    // az aktív régi puffert olvassa, előnyben részesítjük a hátsó puffer tippeit,
-    // ha jelen vannak, és visszaesünk az aktív pufferre egyébként.
-    const int8_t activeIdx = ::activeSharedDataIndex;
-    if (activeIdx < 0) {
-        // Nem lehet lekérdezni a Core1-et; a meglévő beállítások megtartása
+    // Megosztott adatok elérhetőségének ellenőrzése
+    if (::activeSharedDataIndex < 0) {
         return;
     }
 
-    // Lekérdezzük mindkét puffer megosztott adatait
-    const int8_t backIdx = 1 - activeIdx;
-    const SharedData &sdActive = ::sharedData[activeIdx];
+    // Lekérdezzük mindkét puffer referenciáját
+    const int8_t backIdx = 1 - ::activeSharedDataIndex;
+    const SharedData &sdActive = ::sharedData[::activeSharedDataIndex];
     const SharedData &sdBack = ::sharedData[backIdx];
 
-    const SharedData *sdToUse = nullptr;
     // Előnyben részesítjük a hátsó puffert, ha nem nulla nyomokat tartalmaz (frissen írva a Core1 által)
+    const SharedData *sdToUse = nullptr;
     if (sdBack.displayMinFreqHz != 0 || sdBack.displayMaxFreqHz != 0) {
         sdToUse = &sdBack;
     } else if (sdActive.displayMinFreqHz != 0 || sdActive.displayMaxFreqHz != 0) {
@@ -1713,19 +1707,6 @@ void UICompSpectrumVis::renderSnrCurve() {
 
     // Sprite teljes törlése
     sprite_->fillSprite(TFT_BLACK);
-
-    // // Megfelelő frekvencia határok és hangolási segéd típus használata a módtól függően
-    // if (currentMode_ == DisplayMode::CwSnrCurve) {
-    //     if (currentTuningAidType_ != TuningAidType::CW_TUNING || currentTuningAidMinFreqHz_ == 0 || currentTuningAidMaxFreqHz_ == 0) {
-    //         UISPECTRUM_DEBUG("UICompSpectrumVis::renderSnrCurve - CW tuning aid inicializálása\n");
-    //         setTuningAidType(TuningAidType::CW_TUNING);
-    //     }
-    // } else if (currentMode_ == DisplayMode::RttySnrCurve) {
-    //     if (currentTuningAidType_ != TuningAidType::RTTY_TUNING || currentTuningAidMinFreqHz_ == 0 || currentTuningAidMaxFreqHz_ == 0) {
-    //         UISPECTRUM_DEBUG("UICompSpectrumVis::renderSnrCurve - RTTY tuning aid inicializálása\n");
-    //         setTuningAidType(TuningAidType::RTTY_TUNING);
-    //     }
-    // }
 
     const float MIN_FREQ_HZ = currentTuningAidMinFreqHz_;
     const float MAX_FREQ_HZ = currentTuningAidMaxFreqHz_;
