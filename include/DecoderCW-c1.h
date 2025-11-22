@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                       *
  * -----                                                                                                               *
- * Last Modified: 2025.11.22, Saturday  09:30:06                                                                       *
+ * Last Modified: 2025.11.22, Saturday  10:38:49                                                                       *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -83,14 +83,22 @@ class DecoderCW_C1 : public IDecoder {
     bool useAdaptiveThreshold_ = false;
 
     // AGC runtime paraméterek
-    float agcLevel_ = 2000.0f;   // AGC szint (mozgó átlag)
-    float agcAlpha_ = 0.02f;     // AGC szűrési állandó (lassabb követés)
-    float minThreshold_ = 20.0f; // Minimális threshold_ érték
+    // Kezdeti AGC értékek a gyakoribb mért magnitúdókhoz igazítva
+    float agcLevel_ = 30.0f;           // AGC szint (mozgó átlag) - kezdeti tipp a mérések alapján
+    float agcAlpha_ = 0.05f;           // AGC szűrési állandó (gyorsabb követés)
+    float minThreshold_ = 20.0f;       // Minimális threshold_ érték, efölött a detectone már jelez, erre kell hangolni a zajos vételt!!
+    const float THRESH_FACTOR = 0.40f; // Jelszint küszöbfaktor - 0,5 alatt érzékenyebb
+
     // Jelzi, hogy az AGC egyszer már inicializálva lett valódi mérésből
     bool agcInitialized_ = false;
 
     // --- Frekvencia követés ---
-    static constexpr size_t FREQ_SCAN_STEPS = 9; // 9 lépés: -200, -150, -100, -50, 0, +50, +100, +150, +200 Hz
+    static constexpr size_t FREQ_SCAN_STEPS = 7; // 7 lépés:
+    // 7 lépés:  -150, -100, -50, 0, +50, +100, +150 Hz
+    static constexpr float FREQ_STEPS[FREQ_SCAN_STEPS] = {-150.0f, -100.0f, -50.0f, 0.0f, 50.0f, 100.0f, 150.0f};
+    static constexpr float CHANGE_TONE_THRESHOLD = 70.0f; // Váltás küszöbértéke
+
+    // Frekvencia követéshez szükséges adatok
     float scanFrequencies_[FREQ_SCAN_STEPS];
     float scanCoeffs_[FREQ_SCAN_STEPS];
     uint8_t currentFreqIndex_; // Aktuális frekvencia index
