@@ -44,7 +44,7 @@
  */
 class DecoderCW_C1 : public IDecoder {
   public:
-    // A frekvencia-keresés és követés eltávolítva — a dekóder csak a konfigurált frekvenciát használja.
+    uint8_t measuredFreqIndex_ = 4; // Utolsó mért legerősebb frekvencia indexe
     DecoderCW_C1();
     ~DecoderCW_C1() override = default;
     const char *getDecoderName() const override { return "CW"; };
@@ -91,9 +91,16 @@ class DecoderCW_C1 : public IDecoder {
     // Jelzi, hogy az AGC egyszer már inicializálva lett valódi mérésből
     bool agcInitialized_ = false;
 
-    // --- Frekvencia ---
-    // Egyszerűsítve: nem történik frekvencia keresés/követés.
-    // A dekóder mindig a konfigurációban megadott `cwCenterFreqHz`-et használja.
+    // --- Frekvencia követés ---
+    static constexpr size_t FREQ_SCAN_STEPS = 7; // 7 lépés:  -150, -100, -50, 0, +50, +100, +150 Hz
+    static constexpr float FREQ_STEPS[FREQ_SCAN_STEPS] = {-150.0f, -100.0f, -50.0f, 0.0f, 50.0f, 100.0f, 150.0f};
+    static constexpr float CHANGE_TONE_THRESHOLD = 70.0f;     // Váltás küszöbértéke
+    static constexpr float CHANGE_TONE_MAG_THRESHOLD = 10.0f; // Minimális magnitúdó a frekvia váltáshoz
+
+    // Frekvencia követéshez szükséges adatok
+    float scanFrequencies_[FREQ_SCAN_STEPS];
+    float scanCoeffs_[FREQ_SCAN_STEPS];
+    uint8_t currentFreqIndex_; // Aktuális frekvencia index
 
     // --- Jel detekció ---
     bool toneDetected_;              // Aktuálisan észlelt tónus
@@ -118,7 +125,12 @@ class DecoderCW_C1 : public IDecoder {
     uint8_t wpmHistory_[WPM_HISTORY_SIZE];
     uint8_t wpmHistoryIndex_;
 
+    static constexpr size_t FREQ_HISTORY_SIZE = 20; // Max tónus blokk egy karakterben
+    uint8_t freqHistory_[FREQ_HISTORY_SIZE];
+    uint8_t freqHistoryCount_;
+
     uint8_t lastPublishedWpm_;
+    float lastPublishedFreq_;
 
     /*
       A Morse kód pontokból és vonásokból áll.
@@ -185,7 +197,7 @@ class DecoderCW_C1 : public IDecoder {
     WindowApplier windowApplier;
     bool useWindow_ = true;
     bool detectTone(const int16_t *samples, size_t count);
-    // Frekvencia követés eltávolítva
+    void updateFrequencyTracking();
     // Csúszó puffer, amely a legutóbbi GOERTZEL_N mintákat tárolja
     int16_t lastSamples_[GOERTZEL_N];
     size_t lastSampleCount_ = 0;
