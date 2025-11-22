@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                       *
  * -----                                                                                                               *
- * Last Modified: 2025.11.16, Sunday  09:50:38                                                                         *
+ * Last Modified: 2025.11.22, Saturday  07:22:44                                                                       *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -56,6 +56,11 @@ class ScreenAMWeFax : public ScreenAMRadioBase, public UICommonVerticalButtons::
     virtual void deactivate() override;
 
     /**
+     * @brief Képernyő tartalom rajzolása
+     */
+    virtual void drawContent() override;
+
+    /**
      * @brief Folyamatos loop hívás
      */
     virtual void handleOwnLoop() override;
@@ -86,7 +91,10 @@ class ScreenAMWeFax : public ScreenAMRadioBase, public UICommonVerticalButtons::
     uint16_t displayBuffer[WEFAX_MAX_DISPLAY_WIDTH];
     float accumulatedTargetLine;
     uint16_t lastDrawnTargetLine;
+    // Reset gomb, ami törli a képterületet és reseteli a dekódert
+    std::shared_ptr<UIButton> resetButton;
 
     void clearPictureArea();
     void checkDecodedData();
+    void drawWeFaxMode(const char *modeName);
 };

@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
  * -----                                                                                                               *
- * Last Modified: 2025.11.22, Saturday  06:56:35                                                                       *
+ * Last Modified: 2025.11.22, Saturday  07:35:39                                                                       *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -231,3 +231,5 @@ struct DecodedData {
     volatile uint16_t rttySpaceFreq; // Space frekvencia (Hz)
     volatile float rttyBaudRate;     // Baud sebesség (pl. 45.45, 50, 75, 100)
 };
+
+#define DECODER_MODE_UNKNOWN "Unknown"

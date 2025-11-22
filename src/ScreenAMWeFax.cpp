@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
  * -----                                                                                                               *
- * Last Modified: 2025.11.16, Sunday  09:42:42                                                                         *
+ * Last Modified: 2025.11.22, Saturday  07:42:14                                                                       *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -43,12 +43,17 @@
 #define WEFAX_PICTURE_START_X 2  // Kép kezdő X pozíciója
 #define WEFAX_PICTURE_START_Y 90 // Kép kezdő Y pozíciója
 
+#define MODE_TXT_HEIGHT 15
+#define MODE_TXT_X WEFAX_PICTURE_START_X
+#define MODE_TXT_Y WEFAX_PICTURE_START_Y - MODE_TXT_HEIGHT
+
 /**
  * @brief ScreenAMWeFax konstruktor
  */
 ScreenAMWeFax::ScreenAMWeFax()
     : ScreenAMRadioBase(SCREEN_NAME_DECODER_WEFAX), UICommonVerticalButtons::Mixin<ScreenAMWeFax>(), //
-      cachedMode(-1), cachedDisplayWidth(-1), displayWidth(0), sourceWidth(0), sourceHeight(0), scale(1.0f), targetHeight(0), lastDrawnTargetLine(-1), accumulatedTargetLine(0.0f) {
+      cachedMode(-1), cachedDisplayWidth(-1), displayWidth(0), sourceWidth(0), sourceHeight(0), scale(1.0f), targetHeight(0), lastDrawnTargetLine(-1),
+      accumulatedTargetLine(0.0f) {
     // UI komponensek létrehozása és elhelyezése
     layoutComponents();
 }
@@ -80,7 +85,30 @@ void ScreenAMWeFax::layoutComponents() {
     ScreenRadioBase::createCommonHorizontalButtons(false);
 
     // Wefax kép helyének kirajzolása
-    clearPictureArea();
+
+    // Reset gomb elhelyezése: a gomb jobb oldala egy vonalban legyen a kép jobb oldalával,
+    // a gomb teteje pedig 10px-el legyen a kép teteje felett.
+    const int resetBtnRightX = WEFAX_PICTURE_START_X + WEFAX_SCALED_WIDTH;              // kép jobb oldala
+    const int resetBtnX = resetBtnRightX - UIButton::DEFAULT_BUTTON_WIDTH;              // gomb bal oldala
+    const int resetBtnY = WEFAX_PICTURE_START_Y - 15 - UIButton::DEFAULT_BUTTON_HEIGHT; // 10px a kép felett
+
+    if (!resetButton) {
+        resetButton = std::make_shared<UIButton>( //
+            201,                                  // egyedi ID
+            Rect(resetBtnX, resetBtnY),           // gomb helye és mérete
+            "Reset",                              // gomb felirata
+            UIButton::ButtonType::Pushable,       // gomb típusa
+            [this](const UIButton::ButtonEvent &event) {
+                if (event.state == UIButton::EventButtonState::Clicked) {
+                    this->clearPictureArea();
+                    ::audioController.resetDecoder();
+                }
+            });
+        UIContainerComponent::addChild(resetButton);
+    }
+
+    // Wefax kép helyének kirajzolása
+    this->clearPictureArea();
 }
 
 /**
@@ -140,14 +168,53 @@ void ScreenAMWeFax::deactivate() {
     ScreenAMRadioBase::deactivate();
 }
 
+void ScreenAMWeFax::drawContent() {
+
+    // Képterület törlése
+    this->clearPictureArea();
+
+    // A 'Mode:' felirat megjelenítése
+    tft.setTextColor(TFT_SKYBLUE, TFT_BLACK);
+    tft.setTextDatum(BC_DATUM);
+    tft.setTextFont(0);
+    tft.setTextSize(1);
+    tft.setCursor(WEFAX_PICTURE_START_X, WEFAX_PICTURE_START_Y - MODE_TXT_HEIGHT);
+    tft.print("HF WeFax Mode:");
+}
+
 /**
  * @brief Képterület törlése
  */
 void ScreenAMWeFax::clearPictureArea() {
     // WEFAX kép helye
     tft.fillRect(WEFAX_PICTURE_START_X, WEFAX_PICTURE_START_Y, WEFAX_SCALED_WIDTH, WEFAX_SCALED_HEIGHT, TFT_BLACK);
+
     // Fehér keret rajzolása a kép körül (1px-el kívül)
     tft.drawRect(WEFAX_PICTURE_START_X - 1, WEFAX_PICTURE_START_Y - 1, WEFAX_SCALED_WIDTH + 2, WEFAX_SCALED_HEIGHT + 2, TFT_WHITE);
+
+    this->drawWeFaxMode(nullptr); // Mód név törlése
+}
+
+/**
+ * @brief Wefax mód név kirajzolása
+ * @param modeName A mód neve (pl. "IOC576", "IOC288"), vagy nullptr a törléshez
+ */
+void ScreenAMWeFax::drawWeFaxMode(const char *modeName) {
+
+    constexpr int MODE_VALUE_X = WEFAX_PICTURE_START_X + 100;
+
+    // Módnév törlése (hátha volt ott valami)
+    tft.fillRect(MODE_VALUE_X, WEFAX_PICTURE_START_Y - MODE_TXT_HEIGHT - 4, 100, MODE_TXT_HEIGHT, TFT_BLACK);
+
+    // Módnév kiírása
+    if (modeName != nullptr && !STREQ(modeName, DECODER_MODE_UNKNOWN)) {
+        tft.setTextColor(TFT_GREEN, TFT_BLACK);
+        tft.setTextDatum(BC_DATUM);
+        tft.setTextFont(0);
+        tft.setTextSize(1);
+        tft.setCursor(MODE_VALUE_X, MODE_TXT_Y);
+        tft.print(modeName);
+    }
 }
 
 /**
@@ -174,22 +241,7 @@ void ScreenAMWeFax::checkDecodedData() {
         const char *modeName = (decodedData.currentMode == 0) ? "IOC576" : "IOC288";
         WEFAX_DEBUG("core-0: WEFAX mód változás: %s\n", modeName);
 
-#define TFT_BANNER_HEIGHT 15
-#define MODE_TXT_X WEFAX_PICTURE_START_X
-#define MODE_TXT_Y WEFAX_PICTURE_START_Y - TFT_BANNER_HEIGHT
-        // Kijelző felső sávjának törlése a korábbi mód név eltávolításához
-        tft.fillRect(MODE_TXT_X, MODE_TXT_Y, WEFAX_SCALED_WIDTH, TFT_BANNER_HEIGHT - 5, TFT_BLACK);
-        tft.setTextColor(TFT_YELLOW, TFT_BLACK);
-        tft.setTextDatum(BC_DATUM);
-        tft.setTextFont(0);
-        tft.setTextSize(1);
-        tft.setCursor(MODE_TXT_X, MODE_TXT_Y);
-        tft.printf("HF WeFax:");
-
-        tft.setTextColor(TFT_GREEN, TFT_BLACK);
-        tft.setCursor(MODE_TXT_X + 55, MODE_TXT_Y);
-        tft.print(modeName);
-
+        // Töröljük a képterületet módváltáskor
         clearPictureArea();
     }
 

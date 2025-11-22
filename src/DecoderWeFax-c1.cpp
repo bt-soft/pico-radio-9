@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
  * -----                                                                                                               *
- * Last Modified: 2025.11.16, Sunday  09:41:21                                                                         *
+ * Last Modified: 2025.11.22, Saturday  07:36:11                                                                       *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -71,7 +71,7 @@ const char *DecoderWeFax_C1::getModeName(WefaxMode mode) const {
         case WefaxMode::IOC288:
             return "IOC288";
         default:
-            return "UNKNOWN";
+            return DECODER_MODE_UNKNOWN;
     }
 }
 
@@ -166,6 +166,22 @@ void DecoderWeFax_C1::stop() {
     }
     rx_state = IDLE;
     current_line_index = 0; // Sor index nullázása, hogy újraindításkor a kép tetejéről induljon
+}
+
+/**
+ * @brief WEFAX Dekóder resetelése
+ */
+void DecoderWeFax_C1::reset() {
+    WEFAX_DEBUG("WeFax-C1: \n--------------------------------------------------\n");
+    WEFAX_DEBUG("    WeFax Reset\n");
+    WEFAX_DEBUG("--------------------------------------------------\n");
+
+    rx_state = IDLE;
+    current_line_index = 0; // Sor index nullázása, hogy újraindításkor a kép tetejéről induljon
+
+    // Állapot változók visszaállítása
+    ::decodedData.modeChanged = true;
+    ::decodedData.currentMode = -1;
 }
 
 // =============================================================================
@@ -318,8 +334,8 @@ void DecoderWeFax_C1::processSamples(const int16_t *samples, size_t count) {
                 } else if (rx_state == RXIMAGE) {
                     // IMAGE módban: sor progress megjelenítése
                     float progress = (float)current_line_index / WEFAX_IMAGE_HEIGHT * 100.0f;
-                    WEFAX_DEBUG("WeFax-C1: KÉP %d/%d (%.0f%%) | IOC%d %.0f LPM | Jel: %d [%d-%d]\n", current_line_index, WEFAX_IMAGE_HEIGHT, progress, current_ioc, (phase_lines > 0) ? (lpm_sum / phase_lines) : 120.0f,
-                                debug_gray_avg, debug_gray_min, debug_gray_max);
+                    WEFAX_DEBUG("WeFax-C1: KÉP %d/%d (%.0f%%) | IOC%d %.0f LPM | Jel: %d [%d-%d]\n", current_line_index, WEFAX_IMAGE_HEIGHT, progress,
+                                current_ioc, (phase_lines > 0) ? (lpm_sum / phase_lines) : 120.0f, debug_gray_avg, debug_gray_min, debug_gray_max);
                 }
             }
 #endif
@@ -514,7 +530,8 @@ void DecoderWeFax_C1::decode_phasing(int gray_value) {
         float elapsed_sec = curr_phase_len / sample_rate;
         float white_pct = (curr_phase_len > 0) ? (100.0f * curr_phase_high / curr_phase_len) : 0;
         float black_pct = (curr_phase_len > 0) ? (100.0f * curr_phase_low / curr_phase_len) : 0;
-        WEFAX_DEBUG("WeFax-C1:  Phasing: %.1fs | Fehér: %.1f%% | Fekete: %.1f%% | Fázis: %s | Tartomány: %d-%d\n", elapsed_sec, white_pct, black_pct, phase_high ? "MAGAS" : "ALACSONY", gray_hist_low, gray_hist_high);
+        WEFAX_DEBUG("WeFax-C1:  Phasing: %.1fs | Fehér: %.1f%% | Fekete: %.1f%% | Fázis: %s | Tartomány: %d-%d\n", elapsed_sec, white_pct, black_pct,
+                    phase_high ? "MAGAS" : "ALACSONY", gray_hist_low, gray_hist_high);
 #endif
 
         phasing_status_timer = 0;

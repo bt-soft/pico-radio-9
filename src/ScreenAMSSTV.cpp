@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
  * -----                                                                                                               *
- * Last Modified: 2025.11.22, Saturday  06:51:18                                                                       *
+ * Last Modified: 2025.11.22, Saturday  07:35:49                                                                       *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -103,11 +103,11 @@ void ScreenAMSSTV::layoutComponents() {
                 }
             });
 
-        addChild(resetButton);
+        UIContainerComponent::addChild(resetButton);
     }
 
     // SSTV kép helyének kirajzolása
-    clearPictureArea();
+    this->clearPictureArea();
 }
 
 /**
@@ -140,6 +140,8 @@ void ScreenAMSSTV::addSpecificHorizontalButtons(std::vector<UIHorizontalButtonBa
  * @brief Képernyő tartalom rajzolása
  */
 void ScreenAMSSTV::drawContent() {
+
+    // Képterület törlése
     this->clearPictureArea();
 
     // A 'Mode:' felirat megjelenítése
@@ -194,22 +196,22 @@ void ScreenAMSSTV::clearPictureArea() {
     tft.drawRect(SSTV_PICTURE_START_X - 1, SSTV_PICTURE_START_Y - 1, SSTV_SCALED_WIDTH + 2, SSTV_SCALED_HEIGHT + 2, TFT_WHITE);
 
     // Mód név törlése
-    this->dwrawSstvMode(nullptr);
+    this->drawSstvMode(nullptr);
 }
 
 /**
  * @brief SSTV mód név kirajzolása
  * @param modeName A megjelenítendő mód név
  */
-void ScreenAMSSTV::dwrawSstvMode(const char *modeName) {
+void ScreenAMSSTV::drawSstvMode(const char *modeName) {
 
     constexpr int MODE_VALUE_X = SSTV_PICTURE_START_X + 60;
 
-    // Módnév törlése ha volt ott valami
+    // Módnév törlése (hátha volt ott valami)
     tft.fillRect(MODE_VALUE_X, SSTV_PICTURE_START_Y - MODE_TXT_HEIGHT - 4, SSTV_SCALED_WIDTH - 45, MODE_TXT_HEIGHT, TFT_BLACK);
 
     // Módnév kiírása
-    if (modeName != nullptr && !STREQ(modeName, "Unknown")) {
+    if (modeName != nullptr && !STREQ(modeName, DECODER_MODE_UNKNOWN)) {
         tft.setTextColor(TFT_GREEN, TFT_BLACK);
         tft.setTextDatum(BC_DATUM);
         tft.setTextFont(0);
@@ -249,11 +251,11 @@ void ScreenAMSSTV::checkDecodedData() {
 
         // Mód név kiírása (ha van)
         if (decodedData.currentMode >= 0) {
-            this->dwrawSstvMode(modeName);
+            this->drawSstvMode(modeName);
             lastModeDisplayed = decodedData.currentMode;
         } else {
             // Ha nincs információ, töröljük a korábbi módnevet
-            this->dwrawSstvMode(nullptr);
+            this->drawSstvMode(nullptr);
             lastModeDisplayed = -1;
         }
 

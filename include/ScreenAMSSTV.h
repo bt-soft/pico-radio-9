@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                       *
  * -----                                                                                                               *
- * Last Modified: 2025.11.22, Saturday  06:24:41                                                                       *
+ * Last Modified: 2025.11.22, Saturday  07:16:56                                                                       *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -89,5 +89,5 @@ class ScreenAMSSTV : public ScreenAMRadioBase, public UICommonVerticalButtons::M
 
     void checkDecodedData();
     void clearPictureArea();
-    void dwrawSstvMode(const char *modeName);
+    void drawSstvMode(const char *modeName);
 };

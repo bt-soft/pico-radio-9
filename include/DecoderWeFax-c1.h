@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                       *
  * -----                                                                                                               *
- * Last Modified: 2025.11.16, Sunday  09:47:59                                                                         *
+ * Last Modified: 2025.11.22, Saturday  07:31:44                                                                       *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -49,6 +49,11 @@ class DecoderWeFax_C1 : public IDecoder {
      * @brief Leállítás és takarítás
      */
     void stop() override;
+
+    /**
+     * @brief Dekóder resetelése
+     */
+    void reset() override;
 
     /**
      * @brief Nyers audio minták feldolgozása - TELJES WEFAX dekódolás Goertzel-lel
