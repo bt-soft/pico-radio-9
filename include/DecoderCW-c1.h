@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                       *
  * -----                                                                                                               *
- * Last Modified: 2025.11.22, Saturday  11:24:19                                                                       *
+ * Last Modified: 2025.11.22, Saturday  04:41:10                                                                       *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -85,15 +85,14 @@ class DecoderCW_C1 : public IDecoder {
     // Kezdeti AGC értékek a gyakoribb mért magnitúdókhoz igazítva
     float agcLevel_ = 15.0f;           // AGC szint (mozgó átlag) - kezdeti tipp a mérések alapján (konzervatív)
     float agcAlpha_ = 0.02f;           // AGC szűrési állandó (lassabb követés, kevesebb fluktuáció)
-    float minThreshold_ = 15.0f;       // Minimális threshold_ érték - visszaállítva a stabilitás érdekében
+    float minThreshold_ = 8.0f;        // Minimális threshold_ érték
     const float THRESH_FACTOR = 0.80f; // Jelszint küszöbfaktor - nagyobb érték konzervatívabb detektálást eredményez
 
     // Jelzi, hogy az AGC egyszer már inicializálva lett valódi mérésből
     bool agcInitialized_ = false;
 
     // --- Frekvencia követés ---
-    static constexpr size_t FREQ_SCAN_STEPS = 7; // 7 lépés:
-    // 7 lépés:  -150, -100, -50, 0, +50, +100, +150 Hz
+    static constexpr size_t FREQ_SCAN_STEPS = 7; // 7 lépés:  -150, -100, -50, 0, +50, +100, +150 Hz
     static constexpr float FREQ_STEPS[FREQ_SCAN_STEPS] = {-150.0f, -100.0f, -50.0f, 0.0f, 50.0f, 100.0f, 150.0f};
     static constexpr float CHANGE_TONE_THRESHOLD = 70.0f;     // Váltás küszöbértéke
     static constexpr float CHANGE_TONE_MAG_THRESHOLD = 10.0f; // Minimális magnitúdó a frekvia váltáshoz

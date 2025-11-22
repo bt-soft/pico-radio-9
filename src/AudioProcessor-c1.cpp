@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
  * -----                                                                                                               *
- * Last Modified: 2025.11.22, Saturday  02:53:31                                                                       *
+ * Last Modified: 2025.11.22, Saturday  04:07:49                                                                       *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -468,55 +468,37 @@ void AudioProcessorC1::applyFftGaussianWindow(float *data, uint16_t size, float 
  * @param sharedData A SharedData struktúra referencia, amit fel kell tölteni.
  */
 void AudioProcessorC1::gainFttMagnitudeValues(SharedData &sharedData) {
+    // Frequency-dependent amplifier profile (dB -> linear)
+    // Profile requested:
+    // - baseline 0 dB
+    // - < 4 kHz : -6 dB (csillapítás)
+    // - 7 kHz .. 9 kHz : +8 dB
+    // - >= 9 kHz : +10 dB
 
-    // FFT magnutúdó adatok erősítése bizonyos frekvenciatartományokban
-    //  Egyszerű high-frequency boost + extra 5-8kHz erősítés
-    //  - Lineáris, ésszerű maximum: 3x (konzervatív)
-    //  Valamiért a kütyüm 5.5-8.5kHz között gyengébben látja a jeleket
-    //  - 5-8 kHz tartományban további, centrikus 2x (triangular profil)
-    constexpr float BOOST_START_HZ = 2500.0f;      // itt kezdődik az általános erősítés
-    constexpr float BOOST_MAX_GAIN_LINEAR = 20.0f; // konstans max lineáris erősítés (60x)
-    constexpr float EXTRA_MIN_HZ = 7000.0f;        // extra boost alsó határa
-    constexpr float EXTRA_MAX_HZ = 9000.0f;        // extra boost felső határa
-    constexpr float EXTRA_FACTOR = 10.0f;          // extra boost a tartomány közepén (4x)
-
-    float nyquist = (float)adcConfig.samplingRate / 2.0f;
-    if (sharedData.fftBinWidthHz > 0.0f && nyquist > BOOST_START_HZ) {
-        for (uint16_t i = 0; i < sharedData.fftSpectrumSize; ++i) {
-            float freq = i * sharedData.fftBinWidthHz;
-            if (freq <= BOOST_START_HZ) {
-                continue;
-            }
-
-            // Lineáris, normalizált tényező 0..1
-            float t = (freq - BOOST_START_HZ) / (nyquist - BOOST_START_HZ);
-            constrain(t, 0.0f, 1.0f);
-            float linearGain = 1.0f + t * (BOOST_MAX_GAIN_LINEAR - 1.0f);
-
-            // Extra 5-8 kHz centrikus háromszög profil (center kapja a teljes EXTRA_FACTOR-t)
-            float extraGain = 1.0f;
-            if (freq >= EXTRA_MIN_HZ && freq <= EXTRA_MAX_HZ) {
-                float center = (EXTRA_MIN_HZ + EXTRA_MAX_HZ) * 0.5f;
-                float halfWidth = (EXTRA_MAX_HZ - EXTRA_MIN_HZ) * 0.5f;
-                float triangular = 0.0f;
-                if (halfWidth > 0.0f) {
-                    triangular = 1.0f - (fabsf(freq - center) / halfWidth); // 0..1
-                    if (triangular < 0.0f)
-                        triangular = 0.0f;
-                }
-                extraGain = 1.0f + (EXTRA_FACTOR - 1.0f) * triangular;
-            }
-
-            float totalGain = linearGain * extraGain;
-            sharedData.fftSpectrumData[i] *= totalGain;
-        }
+    if (sharedData.fftBinWidthHz <= 0.0f) {
+        return;
     }
 
-    // Végső, globális erősítés: +12 dB minden FFT magnitúdóra (± kalibrációs igény)
-    // +12 dB ≈ linear factor 10^(12/20) = ~3.9810717055
-    constexpr float GLOBAL_GAIN_DB = 12.0f;
-    const float linearGain = powf(10.0f, GLOBAL_GAIN_DB / 20.0f);
+    const float binHz = sharedData.fftBinWidthHz;
     for (uint16_t i = 0; i < sharedData.fftSpectrumSize; ++i) {
+        float freq = i * binHz;
+
+        float dbGain = 0.0f; // default 0 dB
+
+        if (freq < 4000.0f) {
+            dbGain = -10.0f; // csillapítás
+        } else if (freq >= 7000.0f && freq < 9000.0f) {
+            dbGain = 18.0f; // erősítés
+        } else if (freq >= 9000.0f) {
+            dbGain = 8.0f; // erősítés
+        } else {
+            dbGain = 0.0f; // alapértelmezett
+        }
+
+        // Convert dB to linear
+        float linearGain = powf(10.0f, dbGain / 20.0f);
+
+        // Apply per-bin
         sharedData.fftSpectrumData[i] *= linearGain;
     }
 }
@@ -684,9 +666,9 @@ bool AudioProcessorC1::processAndFillSharedData(SharedData &sharedData) {
 #endif
 
     // Még a végén ráküldünk egy spektrum erősítést, ha nem AGC módban vagyunk
-    // if (!isAgcEnabled()) {
-        this->gainFttMagnitudeValues(sharedData);
-    // }
+    if (!isAgcEnabled()) {
+        // this->gainFttMagnitudeValues(sharedData);
+    }
 
     return true;
 }

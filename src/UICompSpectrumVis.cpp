@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
  * -----                                                                                                               *
- * Last Modified: 2025.11.22, Saturday  01:57:26                                                                       *
+ * Last Modified: 2025.11.22, Saturday  04:36:09                                                                       *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -38,15 +38,15 @@
 #define TEST_DO_NOT_PROCESS_MUTED_STATE
 
 // UICompSpectrumVis működés debug engedélyezése de csak DEBUG módban
-#define __UISPECTRUM_DEBUG
+// #define __UISPECTRUM_DEBUG
 #if defined(__DEBUG) && defined(__UISPECTRUM_DEBUG)
 #define UISPECTRUM_DEBUG(fmt, ...) DEBUG(fmt __VA_OPT__(, ) __VA_ARGS__)
 #else
 #define UISPECTRUM_DEBUG(fmt, ...) // Üres makró, ha __DEBUG nincs definiálva
 #endif
 
-// Bar-alapú magasság AGC célérték
-#define BAR_AGC_TARGET_HEIGHT_UTILIZATION 0.85f // 85%-os magasságú maximális bar kitöltés legyen
+// A képernyő ennyi százalékát töltse ki a grafikon a rendelkezésre álló magasságból
+#define UI_TARGET_HEIGHT_UTILIZATION 0.85f // 85%-os magasságú maximális magasság
 
 // Magnitude-alapú AGC célértékek (nyers FFT magnitude tartomány)
 #define MAGNITUDE_AGC_TARGET_VALUE 8000.0f // Célérték magnitude módokhoz
@@ -98,25 +98,25 @@ namespace SensitivityConstants {
 //
 
 // LoweRes Spektrum mód
-constexpr float LOWRES_SPECTRUMBAR_SENSITIVITY_FACTOR = 0.008f; // LowRes Spektrum bar-ok amplitúdó skálázása (nagyobb érték: nagyobb sávok)
+constexpr float LOWRES_SPECTRUMBAR_SENSITIVITY_FACTOR = 0.003f; // LowRes Spektrum bar-ok amplitúdó skálázása (nagyobb érték: nagyobb sávok)
 
 // HighRes Spektrum mód
-constexpr float HIGHRES_SPECTRUMBAR_SENSITIVITY_FACTOR = 0.008f; // HighRes Spektrum bar-ok amplitúdó skálázása
+constexpr float HIGHRES_SPECTRUMBAR_SENSITIVITY_FACTOR = 0.08f; // HighRes Spektrum bar-ok amplitúdó skálázása
 
 // Oszcilloszkóp mód
 constexpr float OSCI_SENSITIVITY_FACTOR = 28.0f; // Oszcilloszkóp jel erősítése
 
 // Envelope mód
-constexpr float ENVELOPE_SENSITIVITY_FACTOR = 0.28f; // Envelope amplitúdó erősítése
+constexpr float ENVELOPE_SENSITIVITY_FACTOR = 0.2f; // Envelope amplitúdó erősítése
 
 // Waterfall mód
-constexpr float WATERFALL_SENSITIVITY_FACTOR = 0.98f; // Waterfall intenzitás skálázása
+constexpr float WATERFALL_SENSITIVITY_FACTOR = 0.2f; // Waterfall intenzitás skálázása
 
 // CW/RTTY SNR Curve
-constexpr float TUNING_AID_SNR_CURVE_SENSITIVITY_FACTOR = 0.3f;
+constexpr float TUNING_AID_SNR_CURVE_SENSITIVITY_FACTOR = 0.08f;
 
 // CW/RTTY Tuning Aid Waterfall
-constexpr float TUNING_AID_WATERFALL_SENSITIVITY_FACTOR = 1.0f;
+constexpr float TUNING_AID_WATERFALL_SENSITIVITY_FACTOR = 0.2f;
 
 }; // namespace SensitivityConstants
 
@@ -146,9 +146,9 @@ UICompSpectrumVis::UICompSpectrumVis(int x, int y, int w, int h, RadioMode radio
       lastTouchTime_(0),                               //
       lastFrameTime_(0),                               //
       envelopeLastSmoothedValue_(0.0f),                //
-      barAgcGainFactor_(0.02f),                        //
+      barAgcGainFactor_(1.0f),                         //
       barAgcLastUpdateTime_(0),                        //
-      magnitudeAgcGainFactor_(0.02f),                  //
+      magnitudeAgcGainFactor_(1.0f),                   //
       magnitudeAgcLastUpdateTime_(0),                  //
       sprite_(nullptr),                                //
       spriteCreated_(false),                           //
@@ -272,14 +272,14 @@ float UICompSpectrumVis::calculateBarAgcGain(const float *history, uint8_t histo
 
     float averageMax = sum / validCount;
     int graphH = getGraphHeight();
-    float targetHeight = graphH * BAR_AGC_TARGET_HEIGHT_UTILIZATION; // Pixel magasság cél
+    float targetHeight = graphH * UI_TARGET_HEIGHT_UTILIZATION; // Pixel magasság cél
     float idealGain = targetHeight / averageMax;
 
     // Simított átmenet az új gain-hez
     float newGain = AGC_SMOOTH_FACTOR * idealGain + (1.0f - AGC_SMOOTH_FACTOR) * currentGainFactor;
 
     // Biztonsági korlátok
-    return constrain(newGain, 0.001f, 20.0f);
+    return constrain(newGain, 0.1f, 20.0f);
 }
 
 /**
@@ -312,7 +312,7 @@ float UICompSpectrumVis::calculateMagnitudeAgcGain(const float *history, uint8_t
     float newGain = AGC_SMOOTH_FACTOR * idealGain + (1.0f - AGC_SMOOTH_FACTOR) * currentGainFactor;
 
     // Biztonsági korlátok
-    return constrain(newGain, 0.001f, 20.0f);
+    return constrain(newGain, 0.1f, 20.0f);
 }
 
 /**
@@ -866,7 +866,8 @@ void UICompSpectrumVis::renderSpectrumBar(bool isLowRes) {
 
     float maxMagnitude = 0.0f;
 
-    const uint8_t MAX_BAR_HEIGHT = static_cast<uint8_t>(graphH * BAR_AGC_TARGET_HEIGHT_UTILIZATION);
+    // Maximális magnitude érték keresése a megjelenítési tartományban
+    const uint8_t MAX_BAR_HEIGHT = static_cast<uint8_t>(graphH * UI_TARGET_HEIGHT_UTILIZATION);
 
     if (isLowRes) {
 
@@ -921,46 +922,63 @@ void UICompSpectrumVis::renderSpectrumBar(bool isLowRes) {
         }
 
         // AGC-hez: bar-ok maximum magassága (első néhány sáv kihagyva)
-        constexpr uint8_t LOWRES_SKIP_BARS_FOR_AGC = 1; // Első x bar kihagyása
         float maxBarMagnitude = 0.0f;
-        for (uint8_t band_idx = LOWRES_SKIP_BARS_FOR_AGC; band_idx < bands_to_display; band_idx++) {
+        for (uint8_t band_idx = 0; band_idx < bands_to_display; band_idx++) {
             maxBarMagnitude = std::max(maxBarMagnitude, band_magnitudes[band_idx]);
         }
 
         // Bar-alapú AGC frissítés (LowRes: maxBarMagnitude a legnagyobb sáv magnitude értéke)
         updateBarBasedGain(maxBarMagnitude);
 
-        // Sávok kirajzolása
+        // Sávok számítása (első passz): kiszámoljuk a nyers bar magasságokat, de még nem rajzolunk
+        float computedHeights[LOW_RES_BANDS] = {0.0f};
         for (uint8_t band_idx = 0; band_idx < bands_to_display; band_idx++) {
-            uint16_t x_pos = x_offset + bar_total_width * band_idx;
-
-            sprite_->fillRect(x_pos, 0, bar_width, graphH, TFT_BLACK);
-
-            // ----------------------------------------
-            // AGC vagy manuális erősítés alkalmazása
-            // ----------------------------------------
-            // UTÁNA erősítés a tiszta (szűrt) jelen
+            // Skálázás a konfigurált érzékenység és AGC alapján
             float adaptiveScale = getBarAgcScale(SensitivityConstants::LOWRES_SPECTRUMBAR_SENSITIVITY_FACTOR);
-            // AGC esetén a lowresBar nagyon(!) alulvezérlődik, növeljük az erősítést
             if (isAutoGainMode()) {
-                adaptiveScale *= 5.5f;
+                adaptiveScale *= 5.5f; // megőrizve a korábbi finomítást
             }
             float magnitude = band_magnitudes[band_idx] * adaptiveScale;
-            uint8_t dsize = static_cast<uint8_t>(constrain(magnitude, 0, MAX_BAR_HEIGHT));
 
-            // Zajküszöb alatti bar legyen 1px magas
-            if (dsize == 0) {
+            // Zajküszöb és legalacsonyabb pixel
+            if (magnitude <= 0.0f)
+                magnitude = 1.0f;
+
+            // Korlátozás a megjeleníthető maximális pixelmagasságra
+            float clamped = constrain(magnitude, 0.0f, static_cast<float>(MAX_BAR_HEIGHT));
+            computedHeights[band_idx] = clamped;
+        }
+
+        // Második passz: skálázzuk a teljes sor magasságait úgy, hogy a legnagyobb bar a cél százalékot kitöltse
+        float maxComputed = 0.0f;
+        for (uint8_t i = 0; i < bands_to_display; ++i) {
+            maxComputed = std::max(maxComputed, computedHeights[i]);
+        }
+
+        float targetHeight = static_cast<float>(graphH) * UI_TARGET_HEIGHT_UTILIZATION; // cél pixelmagasság
+        float finalScale = 1.0f;
+        if (maxComputed > 0.0f) {
+            finalScale = targetHeight / maxComputed;
+            // Korlátozzuk a skálát túl nagy felskálázás ellen
+            finalScale = constrain(finalScale, 0.2f, 5.0f);
+        }
+
+        // Végső kirajzolás és peak frissítés
+        static uint8_t bar_release_counter = 0;
+        static uint8_t peak_release_counter = 0;
+        bar_release_counter = (bar_release_counter + 1) % 1;
+        peak_release_counter = (peak_release_counter + 1) % 5;
+
+        for (uint16_t band_idx = 0; band_idx < bands_to_display; band_idx++) {
+            uint16_t x_pos = x_offset + bar_total_width * band_idx;
+            sprite_->fillRect(x_pos, 0, bar_width, graphH, TFT_BLACK);
+
+            float scaledHeightF = computedHeights[band_idx] * finalScale;
+            uint8_t dsize = static_cast<uint8_t>(constrain(scaledHeightF, 0.0f, static_cast<float>(MAX_BAR_HEIGHT)));
+            if (dsize == 0)
                 dsize = 1;
-            }
 
-            // Gyorsabb oszlop csillapítás: az oszlopok minden 2. ciklusban csökkennek, a peak-ek 5 ciklusonként
-            static uint8_t bar_release_counter = 0;
-            static uint8_t peak_release_counter = 0;
-            bar_release_counter = (bar_release_counter + 1) % 1;   // Oszlop: minden ciklusban (leggyorsabb)
-            peak_release_counter = (peak_release_counter + 1) % 5; // Peak: minden 5. ciklusban
-
-            // Oszlop magasság gyorsabb csillapítása
-            // A bar magassága mindig az aktuális dsize vagy a csillapított érték közül a nagyobb
+            // Csillapítás: ugyanaz a logika, de most a dsize-ot használjuk
             if (band_idx < MAX_SPECTRUM_BANDS) {
                 if (dsize >= bar_height_[band_idx]) {
                     bar_height_[band_idx] = dsize;
@@ -980,7 +998,7 @@ void UICompSpectrumVis::renderSpectrumBar(bool isLowRes) {
                 }
             }
 
-            // Peak magasság lassabb csillapítása
+            // Peak frissítés
             if (bar_height_[band_idx] > Rpeak_[band_idx] && band_idx < MAX_SPECTRUM_BANDS) {
                 Rpeak_[band_idx] = bar_height_[band_idx];
             } else if (bar_height_[band_idx] < Rpeak_[band_idx] && band_idx < MAX_SPECTRUM_BANDS) {
@@ -989,7 +1007,7 @@ void UICompSpectrumVis::renderSpectrumBar(bool isLowRes) {
                 }
             }
 
-            // Oszlop kirajzolása (gyorsabban csökkenő magassággal)
+            // Rajzolás
             uint8_t bar_draw_height = bar_height_[band_idx];
             if (bar_draw_height > 0) {
                 int16_t y_start = graphH - bar_draw_height;
@@ -1003,7 +1021,6 @@ void UICompSpectrumVis::renderSpectrumBar(bool isLowRes) {
                 }
             }
 
-            // Peak kirajzolása (csak ha nagyobb mint 3)
             if (Rpeak_[band_idx] > 3) {
                 int16_t y_peak = graphH - Rpeak_[band_idx];
                 sprite_->fillRect(x_pos, y_peak, bar_width, 2, TFT_CYAN);
@@ -1014,9 +1031,10 @@ void UICompSpectrumVis::renderSpectrumBar(bool isLowRes) {
         // Pixel-per-bin rajzolás (vékony vonalak)
         const uint8_t num_bins_in_range = std::max(1, max_bin_idx - min_bin_idx + 1);
 
-        constexpr uint8_t HIGHRES_SKIP_BINS_FOR_AGC = 3; // Első 3 bin kihagyása AGC-nél
         float maxBinMagnitudeForAgc = 0.0f;
 
+        // HighRes: kétfázisos számítás (először nyers oszlopmagasságok, majd skálázás a cél kitöltésre)
+        std::vector<float> computedCols(bounds.width, 0.0f);
         for (uint8_t screen_pixel_x = 0; screen_pixel_x < bounds.width; ++screen_pixel_x) {
             uint8_t fft_bin_index;
             if (bounds.width == 1) {
@@ -1034,41 +1052,52 @@ void UICompSpectrumVis::renderSpectrumBar(bool isLowRes) {
             }
 
             // AGC-hez: csak a kihagyott bin-ek után számoljuk a max-ot
-            if (fft_bin_index >= min_bin_idx + HIGHRES_SKIP_BINS_FOR_AGC) {
+            if (fft_bin_index >= min_bin_idx) {
                 maxBinMagnitudeForAgc = std::max(maxBinMagnitudeForAgc, magnitude);
             }
 
-            // UTÁNA erősítés a tiszta jelen
+            // UTÁNA erősítés a tiszta jelen (de még nem skálázzuk a teljes oszlopsort)
             float adaptiveScale = getBarAgcScale(SensitivityConstants::HIGHRES_SPECTRUMBAR_SENSITIVITY_FACTOR);
             float amplified = magnitude * adaptiveScale;
+            computedCols[screen_pixel_x] = amplified;
             maxMagnitude = std::max(maxMagnitude, amplified);
+        }
 
-            // ----------------------------------------
-            // AGC vagy manuális erősítés alkalmazása a maxMagnitude megkeresése UTÁN
-            // ----------------------------------------
-            // AGC esetén a highresBar túlvezérlődik, csökkentjük az erősítést
+        // Második passz: skálázzuk úgy, hogy a legnagyobb oszlop a cél kitöltést adja
+        float maxComputed = 0.0f;
+        for (auto v : computedCols)
+            maxComputed = std::max(maxComputed, v);
+
+        float targetHeight = static_cast<float>(graphH) * UI_TARGET_HEIGHT_UTILIZATION;
+        float finalScale = 1.0f;
+        if (maxComputed > 0.0f) {
+            finalScale = targetHeight / maxComputed;
+            finalScale = constrain(finalScale, 0.2f, 5.0f);
+        }
+
+        for (uint8_t screen_pixel_x = 0; screen_pixel_x < bounds.width; ++screen_pixel_x) {
+            float amplified = computedCols[screen_pixel_x] * finalScale;
+
+            // AGC esetén a highresBar túlvezérlődik, ha szükséges itt csökkenthető (jelenleg nincs további csillapítás)
             if (isAutoGainMode()) {
-                // amplified *= 0.07f;
+                // optional: amplified *= 0.07f;
             }
 
             sprite_->drawFastVLine(screen_pixel_x, 0, graphH, TFT_BLACK);
             uint8_t scaled_magnitude = static_cast<uint8_t>(constrain(amplified, 0, graphH - 1));
 
-            // Zajküszöb alatti bar legyen 1px magas
             if (scaled_magnitude == 0) {
                 scaled_magnitude = 1;
             }
 
-            if (scaled_magnitude > 0) {
-                int16_t y_bar_start = graphH - 1 - scaled_magnitude;
-                uint8_t bar_actual_height = scaled_magnitude + 1;
-                if (y_bar_start < 0) {
-                    bar_actual_height -= (0 - y_bar_start);
-                    y_bar_start = 0;
-                }
-                if (bar_actual_height > 0) {
-                    sprite_->drawFastVLine(screen_pixel_x, y_bar_start, bar_actual_height, TFT_SKYBLUE);
-                }
+            int16_t y_bar_start = graphH - 1 - scaled_magnitude;
+            uint8_t bar_actual_height = scaled_magnitude + 1;
+            if (y_bar_start < 0) {
+                bar_actual_height -= (0 - y_bar_start);
+                y_bar_start = 0;
+            }
+            if (bar_actual_height > 0) {
+                sprite_->drawFastVLine(screen_pixel_x, y_bar_start, bar_actual_height, TFT_SKYBLUE);
             }
         }
 
@@ -1280,8 +1309,8 @@ void UICompSpectrumVis::renderEnvelope() {
             }
 
             // EREDETI NAGYÍTÁS + vízszintes szétnyújtás
-            // A teljes grafikon magasság 80%-át használjuk a jobb láthatóságért
-            float y_offset_float = (displayValue / 100.0f) * (graphH * 0.8f); // Nagyobb skálázás, több részlet
+            // A teljes grafikon magasság x%-át használjuk a jobb láthatóságért
+            float y_offset_float = (displayValue / 100.0f) * (graphH * UI_TARGET_HEIGHT_UTILIZATION);
 
             int y_offset_pixels = static_cast<int>(round(y_offset_float));
             y_offset_pixels = std::min(y_offset_pixels, graphH - 4); // Kis margó

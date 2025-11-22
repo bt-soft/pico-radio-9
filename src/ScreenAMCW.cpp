@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
  * -----                                                                                                               *
- * Last Modified: 2025.11.22, Saturday  11:10:12                                                                       *
+ * Last Modified: 2025.11.22, Saturday  04:15:51                                                                       *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -181,7 +181,7 @@ void ScreenAMCW::activate() {
     ::audioController.setManualGain(1.0f);             // Manuális erősítés: a kissebb HF sávszéleség miatt erősítünk rajta
 
     // Dekóder specifikus beállítások
-    ::audioController.setDecoderUseAdaptiveThreshold(true); // Adaptív AGC küszöb használata a CW dekóderben
+    ::audioController.setDecoderUseAdaptiveThreshold(false); // Adaptív AGC küszöb használata a CW dekóderben
 }
 
 /**
