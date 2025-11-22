@@ -51,10 +51,13 @@ void ScreenSetupAudioProc::populateMenuItems() {
     // Korábbi menüpontok törlése
     settingItems.clear();
 
-    settingItems.push_back(SettingItem("CW Tone Frequency", String(config.data.cwToneFrequencyHz) + " Hz", static_cast<int>(AudioProcItemAction::CW_TONE_FREQUENCY)));
+    settingItems.push_back(
+        SettingItem("CW Tone Frequency", String(config.data.cwToneFrequencyHz) + " Hz", static_cast<int>(AudioProcItemAction::CW_TONE_FREQUENCY)));
 
-    settingItems.push_back(SettingItem("RTTY Mark Frequency", String(config.data.rttyMarkFrequencyHz) + " Hz", static_cast<int>(AudioProcItemAction::RTTY_MARK_FREQUENCY)));
-    settingItems.push_back(SettingItem("RTTY Shift Frequency", String(config.data.rttyShiftFrequencyHz) + " Hz", static_cast<int>(AudioProcItemAction::RTTY_SHIFT_FREQUENCY)));
+    settingItems.push_back(
+        SettingItem("RTTY Mark Frequency", String(config.data.rttyMarkFrequencyHz) + " Hz", static_cast<int>(AudioProcItemAction::RTTY_MARK_FREQUENCY)));
+    settingItems.push_back(
+        SettingItem("RTTY Shift Frequency", String(config.data.rttyShiftFrequencyHz) + " Hz", static_cast<int>(AudioProcItemAction::RTTY_SHIFT_FREQUENCY)));
     settingItems.push_back(SettingItem("RTTY baudrate", String(config.data.rttyBaudRate), static_cast<int>(AudioProcItemAction::RTTY_BAUDRATE)));
 
     settingItems.push_back(SettingItem("FFT Gain AM", decodeFFTGain(config.data.audioFftGainConfigAm), static_cast<int>(AudioProcItemAction::FFT_GAIN_AM)));
@@ -182,16 +185,17 @@ void ScreenSetupAudioProc::handleRttyBaudRateDialog(int index) {
  * @param value Az FFT gain érték
  * @return Olvasható string reprezentáció
  */
-String ScreenSetupAudioProc::decodeFFTGain(float value) {
+String ScreenSetupAudioProc::decodeFFTGain(int8_t value) {
     if (value == SPECTRUM_GAIN_MODE_AUTO) {
         return "Auto Gain";
     } else {
         // dB formátumban megjelenítés
         char buf[16];
-        if (value >= 0.0f) {
-            sprintf(buf, "+%.1f dB", value);
+        float fval = static_cast<float>(value);
+        if (fval >= 0.0f) {
+            sprintf(buf, "+%.1f dB", fval);
         } else {
-            sprintf(buf, "%.1f dB", value);
+            sprintf(buf, "%.1f dB", fval);
         }
         return String(buf);
     }
@@ -205,7 +209,7 @@ String ScreenSetupAudioProc::decodeFFTGain(float value) {
  */
 void ScreenSetupAudioProc::handleFFTGainDialog(int index, bool isAM) {
 
-    float &currentConfig = isAM ? config.data.audioFftGainConfigAm : config.data.audioFftGainConfigFm;
+    int8_t &currentConfig = isAM ? config.data.audioFftGainConfigAm : config.data.audioFftGainConfigFm;
     const char *title = isAM ? "FFT Gain AM" : "FFT Gain FM";
 
     uint8_t defaultSelection = 0; // Auto Gain
@@ -230,16 +234,23 @@ void ScreenSetupAudioProc::handleFFTGainDialog(int index, bool isAM) {
                 {
                     dialog->close(UIDialogBase::DialogResult::Accepted);
 
-                    auto tempGainValuePtr = std::make_shared<float>((currentConfig != SPECTRUM_GAIN_MODE_AUTO) ? currentConfig : 0.0f);
+                    float tempGain = (currentConfig != SPECTRUM_GAIN_MODE_AUTO) ? static_cast<float>(currentConfig) : 0.0f;
+                    auto tempGainValuePtr = std::make_shared<float>(tempGain);
 
                     auto gainDialog = std::make_shared<UIValueChangeDialog>(
-                        this, (String(title) + " - Manual Gain").c_str(), "Set gain (dB): -40.0 ... +40.0",                           //
-                        tempGainValuePtr.get(),                                                                                       // Pointer a temp értékhez
-                        -40.0f, 40.0f, 1.0f,                                                                                          // Min, Max, Step (dB-ben)
-                        nullptr,                                                                                                      // Élő előnézet callback (nem szükséges)
+                        this, (String(title) + " - Manual Gain").c_str(), "Set gain (dB): -40.0 ... +40.0", //
+                        tempGainValuePtr.get(),                                                             // Pointer a temp értékhez
+                        -40.0f, 40.0f, 1.0f,                                                                // Min, Max, Step (dB-ben)
+                        nullptr,                                                                            // Élő előnézet callback (nem szükséges)
                         [this, index, &currentConfig, tempGainValuePtr](UIDialogBase *sender, UIMessageDialog::DialogResult result) { // Eredmény kezelése
                             if (result == UIMessageDialog::DialogResult::Accepted) {
-                                currentConfig = *tempGainValuePtr;
+                                // Clamp and assign back to int8_t
+                                float newVal = *tempGainValuePtr;
+                                if (newVal < -40.0f)
+                                    newVal = -40.0f;
+                                if (newVal > 40.0f)
+                                    newVal = 40.0f;
+                                currentConfig = static_cast<int8_t>(roundf(newVal));
                                 populateMenuItems(); // Teljes frissítés a helyes érték megjelenítéséhez
                             }
                         },

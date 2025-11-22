@@ -78,8 +78,8 @@ struct Config_t {
     bool beeperEnabled;                // Hangjelzés engedélyezése
     bool rotaryAccelerationEnabled;    // Rotary gyorsítás engedélyezése
 
-    float audioFftGainConfigAm; // FFT Gain AM módban (dB): -999.0f = Auto Gain, -40.0 ... +40.0 dB tartomány (0dB = 1x, -40dB = 0.01x, +40dB = 100x)
-    float audioFftGainConfigFm; // FFT Gain FM módban (dB): -999.0f = Auto Gain, -40.0 ... +40.0 dB tartomány (0dB = 1x, -40dB = 0.01x, +40dB = 100x)
+    int8_t audioFftGainConfigAm; // FFT Gain AM módban (dB): SPECTRUM_GAIN_MODE_AUTO = Auto Gain, range -40 ... +40 (0 = 0dB)
+    int8_t audioFftGainConfigFm; // FFT Gain FM módban (dB): SPECTRUM_GAIN_MODE_AUTO = Auto Gain, range -40 ... +40 (0 = 0dB)
 
     // CW frekvencia
     uint16_t cwToneFrequencyHz; // CW frekvencia Hz-ben

@@ -51,7 +51,7 @@ class ScreenSetupAudioProc : public ScreenSetupBase {
     };
 
     // Segédfüggvények
-    String decodeFFTGain(float value);
+    String decodeFFTGain(int8_t value);
 
     // Audió feldolgozás specifikus dialógus kezelő függvények
     void handleCwToneFrequencyDialog(int index);

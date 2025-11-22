@@ -77,7 +77,8 @@ void DebugDataInspector::printConfigData(const Config_t &configData) {
     DEBUG("  currVolume: %u\n", configData.currVolume);
     DEBUG("  agcGain: %u\n", configData.agcGain);
     DEBUG("  currentAGCgain: %u\n", configData.currentAGCgain);
-    DEBUG("  tftCalibrateData: [%u, %u, %u, %u, %u]\n", configData.tftCalibrateData[0], configData.tftCalibrateData[1], configData.tftCalibrateData[2], configData.tftCalibrateData[3], configData.tftCalibrateData[4]);
+    DEBUG("  tftCalibrateData: [%u, %u, %u, %u, %u]\n", configData.tftCalibrateData[0], configData.tftCalibrateData[1], configData.tftCalibrateData[2],
+          configData.tftCalibrateData[3], configData.tftCalibrateData[4]);
     DEBUG("  tftBackgroundBrightness: %u\n", configData.tftBackgroundBrightness);
     DEBUG("  tftDigitLight: %s\n", configData.tftDigitLight ? "true" : "false");
     DEBUG("  screenSaverTimeoutMinutes: %u\n", configData.screenSaverTimeoutMinutes);
@@ -86,12 +87,14 @@ void DebugDataInspector::printConfigData(const Config_t &configData) {
     if (configData.audioFftGainConfigAm == SPECTRUM_GAIN_MODE_AUTO) {
         DEBUG("  audioFftGainConfigAm: Auto Gain\n");
     } else {
-        DEBUG("  audioFftGainConfigAm: %.1f dB (linear: %.3fx)\n", configData.audioFftGainConfigAm, powf(10.0f, configData.audioFftGainConfigAm / 20.0f));
+        float amDb = static_cast<float>(configData.audioFftGainConfigAm);
+        DEBUG("  audioFftGainConfigAm: %.1f dB (linear: %.3fx)\n", amDb, powf(10.0f, amDb / 20.0f));
     }
     if (configData.audioFftGainConfigFm == SPECTRUM_GAIN_MODE_AUTO) {
         DEBUG("  audioFftGainConfigFm: Auto Gain\n");
     } else {
-        DEBUG("  audioFftGainConfigFm: %.1f dB (linear: %.3fx)\n", configData.audioFftGainConfigFm, powf(10.0f, configData.audioFftGainConfigFm / 20.0f));
+        float fmDb = static_cast<float>(configData.audioFftGainConfigFm);
+        DEBUG("  audioFftGainConfigFm: %.1f dB (linear: %.3fx)\n", fmDb, powf(10.0f, fmDb / 20.0f));
     }
     DEBUG("  cwToneFrequencyHz: %u\n", configData.cwToneFrequencyHz);
     DEBUG("  rttyMarkFrequencyHz: %u\n", configData.rttyMarkFrequencyHz);

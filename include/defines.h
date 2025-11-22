@@ -111,5 +111,5 @@
 // Egy másodperc mikroszekundumban
 #define ONE_SECOND_IN_MICROS 1000000.0f
 
-#define SPECTRUM_GAIN_MODE_AUTO -999.0f        // Auto Gain mód spektrum vizualizációhoz
-#define SPECTRUM_GAIN_MODE_MANUAL_DEFAULT 0.0f // Manual Gain mód alapértelmezett érték spektrum vizualizációhoz
+#define SPECTRUM_GAIN_MODE_AUTO ((int8_t)-128)        // Auto Gain mód spektrum vizualizációhoz (int8_t sentinel)
+#define SPECTRUM_GAIN_MODE_MANUAL_DEFAULT ((int8_t)0) // Manual Gain mód alapértelmezett érték spektrum vizualizációhoz (0 dB)

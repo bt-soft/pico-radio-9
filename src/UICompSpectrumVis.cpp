@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
  * -----                                                                                                               *
- * Last Modified: 2025.11.22, Saturday  01:05:54                                                                       *
+ * Last Modified: 2025.11.22, Saturday  01:20:20                                                                       *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -326,7 +326,8 @@ float UICompSpectrumVis::getBarAgcScale(float baseConstant) {
     }
 
     // Manual gain mód: dB -> lineáris konverzió
-    float gainDb = this->radioMode_ == RadioMode::AM ? config.data.audioFftGainConfigAm : config.data.audioFftGainConfigFm;
+    int8_t gainCfg = this->radioMode_ == RadioMode::AM ? config.data.audioFftGainConfigAm : config.data.audioFftGainConfigFm;
+    float gainDb = static_cast<float>(gainCfg);
     float gainLinear = powf(10.0f, gainDb / 20.0f);
     return baseConstant * gainLinear;
 }
@@ -342,7 +343,8 @@ float UICompSpectrumVis::getMagnitudeAgcScale(float baseConstant) {
     }
 
     // Manual gain mód: dB -> lineáris konverzió
-    float gainDb = this->radioMode_ == RadioMode::AM ? config.data.audioFftGainConfigAm : config.data.audioFftGainConfigFm;
+    int8_t gainCfg = this->radioMode_ == RadioMode::AM ? config.data.audioFftGainConfigAm : config.data.audioFftGainConfigFm;
+    float gainDb = static_cast<float>(gainCfg);
     float gainLinear = powf(10.0f, gainDb / 20.0f);
     return baseConstant * gainLinear;
 }
@@ -372,8 +374,8 @@ void UICompSpectrumVis::resetMagnitudeAgc() {
  * @return True, ha auto gain mód aktív
  */
 bool UICompSpectrumVis::isAutoGainMode() {
-    float currentGainConfig = this->radioMode_ == RadioMode::AM ? config.data.audioFftGainConfigAm : config.data.audioFftGainConfigFm;
-    return (currentGainConfig == SPECTRUM_GAIN_MODE_AUTO); // -999.0f = Auto Gain (speciális érték)
+    int8_t currentGainConfig = this->radioMode_ == RadioMode::AM ? config.data.audioFftGainConfigAm : config.data.audioFftGainConfigFm;
+    return (currentGainConfig == SPECTRUM_GAIN_MODE_AUTO); // -128 = Auto Gain (speciális érték)
 }
 
 /**
@@ -415,7 +417,7 @@ void UICompSpectrumVis::draw() {
     lastFrameTime_ = currentTime;
 
 #ifdef __DEBUG
-    // AGC logolás 1mpént, de csak ha be van kapcsolva az auto agc
+    // AGC logolás 1mp-ként, de csak ha be van kapcsolva az auto agc
     static uint32_t lastAgcLogTime = 0;
     if (isAutoGainMode() && Utils::timeHasPassed(lastAgcLogTime, 1000)) {
         UISPECTRUM_DEBUG("UICompSpectrumVis [Auto AGC] mode=%d barGain=%.3f magGain=%.3f\n", (int)currentMode_, barAgcGainFactor_, magnitudeAgcGainFactor_);
@@ -2059,8 +2061,8 @@ void UICompSpectrumVis::renderModeIndicator() {
 
     tft.setFreeFont();
     tft.setTextSize(1);
-    tft.setTextColor(TFT_YELLOW, TFT_BLACK); // Background black, this clears the previous
-    tft.setTextDatum(BC_DATUM);              // Bottom-center alignment
+    tft.setTextColor(TFT_YELLOW, TFT_BLACK); // Fekete háttér, ez törli az előzőt
+    tft.setTextDatum(BC_DATUM);              // Alul-középre igazítás
 
     // Mode szöveggé dekódolása
     String modeText = decodeModeToStr();
@@ -2069,19 +2071,19 @@ void UICompSpectrumVis::renderModeIndicator() {
             modeText += " (Auto gain)";
         } else {
             // Manuális mód: írjuk ki az aktuális FFT gain értéket dB-ben
-            float gainDb = (this->radioMode_ == RadioMode::AM) ? config.data.audioFftGainConfigAm : config.data.audioFftGainConfigFm;
+            int8_t gainCfg = (this->radioMode_ == RadioMode::AM) ? config.data.audioFftGainConfigAm : config.data.audioFftGainConfigFm;
             char buf[32];
-            sprintf(buf, " (Man:%.1fdB)", gainDb);
+            sprintf(buf, " (Man:%ddB)", gainCfg);
             modeText += buf;
         }
     }
 
-    // Clear mode indicator area explicitly before text drawing - KERET ALATT
+    // A mód indikátor területének törlése a szöveg rajzolása előtt - KERET ALATT
     int indicatorY = bounds.y + bounds.height; // Közvetlenül a keret alatt kezdődik
     tft.fillRect(bounds.x - 4, indicatorY, bounds.width + 8, 10, TFT_BLACK);
 
-    // Draw text at component bottom + indicator area, center
-    // Y coordinate will be the text baseline (bottom of the indicator area)
+    // Szöveg kirajzolása a komponens alján + indikátor terület közepén
+    // Az Y koordináta a szöveg alapvonalát jelenti (az indikátor terület alja)
     tft.drawString(modeText, bounds.x + bounds.width / 2, indicatorY + indicatorH);
 }
 

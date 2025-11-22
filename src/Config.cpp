@@ -68,7 +68,7 @@ const Config_t DEFAULT_CONFIG = {
     .rotaryAccelerationEnabled = true,                 // Rotary gyorsítás engedélyezése
 
     // AudioFft módok
-    .audioFftGainConfigAm = -18.0,                             // Manuális a sok zaj elnyomására
+    .audioFftGainConfigAm = (int8_t)-18,                       // Manuális a sok zaj elnyomására (dB)
     .audioFftGainConfigFm = SPECTRUM_GAIN_MODE_MANUAL_DEFAULT, // Manuális, 0dB
 
     // CW beállítások
