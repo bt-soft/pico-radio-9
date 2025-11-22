@@ -234,16 +234,17 @@ void ScreenSetupAudioProc::handleFFTGainDialog(int index, bool isAM) {
                 {
                     dialog->close(UIDialogBase::DialogResult::Accepted);
 
-                    int tempGain = (currentConfig == SPECTRUM_GAIN_MODE_AUTO) ? 0 : static_cast<int>(currentConfig);
+                    // tempGain must outlive the dialog; allocate on heap and keep shared_ptr in lambda capture
+                    auto tempGainPtr = std::make_shared<int>((currentConfig == SPECTRUM_GAIN_MODE_AUTO) ? 0 : static_cast<int>(currentConfig));
 
                     auto gainDialog = std::make_shared<UIValueChangeDialog>(
                         this, (String(title) + " - Manual Gain").c_str(), "Set gain (dB): -40 ... +40", //
-                        &tempGain,                                                                      // Pointer a temp értékhez (int*)
+                        tempGainPtr.get(),                                                              // Pointer a temp értékhez (int*)
                         -40, 40, 1,                                                                     // Min, Max, Step (dB-ben)
                         nullptr,                                                                        // Élő előnézet callback (nem szükséges)
-                        [this, index, &currentConfig, &tempGain](UIDialogBase *sender, UIMessageDialog::DialogResult result) { // Eredmény kezelése
+                        [this, index, &currentConfig, tempGainPtr](UIDialogBase *sender, UIMessageDialog::DialogResult result) { // Eredmény kezelése
                             if (result == UIMessageDialog::DialogResult::Accepted) {
-                                int clamped = constrain(tempGain, -40, 40);
+                                int clamped = constrain(*tempGainPtr, -40, 40);
                                 currentConfig = static_cast<int8_t>(clamped);
                                 populateMenuItems(); // Teljes frissítés a helyes érték megjelenítéséhez
                             }

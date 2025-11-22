@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                       *
  * -----                                                                                                               *
- * Last Modified: 2025.11.22, Saturday  07:59:34                                                                       *
+ * Last Modified: 2025.11.22, Saturday  02:49:11                                                                       *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -126,4 +126,6 @@ class AudioProcessorC1 {
     // Zajszűrés paraméterek
     bool useNoiseReduction_;  // Zajszűrés be/ki kapcsoló
     uint8_t smoothingPoints_; // Mozgó átlag simítás pontok száma (0=nincs, 3 vagy 5)
+
+    void gainFttMagnitudeValues(SharedData &sharedData);
 };
