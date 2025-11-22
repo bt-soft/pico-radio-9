@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                       *
  * -----                                                                                                               *
- * Last Modified: 2025.11.16, Sunday  09:47:03                                                                         *
+ * Last Modified: 2025.11.22, Saturday  07:59:34                                                                       *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -91,7 +91,7 @@ class AudioProcessorC1 {
   private:
     void removeDcAndSmooth(const uint16_t *input, int16_t *output, uint16_t count);
     void applyAgc(int16_t *samples, uint16_t count);
-    bool checkSignalThreshold(SharedData &sharedData);
+    bool checkSignalThreshold(int16_t *samples, uint16_t count);
     void applyFftGaussianWindow(float *data, uint16_t size, float fftBinWidthHz, float boostMinHz, float boostMaxHz, float boostGain);
 
     AdcDmaC1 adcDmaC1;

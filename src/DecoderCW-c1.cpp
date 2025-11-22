@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
  * -----                                                                                                               *
- * Last Modified: 2025.11.21, Friday  07:18:35                                                                         *
+ * Last Modified: 2025.11.22, Saturday  08:41:50                                                                       *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -42,18 +42,23 @@ extern DecodedData decodedData;
 // Morse szimbólum tömb inicializálása
 constexpr char DecoderCW_C1::morseSymbols_[128];
 
-/** 
+/**
  * @brief CwDecoderC1 konstruktor - inicializálja az alapértelmezett értékeket
  */
-DecoderCW_C1::DecoderCW_C1() 
-    : samplingRate_(0), targetFreq_(800.0f), goertzelCoeff_(0.0f), goertzelQ1_(0.0f), goertzelQ2_(0.0f), threshold_(2000.0f), currentFreqIndex_(4), toneDetected_(false), leadingEdgeTime_(0), trailingEdgeTime_(0),
-      startReference_(200), reference_(200), toneMin_(9999), toneMax_(0), lastElement_(0), currentWpm_(0), toneIndex_(0), symbolIndex_(63), symbolOffset_(32), symbolCount_(0), started_(false), measuring_(false),
-      wpmHistoryIndex_(0), freqHistoryCount_(0), lastPublishedWpm_(0), lastPublishedFreq_(0.0f) {
+DecoderCW_C1::DecoderCW_C1()
+    : samplingRate_(0), targetFreq_(800.0f), goertzelCoeff_(0.0f), goertzelQ1_(0.0f), goertzelQ2_(0.0f), threshold_(2000.0f), currentFreqIndex_(4),
+      toneDetected_(false), leadingEdgeTime_(0), trailingEdgeTime_(0), startReference_(200), reference_(200), toneMin_(9999), toneMax_(0), lastElement_(0),
+      currentWpm_(0), toneIndex_(0), symbolIndex_(63), symbolOffset_(32), symbolCount_(0), started_(false), measuring_(false), wpmHistoryIndex_(0),
+      freqHistoryCount_(0), lastPublishedWpm_(0), lastPublishedFreq_(0.0f) {
 
     memset(scanFrequencies_, 0, sizeof(scanFrequencies_));
     memset(scanCoeffs_, 0, sizeof(scanCoeffs_));
     memset(toneDurations_, 0, sizeof(toneDurations_));
     memset(wpmHistory_, 0, sizeof(wpmHistory_));
+    // Initialize sliding buffer for frequency tracking
+    memset(lastSamples_, 0, sizeof(lastSamples_));
+    lastSampleCount_ = 0;
+    lastSamplePos_ = 0;
 }
 
 /**
@@ -62,7 +67,8 @@ DecoderCW_C1::DecoderCW_C1()
  * @return true ha sikerült elindítani
  */
 bool DecoderCW_C1::start(const DecoderConfig &decoderConfig) {
-    CW_DEBUG("CW-C1: Dekóder indítása - samplingRate: %u Hz, centerFreq: %u Hz, sampleCount: %u\n", decoderConfig.samplingRate, decoderConfig.cwCenterFreqHz, decoderConfig.sampleCount);
+    CW_DEBUG("CW-C1: Dekóder indítása - samplingRate: %u Hz, centerFreq: %u Hz, sampleCount: %u\n", decoderConfig.samplingRate, decoderConfig.cwCenterFreqHz,
+             decoderConfig.sampleCount);
 
     samplingRate_ = decoderConfig.samplingRate;
     targetFreq_ = decoderConfig.cwCenterFreqHz > 0 ? (float)decoderConfig.cwCenterFreqHz : 800.0f;
@@ -100,7 +106,7 @@ void DecoderCW_C1::stop() {
     decodedData.cwCurrentWpm = 0;
     decodedData.cwCurrentFreq = 0;
 }
- 
+
 /**
  * @brief Goertzel együttható számítása adott frekvenciára
  * @param frequency Célfrekvencia Hz-ben
@@ -208,12 +214,8 @@ void DecoderCW_C1::updateFrequencyTracking() {
     if (!toneDetected_) {
         return;
     }
-
-    // Statikus buffer az utolsó GOERTZEL_N mintához
-    static int16_t lastSamples[GOERTZEL_N];
-    static size_t lastSampleCount = 0;
-
-    if (lastSampleCount < GOERTZEL_N) {
+    // Use member sliding buffer populated by processSamples()
+    if (lastSampleCount_ < GOERTZEL_N) {
         return; // Még nincs elég minta
     }
 
@@ -223,7 +225,15 @@ void DecoderCW_C1::updateFrequencyTracking() {
 
     // Az ablak alkalmazása az utolsó mintákra a helyi pufferbe
     float buf[GOERTZEL_N];
-    windowApplier.apply(lastSamples, buf, GOERTZEL_N);
+    if (lastSamplePos_ == 0) {
+        windowApplier.apply(lastSamples_, buf, GOERTZEL_N);
+    } else {
+        int16_t temp[GOERTZEL_N];
+        size_t tail = GOERTZEL_N - lastSamplePos_;
+        memcpy(temp, lastSamples_ + lastSamplePos_, tail * sizeof(int16_t));
+        memcpy(temp + tail, lastSamples_, lastSamplePos_ * sizeof(int16_t));
+        windowApplier.apply(temp, buf, GOERTZEL_N);
+    }
     for (size_t i = 0; i < FREQ_SCAN_STEPS; i++) {
         float magnitude = processGoertzelBlock(buf, GOERTZEL_N, scanCoeffs_[i]);
         if (magnitude > maxMagnitude) {
@@ -254,6 +264,14 @@ void DecoderCW_C1::processSamples(const int16_t *rawAudioSamples, size_t count) 
     size_t offset = 0;
     while (offset < count) {
         size_t blockSize = min((size_t)GOERTZEL_N, count - offset);
+        // A körkörös csúszó puffer frissítése a bejövő mintákkal
+        for (size_t i = 0; i < blockSize; ++i) {
+            lastSamples_[lastSamplePos_] = rawAudioSamples[offset + i];
+            lastSamplePos_ = (lastSamplePos_ + 1) % GOERTZEL_N;
+            if (lastSampleCount_ < GOERTZEL_N)
+                ++lastSampleCount_;
+        }
+
         bool tone = detectTone(rawAudioSamples + offset, blockSize);
 
         if (tone && freqHistoryCount_ < FREQ_HISTORY_SIZE) {

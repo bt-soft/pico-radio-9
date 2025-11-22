@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                       *
  * -----                                                                                                               *
- * Last Modified: 2025.11.17, Monday  07:45:40                                                                         *
+ * Last Modified: 2025.11.22, Saturday  08:49:49                                                                       *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -78,7 +78,7 @@ class DecoderCW_C1 : public IDecoder {
     // AGC runtime paraméterek
     float agcLevel_ = 2000.0f;   // AGC szint (mozgó átlag)
     float agcAlpha_ = 0.02f;     // AGC szűrési állandó (lassabb követés)
-    float minThreshold_ = 80.0f; // Minimális threshold_ érték
+    float minThreshold_ = 20.0f; // Minimális threshold_ érték
 
     // --- Frekvencia követés ---
     static constexpr size_t FREQ_SCAN_STEPS = 9; // 9 lépés: -200, -150, -100, -50, 0, +50, +100, +150, +200 Hz
@@ -182,6 +182,10 @@ class DecoderCW_C1 : public IDecoder {
     bool useWindow_ = true;
     bool detectTone(const int16_t *samples, size_t count);
     void updateFrequencyTracking();
+    // Sliding buffer containing the most recent GOERTZEL_N samples
+    int16_t lastSamples_[GOERTZEL_N];
+    size_t lastSampleCount_ = 0;
+    size_t lastSamplePos_ = 0; // next write position in circular buffer
     void processDot();
     void processDash();
     bool decodeSymbol();
