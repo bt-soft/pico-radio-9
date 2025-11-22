@@ -1,0 +1,100 @@
+#pragma once
+
+#include "IDecoder.h"
+#include "arm_math.h"
+#include "defines.h"
+
+/**
+ * @brief WEFAX dekóder osztály - core1 számára
+ */
+class WefaxDecoderC1 : public IDecoder {
+  public:
+    WefaxDecoderC1();
+    ~WefaxDecoderC1() = default;
+
+    /**
+     * @brief Dekóder neve
+     */
+    const char *getDecoderName() const override { return "WEFAX-FM"; };
+
+    /**
+     * @brief Indítás / inicializáció
+     */
+    bool start(const DecoderConfig &decoderConfig) override;
+
+    /**
+     * @brief Leállítás és takarítás
+     */
+    void stop() override;
+
+    /**
+     * @brief Nyers audio minták feldolgozása - TELJES WEFAX dekódolás Goertzel-lel
+     *
+     * Ez az EGYETLEN belépési pont a WEFAX dekóderhez. Minden állapotban (start tone,
+     * phasing, image decoding)
+     *
+     * IDecoder::processSamples() interfész implementációja.
+     *
+     * @param samples Pointer a nyers audio mintákhoz (DC-centrált int16_t)
+     * @param count Minták száma
+     */
+    void processSamples(const int16_t *samples, size_t count) override;
+
+    /**
+     * @brief Visszaadja az aktuális (legutóbb írt) sor indexét
+     */
+    inline uint16_t getCurrentLineIndex() const { return current_line_index; }
+
+  private:
+    // WEFAX mód típusok
+    enum class WefaxMode {
+        IOC576 = 0, // IOC 576 (1809 pixel szélesség, 25ms leading white)
+        IOC288 = 1  // IOC 288 (909 pixel szélesség, 25ms leading white)
+    };
+
+    // Visszaadja a mód nevét
+    const char *getModeName(WefaxMode mode) const;
+
+    void decode_phasing(int gray_value);
+    void decode_image(int gray_value, uint16_t *current_line_idx);
+
+    float complex_arg_diff(float prev_real, float prev_imag, float curr_real, float curr_imag);
+
+    // FM demodulátor állapot
+#define IQ_FILTER_SIZE 16 // I/Q szűrő mérete (egyszerűsített mozgóátlag)
+    float phase_accumulator = 0.0f;
+    float phase_increment = 0.0f;
+    float deviation_ratio = 0.0f;
+    float i_buffer[IQ_FILTER_SIZE] = {0};
+    float q_buffer[IQ_FILTER_SIZE] = {0};
+    int iq_buffer_index = 0;
+    float prevz_real = 0.0f;
+    float prevz_imag = 0.0f;
+
+    // Phasing detektálás állapot
+#define PHASING_FILTER_SIZE 16 // Phasing detektálás szűrője
+    enum RxState { IDLE = 0, RXPHASING, RXIMAGE };
+    RxState rx_state = IDLE;
+    int phasing_count = 0;
+    int phasing_history[PHASING_FILTER_SIZE] = {0};
+    bool phase_high = false;
+    int curr_phase_len = 0;
+    int curr_phase_high = 0;
+    int curr_phase_low = 0;
+    int phase_lines = 0;
+    float lpm_sum = 0.0f;
+    float samples_per_line = 0.0f;
+    float sample_rate = 0.0f;
+
+    // Kép fogadás állapot
+    int img_sample = 0;
+    int last_col = 0;
+    int img_width = WEFAX_IOC576_WIDTH;
+    uint32_t current_ioc = 576;
+
+    uint16_t current_line_index = 0; // A sor, ahova éppen írunk (0-249)
+    uint8_t current_wefax_line[WEFAX_MAX_OUTPUT_WIDTH];
+    bool line_started = false;
+    int pixel_val = 0;
+    int pix_samples_nb = 0;
+};

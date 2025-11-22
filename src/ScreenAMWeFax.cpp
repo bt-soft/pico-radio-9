@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
  * -----                                                                                                               *
- * Last Modified: 2025.11.22, Saturday  07:42:14                                                                       *
+ * Last Modified: 2025.11.22, Saturday  07:58:39                                                                       *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -84,14 +84,10 @@ void ScreenAMWeFax::layoutComponents() {
     // addDefaultButtons = false -> NEM rakja be a HAM, Band, Scan gombokat
     ScreenRadioBase::createCommonHorizontalButtons(false);
 
-    // Wefax kép helyének kirajzolása
-
     // Reset gomb elhelyezése: a gomb jobb oldala egy vonalban legyen a kép jobb oldalával,
-    // a gomb teteje pedig 10px-el legyen a kép teteje felett.
-    const int resetBtnRightX = WEFAX_PICTURE_START_X + WEFAX_SCALED_WIDTH;              // kép jobb oldala
-    const int resetBtnX = resetBtnRightX - UIButton::DEFAULT_BUTTON_WIDTH;              // gomb bal oldala
-    const int resetBtnY = WEFAX_PICTURE_START_Y - 15 - UIButton::DEFAULT_BUTTON_HEIGHT; // 10px a kép felett
-
+    constexpr uint16_t resetBtnRightX = WEFAX_PICTURE_START_X + WEFAX_SCALED_WIDTH;             // kép jobb oldala
+    constexpr uint16_t resetBtnX = resetBtnRightX - UIButton::DEFAULT_BUTTON_WIDTH;             // gomb bal oldala
+    constexpr uint16_t resetBtnY = WEFAX_PICTURE_START_Y - 5 - UIButton::DEFAULT_BUTTON_HEIGHT; // 5px a kép felett
     if (!resetButton) {
         resetButton = std::make_shared<UIButton>( //
             201,                                  // egyedi ID
@@ -154,6 +150,9 @@ void ScreenAMWeFax::activate() {
     );
     ::audioController.setNoiseReductionEnabled(true); // Zajszűrés beapcsolva (tisztább spektrum)
     ::audioController.setSmoothingPoints(5);          // Zajszűrés simítási pontok száma = 5 (erősebb zajszűrés, nincs frekvencia felbontási igény)
+
+    ::audioController.setAgcEnabled(true); // AGC bekapcsolva
+    ::audioController.setManualGain(1.0f); // Manuális erősítés: a kissebb HF sávszéleség miatt erősítünk rajta
 }
 
 /**
@@ -168,6 +167,9 @@ void ScreenAMWeFax::deactivate() {
     ScreenAMRadioBase::deactivate();
 }
 
+/**
+ * @brief Képernyő tartalom rajzolása
+ */
 void ScreenAMWeFax::drawContent() {
 
     // Képterület törlése
