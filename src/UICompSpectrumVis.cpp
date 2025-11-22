@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
  * -----                                                                                                               *
- * Last Modified: 2025.11.22, Saturday  11:46:39                                                                       *
+ * Last Modified: 2025.11.22, Saturday  01:05:54                                                                       *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -98,10 +98,10 @@ namespace SensitivityConstants {
 //
 
 // LoweRes Spektrum mód
-constexpr float LOWRES_SPECTRUMBAR_SENSITIVITY_FACTOR = 0.2f; // Spektrum bar-ok amplitúdó skálázása (nagyobb érték: nagyobb sávok)
+constexpr float LOWRES_SPECTRUMBAR_SENSITIVITY_FACTOR = 0.008f; // LowRes Spektrum bar-ok amplitúdó skálázása (nagyobb érték: nagyobb sávok)
 
 // HighRes Spektrum mód
-constexpr float HIGHRES_SPECTRUMBAR_SENSITIVITY_FACTOR = 0.12f; // Spektrum bar-ok amplitúdó skálázása
+constexpr float HIGHRES_SPECTRUMBAR_SENSITIVITY_FACTOR = 0.008f; // HighRes Spektrum bar-ok amplitúdó skálázása
 
 // Oszcilloszkóp mód
 constexpr float OSCI_SENSITIVITY_FACTOR = 28.0f; // Oszcilloszkóp jel erősítése
@@ -196,13 +196,15 @@ UICompSpectrumVis::~UICompSpectrumVis() {
 
 /**
  * @brief Bar-alapú AGC frissítése (Spektrum módok: LowRes, HighRes)
- * @param currentBarMaxValue Jelenlegi frame legnagyobb bar magassága (már erősített érték)
+ * @param currentBarMaxValue Jelenlegi frame legnagyobb bar magassága
  */
 void UICompSpectrumVis::updateBarBasedGain(float currentBarMaxValue) {
+
     // Ha némított állapotban vagyunk, az AGC ne működjön!
     if (rtv::muteStat) {
         return;
     }
+
     // Bar maximum hozzáadása a history bufferhez
     barAgcHistory_[barAgcHistoryIndex_] = currentBarMaxValue;
     barAgcHistoryIndex_ = (barAgcHistoryIndex_ + 1) % AGC_HISTORY_SIZE;
@@ -215,7 +217,7 @@ void UICompSpectrumVis::updateBarBasedGain(float currentBarMaxValue) {
         }
         barAgcLastUpdateTime_ = millis();
 
-        UISPECTRUM_DEBUG("UICompSpectrumVis [Bar AGC]: currentMax=%.1f gainFactor=%.3f\n", currentBarMaxValue, barAgcGainFactor_);
+        UISPECTRUM_DEBUG("UICompSpectrumVis [Bar AGC]: currentBarMaxValue=%.1f barAgcGainFactor_=%.3f\n", currentBarMaxValue, barAgcGainFactor_);
     }
 }
 
@@ -240,7 +242,8 @@ void UICompSpectrumVis::updateMagnitudeBasedGain(float currentMagnitudeMaxValue)
         }
         magnitudeAgcLastUpdateTime_ = millis();
 
-        UISPECTRUM_DEBUG("UICompSpectrumVis [Magnitude AGC]: currentMax=%.1f gainFactor=%.3f\n", currentMagnitudeMaxValue, magnitudeAgcGainFactor_);
+        UISPECTRUM_DEBUG("UICompSpectrumVis [Magnitude AGC]: currentMagnitudeMaxValue=%.1f magnitudeAgcGainFactor_=%.3f\n", currentMagnitudeMaxValue,
+                         magnitudeAgcGainFactor_);
     }
 }
 
@@ -251,11 +254,12 @@ void UICompSpectrumVis::updateMagnitudeBasedGain(float currentMagnitudeMaxValue)
  * @param currentGainFactor Jelenlegi gain faktor
  * @return Új gain faktor
  */
-float UICompSpectrumVis::calculateBarAgcGain(const float *history, int historySize, float currentGainFactor) const {
+float UICompSpectrumVis::calculateBarAgcGain(const float *history, uint8_t historySize, float currentGainFactor) const {
+
     // History átlag számítása (stabil érték több frame alapján)
     float sum = 0.0f;
-    int validCount = 0;
-    for (int i = 0; i < historySize; i++) {
+    uint8_t validCount = 0;
+    for (uint8_t i = 0; i < historySize; i++) {
         if (history[i] > AGC_MIN_SIGNAL_THRESHOLD) {
             sum += history[i];
             validCount++;
@@ -285,7 +289,7 @@ float UICompSpectrumVis::calculateBarAgcGain(const float *history, int historySi
  * @param currentGainFactor Jelenlegi gain faktor
  * @return Új gain faktor
  */
-float UICompSpectrumVis::calculateMagnitudeAgcGain(const float *history, int historySize, float currentGainFactor) const {
+float UICompSpectrumVis::calculateMagnitudeAgcGain(const float *history, uint8_t historySize, float currentGainFactor) const {
     // History átlag számítása (stabil érték több frame alapján)
     float sum = 0.0f;
     int validCount = 0;
@@ -459,11 +463,11 @@ void UICompSpectrumVis::draw() {
     switch (currentMode_) {
 
         case DisplayMode::SpectrumLowRes:
-            renderSpectrumBar(false);
+            renderSpectrumBar(true);
             break;
 
         case DisplayMode::SpectrumHighRes:
-            renderSpectrumBar(true);
+            renderSpectrumBar(false);
             break;
 
         case DisplayMode::Oscilloscope:
@@ -828,9 +832,10 @@ void UICompSpectrumVis::renderOffMode() {
 
 /**
  * @brief Egységes spektrum renderelés (Low és High resolution)
- * @param isHighRes true = HighRes (pixel-per-bin), false = LowRes (sávok)
+ * @param isLowRes true = LowRes (sávok), false = HighRes (pixel-per-bin)
  */
-void UICompSpectrumVis::renderSpectrumBar(bool isHighRes) {
+void UICompSpectrumVis::renderSpectrumBar(bool isLowRes) {
+
     uint8_t graphH = getGraphHeight();
     if (!spriteCreated_ || bounds.width == 0 || graphH <= 0) {
         if (!spriteCreated_) {
@@ -853,12 +858,156 @@ void UICompSpectrumVis::renderSpectrumBar(bool isHighRes) {
         return;
     }
 
+    // FFT bin index tartomány számítása a megjelenítési frekvencia határok alapján
     const uint8_t min_bin_idx = std::max(2, static_cast<int>(std::round(AnalyzerConstants::ANALYZER_MIN_FREQ_HZ / currentBinWidthHz)));
     const uint8_t max_bin_idx = std::min(static_cast<int>(actualFftSize - 1), static_cast<int>(std::round(maxDisplayFrequencyHz_ / currentBinWidthHz)));
 
     float maxMagnitude = 0.0f;
 
-    if (isHighRes) {
+    const uint8_t MAX_BAR_HEIGHT = static_cast<uint8_t>(graphH * BAR_AGC_TARGET_HEIGHT_UTILIZATION);
+
+    if (isLowRes) {
+
+        // ===== LOW RESOLUTION MODE =====
+        // Sávokba csoportosított rajzolás (széles oszlopok peak-kel)
+        uint8_t bands_to_display = LOW_RES_BANDS;
+
+        if (bounds.width < (bands_to_display + (bands_to_display - 1) * BAR_GAP_PIXELS)) {
+            bands_to_display = static_cast<uint8_t>((bounds.width + BAR_GAP_PIXELS) / (1 + BAR_GAP_PIXELS));
+        }
+        if (bands_to_display == 0) {
+            bands_to_display = 1;
+        }
+
+        uint8_t bar_width = 1;
+        if (bands_to_display > 0) {
+            bar_width = static_cast<uint8_t>((bounds.width - (std::max(0, bands_to_display - 1) * BAR_GAP_PIXELS)) / bands_to_display);
+        }
+        if (bar_width < 1) {
+            bar_width = 1;
+        }
+
+        uint8_t bar_total_width = bar_width + BAR_GAP_PIXELS;
+        uint16_t total_drawn_width = (bands_to_display * bar_width) + (std::max(0, bands_to_display - 1) * BAR_GAP_PIXELS);
+        int16_t x_offset = (bounds.width - total_drawn_width) / 2;
+
+        // Peak ereszkedés: csak minden 3. hívásnál csökkentjük
+        static uint8_t peak_fall_counter = 0;
+        peak_fall_counter = (peak_fall_counter + 1) % 3;
+        for (uint8_t band_idx = 0; band_idx < bands_to_display; band_idx++) {
+            if (peak_fall_counter == 0) {
+                if (Rpeak_[band_idx] >= 1)
+                    Rpeak_[band_idx] -= 1;
+            }
+        }
+
+        const uint8_t num_bins_in_range = std::max(1, max_bin_idx - min_bin_idx + 1);
+        float band_magnitudes[LOW_RES_BANDS] = {0.0f};
+
+        // Sávok feltöltése a legnagyobb magnitude értékekkel
+        for (uint8_t i = min_bin_idx; i <= max_bin_idx; i++) {
+            uint8_t band_idx = getBandVal(i, min_bin_idx, num_bins_in_range, LOW_RES_BANDS);
+            if (band_idx < LOW_RES_BANDS) {
+                float magnitude = magnitudeData[i];
+                // ELŐSZÖR zajszűrés a nyers adaton
+                if (magnitude < (this->radioMode_ == RadioMode::AM ? NOISE_THRESHOLD_AM : NOISE_THRESHOLD_FM)) {
+                    magnitude = 0.0f;
+                    UISPECTRUM_DEBUG("UICompSpectrumVis::renderSpectrumBar - Bin %d magnitude %.3f zajküszöb alatt, nullázva\n", i, magnitudeData[i]);
+                }
+                band_magnitudes[band_idx] = std::max(band_magnitudes[band_idx], magnitude);
+            }
+        }
+
+        // AGC-hez: bar-ok maximum magassága (első néhány sáv kihagyva)
+        constexpr uint8_t LOWRES_SKIP_BARS_FOR_AGC = 1; // Első x bar kihagyása
+        float maxBarMagnitude = 0.0f;
+        for (uint8_t band_idx = LOWRES_SKIP_BARS_FOR_AGC; band_idx < bands_to_display; band_idx++) {
+            maxBarMagnitude = std::max(maxBarMagnitude, band_magnitudes[band_idx]);
+        }
+
+        // Bar-alapú AGC frissítés (LowRes: maxBarMagnitude a legnagyobb sáv magnitude értéke)
+        updateBarBasedGain(maxBarMagnitude);
+
+        // Sávok kirajzolása
+        for (uint8_t band_idx = 0; band_idx < bands_to_display; band_idx++) {
+            uint16_t x_pos = x_offset + bar_total_width * band_idx;
+
+            sprite_->fillRect(x_pos, 0, bar_width, graphH, TFT_BLACK);
+
+            // ----------------------------------------
+            // AGC vagy manuális erősítés alkalmazása
+            // ----------------------------------------
+            // UTÁNA erősítés a tiszta (szűrt) jelen
+            float adaptiveScale = getBarAgcScale(SensitivityConstants::LOWRES_SPECTRUMBAR_SENSITIVITY_FACTOR);
+            // AGC esetén a lowresBar nagyon(!) alulvezérlődik, növeljük az erősítést
+            if (isAutoGainMode()) {
+                adaptiveScale *= 5.5f;
+            }
+            float magnitude = band_magnitudes[band_idx] * adaptiveScale;
+            uint8_t dsize = static_cast<uint8_t>(constrain(magnitude, 0, MAX_BAR_HEIGHT));
+
+            // Zajküszöb alatti bar legyen 1px magas
+            if (dsize == 0) {
+                dsize = 1;
+            }
+
+            // Gyorsabb oszlop csillapítás: az oszlopok minden 2. ciklusban csökkennek, a peak-ek 5 ciklusonként
+            static uint8_t bar_release_counter = 0;
+            static uint8_t peak_release_counter = 0;
+            bar_release_counter = (bar_release_counter + 1) % 1;   // Oszlop: minden ciklusban (leggyorsabb)
+            peak_release_counter = (peak_release_counter + 1) % 5; // Peak: minden 5. ciklusban
+
+            // Oszlop magasság gyorsabb csillapítása
+            // A bar magassága mindig az aktuális dsize vagy a csillapított érték közül a nagyobb
+            if (band_idx < MAX_SPECTRUM_BANDS) {
+                if (dsize >= bar_height_[band_idx]) {
+                    bar_height_[band_idx] = dsize;
+                } else {
+                    if (bar_release_counter == 0 && bar_height_[band_idx] > 1) {
+                        if (bar_height_[band_idx] - dsize > 8) {
+                            bar_height_[band_idx] -= 6;
+                        } else {
+                            bar_height_[band_idx] -= 2;
+                        }
+                        if (bar_height_[band_idx] < 1) {
+                            bar_height_[band_idx] = 0;
+                        }
+                    } else if (bar_release_counter == 0 && bar_height_[band_idx] == 1) {
+                        bar_height_[band_idx] = 0;
+                    }
+                }
+            }
+
+            // Peak magasság lassabb csillapítása
+            if (bar_height_[band_idx] > Rpeak_[band_idx] && band_idx < MAX_SPECTRUM_BANDS) {
+                Rpeak_[band_idx] = bar_height_[band_idx];
+            } else if (bar_height_[band_idx] < Rpeak_[band_idx] && band_idx < MAX_SPECTRUM_BANDS) {
+                if (peak_release_counter == 0) {
+                    Rpeak_[band_idx]--;
+                }
+            }
+
+            // Oszlop kirajzolása (gyorsabban csökkenő magassággal)
+            uint8_t bar_draw_height = bar_height_[band_idx];
+            if (bar_draw_height > 0) {
+                int16_t y_start = graphH - bar_draw_height;
+                uint8_t bar_h = bar_draw_height;
+                if (y_start < 0) {
+                    bar_h -= (0 - y_start);
+                    y_start = 0;
+                }
+                if (bar_h > 0) {
+                    sprite_->fillRect(x_pos, y_start, bar_width, bar_h, TFT_GREEN);
+                }
+            }
+
+            // Peak kirajzolása (csak ha nagyobb mint 3)
+            if (Rpeak_[band_idx] > 3) {
+                int16_t y_peak = graphH - Rpeak_[band_idx];
+                sprite_->fillRect(x_pos, y_peak, bar_width, 2, TFT_CYAN);
+            }
+        }
+    } else {
         // ===== HIGH RESOLUTION MODE =====
         // Pixel-per-bin rajzolás (vékony vonalak)
         const uint8_t num_bins_in_range = std::max(1, max_bin_idx - min_bin_idx + 1);
@@ -923,148 +1072,6 @@ void UICompSpectrumVis::renderSpectrumBar(bool isHighRes) {
 
         // AGC frissítés: az első néhány bin kihagyásával számolt max értéket használjuk
         updateBarBasedGain(maxBinMagnitudeForAgc);
-
-    } else {
-        // ===== LOW RESOLUTION MODE =====
-        // Sávokba csoportosított rajzolás (széles oszlopok peak-kel)
-        uint8_t bands_to_display = LOW_RES_BANDS;
-
-        if (bounds.width < (bands_to_display + (bands_to_display - 1) * BAR_GAP_PIXELS)) {
-            bands_to_display = static_cast<uint8_t>((bounds.width + BAR_GAP_PIXELS) / (1 + BAR_GAP_PIXELS));
-        }
-        if (bands_to_display == 0) {
-            bands_to_display = 1;
-        }
-
-        uint8_t bar_width = 1;
-        if (bands_to_display > 0) {
-            bar_width = static_cast<uint8_t>((bounds.width - (std::max(0, bands_to_display - 1) * BAR_GAP_PIXELS)) / bands_to_display);
-        }
-        if (bar_width < 1) {
-            bar_width = 1;
-        }
-
-        uint8_t bar_total_width = bar_width + BAR_GAP_PIXELS;
-        uint16_t total_drawn_width = (bands_to_display * bar_width) + (std::max(0, bands_to_display - 1) * BAR_GAP_PIXELS);
-        int16_t x_offset = (bounds.width - total_drawn_width) / 2;
-
-        // Peak ereszkedés: csak minden 3. hívásnál csökkentjük
-        static uint8_t peak_fall_counter = 0;
-        peak_fall_counter = (peak_fall_counter + 1) % 3;
-        for (uint8_t band_idx = 0; band_idx < bands_to_display; band_idx++) {
-            if (peak_fall_counter == 0) {
-                if (Rpeak_[band_idx] >= 1)
-                    Rpeak_[band_idx] -= 1;
-            }
-        }
-
-        const uint8_t num_bins_in_range = std::max(1, max_bin_idx - min_bin_idx + 1);
-        float band_magnitudes[LOW_RES_BANDS] = {0.0f};
-
-        // Sávok feltöltése a legnagyobb magnitude értékekkel
-        for (uint8_t i = min_bin_idx; i <= max_bin_idx; i++) {
-            uint8_t band_idx = getBandVal(i, min_bin_idx, num_bins_in_range, LOW_RES_BANDS);
-            if (band_idx < LOW_RES_BANDS) {
-                float magnitude = magnitudeData[i];
-                // ELŐSZÖR zajszűrés a nyers adaton
-                if (magnitude < (this->radioMode_ == RadioMode::AM ? NOISE_THRESHOLD_AM : NOISE_THRESHOLD_FM)) {
-                    magnitude = 0.0f;
-                }
-                band_magnitudes[band_idx] = std::max(band_magnitudes[band_idx], magnitude);
-            }
-        }
-
-        // AGC-hez: bar-ok maximum magassága (első néhány sáv kihagyva)
-        constexpr uint8_t LOWRES_SKIP_BARS_FOR_AGC = 1; // Első x bar kihagyása
-        float maxBarMagnitude = 0.0f;
-        for (uint8_t band_idx = LOWRES_SKIP_BARS_FOR_AGC; band_idx < bands_to_display; band_idx++) {
-            maxBarMagnitude = std::max(maxBarMagnitude, band_magnitudes[band_idx]);
-        }
-
-        // Bar-alapú AGC frissítés (LowRes: maxBarMagnitude a legnagyobb sáv magnitude értéke)
-        updateBarBasedGain(maxBarMagnitude);
-
-        // Sávok kirajzolása
-        for (uint8_t band_idx = 0; band_idx < bands_to_display; band_idx++) {
-            uint16_t x_pos = x_offset + bar_total_width * band_idx;
-
-            sprite_->fillRect(x_pos, 0, bar_width, graphH, TFT_BLACK);
-
-            // ----------------------------------------
-            // AGC vagy manuális erősítés alkalmazása
-            // ----------------------------------------
-            // UTÁNA erősítés a tiszta (szűrt) jelen
-            float adaptiveScale = getBarAgcScale(SensitivityConstants::LOWRES_SPECTRUMBAR_SENSITIVITY_FACTOR);
-            // AGC esetén a lowresBar nagyon(!) alulvezérlődik, növeljük az erősítést
-            if (isAutoGainMode()) {
-                adaptiveScale *= 5.5f;
-            }
-            float magnitude = band_magnitudes[band_idx] * adaptiveScale;
-
-            uint8_t maxBarHeight = static_cast<uint8_t>(graphH * BAR_AGC_TARGET_HEIGHT_UTILIZATION);
-            uint8_t dsize = static_cast<uint8_t>(constrain(magnitude, 0, maxBarHeight));
-
-            // Zajküszöb alatti bar legyen 1px magas
-            if (dsize == 0) {
-                dsize = 1;
-            }
-
-            // Gyorsabb oszlop csillapítás: az oszlopok minden 2. ciklusban csökkennek, a peak-ek 5 ciklusonként
-            static uint8_t bar_release_counter = 0;
-            static uint8_t peak_release_counter = 0;
-            bar_release_counter = (bar_release_counter + 1) % 1;   // Oszlop: minden ciklusban (leggyorsabb)
-            peak_release_counter = (peak_release_counter + 1) % 5; // Peak: minden 5. ciklusban
-
-            // Oszlop magasság gyorsabb csillapítása
-            // A bar magassága mindig az aktuális dsize vagy a csillapított érték közül a nagyobb
-            if (band_idx < MAX_SPECTRUM_BANDS) {
-                if (dsize >= bar_height_[band_idx]) {
-                    bar_height_[band_idx] = dsize;
-                } else {
-                    if (bar_release_counter == 0 && bar_height_[band_idx] > 1) {
-                        if (bar_height_[band_idx] - dsize > 8) {
-                            bar_height_[band_idx] -= 6;
-                        } else {
-                            bar_height_[band_idx] -= 2;
-                        }
-                        if (bar_height_[band_idx] < 1) {
-                            bar_height_[band_idx] = 0;
-                        }
-                    } else if (bar_release_counter == 0 && bar_height_[band_idx] == 1) {
-                        bar_height_[band_idx] = 0;
-                    }
-                }
-            }
-
-            // Peak magasság lassabb csillapítása
-            if (bar_height_[band_idx] > Rpeak_[band_idx] && band_idx < MAX_SPECTRUM_BANDS) {
-                Rpeak_[band_idx] = bar_height_[band_idx];
-            } else if (bar_height_[band_idx] < Rpeak_[band_idx] && band_idx < MAX_SPECTRUM_BANDS) {
-                if (peak_release_counter == 0) {
-                    Rpeak_[band_idx]--;
-                }
-            }
-
-            // Oszlop kirajzolása (gyorsabban csökkenő magassággal)
-            uint8_t bar_draw_height = bar_height_[band_idx];
-            if (bar_draw_height > 0) {
-                int16_t y_start = graphH - bar_draw_height;
-                uint8_t bar_h = bar_draw_height;
-                if (y_start < 0) {
-                    bar_h -= (0 - y_start);
-                    y_start = 0;
-                }
-                if (bar_h > 0) {
-                    sprite_->fillRect(x_pos, y_start, bar_width, bar_h, TFT_GREEN);
-                }
-            }
-
-            // Peak kirajzolása (csak ha nagyobb mint 3)
-            if (Rpeak_[band_idx] > 3) {
-                int16_t y_peak = graphH - Rpeak_[band_idx];
-                sprite_->fillRect(x_pos, y_peak, bar_width, 2, TFT_CYAN);
-            }
-        }
     }
 
     // Frissítjük a bar-alapú AGC-t (HighRes: maxMagnitude a legnagyobb bar magasság)
@@ -2058,8 +2065,15 @@ void UICompSpectrumVis::renderModeIndicator() {
     // Mode szöveggé dekódolása
     String modeText = decodeModeToStr();
     if (currentMode_ != DisplayMode::Off) {
-        modeText += isAutoGainMode() ? " (Auto" : " (Manu";
-        modeText += " gain)";
+        if (isAutoGainMode()) {
+            modeText += " (Auto gain)";
+        } else {
+            // Manuális mód: írjuk ki az aktuális FFT gain értéket dB-ben
+            float gainDb = (this->radioMode_ == RadioMode::AM) ? config.data.audioFftGainConfigAm : config.data.audioFftGainConfigFm;
+            char buf[32];
+            sprintf(buf, " (Man:%.1fdB)", gainDb);
+            modeText += buf;
+        }
     }
 
     // Clear mode indicator area explicitly before text drawing - KERET ALATT

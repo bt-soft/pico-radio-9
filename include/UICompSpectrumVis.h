@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                       *
  * -----                                                                                                               *
- * Last Modified: 2025.11.16, Sunday  09:53:52                                                                         *
+ * Last Modified: 2025.11.22, Saturday  12:10:40                                                                       *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -195,7 +195,7 @@ class UICompSpectrumVis : public UIComponent {
     static constexpr uint32_t AGC_UPDATE_INTERVAL_MS = 2000; // Időalapú AGC frissítés (ms)
     static constexpr float AGC_SMOOTH_FACTOR = 0.2f;         // Simítási faktor (közös)
     static constexpr float AGC_MIN_SIGNAL_THRESHOLD = 0.1f;  // Minimum jel küszöb (közös)
-    static constexpr int AGC_HISTORY_SIZE = 10;              // History buffer méret (közös)
+    static constexpr uint8_t AGC_HISTORY_SIZE = 10;          // History buffer méret (közös)
 
     // ===== BAR-ALAPÚ AGC (Spektrum módok: LowRes, HighRes) =====
     // Spektrum bar-ok magasságát méri, nem a nyers magnitude-ot
@@ -239,7 +239,7 @@ class UICompSpectrumVis : public UIComponent {
      * @brief Renderelő függvények
      */
     void renderOffMode();
-    void renderSpectrumBar(bool isHighRes);
+    void renderSpectrumBar(bool isLowRes);
     void renderOscilloscope();
     void renderWaterfall();
     void renderEnvelope();
@@ -300,8 +300,8 @@ class UICompSpectrumVis : public UIComponent {
     void resetMagnitudeAgc();
 
     // AGC gain számítás (külön bar és magnitude verzió)
-    float calculateBarAgcGain(const float *history, int historySize, float currentGainFactor) const;
-    float calculateMagnitudeAgcGain(const float *history, int historySize, float currentGainFactor) const;
+    float calculateBarAgcGain(const float *history, uint8_t historySize, float currentGainFactor) const;
+    float calculateMagnitudeAgcGain(const float *history, uint8_t historySize, float currentGainFactor) const;
     float isMutedDrawn;
 
     /**
