@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                       *
  * -----                                                                                                               *
- * Last Modified: 2025.11.22, Saturday  11:05:44                                                                       *
+ * Last Modified: 2025.11.22, Saturday  11:24:19                                                                       *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -83,10 +83,10 @@ class DecoderCW_C1 : public IDecoder {
 
     // AGC runtime paraméterek
     // Kezdeti AGC értékek a gyakoribb mért magnitúdókhoz igazítva
-    float agcLevel_ = 30.0f;           // AGC szint (mozgó átlag) - kezdeti tipp a mérések alapján
-    float agcAlpha_ = 0.05f;           // AGC szűrési állandó (gyorsabb követés)
-    float minThreshold_ = 15.0f;       // Minimális threshold_ érték, efölött a detectone már jelez, erre kell hangolni a zajos vételt!!
-    const float THRESH_FACTOR = 0.40f; // Jelszint küszöbfaktor - 0,5 alatt érzékenyebb
+    float agcLevel_ = 15.0f;           // AGC szint (mozgó átlag) - kezdeti tipp a mérések alapján (konzervatív)
+    float agcAlpha_ = 0.02f;           // AGC szűrési állandó (lassabb követés, kevesebb fluktuáció)
+    float minThreshold_ = 15.0f;       // Minimális threshold_ érték - visszaállítva a stabilitás érdekében
+    const float THRESH_FACTOR = 0.80f; // Jelszint küszöbfaktor - nagyobb érték konzervatívabb detektálást eredményez
 
     // Jelzi, hogy az AGC egyszer már inicializálva lett valódi mérésből
     bool agcInitialized_ = false;
@@ -203,6 +203,9 @@ class DecoderCW_C1 : public IDecoder {
     int16_t lastSamples_[GOERTZEL_N];
     size_t lastSampleCount_ = 0;
     size_t lastSamplePos_ = 0; // következő írási pozíció a körkörös pufferben
+    // Hysteresis / debounce számlálók a zajos jel miatt fellépő flicker csökkentésére
+    uint8_t consecutiveAboveCount_ = 0; // hány egymás utáni blokk volt a küszöb fölött
+    uint8_t consecutiveBelowCount_ = 0; // hány egymás utáni blokk volt a küszöb alatt
     void processDot();
     void processDash();
     bool decodeSymbol();

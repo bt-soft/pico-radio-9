@@ -64,6 +64,7 @@ DecoderCW_C1::DecoderCW_C1()
     memset(wpmHistory_, 0, sizeof(wpmHistory_));
     // Initialize sliding buffer for frequency tracking
     memset(lastSamples_, 0, sizeof(lastSamples_));
+    // A `processSamples()` által feltöltött csúszó puffer használata
     lastSampleCount_ = 0;
     lastSamplePos_ = 0;
 }
@@ -212,7 +213,25 @@ bool DecoderCW_C1::detectTone(const int16_t *samples, size_t count) {
     }
 
     // Tónus detekció küszöb alapján
-    bool newToneState = (magnitude > threshold_);
+    bool rawToneState = (magnitude > threshold_);
+
+    // Debounce / hysteresis: require 2 consecutive blocks above/below to change state
+    // Debounce / hiszterézis: a státuszváltáshoz két egymás utáni blokk szükséges a küszöb felett/alatt
+    const uint8_t REQUIRED_CONSECUTIVE = 2;
+    if (rawToneState) {
+        consecutiveAboveCount_ = std::min<int>(REQUIRED_CONSECUTIVE, consecutiveAboveCount_ + 1);
+        consecutiveBelowCount_ = 0;
+    } else {
+        consecutiveBelowCount_ = std::min<int>(REQUIRED_CONSECUTIVE, consecutiveBelowCount_ + 1);
+        consecutiveAboveCount_ = 0;
+    }
+
+    bool newToneState = toneDetected_;
+    if (!toneDetected_ && consecutiveAboveCount_ >= REQUIRED_CONSECUTIVE) {
+        newToneState = true;
+    } else if (toneDetected_ && consecutiveBelowCount_ >= REQUIRED_CONSECUTIVE) {
+        newToneState = false;
+    }
 
     // Debug: kiíratás a Goertzel magnitúdóról és a használt küszöbről (ritkítva)
     static int __cw_dbg_cnt = 0;
