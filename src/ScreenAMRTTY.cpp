@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
  * -----                                                                                                               *
- * Last Modified: 2025.11.22, Saturday  10:21:14                                                                       *
+ * Last Modified: 2025.11.22, Saturday  10:43:24                                                                       *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -277,7 +277,7 @@ void ScreenAMRTTY::checkDecodedData() {
         constexpr uint16_t labelW = 140;
         constexpr uint8_t textHeight = 8; // textSize(1) betűmagasság: 8px
         constexpr uint8_t gap = 2;        // Távolság a textbox tetejétől
-        constexpr uint16_t labelX = 95;   //
+        constexpr uint16_t labelX = 80;   // jobb oldalra igazítva
         uint16_t textBoxTop = rttyTextBox->getBounds().y;
         uint16_t labelY = textBoxTop - gap - textHeight; // Szöveg alja 2px-re a textbox teteje fölött
 
@@ -286,12 +286,42 @@ void ScreenAMRTTY::checkDecodedData() {
         tft.setTextSize(1);
         tft.setTextColor(TFT_SILVER, TFT_BLACK);
 
-        // RTTY beállítások kiírása: Mark / Space / Baud
-        tft.printf("Mark: %4.0f /  Space: %3.0f / Shift: %4.0f / Baud: %3.2f",                                //
-                   currentMark > 0 ? String(currentMark).c_str() : "----",                                    //
-                   currentSpace > 0 ? String(currentSpace).c_str() : "---",                                   //
-                   currentMark > 0 && currentSpace > 0 ? String(currentMark - currentSpace).c_str() : "----", //
-                   currentBaud > 0 ? String(currentBaud).c_str() : "----");
+        // RTTY beállítások kiírása: Mark / Space / Shift / Baud
+        char markStr[16];
+        char spaceStr[16];
+        char shiftStr[16];
+        char baudStr[16];
+
+        if (currentMark > 0) {
+            snprintf(markStr, sizeof(markStr), "%4u", (unsigned)currentMark);
+        } else {
+            strncpy(markStr, "----", sizeof(markStr));
+            markStr[sizeof(markStr) - 1] = '\0';
+        }
+
+        if (currentSpace > 0) {
+            snprintf(spaceStr, sizeof(spaceStr), "%4u", (unsigned)currentSpace);
+        } else {
+            strncpy(spaceStr, "----", sizeof(spaceStr));
+            spaceStr[sizeof(spaceStr) - 1] = '\0';
+        }
+
+        if (currentMark > 0 && currentSpace > 0) {
+            int shift = (int)currentMark - (int)currentSpace;
+            snprintf(shiftStr, sizeof(shiftStr), "%4d", shift);
+        } else {
+            strncpy(shiftStr, "----", sizeof(shiftStr));
+            shiftStr[sizeof(shiftStr) - 1] = '\0';
+        }
+
+        if (currentBaud > 0.0f) {
+            snprintf(baudStr, sizeof(baudStr), "%3.2f", currentBaud);
+        } else {
+            strncpy(baudStr, "----", sizeof(baudStr));
+            baudStr[sizeof(baudStr) - 1] = '\0';
+        }
+
+        tft.printf("Mark: %s /  Space: %s / Shift: %s / Baud: %s", markStr, spaceStr, shiftStr, baudStr);
     }
 
     // Dekódolt karakterek kiolvasása a ring bufferből és hozzáadása a textboxhoz
