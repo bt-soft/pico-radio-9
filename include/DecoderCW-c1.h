@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                       *
  * -----                                                                                                               *
- * Last Modified: 2025.11.22, Saturday  08:49:49                                                                       *
+ * Last Modified: 2025.11.22, Saturday  09:30:06                                                                       *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -51,9 +51,12 @@ class DecoderCW_C1 : public IDecoder {
     bool start(const DecoderConfig &decoderConfig) override;
     void stop() override;
 
+    // Minták feldolgozása Goertzel algoritmussal és Morse dekódolással
     void processSamples(const int16_t *rawAudioSamples, size_t count) override;
-    // Dekóder adaptív küszöb használatának beállítása (alapértelmezés: true)
-    void setUseAdaptiveThreshold(bool use) { useAdaptiveThreshold_ = use; }
+
+    // Dekóder adaptív küszöb használatának beállítása/lekérdezése
+    inline void setUseAdaptiveThreshold(bool use) override { useAdaptiveThreshold_ = use; }
+    inline bool getUseAdaptiveThreshold() const override { return useAdaptiveThreshold_; }
 
   private:
     // --- Konfiguráció ---

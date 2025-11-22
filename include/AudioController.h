@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                       *
  * -----                                                                                                               *
- * Last Modified: 2025.11.16, Sunday  09:46:43                                                                         *
+ * Last Modified: 2025.11.22, Saturday  09:32:50                                                                       *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -34,6 +34,7 @@
 //-------------------------------------------------------------------------------------
 extern SharedData sharedData[2];
 extern DecodedData decodedData;
+extern volatile uint8_t activeSharedDataIndex;
 //-------------------------------------------------------------------------------------
 
 /**
@@ -45,15 +46,10 @@ class AudioController {
     AudioController() = default;
 
     // A mintavételezési frekvencia a sávszélességből számolódik, ezért samplingRate paraméter elhagyva.
-    void startAudioController(DecoderId id, uint32_t sampleCount, uint32_t bandwidthHz, uint32_t cwCenterFreqHz = 0, uint32_t rttyMarkFreqHz = 0, uint32_t rttySpaceFreqHz = 0, float rttyBaud = 0.0f);
+    void startAudioController(DecoderId id, uint32_t sampleCount, uint32_t bandwidthHz, uint32_t cwCenterFreqHz = 0, uint32_t rttyMarkFreqHz = 0,
+                              uint32_t rttySpaceFreqHz = 0, float rttyBaud = 0.0f);
     void stopAudioController();
     uint32_t getSamplingRate();
-
-    /**
-     * @brief Lekérdezi a Core1 által használt aktív adatpuffer indexét.
-     * @return Az aktív puffer indexe (0 vagy 1), vagy -1 hiba esetén.
-     */
-    int8_t getActiveSharedDataIndex();
 
     // Vezérlő metódusok
     bool setAgcEnabled(bool enabled);
@@ -61,6 +57,10 @@ class AudioController {
     bool setSmoothingPoints(uint32_t points);
     void setManualGain(float gain);
     bool setBlockingDmaMode(bool blocking);
+
+    // CW adaptive threshold (AGC-like) control through UI
+    bool setDecoderUseAdaptiveThreshold(bool use);
+    bool getDecoderUseAdaptiveThreshold();
 
     // FFT vezérlés
     bool setUseFftEnabled(bool enabled);

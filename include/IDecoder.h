@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
  * -----                                                                                                               *
- * Last Modified: 2025.11.16, Sunday  09:48:21                                                                         *
+ * Last Modified: 2025.11.22, Saturday  09:29:38                                                                       *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -77,4 +77,19 @@ class IDecoder {
     virtual void processDomFreq(uint32_t dominantFrequency, float dominantAmplitude) { //
         DEBUG("IDecoder::processDomFreq - Alapértelmezett üres implementáció\n");
     };
+
+    /**
+     * @brief Dekóder adaptív küszöb használatának beállítása/lekérdezése
+     */
+    virtual void setUseAdaptiveThreshold(bool enabled) { //
+        DEBUG("IDecoder::setUseAdaptiveThreshold - Alapértelmezett üres implementáció\n");
+    }
+
+    /**
+     * @brief Dekóder adaptív küszöb lekérdezése
+     */
+    virtual bool getUseAdaptiveThreshold() const {
+        DEBUG("IDecoder::getUseAdaptiveThreshold - Alapértelmezett üres implementáció\n");
+        return false;
+    }
 };

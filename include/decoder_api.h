@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
  * -----                                                                                                               *
- * Last Modified: 2025.11.21, Friday  10:41:10                                                                         *
+ * Last Modified: 2025.11.22, Saturday  09:26:59                                                                       *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -48,17 +48,20 @@ enum RP2040CommandCode : uint32_t {
     CMD_NOP = 0,
     CMD_STOP,
     CMD_SET_CONFIG,
-    // CMD_GET_CONFIG,
-    // CMD_PING,
-    CMD_GET_DATA_BLOCK,    //  megosztott adatblokk indexének lekérésére
     CMD_GET_SAMPLING_RATE, //  mintavételezési sebesség lekérésére
-    CMD_SET_AGC_ENABLED,
-    CMD_SET_NOISE_REDUCTION_ENABLED,
-    CMD_SET_SMOOTHING_POINTS,
-    CMD_SET_MANUAL_GAIN,
-    CMD_SET_BLOCKING_DMA_MODE,
-    CMD_SET_USE_FFT_ENABLED,
-    CMD_GET_USE_FFT_ENABLED
+
+    //
+    CMD_AUDIOPROC_SET_BLOCKING_DMA_MODE,       // ADC DMA blokkoló/nem-blokkoló mód beállítása
+    CMD_AUDIOPROC_SET_AGC_ENABLED,             // AudioProcessor AGC engedélyezése
+    CMD_AUDIOPROC_SET_NOISE_REDUCTION_ENABLED, // AudioProcessor zajcsökkentés engedélyezése
+    CMD_AUDIOPROC_SET_SMOOTHING_POINTS,        // AudioProcessor zajcsökkentés simítási pontjainak beállítása
+    CMD_AUDIOPROC_SET_MANUAL_GAIN,             // AudioProcessor manuális erősítés beállítása
+    CMD_AUDIOPROC_SET_USE_FFT_ENABLED,         // AudioProcessor FFT engedélyezés beállítása
+    CMD_AUDIOPROC_GET_USE_FFT_ENABLED,         // AudioProcessor FFT engedélyezés lekérdezése
+
+    //
+    CMD_DECODER_SET_USE_ADAPTIVE_THRESHOLD, // Dekóder adaptív küszöb beállítása
+    CMD_DECODER_GET_USE_ADAPTIVE_THRESHOLD, // Dekóder adaptív küszöb lekérdezése
 };
 
 /**
@@ -73,6 +76,8 @@ enum RP2040ResponseCode : uint32_t {
     RESP_DATA_BLOCK = 204,     // az aktív puffer indexét tartalmazza
     RESP_SAMPLING_RATE = 205,  // a mintavételezési sebességhez tartozó válasz
     RESP_USE_FFT_ENABLED = 206 // FFT engedélyezés lekérdezéséhez
+    ,
+    RESP_USE_ADAPTIVE_THRESHOLD = 207
 };
 
 /**

@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
  * -----                                                                                                               *
- * Last Modified: 2025.11.16, Sunday  08:24:01                                                                         *
+ * Last Modified: 2025.11.22, Saturday  09:30:14                                                                       *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -176,7 +176,8 @@ void updateDisplayHints(const DecoderConfig &cfg) {
         uint32_t hfBandwidth = (cfg.bandwidthHz > 0) ? cfg.bandwidthHz : RTTY_AF_BANDWIDTH_HZ;
         float margin = std::max(300.0f, hfBandwidth * 0.15f);
 
-        uint16_t minf = (std::min(f_mark, f_space) > static_cast<uint16_t>(margin)) ? static_cast<uint16_t>(std::min(f_mark, f_space) - static_cast<uint16_t>(margin)) : 0u;
+        uint16_t minf =
+            (std::min(f_mark, f_space) > static_cast<uint16_t>(margin)) ? static_cast<uint16_t>(std::min(f_mark, f_space) - static_cast<uint16_t>(margin)) : 0u;
         uint16_t maxf = static_cast<uint16_t>(std::max(f_mark, f_space) + static_cast<uint16_t>(margin));
 
         dispMin = minf;
@@ -374,7 +375,8 @@ void processFifoCommands() {
             bool useBlockingDma = (decoderConfig.decoderId == ID_DECODER_SSTV || decoderConfig.decoderId == ID_DECODER_WEFAX);
 
             // DMA és audio processzor inicializálása
-            CORE1_DEBUG("core-1: CMD_SET_CONFIG - AudioProcessor inicializálása (sampleCount=%d, samplingRate=%d, useFFT=%d, blocking=%d)\n", adcDmaConfig.sampleCount, adcDmaConfig.samplingRate, useFFT, useBlockingDma);
+            CORE1_DEBUG("core-1: CMD_SET_CONFIG - AudioProcessor inicializálása (sampleCount=%d, samplingRate=%d, useFFT=%d, blocking=%d)\n",
+                        adcDmaConfig.sampleCount, adcDmaConfig.samplingRate, useFFT, useBlockingDma);
             audioProcC1.initialize(adcDmaConfig, useFFT, useBlockingDma);
             audioProcC1.reconfigureAudioSampling(adcDmaConfig.sampleCount, adcDmaConfig.samplingRate, decoderConfig.bandwidthHz);
 
@@ -406,42 +408,40 @@ void processFifoCommands() {
             break;
         }
 
-        case RP2040CommandCode::CMD_GET_DATA_BLOCK: {
-            // Válasz a Core 0 felé
-            rp2040.fifo.push(RP2040ResponseCode::RESP_DATA_BLOCK);
-            rp2040.fifo.push(activeSharedDataIndex);
-            break;
-        }
-
         case RP2040CommandCode::CMD_GET_SAMPLING_RATE: {
             // Válasz a Core 0 felé
             rp2040.fifo.push(RP2040ResponseCode::RESP_SAMPLING_RATE);
             rp2040.fifo.push(audioProcC1.getSamplingRate());
             break;
         }
+        case RP2040CommandCode::CMD_AUDIOPROC_GET_USE_FFT_ENABLED: {
+            rp2040.fifo.push(RP2040ResponseCode::RESP_USE_FFT_ENABLED);
+            rp2040.fifo.push(audioProcC1.useFFT ? 1 : 0);
+            break;
+        }
 
-        case RP2040CommandCode::CMD_SET_AGC_ENABLED: {
+        case RP2040CommandCode::CMD_AUDIOPROC_SET_AGC_ENABLED: {
             bool enabled = (rp2040.fifo.pop() != 0);
             audioProcC1.setAgcEnabled(enabled);
             rp2040.fifo.push(RP2040ResponseCode::RESP_ACK);
             break;
         }
 
-        case RP2040CommandCode::CMD_SET_NOISE_REDUCTION_ENABLED: {
+        case RP2040CommandCode::CMD_AUDIOPROC_SET_NOISE_REDUCTION_ENABLED: {
             bool enabled = (rp2040.fifo.pop() != 0);
             audioProcC1.setNoiseReductionEnabled(enabled);
             rp2040.fifo.push(RP2040ResponseCode::RESP_ACK);
             break;
         }
 
-        case RP2040CommandCode::CMD_SET_SMOOTHING_POINTS: {
+        case RP2040CommandCode::CMD_AUDIOPROC_SET_SMOOTHING_POINTS: {
             uint32_t points = rp2040.fifo.pop();
             audioProcC1.setSmoothingPoints(static_cast<uint8_t>(points));
             rp2040.fifo.push(RP2040ResponseCode::RESP_ACK);
             break;
         }
 
-        case RP2040CommandCode::CMD_SET_MANUAL_GAIN: {
+        case RP2040CommandCode::CMD_AUDIOPROC_SET_MANUAL_GAIN: {
             uint32_t gainBits = rp2040.fifo.pop();
             float gain;
             memcpy(&gain, &gainBits, sizeof(float));
@@ -449,25 +449,43 @@ void processFifoCommands() {
             rp2040.fifo.push(RP2040ResponseCode::RESP_ACK);
             break;
         }
-        case RP2040CommandCode::CMD_SET_BLOCKING_DMA_MODE: {
+        case RP2040CommandCode::CMD_AUDIOPROC_SET_BLOCKING_DMA_MODE: {
             bool blocking = (rp2040.fifo.pop() != 0);
             audioProcC1.setBlockingDmaMode(blocking);
             rp2040.fifo.push(RP2040ResponseCode::RESP_ACK);
             break;
         }
 
-        case RP2040CommandCode::CMD_SET_USE_FFT_ENABLED: {
+        case RP2040CommandCode::CMD_AUDIOPROC_SET_USE_FFT_ENABLED: {
             bool enabled = (rp2040.fifo.pop() != 0);
             audioProcC1.useFFT = enabled;
             rp2040.fifo.push(RP2040ResponseCode::RESP_ACK);
             break;
         }
 
-        case RP2040CommandCode::CMD_GET_USE_FFT_ENABLED: {
-            rp2040.fifo.push(RP2040ResponseCode::RESP_USE_FFT_ENABLED);
-            rp2040.fifo.push(audioProcC1.useFFT ? 1 : 0);
+        case RP2040CommandCode::CMD_DECODER_SET_USE_ADAPTIVE_THRESHOLD: {
+            bool enabled = (rp2040.fifo.pop() != 0);
+            // Beállítjuk a dekóder adaptív küszöb használatát
+            if (activeDecoderCore1 != nullptr) {
+                activeDecoderCore1->setUseAdaptiveThreshold(enabled);
+            }
+            rp2040.fifo.push(RP2040ResponseCode::RESP_ACK);
             break;
         }
+
+        case RP2040CommandCode::CMD_DECODER_GET_USE_ADAPTIVE_THRESHOLD: {
+            // Visszaküldjük a dekóder adaptív küszöb állapotát (ha CW dekóder aktív)
+            uint32_t enabled = 0;
+            if (activeDecoderCore1 != nullptr) {
+                enabled = activeDecoderCore1->getUseAdaptiveThreshold() ? 1 : 0;
+            }
+            rp2040.fifo.push(RP2040ResponseCode::RESP_USE_ADAPTIVE_THRESHOLD);
+            rp2040.fifo.push(enabled);
+            break;
+        }
+        default:
+            CORE1_DEBUG("core-1: Ismeretlen parancs a FIFO-ból: %u\n", command);
+            break;
     }
 }
 

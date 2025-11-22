@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
  * -----                                                                                                               *
- * Last Modified: 2025.11.16, Sunday  11:51:41                                                                         *
+ * Last Modified: 2025.11.22, Saturday  09:13:53                                                                       *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -35,7 +35,7 @@
 #include "utils.h"
 
 // Ezt tesztre használjuk, hogy a némított állapotot figyelmen kívül hagyjuk (Az AD + FFT hangolásához)
- #define TEST_DO_NOT_PROCESS_MUTED_STATE
+#define TEST_DO_NOT_PROCESS_MUTED_STATE
 
 // UICompSpectrumVis működés debug engedélyezése de csak DEBUG módban
 // #define __UISPECTRUM_DEBUG
@@ -75,7 +75,8 @@ const uint16_t waterFallColors_0[16] = {
     0xFFFF, // fehér
 };
 
-const uint16_t waterFallColors_1[16] = {0x0000, 0x1000, 0x2000, 0x4000, 0x8000, 0xC000, 0xF800, 0xF8A0, 0xF9C0, 0xFD20, 0xFFE0, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF}; // Hot
+const uint16_t waterFallColors_1[16] = {0x0000, 0x1000, 0x2000, 0x4000, 0x8000, 0xC000, 0xF800, 0xF8A0,
+                                        0xF9C0, 0xFD20, 0xFFE0, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF}; // Hot
 #define WATERFALL_COLOR_INDEX 0
 
 constexpr uint16_t MODE_INDICATOR_VISIBLE_TIMEOUT_MS = 10 * 1000; // A mód indikátor kiírásának láthatósága x másodpercig
@@ -582,7 +583,8 @@ void UICompSpectrumVis::manageSpriteForMode(DisplayMode modeToPrepareForDisplayM
                 sprite_->fillSprite(TFT_BLACK); // Kezdeti törlés
                 UISPECTRUM_DEBUG("UICompSpectrumVis: Sprite létrehozva, méret: %dx%d, bounds.width=%d\n", sprite_->width(), sprite_->height(), bounds.width);
             } else {
-                UISPECTRUM_DEBUG("UICompSpectrumVis: Sprite létrehozása sikertelen, mód: %d (szélesség:%d, grafikon magasság:%d)\n", static_cast<int>(modeToPrepareForDisplayMode), bounds.width, graphH);
+                UISPECTRUM_DEBUG("UICompSpectrumVis: Sprite létrehozása sikertelen, mód: %d (szélesség:%d, grafikon magasság:%d)\n",
+                                 static_cast<int>(modeToPrepareForDisplayMode), bounds.width, graphH);
             }
         }
     }
@@ -656,7 +658,7 @@ void UICompSpectrumVis::setFftParametersForDisplayMode() {
     // aktuális audio puffer csere előtt. Annak elkerülése érdekében, hogy a UI
     // az aktív régi puffert olvassa, előnyben részesítjük a hátsó puffer tippeit,
     // ha jelen vannak, és visszaesünk az aktív pufferre egyébként.
-    const int8_t activeIdx = ::audioController.getActiveSharedDataIndex();
+    const int8_t activeIdx = ::activeSharedDataIndex;
     if (activeIdx < 0) {
         // Nem lehet lekérdezni a Core1-et; a meglévő beállítások megtartása
         return;
@@ -675,7 +677,8 @@ void UICompSpectrumVis::setFftParametersForDisplayMode() {
         sdToUse = &sdActive;
     }
 
-    if (currentMode_ == DisplayMode::CWWaterfall || currentMode_ == DisplayMode::RTTYWaterfall || currentMode_ == DisplayMode::CwSnrCurve || currentMode_ == DisplayMode::RttySnrCurve) {
+    if (currentMode_ == DisplayMode::CWWaterfall || currentMode_ == DisplayMode::RTTYWaterfall || currentMode_ == DisplayMode::CwSnrCurve ||
+        currentMode_ == DisplayMode::RttySnrCurve) {
         // Tuning aid mód: mindig a tuning aid által számolt tartományt használjuk
         maxDisplayFrequencyHz_ = currentTuningAidMaxFreqHz_;
         // (A min frekvencia a rajzolásnál, bin index számításnál lesz figyelembe véve)
@@ -1170,13 +1173,15 @@ void UICompSpectrumVis::renderEnvelope() {
     }
 
     const uint8_t min_bin_for_env = std::max(10, static_cast<int>(std::round(AnalyzerConstants::ANALYZER_MIN_FREQ_HZ / currentBinWidthHz)));
-    const uint8_t max_bin_for_env = std::min(static_cast<int>(actualFftSize - 1), static_cast<int>(std::round(maxDisplayFrequencyHz_ * 0.2f / currentBinWidthHz)));
+    const uint8_t max_bin_for_env =
+        std::min(static_cast<int>(actualFftSize - 1), static_cast<int>(std::round(maxDisplayFrequencyHz_ * 0.2f / currentBinWidthHz)));
     const uint8_t num_bins_in_env_range = std::max(1, max_bin_for_env - min_bin_for_env + 1);
 
     // Magnitude-alapú adaptív skálázás envelope-hoz
     float adaptiveScale = getMagnitudeAgcScale(SensitivityConstants::ENVELOPE_SENSITIVITY_FACTOR);
     // Konzervatív korlátok envelope-hoz
-    adaptiveScale = constrain(adaptiveScale, SensitivityConstants::ENVELOPE_SENSITIVITY_FACTOR * 0.1f, SensitivityConstants::ENVELOPE_SENSITIVITY_FACTOR * 10.0f);
+    adaptiveScale =
+        constrain(adaptiveScale, SensitivityConstants::ENVELOPE_SENSITIVITY_FACTOR * 0.1f, SensitivityConstants::ENVELOPE_SENSITIVITY_FACTOR * 10.0f);
 
     // 2. Új adatok betöltése
     // Az Envelope módhoz az magnitudeData értékeit használjuk csökkentett erősítéssel.
@@ -1186,7 +1191,8 @@ void UICompSpectrumVis::renderEnvelope() {
     // Minden sort feldolgozunk a teljes felbontásért
     for (uint8_t r = 0; r < bounds.height; ++r) {
         // 'r' (0 to bounds.height-1) leképezése FFT bin indexre a szűkített tartományon belül
-        uint8_t fft_bin_index = min_bin_for_env + static_cast<uint8_t>(std::round(static_cast<float>(r) / std::max(1, (bounds.height - 1)) * (num_bins_in_env_range - 1)));
+        uint8_t fft_bin_index =
+            min_bin_for_env + static_cast<uint8_t>(std::round(static_cast<float>(r) / std::max(1, (bounds.height - 1)) * (num_bins_in_env_range - 1)));
         fft_bin_index = constrain(fft_bin_index, min_bin_for_env, max_bin_for_env);
         float rawMagnitude = magnitudeData[fft_bin_index];
 
@@ -1355,7 +1361,8 @@ void UICompSpectrumVis::renderWaterfall() {
 
     for (int r = 0; r < bounds.height; ++r) {
         // 'r' (0 to bounds.height-1) leképezése FFT bin indexre a szűkített tartományon belül
-        int fft_bin_index = min_bin_for_wf + static_cast<int>(std::round(static_cast<float>(r) / std::max(1, (bounds.height - 1)) * (num_bins_in_wf_range - 1)));
+        int fft_bin_index =
+            min_bin_for_wf + static_cast<int>(std::round(static_cast<float>(r) / std::max(1, (bounds.height - 1)) * (num_bins_in_wf_range - 1)));
         fft_bin_index = constrain(fft_bin_index, min_bin_for_wf, max_bin_for_wf);
 
         // ELŐSZÖR zajszűrés a nyers adaton
@@ -1507,7 +1514,8 @@ void UICompSpectrumVis::setTuningAidType(TuningAidType type) {
         }
 
         // Ha változott a frekvencia tartomány, invalidáljuk a buffert (csak waterfall módokhoz)
-        if ((typeChanged || oldMinFreq != currentTuningAidMinFreqHz_ || oldMaxFreq != currentTuningAidMaxFreqHz_) && (currentMode_ == DisplayMode::CWWaterfall || currentMode_ == DisplayMode::RTTYWaterfall)) {
+        if ((typeChanged || oldMinFreq != currentTuningAidMinFreqHz_ || oldMaxFreq != currentTuningAidMaxFreqHz_) &&
+            (currentMode_ == DisplayMode::CWWaterfall || currentMode_ == DisplayMode::RTTYWaterfall)) {
             for (auto &row : wabuf) {
                 std::fill(row.begin(), row.end(), 0);
             }
@@ -1726,7 +1734,8 @@ void UICompSpectrumVis::renderSnrCurve() {
     if (MIN_FREQ_HZ == 0 || MAX_FREQ_HZ == 0 || MIN_FREQ_HZ >= MAX_FREQ_HZ) {
         static unsigned long lastSnrErrorDebugTime = 0;
         if (Utils::timeHasPassed(lastSnrErrorDebugTime, 10000)) {
-            UISPECTRUM_DEBUG("UICompSpectrumVis::renderSnrCurve - Érvénytelen frekvencia határok: MIN=%.2f, MAX=%.2f, automatikus javítás!\n", MIN_FREQ_HZ, MAX_FREQ_HZ);
+            UISPECTRUM_DEBUG("UICompSpectrumVis::renderSnrCurve - Érvénytelen frekvencia határok: MIN=%.2f, MAX=%.2f, automatikus javítás!\n", MIN_FREQ_HZ,
+                             MAX_FREQ_HZ);
             lastSnrErrorDebugTime = millis();
         }
 
@@ -1931,8 +1940,7 @@ uint8_t UICompSpectrumVis::getBandVal(int fft_bin_index, int min_bin_low_res, in
  */
 bool UICompSpectrumVis::getCore1SpectrumData(const float **outData, uint16_t *outSize, float *outBinWidth, float *outAutoGain) {
 
-    int8_t activeSharedDataIndex = ::audioController.getActiveSharedDataIndex();
-    if (activeSharedDataIndex < 0 || activeSharedDataIndex > 1) {
+    if (::activeSharedDataIndex < 0 || ::activeSharedDataIndex > 1) {
         // Érvénytelen index a Core1-től - biztonságosan leállunk
         *outData = nullptr;
         *outSize = 0;
@@ -1946,7 +1954,7 @@ bool UICompSpectrumVis::getCore1SpectrumData(const float **outData, uint16_t *ou
         return false;
     }
 
-    const SharedData &data = ::sharedData[activeSharedDataIndex];
+    const SharedData &data = ::sharedData[::activeSharedDataIndex];
 
     *outData = data.fftSpectrumData; // FLOAT pointer
     *outSize = data.fftSpectrumSize;
@@ -1968,15 +1976,14 @@ bool UICompSpectrumVis::getCore1SpectrumData(const float **outData, uint16_t *ou
 bool UICompSpectrumVis::getCore1OscilloscopeData(const int16_t **outData, uint16_t *outSampleCount) {
 
     // Core1 oszcilloszkóp adatok lekérése
-    int8_t activeSharedDataIndex = ::audioController.getActiveSharedDataIndex();
-    if (activeSharedDataIndex < 0 || activeSharedDataIndex > 1) {
+    if (::activeSharedDataIndex < 0 || ::activeSharedDataIndex > 1) {
         *outData = nullptr;
         *outSampleCount = 0;
         UISPECTRUM_DEBUG("UICompSpectrumVis::getCore1OscilloscopeData - érvénytelen shared index: %d\n", activeSharedDataIndex);
         return false;
     }
 
-    const SharedData &data = ::sharedData[activeSharedDataIndex];
+    const SharedData &data = ::sharedData[::activeSharedDataIndex];
 
     *outData = data.rawSampleData;
     *outSampleCount = data.rawSampleCount;

@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
  * -----                                                                                                               *
- * Last Modified: 2025.11.16, Sunday  09:39:57                                                                         *
+ * Last Modified: 2025.11.22, Saturday  09:33:00                                                                       *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -36,10 +36,12 @@
  * @param bandwidthHz A sávszélesség Hz-ben.
  *
  */
-void AudioController::startAudioController(DecoderId id, uint32_t sampleCount, uint32_t bandwidthHz, uint32_t cwCenterFreqHz, uint32_t rttyMarkFreqHz, uint32_t rttySpaceFreqHz, float rttyBaud) {
+void AudioController::startAudioController(DecoderId id, uint32_t sampleCount, uint32_t bandwidthHz, uint32_t cwCenterFreqHz, uint32_t rttyMarkFreqHz,
+                                           uint32_t rttySpaceFreqHz, float rttyBaud) {
 
-    DEBUG("AudioController: startAudioController() hívás - dekóder Core0-on: %d, sampleCount=%d, bandwidthHz=%d Hz, cwCenterFreqHz=%d Hz, rttyMarkFreqHz=%d Hz, rttySpaceFreqHz=%d Hz, rttyBaud=%.2f\n", (uint32_t)id,
-          sampleCount, bandwidthHz, cwCenterFreqHz, rttyMarkFreqHz, rttySpaceFreqHz, rttyBaud);
+    DEBUG("AudioController: startAudioController() hívás - dekóder Core0-on: %d, sampleCount=%d, bandwidthHz=%d Hz, cwCenterFreqHz=%d Hz, rttyMarkFreqHz=%d "
+          "Hz, rttySpaceFreqHz=%d Hz, rttyBaud=%.2f\n",
+          (uint32_t)id, sampleCount, bandwidthHz, cwCenterFreqHz, rttyMarkFreqHz, rttySpaceFreqHz, rttyBaud);
 
     // Küldjük a dekóder ID-t, a puffer méretet és a kívánt AF sávszélességet a Core1-nek.
     rp2040.fifo.push(RP2040CommandCode::CMD_SET_CONFIG);
@@ -105,31 +107,10 @@ uint32_t AudioController::getSamplingRate() {
 }
 
 /**
- * @brief Lekérdezi a Core1 által használt aktív adatpuffer indexét.
- * @return Az aktív puffer indexe (0 vagy 1), vagy -1 hiba esetén.
- */
-int8_t AudioController::getActiveSharedDataIndex() {
-
-    rp2040.fifo.push(RP2040CommandCode::CMD_GET_DATA_BLOCK);
-
-    uint32_t response_code = rp2040.fifo.pop();
-    if (response_code == RP2040ResponseCode::RESP_DATA_BLOCK) {
-        uint32_t activeSharedDataIndex = rp2040.fifo.pop();
-        return static_cast<int8_t>(activeSharedDataIndex);
-    } else {
-        // Hiba vagy timeout esetén ürítsük a FIFO-t, ha van benne valami
-        while (rp2040.fifo.available()) {
-            rp2040.fifo.pop();
-        }
-        return -1;
-    }
-}
-
-/**
  * @brief AudioProcessorC1 AGC engedélyezése/letiltása Core1-en.
  */
 bool AudioController::setAgcEnabled(bool enabled) {
-    rp2040.fifo.push(RP2040CommandCode::CMD_SET_AGC_ENABLED);
+    rp2040.fifo.push(RP2040CommandCode::CMD_AUDIOPROC_SET_AGC_ENABLED);
     rp2040.fifo.push(enabled ? 1 : 0);
     return rp2040.fifo.pop() == RP2040ResponseCode::RESP_ACK; // ACK jött?
 }
@@ -138,7 +119,7 @@ bool AudioController::setAgcEnabled(bool enabled) {
  * @brief AudioProcessorC1 zajszűrés engedélyezése/letiltása Core1-en.
  */
 bool AudioController::setNoiseReductionEnabled(bool enabled) {
-    rp2040.fifo.push(RP2040CommandCode::CMD_SET_NOISE_REDUCTION_ENABLED);
+    rp2040.fifo.push(RP2040CommandCode::CMD_AUDIOPROC_SET_NOISE_REDUCTION_ENABLED);
     rp2040.fifo.push(enabled ? 1 : 0);
     return rp2040.fifo.pop() == RP2040ResponseCode::RESP_ACK; // ACK jött?
 }
@@ -147,7 +128,7 @@ bool AudioController::setNoiseReductionEnabled(bool enabled) {
  * @brief AudioProcessorC1 smoothing pontok számának beállítása Core1-en.
  */
 bool AudioController::setSmoothingPoints(uint32_t points) {
-    rp2040.fifo.push(RP2040CommandCode::CMD_SET_SMOOTHING_POINTS);
+    rp2040.fifo.push(RP2040CommandCode::CMD_AUDIOPROC_SET_SMOOTHING_POINTS);
     rp2040.fifo.push(points);
     return rp2040.fifo.pop() == RP2040ResponseCode::RESP_ACK; // ACK jött?
 }
@@ -156,7 +137,7 @@ bool AudioController::setSmoothingPoints(uint32_t points) {
  * @brief AudioProcessorC1 FFT használatának engedélyezése/letiltása Core1-en.
  */
 bool AudioController::setUseFftEnabled(bool enabled) {
-    rp2040.fifo.push(RP2040CommandCode::CMD_SET_USE_FFT_ENABLED);
+    rp2040.fifo.push(RP2040CommandCode::CMD_AUDIOPROC_SET_USE_FFT_ENABLED);
     rp2040.fifo.push(enabled ? 1 : 0);
     return rp2040.fifo.pop() == RP2040ResponseCode::RESP_ACK; // ACK jött?
 }
@@ -166,7 +147,7 @@ bool AudioController::setUseFftEnabled(bool enabled) {
  * @return true, ha használja, false, ha nem, vagy hiba esetén false.
  */
 bool AudioController::getUseFftEnabled() {
-    rp2040.fifo.push(RP2040CommandCode::CMD_GET_USE_FFT_ENABLED);
+    rp2040.fifo.push(RP2040CommandCode::CMD_AUDIOPROC_GET_USE_FFT_ENABLED);
     uint32_t response_code = rp2040.fifo.pop();
     if (response_code == RP2040ResponseCode::RESP_USE_FFT_ENABLED) {
         uint32_t enabled = rp2040.fifo.pop();
@@ -183,7 +164,7 @@ void AudioController::setManualGain(float gain) {
     // Float átküldése FIFO-n uint32_t bit patternként
     uint32_t gainBits;
     memcpy(&gainBits, &gain, sizeof(uint32_t));
-    rp2040.fifo.push(RP2040CommandCode::CMD_SET_MANUAL_GAIN);
+    rp2040.fifo.push(RP2040CommandCode::CMD_AUDIOPROC_SET_MANUAL_GAIN);
     rp2040.fifo.push(gainBits);
     (void)rp2040.fifo.pop(); // ACK
 }
@@ -192,8 +173,34 @@ void AudioController::setManualGain(float gain) {
  * @brief Beállítja a blokkoló/nem blokkoló DMA módot Core1-en.
  */
 bool AudioController::setBlockingDmaMode(bool blocking) {
-    rp2040.fifo.push(RP2040CommandCode::CMD_SET_BLOCKING_DMA_MODE);
+    rp2040.fifo.push(RP2040CommandCode::CMD_AUDIOPROC_SET_BLOCKING_DMA_MODE);
     rp2040.fifo.push(blocking ? 1 : 0);
     uint32_t resp = rp2040.fifo.pop();
     return resp == RP2040ResponseCode::RESP_ACK;
+}
+
+/**
+ * @brief Beállítja, hogy az aktív dekóder adaptív küszöböt használjon-e (Core1 oldalon).
+ */
+bool AudioController::setDecoderUseAdaptiveThreshold(bool use) {
+    rp2040.fifo.push(RP2040CommandCode::CMD_DECODER_SET_USE_ADAPTIVE_THRESHOLD);
+    rp2040.fifo.push(use ? 1 : 0);
+    return rp2040.fifo.pop() == RP2040ResponseCode::RESP_ACK;
+}
+
+/**
+ * @brief Lekérdezi, hogy az aktív dekóder adaptív küszöb használata be van-e kapcsolva a Core1-en.
+ */
+bool AudioController::getDecoderUseAdaptiveThreshold() {
+    rp2040.fifo.push(RP2040CommandCode::CMD_DECODER_GET_USE_ADAPTIVE_THRESHOLD);
+    uint32_t response_code = rp2040.fifo.pop();
+    if (response_code == RP2040ResponseCode::RESP_USE_ADAPTIVE_THRESHOLD) {
+        uint32_t enabled = rp2040.fifo.pop();
+        return enabled != 0;
+    } else {
+        while (rp2040.fifo.available()) {
+            rp2040.fifo.pop();
+        }
+        return false;
+    }
 }
