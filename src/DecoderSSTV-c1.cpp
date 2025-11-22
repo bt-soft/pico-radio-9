@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
  * -----                                                                                                               *
- * Last Modified: 2025.11.22, Saturday  05:56:43                                                                       *
+ * Last Modified: 2025.11.22, Saturday  07:04:06                                                                       *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -71,7 +71,7 @@ bool DecoderSSTV_C1::pushLineToBuffer(const uint16_t *src, uint16_t y) {
     memcpy(newLine.sstvPixels, src, SSTV_LINE_WIDTH * sizeof(uint16_t));
 
     // Próbáljuk meg hozzáadni az új sort a közös lineBuffer-hez
-    if (!decodedData.lineBuffer.put(newLine)) {
+    if (!::decodedData.lineBuffer.put(newLine)) {
         SSTV_DEBUG("SSTV-C1::pushLineToBuffer - Ring buffer FULL, y=%d\n", y);
         return false;
     }
@@ -136,6 +136,22 @@ void DecoderSSTV_C1::stop() {
 };
 
 /**
+ * @brief SSTV Dekóder resetelése
+ */
+void DecoderSSTV_C1::reset() {
+    SSTV_DEBUG("SSTV-C1: Dekóder resetelése\n");
+
+    sstv_decoder->reset();
+
+    // Állapot változók visszaállítása
+    last_pixel_y = 0;
+    first_image_sent = false;
+    last_mode_id = -1;
+    ::decodedData.modeChanged = true;
+    ::decodedData.currentMode = -1;
+}
+
+/**
  * @brief Feldolgozza a bemeneti audio mintákat és dekódolja az SSTV képet.
  * @param rawAudioSamples A bemeneti audio minták tömbje (SSTV_RAW_SAMPLES_SIZE elem).
  * @param count A minták száma.
@@ -175,8 +191,8 @@ void DecoderSSTV_C1::processSamples(const int16_t *rawAudioSamples, size_t count
             if (mode_id_now != last_mode_id) {
                 last_mode_id = mode_id_now;
                 // Jelöljük a shared memory-ban hogy mód változott
-                decodedData.modeChanged = true;
-                decodedData.currentMode = (uint8_t)mode_id_now;
+                ::decodedData.modeChanged = true;
+                ::decodedData.currentMode = (uint8_t)mode_id_now;
 
                 SSTV_DEBUG("SSTV-C1: Módváltozás észlelve, új mode_id=%d, név=%s\n", //
                            mode_id_now,                                              //
@@ -195,7 +211,7 @@ void DecoderSSTV_C1::processSamples(const int16_t *rawAudioSamples, size_t count
                            c_sstv_decoder::getSstvModeName((c_sstv_decoder::e_mode)mode_id_now));
 
                 // Jelöljük a shared memory-ban hogy új kép kezdődött
-                decodedData.newImageStarted = true;
+                ::decodedData.newImageStarted = true;
 
                 // Jelöljük, hogy az első kép értesítése megtörtént
                 first_image_sent = true;

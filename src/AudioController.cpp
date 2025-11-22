@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
  * -----                                                                                                               *
- * Last Modified: 2025.11.22, Saturday  09:33:00                                                                       *
+ * Last Modified: 2025.11.22, Saturday  06:59:33                                                                       *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -203,4 +203,14 @@ bool AudioController::getDecoderUseAdaptiveThreshold() {
         }
         return false;
     }
+}
+
+/**
+ * @brief Az aktív dekóder resetelése a Core1-en.
+ * @details A Core1 oldalán a CMD_DECODER_RESET parancsot fogja feldolgozni,
+ * és ACK-et küld vissza.
+ */
+void AudioController::resetDecoder() {
+    rp2040.fifo.push(RP2040CommandCode::CMD_DECODER_RESET);
+    (void)rp2040.fifo.pop(); // ACK várás
 }

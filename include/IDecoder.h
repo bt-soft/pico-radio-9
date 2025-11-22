@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
  * -----                                                                                                               *
- * Last Modified: 2025.11.22, Saturday  09:29:38                                                                       *
+ * Last Modified: 2025.11.22, Saturday  06:46:01                                                                       *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -92,4 +92,9 @@ class IDecoder {
         DEBUG("IDecoder::getUseAdaptiveThreshold - Alapértelmezett üres implementáció\n");
         return false;
     }
+
+    /**
+     * @brief Dekóder resetelése
+     */
+    virtual void reset() { DEBUG("IDecoder::reset - Alapértelmezett üres implementáció\n"); }
 };

@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
  * -----                                                                                                               *
- * Last Modified: 2025.11.22, Saturday  09:47:32                                                                       *
+ * Last Modified: 2025.11.22, Saturday  06:56:35                                                                       *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -62,6 +62,7 @@ enum RP2040CommandCode : uint32_t {
     // Dekóder specifikus parancsok
     CMD_DECODER_SET_USE_ADAPTIVE_THRESHOLD, // Dekóder adaptív küszöb használatának beállítása
     CMD_DECODER_GET_USE_ADAPTIVE_THRESHOLD, // Dekóder adaptív küszöb lekérdezése
+    CMD_DECODER_RESET,                      // Dekóder reset parancs
 };
 
 /**

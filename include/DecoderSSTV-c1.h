@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                       *
  * -----                                                                                                               *
- * Last Modified: 2025.11.16, Sunday  09:47:53                                                                         *
+ * Last Modified: 2025.11.22, Saturday  06:46:18                                                                       *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -70,6 +70,11 @@ class DecoderSSTV_C1 : public IDecoder {
      * @param count A minták száma.
      */
     void processSamples(const int16_t *rawAudioSamples, size_t count) override;
+
+    /**
+     * @brief Dekóder resetelése
+     */
+    void reset() override;
 
   private:
     //--- SSTV Dekóder ---

@@ -62,6 +62,9 @@ class AudioController {
     bool setDecoderUseAdaptiveThreshold(bool use);
     bool getDecoderUseAdaptiveThreshold();
 
+    // Kérjük a Core1-et, hogy resetelje az aktív dekódert
+    void resetDecoder();
+
     // FFT vezérlés
     bool setUseFftEnabled(bool enabled);
     bool getUseFftEnabled();

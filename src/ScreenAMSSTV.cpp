@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
  * -----                                                                                                               *
- * Last Modified: 2025.11.22, Saturday  06:42:09                                                                       *
+ * Last Modified: 2025.11.22, Saturday  06:51:18                                                                       *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -98,6 +98,8 @@ void ScreenAMSSTV::layoutComponents() {
                 if (event.state == UIButton::EventButtonState::Clicked) {
                     // Töröljük a képterületet
                     this->clearPictureArea();
+                    // Kérjük meg a Core1-et is, hogy resetelje a dekódert az AudioController-en keresztül
+                    ::audioController.resetDecoder();
                 }
             });
 
@@ -207,7 +209,7 @@ void ScreenAMSSTV::dwrawSstvMode(const char *modeName) {
     tft.fillRect(MODE_VALUE_X, SSTV_PICTURE_START_Y - MODE_TXT_HEIGHT - 4, SSTV_SCALED_WIDTH - 45, MODE_TXT_HEIGHT, TFT_BLACK);
 
     // Módnév kiírása
-    if (modeName != nullptr) {
+    if (modeName != nullptr && !STREQ(modeName, "Unknown")) {
         tft.setTextColor(TFT_GREEN, TFT_BLACK);
         tft.setTextDatum(BC_DATUM);
         tft.setTextFont(0);

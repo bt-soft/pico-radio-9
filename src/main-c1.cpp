@@ -473,6 +473,16 @@ void processFifoCommands() {
             break;
         }
 
+        case RP2040CommandCode::CMD_DECODER_RESET: {
+            // Core0 kéri az aktív dekóder resetelését
+            if (activeDecoderCore1 != nullptr) {
+                activeDecoderCore1->reset();
+                CORE1_DEBUG("core-1: CMD_DECODER_RESET - Aktív dekóder resetelve\n");
+            }
+            rp2040.fifo.push(RP2040ResponseCode::RESP_ACK);
+            break;
+        }
+
         case RP2040CommandCode::CMD_DECODER_GET_USE_ADAPTIVE_THRESHOLD: {
             // Visszaküldjük a dekóder adaptív küszöb állapotát (ha CW dekóder aktív)
             uint32_t enabled = 0;
