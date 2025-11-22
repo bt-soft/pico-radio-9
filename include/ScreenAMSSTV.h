@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                       *
  * -----                                                                                                               *
- * Last Modified: 2025.11.16, Sunday  09:50:31                                                                         *
+ * Last Modified: 2025.11.22, Saturday  05:53:01                                                                       *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -54,6 +54,11 @@ class ScreenAMSSTV : public ScreenAMRadioBase, public UICommonVerticalButtons::M
      * @brief Képernyő deaktiválása
      */
     virtual void deactivate() override;
+
+    /**
+     * @brief Képernyő tartalom rajzolása
+     */
+    virtual void drawContent() override;
 
     /**
      * @brief Folyamatos loop hívás

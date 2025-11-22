@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
  * -----                                                                                                               *
- * Last Modified: 2025.11.16, Sunday  09:42:46                                                                         *
+ * Last Modified: 2025.11.22, Saturday  05:52:42                                                                       *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -110,6 +110,11 @@ void ScreenAMSSTV::addSpecificHorizontalButtons(std::vector<UIHorizontalButtonBa
 }
 
 /**
+ * @brief Képernyő tartalom rajzolása
+ */
+void ScreenAMSSTV::drawContent() { this->clearPictureArea(); }
+
+/**
  * @brief Képernyő aktiválása
  */
 void ScreenAMSSTV::activate() {
@@ -127,6 +132,7 @@ void ScreenAMSSTV::activate() {
     ::audioController.setNoiseReductionEnabled(true); // Zajszűrés beapcsolva (tisztább spektrum)
     ::audioController.setSmoothingPoints(5);          // Zajszűrés simítási pontok száma = 5 (erősebb zajszűrés, nincs frekvencia felbontási igény)
 }
+
 /**
  * @brief Képernyő deaktiválása
  */
@@ -156,7 +162,6 @@ void ScreenAMSSTV::handleOwnLoop() {
     // Szülő osztály loop kezelése (S-Meter frissítés, stb.)
     ScreenAMRadioBase::handleOwnLoop();
 
-    // SSTV dekódolt képsor frissítése
     this->checkDecodedData();
 }
 
