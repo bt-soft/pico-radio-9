@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                       *
  * -----                                                                                                               *
- * Last Modified: 2025.11.22, Saturday  05:53:01                                                                       *
+ * Last Modified: 2025.11.22, Saturday  06:24:41                                                                       *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -82,7 +82,12 @@ class ScreenAMSSTV : public ScreenAMRadioBase, public UICommonVerticalButtons::M
     // Static változók a függőleges scaling akkumulálásához
     float accumulatedTargetLine;
     uint16_t lastDrawnTargetLine;
+    // Az utoljára megjelenített SSTV mód azonosítója (-1 = nincs)
+    int lastModeDisplayed;
+    // Reset gomb, ami törli a képterületet
+    std::shared_ptr<UIButton> resetButton;
 
     void checkDecodedData();
     void clearPictureArea();
+    void dwrawSstvMode(const char *modeName);
 };

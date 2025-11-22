@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
  * -----                                                                                                               *
- * Last Modified: 2025.11.22, Saturday  05:52:42                                                                       *
+ * Last Modified: 2025.11.22, Saturday  06:42:09                                                                       *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -39,15 +39,19 @@
 #define SSTV_SCALED_WIDTH ((uint16_t)(SSTV_LINE_WIDTH * SSTV_SCALE + 0.5f))   // Új szélesség skálázva
 #define SSTV_SCALED_HEIGHT ((uint16_t)(SSTV_LINE_HEIGHT * SSTV_SCALE + 0.5f)) // Új magasság skálázva
 
-#define SSTV_PICTURE_START_X 100 // Kép kezdő X pozíciója
-#define SSTV_PICTURE_START_Y 90  // Kép kezdő Y pozíciója
+#define SSTV_PICTURE_START_X 20 // Kép kezdő X pozíciója (bal oldaltól 20px-re)
+#define SSTV_PICTURE_START_Y 90 // Kép kezdő Y pozíciója
+
+#define MODE_TXT_HEIGHT 15
+#define MODE_TXT_X SSTV_PICTURE_START_X
+#define MODE_TXT_Y SSTV_PICTURE_START_Y - MODE_TXT_HEIGHT
 
 /**
  * @brief ScreenAMSSTV konstruktor
  */
 ScreenAMSSTV::ScreenAMSSTV()
     : ScreenAMRadioBase(SCREEN_NAME_DECODER_SSTV), UICommonVerticalButtons::Mixin<ScreenAMSSTV>(), //
-      accumulatedTargetLine(0.0f), lastDrawnTargetLine(0) {
+      accumulatedTargetLine(0.0f), lastDrawnTargetLine(0), lastModeDisplayed(-1) {
 
     // UI komponensek létrehozása és elhelyezése
     layoutComponents();
@@ -78,6 +82,27 @@ void ScreenAMSSTV::layoutComponents() {
     // Alsó vízszintes gombsor - CSAK az AM specifikus 4 gomb (BFO, AFBW, ANTCAP, DEMOD)
     // addDefaultButtons = false -> NEM rakja be a HAM, Band, Scan gombokat
     ScreenRadioBase::createCommonHorizontalButtons(false);
+
+    // --- Reset gomb elhelyezése a kép jobb oldalán, 20px-el jobbra ---
+    const int resetBtnX = SSTV_PICTURE_START_X + SSTV_SCALED_WIDTH + 20;
+    const int resetBtnY = SSTV_PICTURE_START_Y; // ugyanazon a magasságon
+
+    if (!resetButton) {
+        // Létrehozzuk és hozzáadjuk a képernyőhöz
+        resetButton = std::make_shared<UIButton>(        //
+            200,                                         // egyedi ID
+            Rect(resetBtnX, resetBtnY),                  // gomb pozíció default méretekkel
+            "Reset",                                     // gomb felirata
+            UIButton::ButtonType::Pushable,              // gomb típusa
+            [this](const UIButton::ButtonEvent &event) { // eseménykezelő lambda
+                if (event.state == UIButton::EventButtonState::Clicked) {
+                    // Töröljük a képterületet
+                    this->clearPictureArea();
+                }
+            });
+
+        addChild(resetButton);
+    }
 
     // SSTV kép helyének kirajzolása
     clearPictureArea();
@@ -112,7 +137,17 @@ void ScreenAMSSTV::addSpecificHorizontalButtons(std::vector<UIHorizontalButtonBa
 /**
  * @brief Képernyő tartalom rajzolása
  */
-void ScreenAMSSTV::drawContent() { this->clearPictureArea(); }
+void ScreenAMSSTV::drawContent() {
+    this->clearPictureArea();
+
+    // A 'Mode:' felirat megjelenítése
+    tft.setTextColor(TFT_SKYBLUE, TFT_BLACK);
+    tft.setTextDatum(BC_DATUM);
+    tft.setTextFont(0);
+    tft.setTextSize(1);
+    tft.setCursor(SSTV_PICTURE_START_X, SSTV_PICTURE_START_Y - MODE_TXT_HEIGHT);
+    tft.print("SSTV Mode:");
+}
 
 /**
  * @brief Képernyő aktiválása
@@ -149,10 +184,37 @@ void ScreenAMSSTV::deactivate() {
  * @brief Képterület törlése
  */
 void ScreenAMSSTV::clearPictureArea() {
-    // SSTV kép helye
+
+    // SSTV kép helyének törlése
     tft.fillRect(SSTV_PICTURE_START_X, SSTV_PICTURE_START_Y, SSTV_SCALED_WIDTH, SSTV_SCALED_HEIGHT, TFT_BLACK);
+
     // Fehér keret rajzolása a kép körül (1px-el kívül)
     tft.drawRect(SSTV_PICTURE_START_X - 1, SSTV_PICTURE_START_Y - 1, SSTV_SCALED_WIDTH + 2, SSTV_SCALED_HEIGHT + 2, TFT_WHITE);
+
+    // Mód név törlése
+    this->dwrawSstvMode(nullptr);
+}
+
+/**
+ * @brief SSTV mód név kirajzolása
+ * @param modeName A megjelenítendő mód név
+ */
+void ScreenAMSSTV::dwrawSstvMode(const char *modeName) {
+
+    constexpr int MODE_VALUE_X = SSTV_PICTURE_START_X + 60;
+
+    // Módnév törlése ha volt ott valami
+    tft.fillRect(MODE_VALUE_X, SSTV_PICTURE_START_Y - MODE_TXT_HEIGHT - 4, SSTV_SCALED_WIDTH - 45, MODE_TXT_HEIGHT, TFT_BLACK);
+
+    // Módnév kiírása
+    if (modeName != nullptr) {
+        tft.setTextColor(TFT_GREEN, TFT_BLACK);
+        tft.setTextDatum(BC_DATUM);
+        tft.setTextFont(0);
+        tft.setTextSize(1);
+        tft.setCursor(MODE_VALUE_X, MODE_TXT_Y);
+        tft.print(modeName);
+    }
 }
 
 /**
@@ -183,21 +245,15 @@ void ScreenAMSSTV::checkDecodedData() {
         const char *modeName = c_sstv_decoder::getSstvModeName((c_sstv_decoder::e_mode)decodedData.currentMode);
         DEBUG("core-0: SSTV mód változás: %s (ID: %d)\n", modeName, decodedData.currentMode);
 
-#define TFT_BANNER_HEIGHT 15
-#define MODE_TXT_X SSTV_PICTURE_START_X
-#define MODE_TXT_Y SSTV_PICTURE_START_Y - TFT_BANNER_HEIGHT
-        // Kijelző felső sávjának törlése a korábbi mód név eltávolításához
-        tft.fillRect(MODE_TXT_X, MODE_TXT_Y, SSTV_SCALED_WIDTH, TFT_BANNER_HEIGHT - 5, TFT_BLACK);
-        tft.setTextColor(TFT_YELLOW, TFT_BLACK);
-        tft.setTextDatum(BC_DATUM);
-        tft.setTextFont(0);
-        tft.setTextSize(1);
-        tft.setCursor(MODE_TXT_X, MODE_TXT_Y);
-        tft.printf("Mode:");
-
-        tft.setTextColor(TFT_GREEN, TFT_BLACK);
-        tft.setCursor(MODE_TXT_X + 45, MODE_TXT_Y);
-        tft.print(modeName);
+        // Mód név kiírása (ha van)
+        if (decodedData.currentMode >= 0) {
+            this->dwrawSstvMode(modeName);
+            lastModeDisplayed = decodedData.currentMode;
+        } else {
+            // Ha nincs információ, töröljük a korábbi módnevet
+            this->dwrawSstvMode(nullptr);
+            lastModeDisplayed = -1;
+        }
 
         // Scaling állapot reset
         accumulatedTargetLine = 0.0f;
@@ -208,10 +264,10 @@ void ScreenAMSSTV::checkDecodedData() {
     DecodedLine dline;
     if (decodedData.lineBuffer.get(dline)) {
 
-        // Egyszerű nearest neighbor scaling - gyors és tiszta
+        // Kicsinyítés -> egyszerű nearest neighbor scaling - gyors és tiszta
         static uint16_t scaledBuffer[SSTV_SCALED_WIDTH];
-
         for (uint16_t x = 0; x < SSTV_SCALED_WIDTH; ++x) {
+
             // Nearest neighbor: legközelebbi forrás pixel
             uint16_t srcX = (uint16_t)((x * SSTV_LINE_WIDTH) / SSTV_SCALED_WIDTH);
             uint16_t v = dline.sstvPixels[srcX];
