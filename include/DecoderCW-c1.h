@@ -55,7 +55,11 @@ class DecoderCW_C1 : public IDecoder {
     void processSamples(const int16_t *rawAudioSamples, size_t count) override;
 
     // Dekóder adaptív küszöb használatának beállítása/lekérdezése
-    inline void setUseAdaptiveThreshold(bool use) override { useAdaptiveThreshold_ = use; }
+    inline void setUseAdaptiveThreshold(bool use) override {
+        useAdaptiveThreshold_ = use;
+        if (!use)
+            agcInitialized_ = false;
+    }
     inline bool getUseAdaptiveThreshold() const override { return useAdaptiveThreshold_; }
 
   private:
@@ -82,6 +86,8 @@ class DecoderCW_C1 : public IDecoder {
     float agcLevel_ = 2000.0f;   // AGC szint (mozgó átlag)
     float agcAlpha_ = 0.02f;     // AGC szűrési állandó (lassabb követés)
     float minThreshold_ = 20.0f; // Minimális threshold_ érték
+    // Jelzi, hogy az AGC egyszer már inicializálva lett valódi mérésből
+    bool agcInitialized_ = false;
 
     // --- Frekvencia követés ---
     static constexpr size_t FREQ_SCAN_STEPS = 9; // 9 lépés: -200, -150, -100, -50, 0, +50, +100, +150, +200 Hz
@@ -171,7 +177,7 @@ class DecoderCW_C1 : public IDecoder {
     uint8_t symbolOffset_; // Lépésköz a fában
     uint8_t symbolCount_;  // Szimbólumok száma
 
-    // --- State machine ---
+    // --- Állapotgép ---
     bool started_;   // Dekódolás elindult
     bool measuring_; // Tónus mérés folyamatban
 
@@ -185,10 +191,10 @@ class DecoderCW_C1 : public IDecoder {
     bool useWindow_ = true;
     bool detectTone(const int16_t *samples, size_t count);
     void updateFrequencyTracking();
-    // Sliding buffer containing the most recent GOERTZEL_N samples
+    // Csúszó puffer, amely a legutóbbi GOERTZEL_N mintákat tárolja
     int16_t lastSamples_[GOERTZEL_N];
     size_t lastSampleCount_ = 0;
-    size_t lastSamplePos_ = 0; // next write position in circular buffer
+    size_t lastSamplePos_ = 0; // következő írási pozíció a körkörös pufferben
     void processDot();
     void processDash();
     bool decodeSymbol();

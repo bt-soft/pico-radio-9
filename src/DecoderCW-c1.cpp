@@ -31,7 +31,14 @@
 
 extern DecodedData decodedData;
 
-// CW működés debug engedélyezése de csak DEBUG módban
+#define __CW_DEBUG
+#if defined(__DEBUG) && defined(__CW_DEBUG)
+#define CW_DEBUG(fmt, ...) DEBUG(fmt __VA_OPT__(, ) __VA_ARGS__)
+#else
+#define CW_DEBUG(fmt, ...) // Üres makró, ha __DEBUG nincs definiálva
+#endif
+
+// CW működés debug engedélyezése (csak ha __DEBUG definiálva van)
 #define __CW_DEBUG
 #if defined(__DEBUG) && defined(__CW_DEBUG)
 #define CW_DEBUG(fmt, ...) DEBUG(fmt __VA_OPT__(, ) __VA_ARGS__)
@@ -163,7 +170,7 @@ bool DecoderCW_C1::detectTone(const int16_t *samples, size_t count) {
     float maxMagnitude = 0.0f;
     int bestIndex = currentFreqIndex_;
 
-    // Az ablak alkalmazása a mintákra a helyi pufferbe
+    // Az ablak alkalmazása a mintákra (helyi pufferbe)
     float buf[GOERTZEL_N];
     windowApplier.apply(samples, buf, GOERTZEL_N);
     for (size_t i = 0; i < FREQ_SCAN_STEPS; i++) {
@@ -178,26 +185,39 @@ bool DecoderCW_C1::detectTone(const int16_t *samples, size_t count) {
 
     // --- AGC: threshold_ dinamikus optimalizálása ---
     if (useAdaptiveThreshold_) {
-        agcLevel_ = (1.0f - agcAlpha_) * agcLevel_ + agcAlpha_ * magnitude;
-        threshold_ = agcLevel_ * 0.5f;
+        // Seed AGC on first meaningful measurement to avoid huge initial agcLevel_
+        if (!agcInitialized_) {
+            // If magnitude is very small, don't seed yet
+            if (magnitude > 1.0f) {
+                agcLevel_ = magnitude;
+                agcInitialized_ = true;
+            }
+        } else {
+            agcLevel_ = (1.0f - agcAlpha_) * agcLevel_ + agcAlpha_ * magnitude;
+        }
+
+        // Use a safer threshold factor - below 0.5 to be more sensitive
+        const float THRESH_FACTOR = 0.45f;
+        threshold_ = agcLevel_ * THRESH_FACTOR;
         if (threshold_ < minThreshold_)
             threshold_ = minThreshold_;
     } else {
         // Ha az adaptív küszöb ki van kapcsolva, használjuk a fix minThreshold_-t
         threshold_ = minThreshold_;
+        agcInitialized_ = false; // reset seed when adaptive disabled
     }
 
     // Tónus detekció küszöb alapján
     bool newToneState = (magnitude > threshold_);
 
-    // Debug: kiíratás a Goertzel magnitúdóról és a használt küszöbről (ritkítottan)
+    // Debug: kiíratás a Goertzel magnitúdóról és a használt küszöbről (ritkítva)
     static int __cw_dbg_cnt = 0;
     if (++__cw_dbg_cnt >= 10) {
         CW_DEBUG("CW-C1: detectTone: mag=%.1f, agcLevel=%.1f, threshold=%.1f, bestIdx=%d\n", magnitude, agcLevel_, threshold_, bestIndex);
         __cw_dbg_cnt = 0;
     }
 
-    // Ha tónus változás történt, ellenőrizzük a frekvencia követést
+    // Ha tónus állapot változott, ellenőrizzük és frissítjük a frekvencia-követést
     if (newToneState != toneDetected_) {
         updateFrequencyTracking();
     }
@@ -223,7 +243,7 @@ void DecoderCW_C1::updateFrequencyTracking() {
     float maxMagnitude = 0.0f;
     uint8_t bestIndex = currentFreqIndex_;
 
-    // Az ablak alkalmazása az utolsó mintákra a helyi pufferbe
+    // Az ablak alkalmazása az utolsó mintákra (helyi pufferbe)
     float buf[GOERTZEL_N];
     if (lastSamplePos_ == 0) {
         windowApplier.apply(lastSamples_, buf, GOERTZEL_N);
@@ -242,7 +262,7 @@ void DecoderCW_C1::updateFrequencyTracking() {
         }
     }
 
-    // Ha változott a frekvencia, frissítjük
+    // Ha változott a frekvencia, frissítjük a beállításokat
     if (bestIndex != currentFreqIndex_) {
         currentFreqIndex_ = bestIndex;
         goertzelCoeff_ = scanCoeffs_[currentFreqIndex_];
@@ -280,19 +300,19 @@ void DecoderCW_C1::processSamples(const int16_t *rawAudioSamples, size_t count) 
 
         unsigned long currentTime = millis();
 
-        // === State Machine ===
+        // === Állapotgép ===
 
-        // Szóköz threshold: adaptív, gyors WPM-nél kisebb, lassúnál nagyobb, de ésszerű határok között
+        // Szóköz küszöb: adaptív, gyors WPM-nél kisebb, lassúnál nagyobb, de ésszerű határok között
         auto clamp = [](unsigned long v, unsigned long lo, unsigned long hi) { return std::max(lo, std::min(v, hi)); };
         // Finomhangolás: kisebb alsó korlát, kisebb szorzó, hogy gyorsabb tempónál is legyen szóköz
         const unsigned long minWordSpace = clamp(reference_ * 3.1, 80UL, 600UL);
         static bool lastDecodeSuccess = false;
 
-        // Kezdeti felfutó él várása
+        // Kezdeti felfutó él: várunk a jel kezdetére
         if (!started_ && !measuring_ && tone) {
             leadingEdgeTime_ = currentTime;
 
-            // Szóköz beillesztése ha hosszú szünet volt, de csak ha az előző dekódolás sikeres volt
+            // Szóköz beillesztése, ha hosszú szünet volt és az előző dekódolás sikeres volt
             if (trailingEdgeTime_ > 0 && (currentTime - trailingEdgeTime_) > minWordSpace && lastDecodeSuccess) {
                 decodedData.textBuffer.put(' ');
                 CW_DEBUG("CW-C1: Szóköz\n");
@@ -303,7 +323,7 @@ void DecoderCW_C1::processSamples(const int16_t *rawAudioSamples, size_t count) 
             measuring_ = true;
         }
 
-        // Lefutó él detekció
+        // Lefutó él detektálása
         else if (started_ && measuring_ && !tone) {
             trailingEdgeTime_ = currentTime;
             unsigned long duration = trailingEdgeTime_ - leadingEdgeTime_;
@@ -323,7 +343,7 @@ void DecoderCW_C1::processSamples(const int16_t *rawAudioSamples, size_t count) 
                 }
             }
 
-            // Tónus mentése a dekódoláshoz
+            // A tónus időtartamának mentése a későbbi dekódoláshoz
             if (toneIndex_ < sizeof(toneDurations_) / sizeof(toneDurations_[0])) {
                 toneDurations_[toneIndex_++] = duration;
             } else {
@@ -332,7 +352,7 @@ void DecoderCW_C1::processSamples(const int16_t *rawAudioSamples, size_t count) 
                 return;
             }
 
-            // Ha még nincs referencia (első elemek), indítsuk be alapértékekkel
+            // Ha még nincs referencia (első elemek), állítsunk kezdeti értékeket
             if (toneMin_ == 9999 || toneMax_ == 0) {
                 toneMin_ = min(toneMin_, duration);
                 toneMax_ = max(toneMax_, duration);
@@ -346,7 +366,7 @@ void DecoderCW_C1::processSamples(const int16_t *rawAudioSamples, size_t count) 
             measuring_ = false;
         }
 
-        // Újabb felfutó él
+        // Újabb felfutó él (folytatás)
         else if (started_ && !measuring_ && tone) {
             if ((currentTime - trailingEdgeTime_) < reference_) {
                 leadingEdgeTime_ = currentTime;
@@ -354,7 +374,7 @@ void DecoderCW_C1::processSamples(const int16_t *rawAudioSamples, size_t count) 
             }
         }
 
-        // Timeout - karakter vége vagy hosszú szünet
+        // Timeout - karakter vége vagy hosszú szünet kezelése
         else if (started_ && !measuring_ && !tone) {
             if (trailingEdgeTime_ > 0) { // Csak ha van érvényes lefutó él
                 unsigned long pauseDuration = currentTime - trailingEdgeTime_;
@@ -390,7 +410,7 @@ void DecoderCW_C1::processSamples(const int16_t *rawAudioSamples, size_t count) 
                         }
                     }
 
-                    // State machine nullázása
+                    // Állapotgép nullázása
                     started_ = false;
                     trailingEdgeTime_ = 0; // Újraindítás elkerülése
 
