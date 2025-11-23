@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
  * -----                                                                                                               *
- * Last Modified: 2025.11.22, Saturday  10:50:34                                                                       *
+ * Last Modified: 2025.11.22, Saturday  11:24:11                                                                       *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -209,9 +209,9 @@ void ScreenAMRTTY::activate() {
     // AudioProc-C1 beállítások az RTTY módhoz
     ::audioController.setNoiseReductionEnabled(false); // Zajszűrés kikapcsolva (tisztább spektrum)
     ::audioController.setSmoothingPoints(0);           // Zajszűrés simítási pontok száma = 5 (erősebb zajszűrés, nincs frekvencia felbontási igény)
-    ::audioController.setAgcEnabled(false);            // AGC kikapcsolva
+    ::audioController.setAgcEnabled(false);            // AGC bekapcsolva
     ::audioController.setManualGain(1.0f);             // Manuális erősítés: a kissebb HF sávszéleség miatt erősítünk rajta
-    ::audioController.setSpectrumAveragingCount(0);    // Spektrum nem-koherens átlagolás: x db keret átlagolása
+    ::audioController.setSpectrumAveragingCount(1);    // Spektrum nem-koherens átlagolás: x db keret átlagolása
 
     // RTTY Dekóder specifikus beállítások
     ::audioController.setDecoderBandpassEnabled(false); // Engedélyezzük a dekóder oldali bandpass szűrőt

@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
  * -----                                                                                                               *
- * Last Modified: 2025.11.22, Saturday  10:54:59                                                                       *
+ * Last Modified: 2025.11.22, Saturday  11:30:48                                                                       *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -40,7 +40,7 @@
 extern DecodedData decodedData;
 
 // AGC kapcsoló
-// #define ENABLE_AGC 1
+//#define ENABLE_AGC 1
 
 #define BIN_SPACING_HZ 35.0f
 #define TONE_BLOCK_SIZE 64 // Kisebb blokk a gyorsabb reakcióért
@@ -48,7 +48,13 @@ extern DecodedData decodedData;
 #define NOISE_DECAY_ALPHA 0.5f
 #define NOISE_PEAK_RATIO 3.5f
 #define MIN_NOISE_FLOOR 25.0f
-#define MIN_DOMINANT_MAG 380.0f // Minimum magnitude a tonális jel detektálásához !! Fontos !! (400 volt)
+#define MIN_DOMINANT_MAG 2.0f // Minimum magnitude a jel detektálásához
+
+
+// Debug naplózási periódus — hány blokk után írjunk ki részletes RTTY diagnosztikát
+#ifndef RTTY_DEBUG_PERIOD_BLOCKS
+#define RTTY_DEBUG_PERIOD_BLOCKS 200
+#endif
 
 // envelope tracking konstansok
 static constexpr float ENVELOPE_ATTACK = 0.05f; // Gyors felfutás
@@ -339,24 +345,17 @@ void DecoderRTTY_C1::processToneBlock(const int16_t *samples, size_t count) {
  */
 bool DecoderRTTY_C1::detectTone(bool &isMark, float &confidence) {
 
-    // 1. Goertzel magnitude számítás
-
-    // Mark hang amplitudók
+    // 1. Use magnitudes already computed by processToneBlock's Goertzel
     float markPeak = 0.0f;
     float markSum = 0.0f;
-    for (auto &bin : markBins) {
-        float magSquared = (bin.q1 * bin.q1) + (bin.q2 * bin.q2) - (bin.q1 * bin.q2 * bin.coeff);
-        bin.magnitude = (magSquared > 0.0f) ? sqrtf(magSquared) : 0.0f;
+    for (const auto &bin : markBins) {
         markSum += bin.magnitude;
         markPeak = std::max(markPeak, bin.magnitude);
     }
 
-    // Space hang amplitudók
     float spacePeak = 0.0f;
     float spaceSum = 0.0f;
-    for (auto &bin : spaceBins) {
-        float magSquared = (bin.q1 * bin.q1) + (bin.q2 * bin.q2) - (bin.q1 * bin.q2 * bin.coeff);
-        bin.magnitude = (magSquared > 0.0f) ? sqrtf(magSquared) : 0.0f;
+    for (const auto &bin : spaceBins) {
         spaceSum += bin.magnitude;
         spacePeak = std::max(spacePeak, bin.magnitude);
     }
@@ -442,8 +441,8 @@ bool DecoderRTTY_C1::detectTone(bool &isMark, float &confidence) {
 
     // Debug: periodikus kiírás
     static int debugCounter = 0;
-    // Csak akkor logolunk, ha van értelmes jel (toneDetected) és csak minden 20. blokkban logolunk
-    if (++debugCounter >= 20 && toneDetected) {
+    // Naplózzunk minden 20. blokkban (korábban csak toneDetected esetén), hogy lássuk ha a jel túl gyenge
+    if (++debugCounter >= RTTY_DEBUG_PERIOD_BLOCKS) {
 
 #if ENABLE_AGC
         RTTY_DEBUG("RTTY-C1: M=%.0f/%.0f, S=%.0f/%.0f, Mc=%.0f, Sc=%.0f, gain=%.2f/%.2f, AGC=%.0f/%.0f, metric=%.3f, %s\n", markPeak, markEnvelope, spacePeak,
@@ -451,6 +450,35 @@ bool DecoderRTTY_C1::detectTone(bool &isMark, float &confidence) {
 #else
         RTTY_DEBUG("RTTY-C1: M=%.0f/%.0f, S=%.0f/%.0f, Mc=%.0f, Sc=%.0f, metric=%.3f, %s (confidence: %.2f)\n", markPeak, markEnvelope, spacePeak,
                    spaceEnvelope, markClipped, spaceClipped, metric, isMark ? "MARK" : "SPACE", confidence);
+
+        // Részletesebb diagnosztika: keressük meg a legjobb bin frekvenciákat mindkét oldalon
+        float bestMarkFreq = 0.0f;
+        float bestMarkMag = 0.0f;
+        for (size_t i = 0; i < markBins.size(); ++i) {
+            if (markBins[i].magnitude > bestMarkMag) {
+                bestMarkMag = markBins[i].magnitude;
+                bestMarkFreq = markBins[i].targetFreq;
+            }
+        }
+
+        float bestSpaceFreq = 0.0f;
+        float bestSpaceMag = 0.0f;
+        for (size_t i = 0; i < spaceBins.size(); ++i) {
+            if (spaceBins[i].magnitude > bestSpaceMag) {
+                bestSpaceMag = spaceBins[i].magnitude;
+                bestSpaceFreq = spaceBins[i].targetFreq;
+            }
+        }
+
+        RTTY_DEBUG("RTTY-C1: bestMark=%.1fHz(%.1f) bestSpace=%.1fHz(%.1f)\n", bestMarkFreq, bestMarkMag, bestSpaceFreq, bestSpaceMag);
+
+        // Opció: részletes bin lista (kis BINS_PER_TONE érték esetén hasznos)
+        for (size_t i = 0; i < markBins.size(); ++i) {
+            RTTY_DEBUG("  MarkBin[%02u] f=%.1fHz mag=%.1f\n", (unsigned)i, markBins[i].targetFreq, markBins[i].magnitude);
+        }
+        for (size_t i = 0; i < spaceBins.size(); ++i) {
+            RTTY_DEBUG("  SpaceBin[%02u] f=%.1fHz mag=%.1f\n", (unsigned)i, spaceBins[i].targetFreq, spaceBins[i].magnitude);
+        }
 #endif
         debugCounter = 0;
     }
