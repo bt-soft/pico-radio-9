@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                       *
  * -----                                                                                                               *
- * Last Modified: 2025.11.22, Saturday  10:06:03                                                                       *
+ * Last Modified: 2025.11.23, Sunday  09:47:37                                                                         *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -25,7 +25,6 @@
 #pragma once
 #include <Arduino.h>
 
-#include "BiquadFilter.h"
 #include "IDecoder.h"
 #include "WindowApplier.h"
 #include "defines.h"
@@ -45,7 +44,7 @@
  */
 class DecoderCW_C1 : public IDecoder {
   public:
-    // A frekvencia-keresés és követés eltávolítva — a dekóder csak a konfigurált frekvenciát használja.
+    uint8_t measuredFreqIndex_ = 4; // Utolsó mért legerősebb frekvencia indexe
     DecoderCW_C1();
     ~DecoderCW_C1() override = default;
     const char *getDecoderName() const override { return "CW"; };
@@ -61,14 +60,7 @@ class DecoderCW_C1 : public IDecoder {
         if (!use)
             agcInitialized_ = false;
     }
-
-    // Dekóder adaptív küszöb lekérdezése
     inline bool getUseAdaptiveThreshold() const override { return useAdaptiveThreshold_; }
-
-    // Sávszűrő engedélyezése / tiltása
-    void enableBandpass(bool enabled) override { useBandpass_ = enabled; }
-
-    void reset() override { this->resetDecoder(); };
 
   private:
     // --- Konfiguráció ---
@@ -80,9 +72,7 @@ class DecoderCW_C1 : public IDecoder {
     // --- Goertzel filter paraméterek ---
     static constexpr size_t GOERTZEL_N = 48; // Minták száma Goertzel blokkhoz
     float goertzelCoeff_;                    // Goertzel együttható
-    float goertzelQ1_;
-    float goertzelQ2_;
-    float threshold_; // Jelszint küszöb
+    float threshold_;                        // Jelszint küszöb
 
     // --- AGC paraméterek ---
     // Ha true, a dekóder adaptív küszöböt számol (agc-szerű viselkedés)
@@ -93,15 +83,39 @@ class DecoderCW_C1 : public IDecoder {
     // Kezdeti AGC értékek a gyakoribb mért magnitúdókhoz igazítva
     float agcLevel_ = 15.0f;           // AGC szint (mozgó átlag) - kezdeti tipp a mérések alapján (konzervatív)
     float agcAlpha_ = 0.02f;           // AGC szűrési állandó (lassabb követés, kevesebb fluktuáció)
-    float minThreshold_ = 8.0f;        // Minimális threshold_ érték
+    float minThreshold_ = 40.0f;       // Minimális threshold_ érték
     const float THRESH_FACTOR = 0.80f; // Jelszint küszöbfaktor - nagyobb érték konzervatívabb detektálást eredményez
 
     // Jelzi, hogy az AGC egyszer már inicializálva lett valódi mérésből
     bool agcInitialized_ = false;
 
-    // --- Frekvencia ---
-    // Egyszerűsítve: nem történik frekvencia keresés/követés.
-    // A dekóder mindig a konfigurációban megadott `cwCenterFreqHz`-et használja.
+    // --- Frekvencia követés ---
+    static constexpr size_t FREQ_SCAN_STEPS = 7; // 7 lépés:  -150, -100, -50, 0, +50, +100, +150 Hz
+    static constexpr float FREQ_STEPS[FREQ_SCAN_STEPS] = {-150.0f, -100.0f, -50.0f, 0.0f, 50.0f, 100.0f, 150.0f};
+    static constexpr float CHANGE_TONE_THRESHOLD = 70.0f;     // Váltás küszöbértéke
+    static constexpr float CHANGE_TONE_MAG_THRESHOLD = 10.0f; // Minimális magnitúdó a frekvia váltáshoz
+
+    // Frekvencia követéshez szükséges adatok
+    float scanFrequencies_[FREQ_SCAN_STEPS];
+    float scanCoeffs_[FREQ_SCAN_STEPS];
+    uint8_t currentFreqIndex_; // Aktuális frekvencia index
+
+    // --- Türelmes váltási szabályok (kezeljük, ha rövid ideig ingadozik a mért frekvencia) ---
+    // Ha egyszer stabilnak tekintettük a frekvenciát, tartsa meg legalább 3 percig
+    static constexpr unsigned long STABLE_HOLD_MS = 180000UL;               // 3 perc ms-ben
+    static constexpr uint8_t REQUIRED_CONSECUTIVE_TO_SWITCH = 10;           // 10 egymás utáni mérés szükséges
+    static constexpr unsigned long REQUIRED_DURATION_TO_SWITCH_MS = 5000UL; // vagy 5s folyamatos megfigyelés
+    uint8_t stableFreqIndex_ = 4;                                           // Jelenleg „stabilnak” tekintett frekvencia index
+    unsigned long stableHoldUntilMs_ = 0;                                   // Meddig kell még tartani a stabil értéket (millis)
+    uint8_t candidateFreqIndex_ = 0;                                        // Jelenlegi váltási jelölt index
+    uint8_t candidateCount_ = 0;                                            // Hány egymás utáni mérés egyezik a jelölttel
+    unsigned long candidateFirstSeenMs_ = 0;                                // Mikor láttuk először a jelöltet
+    // Ha nincs tónus X egymást követő mérés, publikáljuk, hogy nincs frekvencia
+    static constexpr uint8_t NO_TONE_PUBLISH_COUNT = 10; // ha 10 egymás utáni mérésben nincs tónus -> nincs freki
+    uint8_t noToneConsecutiveCount_ = 0;                 // hány egymás utáni blokkban nem észleltünk tónust
+    // Ha 1 percig nincs JÓ tónus, akkor töröljük a publikált frekit és WPM-et
+    static constexpr unsigned long NO_GOOD_TONE_TIMEOUT_MS = 60000UL; // 1 perc
+    unsigned long lastGoodToneMs_ = 0;                                // utolsó JÓ tónus időbélyege
 
     // --- Jel detekció ---
     bool toneDetected_;              // Aktuálisan észlelt tónus
@@ -126,7 +140,12 @@ class DecoderCW_C1 : public IDecoder {
     uint8_t wpmHistory_[WPM_HISTORY_SIZE];
     uint8_t wpmHistoryIndex_;
 
+    static constexpr size_t FREQ_HISTORY_SIZE = 20; // Max tónus blokk egy karakterben
+    uint8_t freqHistory_[FREQ_HISTORY_SIZE];
+    uint8_t freqHistoryCount_;
+
     uint8_t lastPublishedWpm_;
+    float lastPublishedFreq_;
 
     /*
       A Morse kód pontokból és vonásokból áll.
@@ -191,9 +210,8 @@ class DecoderCW_C1 : public IDecoder {
 
     // Hann ablak a Goertzel blokkok számára (alapértelmezett Hann)
     WindowApplier windowApplier;
-    bool useWindow_ = true;
     bool detectTone(const int16_t *samples, size_t count);
-    // Frekvencia követés eltávolítva
+    void updateFrequencyTracking();
     // Csúszó puffer, amely a legutóbbi GOERTZEL_N mintákat tárolja
     int16_t lastSamples_[GOERTZEL_N];
     size_t lastSampleCount_ = 0;
@@ -201,15 +219,10 @@ class DecoderCW_C1 : public IDecoder {
     // Hysteresis / debounce számlálók a zajos jel miatt fellépő flicker csökkentésére
     uint8_t consecutiveAboveCount_ = 0; // hány egymás utáni blokk volt a küszöb fölött
     uint8_t consecutiveBelowCount_ = 0; // hány egymás utáni blokk volt a küszöb alatt
-
-    // Keskenysávú sávszűrő a célfrekvencia körül
-    BiquadBandpass bandpassFilter_;
-    bool useBandpass_ = false; // sávszűrő tiltva
-
     void processDot();
     void processDash();
     bool decodeSymbol();
+    void resetDecoder();
     void calculateWpm(unsigned long letterDuration);
     void updateTracking(unsigned long dit, unsigned long dah);
-    void resetDecoder();
 };
