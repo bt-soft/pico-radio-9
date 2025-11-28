@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
  * -----                                                                                                               *
- * Last Modified: 2025.11.22, Saturday  10:53:55                                                                       *
+ * Last Modified: 2025.11.28, Friday  03:31:29                                                                         *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -36,7 +36,7 @@
 #include "defines.h"
 
 // AudioProcessor működés debug engedélyezése de csak DEBUG módban
-// #define __ADPROC_DEBUG
+#define __ADPROC_DEBUG
 #if defined(__DEBUG) && defined(__ADPROC_DEBUG)
 #define ADPROC_DEBUG(fmt, ...) DEBUG(fmt __VA_OPT__(, ) __VA_ARGS__)
 #else
