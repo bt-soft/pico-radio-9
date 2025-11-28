@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
  * -----                                                                                                               *
- * Last Modified: 2025.11.28, Friday  06:10:22                                                                         *
+ * Last Modified: 2025.11.28, Friday  06:48:38                                                                         *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -547,65 +547,65 @@ bool AudioProcessorC1::processAndFillSharedData(SharedData &sharedData) {
     memcpy(lastRawSamples.data(), sharedData.rawSampleData, sharedData.rawSampleCount * sizeof(int16_t));
     lastRawSampleCount = sharedData.rawSampleCount;
 
-#ifdef __ADPROC_DEBUG
-    // --- Gyors mérés: RMS, maxAbs, medián zajbecslés, SNR becslés ---
-    auto computeRms = [](const int16_t *buf, uint16_t n) -> float {
-        double sumsq = 0.0;
-        for (uint16_t i = 0; i < n; ++i) {
-            double v = (double)buf[i];
-            sumsq += v * v;
-        }
-        return (n > 0) ? (float)sqrt(sumsq / (double)n) : 0.0f;
-    };
+    // #ifdef __ADPROC_DEBUG
+    //     // --- Gyors mérés: RMS, maxAbs, medián zajbecslés, SNR becslés ---
+    //     auto computeRms = [](const int16_t *buf, uint16_t n) -> float {
+    //         double sumsq = 0.0;
+    //         for (uint16_t i = 0; i < n; ++i) {
+    //             double v = (double)buf[i];
+    //             sumsq += v * v;
+    //         }
+    //         return (n > 0) ? (float)sqrt(sumsq / (double)n) : 0.0f;
+    //     };
 
-    auto computeMaxAbs = [](const int16_t *buf, uint16_t n) -> int32_t {
-        int32_t m = 0;
-        for (uint16_t i = 0; i < n; ++i) {
-            int32_t a = std::abs((int32_t)buf[i]);
-            if (a > m)
-                m = a;
-        }
-        return m;
-    };
+    //     auto computeMaxAbs = [](const int16_t *buf, uint16_t n) -> int32_t {
+    //         int32_t m = 0;
+    //         for (uint16_t i = 0; i < n; ++i) {
+    //             int32_t a = std::abs((int32_t)buf[i]);
+    //             if (a > m)
+    //                 m = a;
+    //         }
+    //         return m;
+    //     };
 
-    auto computeMedianAbs = [](int16_t *work, const int16_t *buf, uint16_t n) -> float {
-        // copy absolute values to work (caller must provide buffer length >= n)
-        for (uint16_t i = 0; i < n; ++i)
-            work[i] = (int16_t)std::abs((int32_t)buf[i]);
-        // simple nth_element for median
-        uint16_t mid = n / 2;
-        std::nth_element(work, work + mid, work + n);
-        if (n % 2 == 1)
-            return (float)work[mid];
-        // even -> average two
-        int16_t a = work[mid];
-        std::nth_element(work, work + mid - 1, work + n);
-        int16_t b = work[mid - 1];
-        return ((float)a + (float)b) * 0.5f;
-    };
+    //     auto computeMedianAbs = [](int16_t *work, const int16_t *buf, uint16_t n) -> float {
+    //         // copy absolute values to work (caller must provide buffer length >= n)
+    //         for (uint16_t i = 0; i < n; ++i)
+    //             work[i] = (int16_t)std::abs((int32_t)buf[i]);
+    //         // simple nth_element for median
+    //         uint16_t mid = n / 2;
+    //         std::nth_element(work, work + mid, work + n);
+    //         if (n % 2 == 1)
+    //             return (float)work[mid];
+    //         // even -> average two
+    //         int16_t a = work[mid];
+    //         std::nth_element(work, work + mid - 1, work + n);
+    //         int16_t b = work[mid - 1];
+    //         return ((float)a + (float)b) * 0.5f;
+    //     };
 
-    // Metrikák számítása minden 50. blokknál, hogy ne árasztson el minket a debug
-    static uint16_t debugCounter = 0;
-    if (++debugCounter >= 50) {
-        debugCounter = 0;
-        float rms = computeRms(sharedData.rawSampleData, sharedData.rawSampleCount);
-        int32_t maxAbs = computeMaxAbs(sharedData.rawSampleData, sharedData.rawSampleCount);
+    //     // Metrikák számítása minden 50. blokknál, hogy ne árasztson el minket a debug
+    //     static uint16_t debugCounter = 0;
+    //     if (++debugCounter >= 50) {
+    //         debugCounter = 0;
+    //         float rms = computeRms(sharedData.rawSampleData, sharedData.rawSampleCount);
+    //         int32_t maxAbs = computeMaxAbs(sharedData.rawSampleData, sharedData.rawSampleCount);
 
-        // reuse local stack array for median (safe size check)
-        static std::vector<int16_t> medianWork;
-        medianWork.resize(sharedData.rawSampleCount);
-        float medianAbs = computeMedianAbs(medianWork.data(), sharedData.rawSampleData, sharedData.rawSampleCount);
+    //         // reuse local stack array for median (safe size check)
+    //         static std::vector<int16_t> medianWork;
+    //         medianWork.resize(sharedData.rawSampleCount);
+    //         float medianAbs = computeMedianAbs(medianWork.data(), sharedData.rawSampleData, sharedData.rawSampleCount);
 
-        // crude SNR estimate: assume signal peak ~ maxAbs, noise ~ medianAbs
-        float snr_db = 0.0f;
-        if (medianAbs > 0.0f) {
-            float ratio = ((float)maxAbs) / medianAbs;
-            snr_db = 20.0f * log10f(ratio);
-        }
+    //         // crude SNR estimate: assume signal peak ~ maxAbs, noise ~ medianAbs
+    //         float snr_db = 0.0f;
+    //         if (medianAbs > 0.0f) {
+    //             float ratio = ((float)maxAbs) / medianAbs;
+    //             snr_db = 20.0f * log10f(ratio);
+    //         }
 
-        ADPROC_DEBUG("AudioProc-c1 METRICS: rms=%.1f, maxAbs=%ld, medianAbs=%.1f, estSNR(dB)=%.2f\n", rms, (long)maxAbs, medianAbs, snr_db);
-    }
-#endif
+    //         ADPROC_DEBUG("AudioProc-c1 METRICS: rms=%.1f, maxAbs=%ld, medianAbs=%.1f, estSNR(dB)=%.2f\n", rms, (long)maxAbs, medianAbs, snr_db);
+    //     }
+    // #endif
 
     // Ha nem kell FFT (pl. SSTV, WEFAX), akkor nem megyünk tovább
     if (!useFFT) {
@@ -739,8 +739,7 @@ bool AudioProcessorC1::processFixedPointFFT(SharedData &sharedData, uint32_t &ff
 #ifdef __ADPROC_DEBUG
     uint32_t startTotal = micros();
     uint32_t startPreproc = startTotal;
-    q15_t inputMax = 0, windowedMax = 0, fftMax = 0, magMax = 0;
-    uint16_t magMaxIdx = 0;
+    q15_t inputMax = 0, windowedMax = 0, fftMax = 0;
 #endif
 
     // 1. int16_t -> q15_t konverzió + komplex formátumba rendezés
@@ -751,13 +750,8 @@ bool AudioProcessorC1::processFixedPointFFT(SharedData &sharedData, uint32_t &ff
     }
 
 #ifdef __ADPROC_DEBUG
-    uint32_t preprocTime = micros() - startPreproc;
-    uint32_t startWindow = micros();
-#endif
-
-    // 2. Hanning ablak alkalmazása (fixpontos szorzás)
     // DEBUG: Nyers bemeneti statisztika (ablakozás előtt)
-#ifdef __ADPROC_DEBUG
+    uint32_t preprocTime = micros() - startPreproc;
     for (uint16_t i = 0; i < adcConfig.sampleCount; i++) {
         q15_t absVal = abs(fftInput_q15[2 * i]);
         if (absVal > inputMax)
@@ -765,6 +759,7 @@ bool AudioProcessorC1::processFixedPointFFT(SharedData &sharedData, uint32_t &ff
     }
 #endif
 
+    // 2. Hanning ablak alkalmazása (fixpontos szorzás)
     for (uint16_t i = 0; i < adcConfig.sampleCount; i++) {
         // Q15 * Q15 = Q30, majd >> 15 = Q15
         q31_t windowed = ((q31_t)fftInput_q15[2 * i] * hanningWindow_q15[i]) >> 15;
@@ -822,15 +817,50 @@ bool AudioProcessorC1::processFixedPointFFT(SharedData &sharedData, uint32_t &ff
     // Mi csak az első N/2-t használjuk (pozitív frekvenciák)
     arm_cmplx_mag_q15(fftInput_q15.data(), magnitude_q15.data(), adcConfig.sampleCount);
 
-#ifdef __ADPROC_DEBUG
-    // DEBUG: Magnitude maximális érték keresése
-    for (uint16_t i = 0; i < adcConfig.sampleCount / 2; i++) {
-        if (magnitude_q15[i] > magMax) {
-            magMax = magnitude_q15[i];
-            magMaxIdx = i;
-        }
-    }
-#endif
+    // #ifdef __ADPROC_DEBUG
+    // q15_t  magMax = 0;
+    // uint16_t magMaxIdx = 0;
+    //
+    //     // Spectral SNR becslés (opcionális, kikommentezve hagyva)
+    //
+    //     // DEBUG: Magnitude maximális érték keresése
+    //     for (uint16_t i = 0; i < adcConfig.sampleCount / 2; i++) {
+    //         if (magnitude_q15[i] > magMax) {
+    //             magMax = magnitude_q15[i];
+    //             magMaxIdx = i;
+    //         }
+    //     }
+
+    //     // Spektrális SNR becslés: a jel magnitúdója (peak) vs. zajszint (medián a többi binből)
+    //     float spectralSNRdB = -100.0f;
+    //     int noiseMedian = 0;
+    //     {
+    //         uint16_t spectrumSize = adcConfig.sampleCount / 2;
+    //         const uint16_t excludeBins = 2; // kizárjuk a peak körüli néhány bint
+    //         std::vector<int> noiseVals;
+    //         noiseVals.reserve(spectrumSize);
+    //         for (uint16_t i = 0; i < spectrumSize; ++i) {
+    //             // kihagyjuk a peak ± excludeBins tartományt
+    //             if (i >= (magMaxIdx > excludeBins ? magMaxIdx - excludeBins : 0) && i <= magMaxIdx + excludeBins)
+    //                 continue;
+    //             noiseVals.push_back((int)magnitude_q15[i]);
+    //         }
+
+    //         if (!noiseVals.empty()) {
+    //             size_t mid = noiseVals.size() / 2;
+    //             std::nth_element(noiseVals.begin(), noiseVals.begin() + mid, noiseVals.end());
+    //             noiseMedian = noiseVals[mid];
+    //             float signal = (float)magMax;
+    //             float noise = (float)(noiseMedian > 0 ? noiseMedian : 1);
+    //             spectralSNRdB = 20.0f * log10f(signal / noise);
+    //         }
+    //     }
+    //     static uint8_t spectralSnrDebugCounter = 0;
+    //     if (++spectralSnrDebugCounter >= 100) {
+    //         ADPROC_DEBUG("  [SPECTRAL SNR] %.2f dB (signal=%d, noise_median=%d)\n", spectralSNRdB, magMax, noiseMedian);
+    //         spectralSnrDebugCounter = 0;
+    //     }
+    // #endif
 
     // 5. Spektrum adatok másolása SharedData-ba (Q15 formátumban)
     uint16_t spectrumSize = adcConfig.sampleCount / 2;
@@ -888,7 +918,7 @@ bool AudioProcessorC1::processFixedPointFFT(SharedData &sharedData, uint32_t &ff
                      totalTime_us, preprocTime, fftTime_us, domTime_us, dominantFreqHz, maxValue, amp_mV_peak);
 
         // Részletes debug pipeline
-        ADPROC_DEBUG("  [PIPELINE] inputMax=%d, windowedMax=%d, fftMax=%d (scaled), magMax=%d (idx=%d)\n", inputMax, windowedMax, fftMax, magMax, magMaxIdx);
+        // ADPROC_DEBUG("  [PIPELINE] inputMax=%d, windowedMax=%d, fftMax=%d (scaled), magMax=%d (idx=%d)\n", inputMax, windowedMax, fftMax, magMax, magMaxIdx);
 
         runDebugCounter = 0;
     }
