@@ -75,6 +75,14 @@ const uint16_t waterFallColors_0[16] = {
     0xFFFF, // fehér
 };
 
+// Helper: egységes Q15 -> display float konverzió
+static inline float q15ToDisplayMagnitude(q15_t v) {
+    // A Core1 által visszaadott Q15 értékek már tartalmazhatnak FFT skálázást.
+    // Itt egyszerűen float-ra konvertáljuk, a UI érzékenységet az erre alapuló
+    // SensitivityConstants értékekkel hangoljuk.
+    return static_cast<float>(v);
+}
+
 const uint16_t waterFallColors_1[16] = {0x0000, 0x1000, 0x2000, 0x4000, 0x8000, 0xC000, 0xF800, 0xF8A0,
                                         0xF9C0, 0xFD20, 0xFFE0, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF}; // Hot
 #define WATERFALL_COLOR_INDEX 0
@@ -917,7 +925,7 @@ void UICompSpectrumVis::renderSpectrumBar(bool isLowRes) {
             uint8_t band_idx = getBandVal(i, min_bin_idx, num_bins_in_range, LOW_RES_BANDS);
             if (band_idx < LOW_RES_BANDS) {
                 // Q15 direkt float konverzió (hasonló tartomány mint a float FFT)
-                float magnitude = static_cast<float>(magnitudeData[i]);
+                float magnitude = FftDisplayConstants::q15ToDisplayMagnitude(magnitudeData[i]);
                 // ELŐSZÖR zajszűrés a nyers adaton
                 if (magnitude < (this->radioMode_ == RadioMode::AM ? NOISE_THRESHOLD_AM : NOISE_THRESHOLD_FM)) {
                     magnitude = 0.0f;
@@ -1052,7 +1060,7 @@ void UICompSpectrumVis::renderSpectrumBar(bool isLowRes) {
             fft_bin_index = constrain(fft_bin_index, 0, max_bin_idx);
 
             // Q15 direkt float konverzió (hasonló tartomány mint a float FFT)
-            float magnitude = static_cast<float>(magnitudeData[fft_bin_index]);
+            float magnitude = FftDisplayConstants::q15ToDisplayMagnitude(magnitudeData[fft_bin_index]);
             // ELŐSZÖR zajszűrés a nyers adaton
             if (magnitude < (this->radioMode_ == RadioMode::AM ? NOISE_THRESHOLD_AM : NOISE_THRESHOLD_FM)) {
                 magnitude = 0.0f;
@@ -1234,7 +1242,7 @@ void UICompSpectrumVis::renderEnvelope() {
             min_bin_for_env + static_cast<uint8_t>(std::round(static_cast<float>(r) / std::max(1, (bounds.height - 1)) * (num_bins_in_env_range - 1)));
         fft_bin_index = constrain(fft_bin_index, min_bin_for_env, max_bin_for_env);
         // Q15 direkt float konverzió (hasonló tartomány mint a float FFT)
-        float rawMagnitude = static_cast<float>(magnitudeData[fft_bin_index]);
+        float rawMagnitude = FftDisplayConstants::q15ToDisplayMagnitude(magnitudeData[fft_bin_index]);
 
         // KRITIKUS: Infinity és NaN értékek szűrése!
         if (!isfinite(rawMagnitude) || rawMagnitude < 0.0) {
@@ -1406,7 +1414,7 @@ void UICompSpectrumVis::renderWaterfall() {
         fft_bin_index = constrain(fft_bin_index, min_bin_for_wf, max_bin_for_wf);
 
         // Q15 direkt float konverzió (hasonló tartomány mint a float FFT)
-        float rawMagnitude = static_cast<float>(magnitudeData[fft_bin_index]);
+        float rawMagnitude = FftDisplayConstants::q15ToDisplayMagnitude(magnitudeData[fft_bin_index]);
         // ELŐSZÖR zajszűrés a nyers adaton
         if (rawMagnitude < (this->radioMode_ == RadioMode::AM ? NOISE_THRESHOLD_AM : NOISE_THRESHOLD_FM)) {
             rawMagnitude = 0.0f;
@@ -2268,8 +2276,8 @@ float UICompSpectrumVis::getInterpolatedMagnitude(const q15_t *magnitudeData, fl
     float frac = exactBinIndex - bin_low;
 
     // Q15 direkt float konverzió (hasonló tartomány mint a float FFT) és lineáris interpoláció
-    float mag_low = static_cast<float>(magnitudeData[bin_low]);
-    float mag_high = static_cast<float>(magnitudeData[bin_high]);
+    float mag_low = FftDisplayConstants::q15ToDisplayMagnitude(magnitudeData[bin_low]);
+    float mag_high = FftDisplayConstants::q15ToDisplayMagnitude(magnitudeData[bin_high]);
 
     return mag_low * (1.0f - frac) + mag_high * frac;
 }
