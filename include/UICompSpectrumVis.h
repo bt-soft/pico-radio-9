@@ -29,6 +29,9 @@
 
 #include "UIComponent.h"
 
+// Q15 fixpontos típus definíció
+typedef int16_t q15_t;
+
 /**
  * @brief Rádió módok
  */
@@ -276,12 +279,12 @@ class UICompSpectrumVis : public UIComponent {
      * @param maxBin Maximum megengedett bin index
      * @return Interpolált magnitude érték
      */
-    float getInterpolatedMagnitude(const float *magnitudeData, float exactBinIndex, int minBin, int maxBin) const;
+    float getInterpolatedMagnitude(const q15_t *magnitudeData, float exactBinIndex, int minBin, int maxBin) const;
 
     /**
      * @brief Core1 audio adatok kezelése
      */
-    bool getCore1SpectrumData(const float **outData, uint16_t *outSize, float *outBinWidth, float *outAutoGain);
+    bool getCore1SpectrumData(const q15_t **outData, uint16_t *outSize, float *outBinWidth, float *outAutoGain);
     bool getCore1OscilloscopeData(const int16_t **outData, uint16_t *outSampleCount);
 
     /**

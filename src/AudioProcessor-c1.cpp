@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
  * -----                                                                                                               *
- * Last Modified: 2025.11.28, Friday  03:31:29                                                                         *
+ * Last Modified: 2025.11.28, Friday  06:10:22                                                                         *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -152,20 +152,14 @@ void AudioProcessorC1::reconfigureAudioSampling(uint16_t sampleCount, uint16_t s
         finalRate = 65535u;
     }
 
-    // Ha FFT-t használunk, előkészítjük a szükséges erőforrásokat (Arduino FFT - FLOAT)
+    // Ha FFT-t használunk, előkészítjük a szükséges erőforrásokat
     if (useFFT) {
-        ADPROC_DEBUG("core1: Arduino FFT init, sampleCount=%d\n", sampleCount);
-
-        // FFT tömbök átméretezése (FLOAT)
         this->currentFftSize = sampleCount;
-        this->vReal.resize(sampleCount);
-        this->vImag.resize(sampleCount);
-        this->fftMagnitude.resize(sampleCount);
 
-        // Arduino FFT objektum létrehozása
-        FFT = ArduinoFFT<float>(vReal.data(), vImag.data(), sampleCount, finalRate);
-
-        ADPROC_DEBUG("core1: Arduino FFT init OK, useFFT=%d\n", useFFT);
+        // CMSIS-DSP Q15 fixpontos FFT inicializálás
+        ADPROC_DEBUG("core1: CMSIS-DSP Q15 FFT init, sampleCount=%d\n", sampleCount);
+        initFixedPointFFT(sampleCount);
+        ADPROC_DEBUG("core1: CMSIS-DSP Q15 FFT init OK, useFFT=%d\n", useFFT);
 
         // Egy bin szélessége Hz-ben
         float binWidth = (sampleCount > 0) ? ((float)finalRate / (float)sampleCount) : 0.0f;
@@ -523,10 +517,6 @@ bool AudioProcessorC1::processAndFillSharedData(SharedData &sharedData) {
         return false;
     }
 
-#ifdef __ADPROC_DEBUG
-    uint32_t methodStartTime = micros();
-#endif
-
     // DMA buffer lekérése blokkoló vagy nem-blokkoló módon
     // - BLOKKOLÓ mód (true): SSTV/WEFAX - garantáltan teljes blokk
     // - NEM-BLOKKOLÓ mód (false): CW/RTTY - azonnal visszatér, nullptr ha nincs adat
@@ -542,13 +532,6 @@ bool AudioProcessorC1::processAndFillSharedData(SharedData &sharedData) {
         //     }
         return false;
     }
-
-#ifdef __ADPROC_DEBUG
-    uint32_t start = micros();
-    // start itt a getCompletePingPongBufferPtr() hívás után van; a waitTime mutatja, mennyit vártunk a
-    // friss ping-pong bufferre (blokkoló módban ez okozza a nagy Total értéket)
-    uint32_t waitTime = (start >= methodStartTime) ? (start - methodStartTime) : 0;
-#endif
 
     // 1. A nyers minták feldolgozása: DC offset eltávolítás + zajszűrés
     sharedData.rawSampleCount = std::min((uint16_t)adcConfig.sampleCount, (uint16_t)MAX_RAW_SAMPLES_SIZE); // Biztonsági ellenőrzés
@@ -633,146 +616,14 @@ bool AudioProcessorC1::processAndFillSharedData(SharedData &sharedData) {
         return true;
     }
 
-    // Biztonsági ellenőrzés: a puffer mérete megfelelő-e?
-    if (vReal.size() < adcConfig.sampleCount) {
-        return false;
-    }
+    // CMSIS-DSP Q15 fixpontos FFT feldolgozás
+    uint32_t fftTime_us = 0, domTime_us = 0;
+    bool ok = processFixedPointFFT(sharedData, fftTime_us, domTime_us);
 
-    // 3. FFT bemeneti adatok feltöltése
-    // A rawSampleData már int16_t DC-mentesített értékek AGC/manual gain után
-    for (uint16_t i = 0; i < adcConfig.sampleCount; i++) {
-        vReal[i] = (float)sharedData.rawSampleData[i]; // int16_t -> float (skálázás már megtörtént)
-    }
-    // Imaginárius rész nullázása
-    memset(vImag.data(), 0, adcConfig.sampleCount * sizeof(float));
-
-#ifdef __ADPROC_DEBUG
-    uint32_t preprocTime = micros() - start;
-#endif
-
-    // 4. Ablakozás (Hamming window - Arduino FFT beépített)
-#ifdef __ADPROC_DEBUG
-    start = micros();
-#endif
-    FFT.windowing(FFTWindow::Hamming, FFTDirection::Forward);
-
-    // 5. FFT futtatása
-    FFT.compute(FFTDirection::Forward);
-
-#ifdef __ADPROC_DEBUG
-    // Mentjük a komplex bin értékeket (real/imag) debug célokra, mielőtt a komplexToMagnitude() felülírja őket
-    std::unique_ptr<float[]> debugReal(new float[adcConfig.sampleCount]);
-    std::unique_ptr<float[]> debugImag(new float[adcConfig.sampleCount]);
-    for (uint16_t i = 0; i < adcConfig.sampleCount; ++i) {
-        debugReal[i] = vReal[i];
-        debugImag[i] = vImag[i];
-    }
-#endif
-
-    // 6. Magnitude számítás
-    FFT.complexToMagnitude();
-
-#ifdef __ADPROC_DEBUG
-    uint32_t fftTime = micros() - start;
-#endif
-
-    // 7. Spektrum másolása a megosztott pufferbe (FLOAT -> FLOAT)
-#ifdef __ADPROC_DEBUG
-    start = micros();
-#endif
-
-    // Arduino FFT után a vReal tömb tartalmazza a magnitude értékeket
-    // Nem-koherens spektrális átlagolás: az aktuális magnitúdó-keret mentése a körkörös avgBufferbe
-    uint16_t spectrumSize = adcConfig.sampleCount / 2;
-    sharedData.fftSpectrumSize = std::min(spectrumSize, (uint16_t)MAX_FFT_SPECTRUM_SIZE);
-
-    if (spectrumAveragingCount_ <= 1) {
-        // Nincs átlagolás, közvetlen átmásolás
-        memcpy(sharedData.fftSpectrumData, vReal.data(), sharedData.fftSpectrumSize * sizeof(float));
-    } else {
-        // ensure avgBuffer size
-        if (avgBuffer.size() < (size_t)spectrumAveragingCount_ * (size_t)spectrumSize) {
-            avgBuffer.clear();
-            avgBuffer.resize((size_t)spectrumAveragingCount_ * (size_t)spectrumSize, 0.0f);
-            avgWriteIndex_ = 0;
-        }
-
-        // write current frame into avgBuffer at avgWriteIndex_
-        size_t base = (size_t)avgWriteIndex_ * (size_t)spectrumSize;
-        for (uint16_t i = 0; i < sharedData.fftSpectrumSize; ++i) {
-            avgBuffer[base + i] = vReal[i];
-        }
-
-        // átlagolás számítása a keretek között
-        for (uint16_t i = 0; i < sharedData.fftSpectrumSize; ++i) {
-            float sum = 0.0f;
-            for (uint8_t k = 0; k < spectrumAveragingCount_; ++k) {
-                sum += avgBuffer[(size_t)k * (size_t)spectrumSize + i];
-            }
-            sharedData.fftSpectrumData[i] = sum / (float)spectrumAveragingCount_;
-        }
-
-        // advance circular index
-        avgWriteIndex_ = (uint8_t)((avgWriteIndex_ + 1) % spectrumAveragingCount_);
-    }
-
-    // DC bin (bin[0]) nullázása, ezt nem használjuk
-    if (sharedData.fftSpectrumSize > 0) {
-        sharedData.fftSpectrumData[0] = 0.0f;
-    }
-
-    // Az aktuális FFT bin szélesség beállítása a sharedData-ban
-    sharedData.fftBinWidthHz = this->currentBinWidthHz;
-
-    // 8. Domináns frekvencia keresése (FLOAT)
-#ifdef __ADPROC_DEBUG
-    start = micros();
-#endif
-
-    // Max érték keresése float tömbben (DC bin nélkül, i=1-től indítva) a DC (0. bin) értékét már nulláztuk feljebb
-    uint32_t maxIndex = 0;
-    float maxValue = 0.0f;
-    for (uint16_t i = 1; i < sharedData.fftSpectrumSize; i++) {
-        if (sharedData.fftSpectrumData[i] > maxValue) {
-            maxValue = sharedData.fftSpectrumData[i];
-            maxIndex = i;
-        }
-    }
-    sharedData.dominantAmplitude = maxValue;
-
-    // Domináns frekvencia kiszámítása a bin indexéből Hz-ben
-    float dominantFreqHz = 0.0f;
-    if (adcConfig.sampleCount > 0) {
-        dominantFreqHz = ((float)adcConfig.samplingRate / (float)adcConfig.sampleCount) * (float)maxIndex;
-    }
-    sharedData.dominantFrequency = (uint32_t)dominantFreqHz;
-
-#ifdef __ADPROC_DEBUG
-    uint32_t dominantTime = micros() - start;
-    uint32_t totalTime = (micros() >= methodStartTime) ? (micros() - methodStartTime) : 0;
-
-    // Futási idők, domináns frekvencia és a csúcsfeszültség (mV) kiírása minden 100. blokkban
-    static uint8_t runDebugCounter = 0;
-    if (++runDebugCounter >= 100) {
-
-        const float N = (float)adcConfig.sampleCount;
-        float amp_counts = (N > 0.0f) ? ((2.0f / N) * maxValue) : 0.0f; // egyszerű közelítés a csúcs amplitúdóra (ADC counts)
-        float amp_mV_peak = amp_counts * ADC_LSB_VOLTAGE_MV;            // csúcs amplitúdó mV-ban
-
-        ADPROC_DEBUG(
-            "AudioProc-c1: Total=%lu us, Wait=%lu us, PreProc=%lu us, FFT=%lu us, DomSearch=%lu us, DomFreq=%.1f Hz, amp=%.3f (counts), peak=%.3f mV\n",
-            totalTime, waitTime, preprocTime, fftTime, dominantTime, dominantFreqHz, amp_counts, amp_mV_peak);
-
-        runDebugCounter = 0;
-    }
-#endif
-
-    // Még a végén ráküldünk egy spektrum erősítést, ha nem AGC módban vagyunk
-    if (!isAgcEnabled()) {
-        // this->gainFttMagnitudeValues(sharedData);
-    }
-
-    return true;
+    // Debug: pontos időmérések kiírása itt, hogy a teljes idő is mérhető legyen
+    // Note: a processFixedPointFFT most már kitölti az FFT és domináns keresési időket
+    (void)ok; // caller already handles ok internally
+    return ok;
 }
 
 /**
@@ -830,4 +681,218 @@ float AudioProcessorC1::computeGoertzelMagnitude(float targetFreqHz) {
     float imag = q2 * sine;
     float magnitude = sqrtf(real * real + imag * imag);
     return magnitude;
+}
+
+/**
+ * @brief Fixpontos FFT inicializálása
+ * @param sampleCount FFT méret
+ */
+void AudioProcessorC1::initFixedPointFFT(uint16_t sampleCount) {
+    // CMSIS-DSP FFT instance inicializálása
+    arm_status status = arm_cfft_init_q15(&fft_inst_q15, sampleCount);
+    if (status != ARM_MATH_SUCCESS) {
+        ADPROC_DEBUG("HIBA: CMSIS-DSP FFT inicializálás nem sikerült: %d\n", status);
+        // Fallback lebegőpontosra
+        useFixedPointFFT_ = false;
+        return;
+    }
+
+    // Fixpontos pufferek méretezése
+    fftInput_q15.resize(sampleCount * 2); // Komplex: [re,im,re,im,...]
+    magnitude_q15.resize(sampleCount);    // Magnitude eredmény - TELJES FFT kimenet (csak felét használjuk majd)
+
+    // Hanning ablak létrehozása fixpontosan
+    buildHanningWindow_q15(sampleCount);
+
+    ADPROC_DEBUG("CMSIS-DSP Q15 FFT sikeresen inicializálva: %d minta\n", sampleCount);
+}
+
+/**
+ * @brief Fixpontos Hanning ablak létrehozása
+ * @param size Ablak mérete
+ */
+void AudioProcessorC1::buildHanningWindow_q15(uint16_t size) {
+    hanningWindow_q15.resize(size);
+
+    for (uint16_t i = 0; i < size; i++) {
+        // Hanning ablak: w[n] = 0.5 * (1 - cos(2*pi*n/(N-1)))
+        float angle = 2.0f * M_PI * i / (size - 1);
+        float window_val = 0.5f * (1.0f - cosf(angle));
+        hanningWindow_q15[i] = floatToQ15(window_val);
+    }
+
+    ADPROC_DEBUG("Hanning ablak létrehozva Q15 formátumban: %d elem\n", size);
+}
+
+/**
+ * @brief Fixpontos FFT feldolgozás (CMSIS-DSP)
+ * @param sharedData SharedData struktúra kitöltéséhez
+ * @return Sikeres feldolgozás esetén true
+ */
+bool AudioProcessorC1::processFixedPointFFT(SharedData &sharedData, uint32_t &fftTime_us, uint32_t &domTime_us) {
+    // Biztonsági ellenőrzés
+    if (fftInput_q15.size() < adcConfig.sampleCount * 2) {
+        ADPROC_DEBUG("HIBA: Fixpontos FFT puffer túl kicsi\n");
+        return false;
+    }
+
+#ifdef __ADPROC_DEBUG
+    uint32_t startTotal = micros();
+    uint32_t startPreproc = startTotal;
+    q15_t inputMax = 0, windowedMax = 0, fftMax = 0, magMax = 0;
+    uint16_t magMaxIdx = 0;
+#endif
+
+    // 1. int16_t -> q15_t konverzió + komplex formátumba rendezés
+    for (uint16_t i = 0; i < adcConfig.sampleCount; i++) {
+        // Direkt másolás: int16_t és q15_t ugyanaz a formátum!
+        fftInput_q15[2 * i] = sharedData.rawSampleData[i]; // Real rész
+        fftInput_q15[2 * i + 1] = 0;                       // Imaginárius rész = 0
+    }
+
+#ifdef __ADPROC_DEBUG
+    uint32_t preprocTime = micros() - startPreproc;
+    uint32_t startWindow = micros();
+#endif
+
+    // 2. Hanning ablak alkalmazása (fixpontos szorzás)
+    // DEBUG: Nyers bemeneti statisztika (ablakozás előtt)
+#ifdef __ADPROC_DEBUG
+    for (uint16_t i = 0; i < adcConfig.sampleCount; i++) {
+        q15_t absVal = abs(fftInput_q15[2 * i]);
+        if (absVal > inputMax)
+            inputMax = absVal;
+    }
+#endif
+
+    for (uint16_t i = 0; i < adcConfig.sampleCount; i++) {
+        // Q15 * Q15 = Q30, majd >> 15 = Q15
+        q31_t windowed = ((q31_t)fftInput_q15[2 * i] * hanningWindow_q15[i]) >> 15;
+        fftInput_q15[2 * i] = __SSAT(windowed, 16); // Saturáció Q15 tartományra
+    }
+
+#ifdef __ADPROC_DEBUG
+    // DEBUG: Ablakozott adatok statisztika
+    for (uint16_t i = 0; i < adcConfig.sampleCount; i++) {
+        q15_t absVal = abs(fftInput_q15[2 * i]);
+        if (absVal > windowedMax)
+            windowedMax = absVal;
+    }
+#endif
+
+    // 3. CMSIS-DSP FFT futtatása
+    uint32_t startFft = micros();
+    arm_cfft_q15(&fft_inst_q15, fftInput_q15.data(), 0, 1); // 0=FFT, 1=bit-reversal
+
+    // KRITIKUS: A CMSIS-DSP Q15 FFT automatikus skálázást végez minden butterfly szakaszban!
+    // Ez log2(N) bites jobbra tolást jelent. Például N=1024 esetén 10 bit veszteség.
+    // Vissza kell skálázni a kimenet értékeit!
+    uint16_t fftScaleBits = 0;
+    uint16_t N = adcConfig.sampleCount;
+    while (N > 1) {
+        fftScaleBits++;
+        N >>= 1;
+    }
+
+    // Skálázás visszaállítása: balra shift (de óvatosan a túlcsordulás miatt)
+    // Inkább csak 6-8 bitet toljunk vissza, hogy ne legyen túlcsordulás
+    uint16_t safeScaleBits = (fftScaleBits > 8) ? 8 : fftScaleBits;
+
+    for (uint16_t i = 0; i < adcConfig.sampleCount * 2; i++) {
+        q31_t scaled = ((q31_t)fftInput_q15[i]) << safeScaleBits;
+        fftInput_q15[i] = __SSAT(scaled, 16);
+    }
+
+#ifdef __ADPROC_DEBUG
+    // DEBUG: FFT kimenet statisztika (komplex adatok) - skálázás után
+    for (uint16_t i = 0; i < adcConfig.sampleCount; i++) {
+        q15_t absVal = abs(fftInput_q15[i]);
+        if (absVal > fftMax)
+            fftMax = absVal;
+    }
+
+    uint32_t endFft = micros();
+    fftTime_us = endFft - startFft;
+    uint32_t startDom = micros();
+#endif
+
+    // 4. Magnitude számítás
+    // FONTOS: arm_cmplx_mag_q15 harmadik paramétere a KOMPLEX számok száma!
+    // Az FFT kimenet N komplex szám (2*N q15_t érték), magnitude kimenet N érték
+    // Mi csak az első N/2-t használjuk (pozitív frekvenciák)
+    arm_cmplx_mag_q15(fftInput_q15.data(), magnitude_q15.data(), adcConfig.sampleCount);
+
+#ifdef __ADPROC_DEBUG
+    // DEBUG: Magnitude maximális érték keresése
+    for (uint16_t i = 0; i < adcConfig.sampleCount / 2; i++) {
+        if (magnitude_q15[i] > magMax) {
+            magMax = magnitude_q15[i];
+            magMaxIdx = i;
+        }
+    }
+#endif
+
+    // 5. Spektrum adatok másolása SharedData-ba (Q15 formátumban)
+    uint16_t spectrumSize = adcConfig.sampleCount / 2;
+    sharedData.fftSpectrumSize = std::min(spectrumSize, (uint16_t)MAX_FFT_SPECTRUM_SIZE);
+
+    if (spectrumAveragingCount_ <= 1) {
+        // Nincs átlagolás, közvetlen másolás Q15 formátumban
+        memcpy(sharedData.fftSpectrumData, magnitude_q15.data(), sharedData.fftSpectrumSize * sizeof(q15_t));
+    } else {
+        // TODO: Q15 átlagolás implementálása (egyelőre egyszerű másolás)
+        memcpy(sharedData.fftSpectrumData, magnitude_q15.data(), sharedData.fftSpectrumSize * sizeof(q15_t));
+    }
+
+    // DC bin (bin[0]) nullázása Q15 formátumban
+    if (sharedData.fftSpectrumSize > 0) {
+        sharedData.fftSpectrumData[0] = 0;
+    }
+
+    // Bin szélesség beállítása
+    sharedData.fftBinWidthHz = currentBinWidthHz;
+
+    // 7. Domináns frekvencia keresése Q15 formátumban
+    uint32_t maxIndex = 0;
+    q15_t maxValue = 0;
+    for (uint16_t i = 1; i < sharedData.fftSpectrumSize; i++) { // DC bin kihagyása
+        if (sharedData.fftSpectrumData[i] > maxValue) {
+            maxValue = sharedData.fftSpectrumData[i];
+            maxIndex = i;
+        }
+    }
+    sharedData.dominantAmplitude = maxValue;
+
+    // Domináns frekvencia Hz-ben
+    float dominantFreqHz = 0.0f;
+    if (adcConfig.sampleCount > 0) {
+        dominantFreqHz = ((float)adcConfig.samplingRate / (float)adcConfig.sampleCount) * (float)maxIndex;
+    }
+    sharedData.dominantFrequency = (uint32_t)dominantFreqHz;
+
+#ifdef __ADPROC_DEBUG
+    uint32_t endDom = micros();
+    domTime_us = endDom - startDom;
+    uint32_t endTotal = micros();
+    uint32_t totalTime_us = endTotal - startTotal;
+
+    // Teljesítmény kimutatás minden 100. blokkban
+    static uint8_t runDebugCounter = 0;
+    if (++runDebugCounter >= 100) {
+        const float N = (float)adcConfig.sampleCount;
+        float amp_q15 = (float)maxValue / 32767.0f; // Q15 → float konverzió csak debug céljára
+        float amp_mV_peak = amp_q15 * ADC_LSB_VOLTAGE_MV * N;
+
+        ADPROC_DEBUG("AudioProc-c1 [Q15-FIXED]: Total=%lu us, PreProc=%lu us, FFT=%lu us, DomSearch=%lu us, "
+                     "DomFreq=%.1f Hz, amp_q15=%d, peak=%.3f mV\n",
+                     totalTime_us, preprocTime, fftTime_us, domTime_us, dominantFreqHz, maxValue, amp_mV_peak);
+
+        // Részletes debug pipeline
+        ADPROC_DEBUG("  [PIPELINE] inputMax=%d, windowedMax=%d, fftMax=%d (scaled), magMax=%d (idx=%d)\n", inputMax, windowedMax, fftMax, magMax, magMaxIdx);
+
+        runDebugCounter = 0;
+    }
+#endif
+
+    return true;
 }

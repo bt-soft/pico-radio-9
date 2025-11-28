@@ -847,7 +847,7 @@ void UICompSpectrumVis::renderSpectrumBar(bool isLowRes) {
     }
 
     // Core1 spektrum adatok lekérése
-    const float *magnitudeData = nullptr;
+    const q15_t *magnitudeData = nullptr;
     uint16_t actualFftSize = 0;
     float currentBinWidthHz = 0.0f;
     float currentAutoGain = 1.0f;
@@ -1183,7 +1183,7 @@ void UICompSpectrumVis::renderEnvelope() {
     }
 
     // Core1 spektrum adatok lekérése
-    const float *magnitudeData = nullptr;
+    const q15_t *magnitudeData = nullptr;
     uint16_t actualFftSize = 0;
     float currentBinWidthHz = 0.0f;
     float currentAutoGain = 1.0f;
@@ -1360,7 +1360,7 @@ void UICompSpectrumVis::renderWaterfall() {
     }
 
     // Core1 spektrum adatok lekérése
-    const float *magnitudeData = nullptr;
+    const q15_t *magnitudeData = nullptr;
     uint16_t actualFftSize = 0;
     float currentBinWidthHz = 0.0f;
     float currentAutoGain = 1.0f;
@@ -1588,7 +1588,7 @@ void UICompSpectrumVis::renderCwOrRttyTuningAidWaterfall() {
     }
 
     // Core1 spektrum adatok lekérése
-    const float *magnitudeData = nullptr;
+    const q15_t *magnitudeData = nullptr;
     uint16_t actualFftSize = 0;
     float currentBinWidthHz = 0.0f;
     float currentAutoGain = 1.0f;
@@ -1728,7 +1728,7 @@ void UICompSpectrumVis::renderSnrCurve() {
     }
 
     // Core1 spektrum adatok lekérése
-    const float *magnitudeData = nullptr;
+    const q15_t *magnitudeData = nullptr;
     uint16_t actualFftSize = 0;
     float currentBinWidthHz = 0.0f;
     float currentAutoGain = 1.0f;
@@ -1957,7 +1957,7 @@ uint8_t UICompSpectrumVis::getBandVal(int fft_bin_index, int min_bin_low_res, in
 /**
  * @brief Core1 spektrum adatok lekérése (FLOAT - Arduino FFT)
  */
-bool UICompSpectrumVis::getCore1SpectrumData(const float **outData, uint16_t *outSize, float *outBinWidth, float *outAutoGain) {
+bool UICompSpectrumVis::getCore1SpectrumData(const q15_t **outData, uint16_t *outSize, float *outBinWidth, float *outAutoGain) {
 
     if (::activeSharedDataIndex < 0 || ::activeSharedDataIndex > 1) {
         // Érvénytelen index a Core1-től - biztonságosan leállunk
@@ -1975,7 +1975,7 @@ bool UICompSpectrumVis::getCore1SpectrumData(const float **outData, uint16_t *ou
 
     const SharedData &data = ::sharedData[::activeSharedDataIndex];
 
-    *outData = data.fftSpectrumData; // FLOAT pointer
+    *outData = data.fftSpectrumData; // Q15 pointer
     *outSize = data.fftSpectrumSize;
 
     if (outBinWidth) {
@@ -2239,7 +2239,7 @@ void UICompSpectrumVis::renderFrequencyRangeLabels(uint16_t minDisplayFrequencyH
  * @param maxBin Maximum megengedett bin index
  * @return Interpolált magnitude érték
  */
-float UICompSpectrumVis::getInterpolatedMagnitude(const float *magnitudeData, float exactBinIndex, int minBin, int maxBin) const {
+float UICompSpectrumVis::getInterpolatedMagnitude(const q15_t *magnitudeData, float exactBinIndex, int minBin, int maxBin) const {
     // Interpoláció a szomszédos bin-ek között
     int bin_low = static_cast<int>(std::floor(exactBinIndex));
     int bin_high = static_cast<int>(std::ceil(exactBinIndex));

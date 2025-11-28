@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
  * -----                                                                                                               *
- * Last Modified: 2025.11.22, Saturday  09:51:47                                                                       *
+ * Last Modified: 2025.11.28, Friday  05:09:33                                                                         *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -27,6 +27,9 @@
 
 #include "RingBuffer.h" // A ring buffer implementációnk
 #include "defines.h"
+
+// CMSIS-DSP Q15 fixpontos típus definíció
+typedef int16_t q15_t;
 
 /**
  * @brief Dekóder azonosítók
@@ -103,8 +106,8 @@ struct DecoderConfig {
 #define PIN_AUDIO_INPUT A0 // A0/GPIO26 az FFT audio bemenethez
 
 // ADC paraméterek
-#define ADC_REFERENCE_VOLTAGE_MV 3300.0f                                           // ADC referencia feszültség mV-ban
-#define ADC_LSB_VOLTAGE_MV ADC_REFERENCE_VOLTAGE_MV / (float)(1 << ADC_BIT_DEPTH); // 1 ADC LSB minta hány mV?
+#define ADC_REFERENCE_VOLTAGE_MV 3300.0f                                            // ADC referencia feszültség mV-ban
+#define ADC_LSB_VOLTAGE_MV (ADC_REFERENCE_VOLTAGE_MV / (float)(1 << ADC_BIT_DEPTH)) // 1 ADC LSB minta hány mV?
 
 #define ADC_BIT_DEPTH 12                        // ADC felbontás bit-ben
 #define ADC_MIDPOINT (1 << (ADC_BIT_DEPTH - 1)) // DC offset az ADC-hez (2048 a 12 bithez)
@@ -124,12 +127,12 @@ struct SharedData {
     uint16_t rawSampleCount;
     int16_t rawSampleData[MAX_RAW_SAMPLES_SIZE];
 
-    // FFT spektrum adatok (FLOAT - Arduino FFT-hez)
+    // FFT spektrum adatok (Q15 - CMSIS-DSP fixpontos)
     uint16_t fftSpectrumSize;
-    float fftSpectrumData[MAX_FFT_SPECTRUM_SIZE];
+    q15_t fftSpectrumData[MAX_FFT_SPECTRUM_SIZE];
 
     uint32_t dominantFrequency; // Domináns frekvencia Hz-ben
-    float dominantAmplitude;    // Amplitúdó a domináns frekvencián (FLOAT - Arduino FFT)
+    q15_t dominantAmplitude;    // Amplitúdó a domináns frekvencián (Q15 fixpontos)
     float fftBinWidthHz;        // FFT bin szélessége Hz-ben
 
     // Opcionális futási megjelenítési határok, amelyeket a Core1 tölt ki, amikor a dekóder konfigurációja megváltozik

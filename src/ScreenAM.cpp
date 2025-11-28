@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
  * -----                                                                                                               *
- * Last Modified: 2025.11.16, Sunday  11:42:41                                                                         *
+ * Last Modified: 2025.11.28, Friday  06:24:09                                                                         *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -92,11 +92,11 @@ void ScreenAM::activate() {
 
     // AM audio dekóder indítása (csak FFT, nincs dekóder)
     ::audioController.startAudioController(DecoderId::ID_DECODER_ONLY_FFT, AM_AF_RAW_SAMPLES_SIZE, AM_AF_BANDWIDTH_HZ);
-    //::audioController.setAgcEnabled(false);            // AGC kikapcsolása
-    //::audioController.setManualGain(1.0f);             // Manuális erősítés (1.0 = nincs extra erősítés)
+    ::audioController.setAgcEnabled(false); // AGC kikapcsolása
+    ::audioController.setManualGain(1.0f);  // Manuális erősítés (1.0 = nincs extra erősítés)
     //::audioController.setBlockingDmaMode(false);       // NEM Blokkoló DMA módba kapcsolunk
-    ::audioController.setNoiseReductionEnabled(true); // Zajszűrés beapcsolva (tisztább spektrum)
-    ::audioController.setSmoothingPoints(5);          // Zajszűrés simítási pontok száma = 5 (erősebb zajszűrés, nincs frekvencia felbontási igény)
+    ::audioController.setNoiseReductionEnabled(false); // Zajszűrés beapcsolva (tisztább spektrum)
+    ::audioController.setSmoothingPoints(0);           // Zajszűrés simítási pontok száma = 5 (erősebb zajszűrés, nincs frekvencia felbontási igény)
 }
 
 /**

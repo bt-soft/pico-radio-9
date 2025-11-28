@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                       *
  * -----                                                                                                               *
- * Last Modified: 2025.11.22, Saturday  09:46:22                                                                       *
+ * Last Modified: 2025.11.28, Friday  05:51:48                                                                         *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -23,7 +23,8 @@
  */
 
 #pragma once
-#include <ArduinoFFT.h>
+// Arduino környezetben implementált fixpontos függvények
+#include <arm_math.h>
 #include <vector>
 
 #include "AdcDma-c1.h"
@@ -89,6 +90,10 @@ class AudioProcessorC1 {
     inline bool isNoiseReductionEnabled() const { return useNoiseReduction_; }
     inline uint8_t getSmoothingPoints() const { return smoothingPoints_; }
 
+    // Fixpontos FFT beállítások
+    inline void setFixedPointFFTEnabled(bool enabled) { useFixedPointFFT_ = enabled; }
+    inline bool isFixedPointFFTEnabled() const { return useFixedPointFFT_; }
+
   public:
     bool useFFT;
 
@@ -97,6 +102,16 @@ class AudioProcessorC1 {
     void applyAgc(int16_t *samples, uint16_t count);
     bool checkSignalThreshold(int16_t *samples, uint16_t count);
     void applyFftGaussianWindow(float *data, uint16_t size, float fftBinWidthHz, float boostMinHz, float boostMaxHz, float boostGain);
+
+    // CMSIS-DSP Q15 fixpontos FFT metódusok
+    // Returns FFT and dominant-search times in microseconds via output references
+    bool processFixedPointFFT(SharedData &sharedData, uint32_t &fftTime_us, uint32_t &domTime_us);
+    void initFixedPointFFT(uint16_t sampleCount);
+    void buildHanningWindow_q15(uint16_t size);
+
+    // Konverziós segédfüggvények
+    inline q15_t floatToQ15(float val) { return (q15_t)(val * 32767.0f); }
+    inline float q15ToFloat(q15_t val) { return (float)val / 32767.0f; }
 
     // Goertzel detektor API: számolja a magnitúdót egy célfrekvenciára az utolsó feldolgozott minták alapján
     // Visszatérési érték: magnitúdó (lineáris) vagy -1 hibára
@@ -107,12 +122,14 @@ class AudioProcessorC1 {
     bool is_running;
     bool useBlockingDma; // Blokkoló (true) vagy nem-blokkoló (false) DMA mód
 
-    // FFT-hez kapcsolódó tagváltozók (Arduino FFT - FLOAT)
-    ArduinoFFT<float> FFT;           // Arduino FFT objektum
-    std::vector<float> vReal;        // FFT valós komponens (input/output)
-    std::vector<float> vImag;        // FFT imaginárius komponens
-    std::vector<float> fftMagnitude; // FFT magnitúdó (output)
-    uint16_t currentFftSize;         // Aktuális FFT méret
+    uint16_t currentFftSize; // Aktuális FFT méret
+
+    // Fixpontos FFT támogatás (CMSIS-DSP)
+    bool useFixedPointFFT_ = true;        // Fixpontos FFT használata (alapértelmezett: igen)
+    arm_cfft_instance_q15 fft_inst_q15;   // CMSIS-DSP FFT instance
+    std::vector<q15_t> fftInput_q15;      // Fixpontos FFT bemenet (komplex: re,im,re,im...)
+    std::vector<q15_t> magnitude_q15;     // Fixpontos magnitude eredmény
+    std::vector<q15_t> hanningWindow_q15; // Fixpontos Hanning ablak
 
     // Spektrális átlagoló puffer: körkörös puffer a korábbi magnitúdó-keretekhez (nem koherens átlagolás)
     uint8_t spectrumAveragingCount_ = 1; // alapértelmezés: 1 -> nincs átlagolás
