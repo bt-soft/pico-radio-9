@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
  * -----                                                                                                               *
- * Last Modified: 2025.11.22, Saturday  04:36:09                                                                       *
+ * Last Modified: 2025.11.28, Friday  07:27:26                                                                         *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -38,7 +38,7 @@
 #define TEST_DO_NOT_PROCESS_MUTED_STATE
 
 // UICompSpectrumVis működés debug engedélyezése de csak DEBUG módban
-// #define __UISPECTRUM_DEBUG
+#define __UISPECTRUM_DEBUG
 #if defined(__DEBUG) && defined(__UISPECTRUM_DEBUG)
 #define UISPECTRUM_DEBUG(fmt, ...) DEBUG(fmt __VA_OPT__(, ) __VA_ARGS__)
 #else
@@ -861,8 +861,13 @@ void UICompSpectrumVis::renderSpectrumBar(bool isLowRes) {
     }
 
     // FFT bin index tartomány számítása a megjelenítési frekvencia határok alapján
-    const uint8_t min_bin_idx = std::max(2, static_cast<int>(std::round(AnalyzerConstants::ANALYZER_MIN_FREQ_HZ / currentBinWidthHz)));
-    const uint8_t max_bin_idx = std::min(static_cast<int>(actualFftSize - 1), static_cast<int>(std::round(maxDisplayFrequencyHz_ / currentBinWidthHz)));
+    const uint16_t min_bin_idx = std::max(2, static_cast<int>(std::round(AnalyzerConstants::ANALYZER_MIN_FREQ_HZ / currentBinWidthHz)));
+    const uint16_t max_bin_idx = std::min(static_cast<int>(actualFftSize - 1), static_cast<int>(std::round(maxDisplayFrequencyHz_ / currentBinWidthHz)));
+
+    // DEBUG: Frekvencia skálázás ellenőrzése
+    // UISPECTRUM_DEBUG("renderSpectrum: binWidth=%.2f Hz, ANALYZER_MIN=%.0f Hz, maxDisplay=%.0f Hz, min_bin=%d, max_bin=%d, num_bins=%d\n", currentBinWidthHz,
+    //                  (float)AnalyzerConstants::ANALYZER_MIN_FREQ_HZ, (float)maxDisplayFrequencyHz_, min_bin_idx, max_bin_idx, (max_bin_idx - min_bin_idx +
+    //                  1));
 
     float maxMagnitude = 0.0f;
 
@@ -904,11 +909,11 @@ void UICompSpectrumVis::renderSpectrumBar(bool isLowRes) {
             }
         }
 
-        const uint8_t num_bins_in_range = std::max(1, max_bin_idx - min_bin_idx + 1);
+        const uint16_t num_bins_in_range = std::max(1, max_bin_idx - min_bin_idx + 1);
         float band_magnitudes[LOW_RES_BANDS] = {0.0f};
 
         // Sávok feltöltése a legnagyobb magnitude értékekkel
-        for (uint8_t i = min_bin_idx; i <= max_bin_idx; i++) {
+        for (uint16_t i = min_bin_idx; i <= max_bin_idx; i++) {
             uint8_t band_idx = getBandVal(i, min_bin_idx, num_bins_in_range, LOW_RES_BANDS);
             if (band_idx < LOW_RES_BANDS) {
                 float magnitude = magnitudeData[i];
@@ -1029,19 +1034,19 @@ void UICompSpectrumVis::renderSpectrumBar(bool isLowRes) {
     } else {
         // ===== HIGH RESOLUTION MODE =====
         // Pixel-per-bin rajzolás (vékony vonalak)
-        const uint8_t num_bins_in_range = std::max(1, max_bin_idx - min_bin_idx + 1);
+        const uint16_t num_bins_in_range = std::max(1, max_bin_idx - min_bin_idx + 1);
 
         float maxBinMagnitudeForAgc = 0.0f;
 
         // HighRes: kétfázisos számítás (először nyers oszlopmagasságok, majd skálázás a cél kitöltésre)
         std::vector<float> computedCols(bounds.width, 0.0f);
         for (uint8_t screen_pixel_x = 0; screen_pixel_x < bounds.width; ++screen_pixel_x) {
-            uint8_t fft_bin_index;
+            uint16_t fft_bin_index;
             if (bounds.width == 1) {
                 fft_bin_index = min_bin_idx;
             } else {
                 float ratio = static_cast<float>(screen_pixel_x) / (bounds.width - 1);
-                fft_bin_index = min_bin_idx + static_cast<uint8_t>(std::round(ratio * (num_bins_in_range - 1)));
+                fft_bin_index = min_bin_idx + static_cast<uint16_t>(std::round(ratio * (num_bins_in_range - 1)));
             }
             fft_bin_index = constrain(fft_bin_index, 0, max_bin_idx);
 
@@ -1204,10 +1209,10 @@ void UICompSpectrumVis::renderEnvelope() {
         }
     }
 
-    const uint8_t min_bin_for_env = std::max(10, static_cast<int>(std::round(AnalyzerConstants::ANALYZER_MIN_FREQ_HZ / currentBinWidthHz)));
-    const uint8_t max_bin_for_env =
+    const uint16_t min_bin_for_env = std::max(10, static_cast<int>(std::round(AnalyzerConstants::ANALYZER_MIN_FREQ_HZ / currentBinWidthHz)));
+    const uint16_t max_bin_for_env =
         std::min(static_cast<int>(actualFftSize - 1), static_cast<int>(std::round(maxDisplayFrequencyHz_ * 0.2f / currentBinWidthHz)));
-    const uint8_t num_bins_in_env_range = std::max(1, max_bin_for_env - min_bin_for_env + 1);
+    const uint16_t num_bins_in_env_range = std::max(1, max_bin_for_env - min_bin_for_env + 1);
 
     // Magnitude-alapú adaptív skálázás envelope-hoz
     float adaptiveScale = getMagnitudeAgcScale(SensitivityConstants::ENVELOPE_SENSITIVITY_FACTOR);
@@ -1977,6 +1982,13 @@ bool UICompSpectrumVis::getCore1SpectrumData(const q15_t **outData, uint16_t *ou
 
     *outData = data.fftSpectrumData; // Q15 pointer
     *outSize = data.fftSpectrumSize;
+
+    // DEBUG: SharedData tartalom ellenőrzése
+    static uint8_t sharedDebugCounter = 0;
+    if (++sharedDebugCounter >= 100) {
+        UISPECTRUM_DEBUG("[SHARED DATA] idx=%d, fftSpectrumSize=%d, binWidth=%.2f Hz\n", ::activeSharedDataIndex, data.fftSpectrumSize, data.fftBinWidthHz);
+        sharedDebugCounter = 0;
+    }
 
     if (outBinWidth) {
         *outBinWidth = data.fftBinWidthHz;

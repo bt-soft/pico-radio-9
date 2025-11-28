@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
  * -----                                                                                                               *
- * Last Modified: 2025.11.28, Friday  06:48:38                                                                         *
+ * Last Modified: 2025.11.28, Friday  07:20:09                                                                         *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -865,6 +865,14 @@ bool AudioProcessorC1::processFixedPointFFT(SharedData &sharedData, uint32_t &ff
     // 5. Spektrum adatok másolása SharedData-ba (Q15 formátumban)
     uint16_t spectrumSize = adcConfig.sampleCount / 2;
     sharedData.fftSpectrumSize = std::min(spectrumSize, (uint16_t)MAX_FFT_SPECTRUM_SIZE);
+
+    // DEBUG: Spektrum méret ellenőrzése
+    static uint8_t sizeDebugCounter = 0;
+    if (++sizeDebugCounter >= 100) {
+        ADPROC_DEBUG("[FFT SIZE] sampleCount=%d, spectrumSize=%d, fftSpectrumSize=%d, MAX=%d\n", adcConfig.sampleCount, spectrumSize,
+                     sharedData.fftSpectrumSize, MAX_FFT_SPECTRUM_SIZE);
+        sizeDebugCounter = 0;
+    }
 
     if (spectrumAveragingCount_ <= 1) {
         // Nincs átlagolás, közvetlen másolás Q15 formátumban
