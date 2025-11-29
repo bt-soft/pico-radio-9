@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
  * -----                                                                                                               *
- * Last Modified: 2025.11.29, Saturday  07:49:17                                                                       *
+ * Last Modified: 2025.11.29, Saturday  06:02:30                                                                       *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -34,6 +34,7 @@
 #include "DecoderSSTV-c1.h"
 #include "DecoderWeFax-c1.h"
 #include "Utils.h"
+#include "adc-constants.h"
 #include "defines.h"
 
 // Core-1 debug engedélyezése de csak DEBUG módban
@@ -72,13 +73,6 @@ static AudioProcessorC1 audioProcC1; // Static -> global instance
 // Core-1 aktív dekóder azonosítója
 static DecoderId activeDecoderIdCore1 = ID_DECODER_NONE;
 std::unique_ptr<IDecoder> activeDecoderCore1 = nullptr;
-
-// ADC konstansok (Core1 szenzor olvasáshoz)
-// Az RP2040 ADC hardware 12-bit, és az audio DMA is 12-bittel dolgozik!
-#define CORE1_ADC_RESOLUTION 12
-#define CORE1_V_REFERENCE 3.3f
-#define CORE1_CONVERSION_FACTOR (1 << CORE1_ADC_RESOLUTION) // 4096
-#define CORE1_VBUSDIVIDER_RATIO ((VBUS_DIVIDER_R1 + VBUS_DIVIDER_R2) / VBUS_DIVIDER_R2)
 
 //--- EEprom safe Writer segédfüggvények -------------------------------------------------------------------------------------
 
@@ -128,7 +122,7 @@ void readSensorsOnCore1() {
     // CSAK akkor mérünk, ha az audio DMA teljesen inaktív (BIZTONSAGOS)
 
     // VBUS feszültség mérése 12-bit ADC olvasással
-    float voltageOut = (analogRead(PIN_VBUS_EXTERNAL_MEASURE_INPUT) * CORE1_V_REFERENCE) / CORE1_CONVERSION_FACTOR;
+    float voltageOut = (analogRead(PIN_VBUS_EXTERNAL_MEASURE_INPUT) * CORE1_ADC_V_REFERENCE) / CORE1_ADC_CONVERSION_FACTOR;
     core1_VbusVoltage = voltageOut * CORE1_VBUSDIVIDER_RATIO;
 
     // CPU hőmérséklet mérése (analogReadTemp() is 12-bit az RP2040-en)
@@ -477,8 +471,7 @@ void processFifoCommands() {
 
         case RP2040CommandCode::CMD_AUDIOPROC_CALIBRATE_DC: {
             // Perform DC midpoint calibration on Core1 and ACK
-            uint32_t measured = audioProcC1.calibrateDcMidpoint(128);
-            CORE1_DEBUG("core-1: CMD_AUDIOPROC_CALIBRATE_DC -> measured midpoint=%u\n", measured);
+            audioProcC1.calibrateDcMidpoint();
             rp2040.fifo.push(RP2040ResponseCode::RESP_ACK);
             break;
         }

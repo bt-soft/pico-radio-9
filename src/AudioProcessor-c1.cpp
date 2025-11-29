@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
  * -----                                                                                                               *
- * Last Modified: 2025.11.29, Saturday  04:33:49                                                                       *
+ * Last Modified: 2025.11.29, Saturday  06:11:08                                                                       *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -202,7 +202,7 @@ void AudioProcessorC1::reconfigureAudioSampling(uint16_t sampleCount, uint16_t s
  * @param count Minták száma
  *
  * Ez a metódus három dolgot végez:
- * 1. DC offset eltávolítása (ADC_MIDPOINT levonása)
+ * 1. DC offset eltávolítása (adcMidpoint_ levonása)
  * 2. Opcionális mozgó átlagos simítás (0=nincs, 3 vagy 5 pont)
  * 3. uint16_t -> int16_t konverzió
  *
@@ -404,40 +404,45 @@ void AudioProcessorC1::applyAgc(int16_t *samples, uint16_t count) {
 #endif
 }
 
+// /**
+//  * @brief Egy frekvencia-tartománybeli erősítést alkalmaz az FFT adatokra "lapított" Gauss-ablak formájában.
+//  * @param data FFT bemeneti/kimeneti adatok (FLOAT)
+//  * @param size Az adatok mérete (bin-ek száma)
+//  * @param fftBinWidthHz Egy bin szélessége Hz-ben
+//  * @param boostMinHz Az erősítési tartomány alsó határa Hz-ben
+//  * @param boostMaxHz Az erősítési tartomány felső határa Hz-ben
+//  * @param boostGain Az erősítési tényező (pl. 10.0 = 10x erősítés)
+//  *
+//  */
+// void AudioProcessorC1::applyFftGaussianWindow(float *data, uint16_t size, float fftBinWidthHz, float boostMinHz, float boostMaxHz, float boostGain) {
+
+//     // Lapított Gauss-szerű erősítés: a tartományon belül a maximumhoz közel Gauss, széleken lapított
+//     float centerFreq = (boostMinHz + boostMaxHz) / 2.0f;
+//     float sigma = (boostMaxHz - boostMinHz) * 1.2f; // még laposabb, szélesebb görbe
+//     float minGain = 1.0f;
+
+//     for (uint16_t i = 0; i < size; i++) {
+//         float freq = i * fftBinWidthHz;
+//         float gain = minGain;
+
+//         if (freq >= boostMinHz && freq <= boostMaxHz) {
+//             // Lapítottabb Gauss: a széleken még lassabb esés, gyök alatt
+//             float gauss = expf(-powf(freq - centerFreq, 2) / (2.0f * sigma * sigma));
+//             gauss = powf(gauss, 0.5f); // gyök alatt: még lassabb esés
+//             gain = minGain + (boostGain - minGain) * gauss;
+//         }
+//         data[i] *= gain;
+//     }
+// }
+
 /**
- * @brief Egy frekvencia-tartománybeli erősítést alkalmaz az FFT adatokra "lapított" Gauss-ablak formájában.
- * @param data FFT bemeneti/kimeneti adatok (FLOAT)
- * @param size Az adatok mérete (bin-ek száma)
- * @param fftBinWidthHz Egy bin szélessége Hz-ben
- * @param boostMinHz Az erősítési tartomány alsó határa Hz-ben
- * @param boostMaxHz Az erősítési tartomány felső határa Hz-ben
- * @param boostGain Az erősítési tényező (pl. 10.0 = 10x erősítés)
- *
+ * @brief Kalibrálja az ADC DC középpontját a megadott mintaszám alapján.
+ * @param sampleCount A kalibrációhoz használt mintaszám (alapértelmezett: ADC_MIDPOINT_MEASURE_SAMPLE_COUNT).
  */
-void AudioProcessorC1::applyFftGaussianWindow(float *data, uint16_t size, float fftBinWidthHz, float boostMinHz, float boostMaxHz, float boostGain) {
-
-    // Lapított Gauss-szerű erősítés: a tartományon belül a maximumhoz közel Gauss, széleken lapított
-    float centerFreq = (boostMinHz + boostMaxHz) / 2.0f;
-    float sigma = (boostMaxHz - boostMinHz) * 1.2f; // még laposabb, szélesebb görbe
-    float minGain = 1.0f;
-
-    for (uint16_t i = 0; i < size; i++) {
-        float freq = i * fftBinWidthHz;
-        float gain = minGain;
-
-        if (freq >= boostMinHz && freq <= boostMaxHz) {
-            // Lapítottabb Gauss: a széleken még lassabb esés, gyök alatt
-            float gauss = expf(-powf(freq - centerFreq, 2) / (2.0f * sigma * sigma));
-            gauss = powf(gauss, 0.5f); // gyök alatt: még lassabb esés
-            gain = minGain + (boostGain - minGain) * gauss;
-        }
-        data[i] *= gain;
+void AudioProcessorC1::calibrateDcMidpoint(uint32_t sampleCount) {
+    if (sampleCount == 0) {
+        sampleCount = ADC_MIDPOINT_MEASURE_SAMPLE_COUNT;
     }
-}
-
-uint32_t AudioProcessorC1::calibrateDcMidpoint(uint32_t sampleCount) {
-    if (sampleCount == 0)
-        sampleCount = 128;
 
     // Ha a DMA fut, ideiglenesen leállítjuk, hogy biztonságosan tudjuk olvasni az ADC-t
     bool wasRunning = is_running;
@@ -450,7 +455,7 @@ uint32_t AudioProcessorC1::calibrateDcMidpoint(uint32_t sampleCount) {
 
     uint64_t sum = 0;
     for (uint32_t i = 0; i < sampleCount; ++i) {
-        // analogRead returns 12-bit value when analogReadResolution(12) set in core1 setup
+        sleep_us(50); // Rövid várakozás az ADC stabilizálására
         uint32_t v = analogRead(PIN_AUDIO_INPUT);
         sum += v;
     }
@@ -464,10 +469,10 @@ uint32_t AudioProcessorC1::calibrateDcMidpoint(uint32_t sampleCount) {
     }
 
 #ifdef __ADPROC_DEBUG
-    ADPROC_DEBUG("AudioProc-c1: Calibrated ADC midpoint=%u (over %u samples)\n", midpoint, sampleCount);
+    // Számoljuk a mért ADC értéknek megfelelő feszültséget (12-bit ADC, Vref ~= 3.3V)
+    float adcV = ((float)midpoint * CORE1_ADC_V_REFERENCE) / CORE1_ADC_CONVERSION_FACTOR;
+    ADPROC_DEBUG("AudioProc-c1: Kalibrált ADC midpoint=%u (mérések száma: %u), V=%.3f V\n", midpoint, sampleCount, adcV);
 #endif
-
-    return midpoint;
 }
 
 /**

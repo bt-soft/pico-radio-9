@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
  * -----                                                                                                               *
- * Last Modified: 2025.11.29, Saturday  05:23:26                                                                       *
+ * Last Modified: 2025.11.29, Saturday  05:35:53                                                                       *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -307,9 +307,9 @@ void setup() {
 
     // --- Lépés 6: AudioController inicializálása
     splash->updateProgress(splashProgressCnt++, SPLASH_SCREEN_PROGRESS_BAR_STEPS, "AudioController initializing...");
-    audioController.stopAudioController();                         // Alaphelyzetbe állítás
     pSi4735Manager->getSi4735().setVolume(0);                      // Hangerő leállítása a zaj elkerülése érdekében
     pSi4735Manager->getSi4735().setHardwareAudioMute(true);        // Hardver némítás bekapcsolása az audio inicializálás előtt
+    audioController.stopAudioController();                         // Alaphelyzetbe állítás
     audioController.init();                                        // DC szint mérése az AD bemeneten (Core1)
     pSi4735Manager->getSi4735().setHardwareAudioMute(false);       // Hardver némítás kikapcsolása az audio inicializálás után
     pSi4735Manager->getSi4735().setVolume(config.data.currVolume); // Hangerő visszaállítása a konfigurációban mentett értékre

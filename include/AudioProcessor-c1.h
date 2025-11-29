@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                       *
  * -----                                                                                                               *
- * Last Modified: 2025.11.29, Saturday  12:58:38                                                                       *
+ * Last Modified: 2025.11.29, Saturday  06:10:54                                                                       *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -28,6 +28,7 @@
 #include <vector>
 
 #include "AdcDma-c1.h"
+#include "adc-constants.h"
 #include "decoder_api.h"
 
 /**
@@ -52,9 +53,8 @@ class AudioProcessorC1 {
     void setSpectrumAveragingCount(uint8_t n);
     uint8_t getSpectrumAveragingCount() const;
 
-    // ADC DC középpont kalibrálása: az ADC közvetlen mintavételezése (Core1-en kell hívni)
-    // Visszatér a mért középponttal (egész ADC egységekben).
-    uint32_t calibrateDcMidpoint(uint32_t sampleCount = 128);
+    // ADC DC középpont kalibrálása: az ADC közvetlen mintavételezése
+    void calibrateDcMidpoint(uint32_t sampleCount = ADC_MIDPOINT_MEASURE_SAMPLE_COUNT);
 
     /**
      * @brief Beállítja a DMA blokkoló/nem-blokkoló módját.
@@ -133,7 +133,7 @@ class AudioProcessorC1 {
     // AM ~6kHz, FM ~15kHz - ezt használjuk a dinamikus bin-kizáráshoz
     uint32_t currentBandwidthHz = 0;
 
-    // Runtime measured ADC midpoint (in ADC units, e.g., ~2048 for 12-bit). Measured on Core1.
+    // Futásidejű ADC középpont mérése (ADC egységekben, pl. ~2048 12-bites esetén). Core1-en mérve.
     uint32_t adcMidpoint_ = (1u << (ADC_BIT_DEPTH - 1));
 
     // AGC (Automatikus Erősítésszabályozás) paraméterek
@@ -152,7 +152,7 @@ class AudioProcessorC1 {
 
     void removeDcAndSmooth(const uint16_t *input, int16_t *output, uint16_t count);
     void applyAgc(int16_t *samples, uint16_t count);
-    void applyFftGaussianWindow(float *data, uint16_t size, float fftBinWidthHz, float boostMinHz, float boostMaxHz, float boostGain);
+    // void applyFftGaussianWindow(float *data, uint16_t size, float fftBinWidthHz, float boostMinHz, float boostMaxHz, float boostGain);
 
     // CMSIS-DSP Q15 fixpontos FFT metódusok
     // A FFT és a domináns frekvencia keresés idejét mikroszekundumban adja vissza kimeneti referenciákon keresztül

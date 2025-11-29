@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
  * -----                                                                                                               *
- * Last Modified: 2025.11.29, Saturday  01:04:39                                                                       *
+ * Last Modified: 2025.11.29, Saturday  06:04:48                                                                       *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -78,10 +78,6 @@
 
 //--- Radio EEPROM Size ---
 #define RADIO_EEPROM_SIZE_IN_KB 3 // EEPROM méret KB-ban (512-4096 között módosítható)
-
-// Feszültségmérés
-#define VBUS_DIVIDER_R1 10.0f // Ellenállás VBUS és A0 között (kOhm)
-#define VBUS_DIVIDER_R2 15.0f // Ellenállás A0 és GND között (kOhm)
 
 // Rotary Encoder
 #define __USE_ROTARY_ENCODER_IN_HW_TIMER
