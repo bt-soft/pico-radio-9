@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
  * -----                                                                                                               *
- * Last Modified: 2025.11.29, Saturday  09:26:52                                                                       *
+ * Last Modified: 2025.11.29, Saturday  09:29:27                                                                       *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -733,24 +733,16 @@ bool AudioProcessorC1::processFixedPointFFT(SharedData &sharedData, uint32_t &ff
 
     // KRITIKUS: A CMSIS-DSP Q15 FFT automatikus skálázást végez minden butterfly szakaszban!
     // Ez log2(N) bites jobbra tolást jelent. Például N=1024 esetén 10 bit veszteség.
-    // Vissza kell skálázni a kimenet értékeit!
+    // Vissza kell majd skálázni a kimenet értékeit!
     uint16_t fftScaleBits = 0;
     uint16_t N = adcConfig.sampleCount;
     while (N > 1) {
         fftScaleBits++;
         N >>= 1;
     }
-
-    // JAVÍTÁS: Teljes skálázás visszaállítása! A magnitude számításnál nincs túlcsordulás veszély,
-    // mert az arm_cmplx_mag_q15 sqrt()-ot végez (komplex -> valós magnitude), ami csökkenti a dinamikát.
-    // A butterfly kimenet komplex (re, im), de a magnitude = sqrt(re^2 + im^2) mindig <= max(|re|, |im|) * sqrt(2).
-    // Ezért biztonságos a teljes rescale, mivel utána jön a magnitude számítás.
-    //
-    // FONTOS: Ne használjunk "safe" korlátozást, mert az adatvesztést okoz!
-    uint16_t rescaleBits = fftScaleBits;
-
+    // Teljes rescale, majd utána jön a magnitude számítás.
     for (uint16_t i = 0; i < adcConfig.sampleCount * 2; i++) {
-        q31_t scaled = ((q31_t)fftInput_q15[i]) << rescaleBits;
+        q31_t scaled = ((q31_t)fftInput_q15[i]) << fftScaleBits;
         fftInput_q15[i] = __SSAT(scaled, 16);
     }
 
