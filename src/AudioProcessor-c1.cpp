@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
  * -----                                                                                                               *
- * Last Modified: 2025.11.29, Saturday  07:29:45                                                                       *
+ * Last Modified: 2025.11.29, Saturday  07:39:47                                                                       *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -735,7 +735,28 @@ bool AudioProcessorC1::isBinInAudioRange(uint16_t binIndex, float binWidthHz, ui
     if (binWidthHz <= 0.0f || spectrumSize == 0) {
         return false;
     }
+    // Először megvizsgáljuk az egész spektrum legnagyobb (pre-zero) csúcsát.
+    // Ha a legnagyobb pre-zero csúcs teljesen kívül esik a megengedett sávon,
+    // akkor a spektrumot ki kell zárni (minden bin false lesz).
+    uint16_t fullSearchSize = std::min((uint16_t)magnitude_q15.size(), spectrumSize);
+    q15_t preMaxVal = 0;
+    uint16_t preMaxIdx = 0;
+    for (uint16_t i = 1; i < fullSearchSize; ++i) { // DC kihagyása
+        if (magnitude_q15[i] > preMaxVal) {
+            preMaxVal = magnitude_q15[i];
+            preMaxIdx = i;
+        }
+    }
 
+    if (preMaxVal > 0) {
+        float preMaxFreq = (float)preMaxIdx * binWidthHz;
+        if (preMaxFreq < MIN_AUDIO_FREQEUNCY_HZ || preMaxFreq > MAX_AUDIO_FREQUENCY_HZ) {
+            // A teljes spektrum legnagyobb komponense kívül van -> minden bin kizárva
+            return false;
+        }
+    }
+
+    // Bin alsó és felső határa (Hz)
     float binLow = (float)binIndex * binWidthHz;
     float binHigh = (float)(binIndex + 1) * binWidthHz;
 
@@ -863,38 +884,8 @@ bool AudioProcessorC1::processFixedPointFFT(SharedData &sharedData, uint32_t &ff
     // Bin szélesség beállítása
     sharedData.fftBinWidthHz = currentBinWidthHz;
 
-    // Először keressük meg a teljes spektrum (magnitude_q15) legnagyobb értékét
-    // és ha az a tiltott tartományban van (pl. < MIN_AUDIO_FREQEUNCY_HZ), akkor
-    // valószínűleg out-of-band jel érkezett — ilyenkor nullázzuk a SharedData-t.
+    // Kizárjuk a kívül eső bin-eket a SharedData-ban.
     if (sharedData.fftBinWidthHz > 0.0f) {
-        uint16_t preMaxIdx = 0;
-        q15_t preMaxVal = 0;
-        uint16_t fullSearchSize = std::min((uint16_t)magnitude_q15.size(), sharedData.fftSpectrumSize);
-        for (uint16_t i = 1; i < fullSearchSize; ++i) { // DC kihagyása
-            if (magnitude_q15[i] > preMaxVal) {
-                preMaxVal = magnitude_q15[i];
-                preMaxIdx = i;
-            }
-        }
-
-        float preMaxFreq = (float)preMaxIdx * sharedData.fftBinWidthHz;
-
-        // Ha a pre-zero peak a tiltott tartományban van, akkor teljesen töröljük a spektrumot
-        if (preMaxVal > 0 && (preMaxFreq < MIN_AUDIO_FREQEUNCY_HZ || preMaxFreq > MAX_AUDIO_FREQUENCY_HZ)) {
-#ifdef __ADPROC_DEBUG
-            ADPROC_DEBUG("AudioProc-c1: pre-zero dominant bin %.1f Hz (idx=%u) kívül esik a megengedett sávon -> spektrum törölve\n", preMaxFreq,
-                         (unsigned)preMaxIdx);
-#endif
-            for (uint16_t i = 0; i < sharedData.fftSpectrumSize; ++i) {
-                sharedData.fftSpectrumData[i] = 0;
-            }
-            // DC bin továbbra is 0; domináns nulla
-            sharedData.dominantAmplitude = 0;
-            sharedData.dominantFrequency = 0;
-            return true;
-        }
-
-        // Ha nem töröltük a spektrumot, akkor nullázzuk a kívül eső bin-eket a SharedData-ban
         for (uint16_t i = 0; i < sharedData.fftSpectrumSize; ++i) {
             if (!isBinInAudioRange(i, sharedData.fftBinWidthHz, sharedData.fftSpectrumSize)) {
                 sharedData.fftSpectrumData[i] = 0;
