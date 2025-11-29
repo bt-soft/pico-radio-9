@@ -45,19 +45,15 @@ extern DecodedData decodedData;
 
 #define BIN_SPACING_HZ 35.0f
 // TONE_BLOCK_SIZE optimalizálás:
-// - Fs = 7500 Hz (AudioProc decimált kimenet)
-// - 128 sample → felbontás: 7500/128 = 58.6 Hz (jobb mint 35 Hz spacing!)
-// - Blokk idő: 128/7500 = 17 ms (< 20 ms RTTY bit, OK!)
-// - CW használ N=48-at, RTTY magnitude értékek kicsik 256-nál → 128 kompromisszum
-#define TONE_BLOCK_SIZE 128
+// - Mintapélda szerint 64 sample blokkokat használunk a gyorsabb reakcióért
+// - 64 sample → kisebb blokkidő, jobb bit-time felbontás a PLL-hez
+#define TONE_BLOCK_SIZE 64
 #define NOISE_ALPHA 0.15f
 #define NOISE_DECAY_ALPHA 0.5f
 #define NOISE_PEAK_RATIO 3.5f
-// RTTY Q15 magnitude értékek: 174-505 (0.005-0.015 float)
-// CW Q15 minThreshold: 1311 (0.04 float)
-// A zajpadlót DRASZTIKUSAN csökkenteni kell, hogy ne emelje fel mindkét jelet azonos szintre!
-#define MIN_NOISE_FLOOR 1.0f  // 1.0/1000 = 0.001 float (33 Q15) - SOKKAL kisebb!
-#define MIN_DOMINANT_MAG 1.0f // 1.0/1000 = 0.001 float threshold
+// Match reference sample thresholds (float-domain magnitudes)
+#define MIN_NOISE_FLOOR 30.0f
+#define MIN_DOMINANT_MAG 300.0f // Minimum magnitude for tone detection in raw Goertzel units (tuning)
 
 // Debug naplózási periódus — hány blokk után írjunk ki részletes RTTY diagnosztikát
 #ifndef RTTY_DEBUG_PERIOD_BLOCKS
@@ -66,7 +62,8 @@ extern DecodedData decodedData;
 
 // envelope tracking konstansok
 static constexpr float ENVELOPE_ATTACK = 0.05f; // Gyors felfutás
-static constexpr float ENVELOPE_DECAY = 0.001f; // Lassú lecsengés
+// Kissé nagyobb decay, hogy az envelope ne essék túl lassan vissza
+static constexpr float ENVELOPE_DECAY = 0.002f; // Lassú lecsengés (tuning)
 
 // Baudot LTRS (betűk) tábla - ITA2 szabvány
 const char DecoderRTTY_C1::BAUDOT_LTRS_TABLE[32] = {
@@ -265,6 +262,16 @@ void DecoderRTTY_C1::processToneBlock(const int16_t *samples, size_t count) {
                 bufSpace[i] = accum[i];
             }
 
+            // Debug: spaceBins összes bin konfigurációja és bufSpace minták
+            static bool spaceBinsFullDbgDone = false;
+            if (!spaceBinsFullDbgDone) {
+                for (int i = 0; i < BINS_PER_TONE; ++i) {
+                    RTTY_DEBUG("spaceBin[%d]: freq=%.1f, coeff=%d\n", i, spaceBins[i].targetFreq, spaceBins[i].coeff);
+                }
+                RTTY_DEBUG("bufSpace[0..4]=%d,%d,%d,%d,%d\n", bufSpace[0], bufSpace[1], bufSpace[2], bufSpace[3], bufSpace[4]);
+                spaceBinsFullDbgDone = true;
+            }
+
             // Goertzel a mark-hoz a mark buf-en (Q15 fixpoint, nincs sqrt)
             static int dbgCtr = 0;
             bool doDbg = (++dbgCtr >= 100);
@@ -295,6 +302,36 @@ void DecoderRTTY_C1::processToneBlock(const int16_t *samples, size_t count) {
                     magnitude = -32768;
                 bin.magnitude = (q15_t)magnitude;
             }
+            // NOTE: defer debug printing of magnitudes until after both mark and space Goertzel runs
+
+            // Goertzel a space-hoz a space buf-en (Q15 fixpoint, 64-bit köztes szorzás)
+            for (auto &bin : spaceBins) {
+                int32_t q1 = 0;
+                int32_t q2 = 0;
+                for (size_t n = 0; n < TONE_BLOCK_SIZE; ++n) {
+                    // Use 64-bit multiply to avoid overflow: (coeff * q1) >> 15
+                    int64_t prod = (int64_t)bin.coeff * (int64_t)q1;
+                    int32_t coeff_q1 = (int32_t)(prod >> 15);
+                    int32_t q0 = coeff_q1 - q2 + (int32_t)bufSpace[n];
+                    q2 = q1;
+                    q1 = q0;
+                }
+                // Gyors magnitúdó approximáció (nincs sqrt)
+                int32_t abs_q1 = (q1 < 0) ? -q1 : q1;
+                int32_t abs_q2 = (q2 < 0) ? -q2 : q2;
+                int32_t max_val = (abs_q1 > abs_q2) ? abs_q1 : abs_q2;
+                int32_t min_val = (abs_q1 > abs_q2) ? abs_q2 : abs_q1;
+                int32_t magnitude = (max_val + (min_val >> 1)) << 1; // 2x skálázás
+
+                // Clamp Q15 tartományba
+                if (magnitude > 32767)
+                    magnitude = 32767;
+                if (magnitude < -32768)
+                    magnitude = -32768;
+                bin.magnitude = (q15_t)magnitude;
+            }
+
+            // Now both mark and space magnitudes are computed — print debug info
             if (doDbg) {
                 RTTY_DEBUG("GOERTZEL: bufMark[0..4]=%d,%d,%d,%d,%d\n", bufMark[0], bufMark[1], bufMark[2], bufMark[3], bufMark[4]);
                 RTTY_DEBUG("  markMag[0..2]=%d,%d,%d (%.1f,%.1f,%.1f Hz)\n", markBins[0].magnitude, markBins[1].magnitude, markBins[2].magnitude,
@@ -302,32 +339,6 @@ void DecoderRTTY_C1::processToneBlock(const int16_t *samples, size_t count) {
                 RTTY_DEBUG("  spaceMag[0..2]=%d,%d,%d (%.1f,%.1f,%.1f Hz)\n", spaceBins[0].magnitude, spaceBins[1].magnitude, spaceBins[2].magnitude,
                            spaceBins[0].targetFreq, spaceBins[1].targetFreq, spaceBins[2].targetFreq);
                 dbgCtr = 0;
-            }
-
-            // Goertzel a space-hoz a space buf-en (Q15 fixpoint, nincs sqrt)
-            for (auto &bin : spaceBins) {
-                int32_t q1 = 0;
-                int32_t q2 = 0;
-                for (size_t n = 0; n < TONE_BLOCK_SIZE; ++n) {
-                    // Q15 fixpontos szorzás: (coeff * q1) >> 15 (mint CW)
-                    int32_t coeff_q1 = ((int32_t)bin.coeff * q1) >> 15;
-                    int32_t q0 = coeff_q1 - q2 + (int32_t)bufSpace[n];
-                    q2 = q1;
-                    q1 = q0;
-                }
-                // Gyors magnitúdó approximáció (nincs sqrt)
-                // alpha-max-plus-beta-min algoritmus: mag ≈ max(|q1|,|q2|) + 0.5*min(|q1|,|q2|)
-                // Ez sqrt(q1²+q2²) * 0.96 közelítés, ezért 2x skálázás a kompenzációhoz
-                int32_t abs_q1 = (q1 < 0) ? -q1 : q1;
-                int32_t abs_q2 = (q2 < 0) ? -q2 : q2;
-                int32_t max_val = (abs_q1 > abs_q2) ? abs_q1 : abs_q2;
-                int32_t min_val = (abs_q1 > abs_q2) ? abs_q2 : abs_q1;
-                int32_t magnitude = (max_val + (min_val >> 1)) << 1; // 2x skálázás
-                if (magnitude > 32767)
-                    magnitude = 32767;
-                if (magnitude < -32768)
-                    magnitude = -32768;
-                bin.magnitude = (q15_t)magnitude;
             }
 
             // A magnitúdók kiszámítása után: tónus detektálása és PLL előreléptetése
@@ -363,32 +374,104 @@ void DecoderRTTY_C1::processToneBlock(const int16_t *samples, size_t count) {
  */
 bool DecoderRTTY_C1::detectTone(bool &isMark, float &confidence) {
 
-    // TISZTA GOERTZEL - NINCS AGC, NINCS NOISE FLOOR, NINCS ENVELOPE!
-    // Csak a raw magnitude peak értékek összehasonlítása
+    // Compute magnitudes from Q15 Goertzel state (convert to float)
     float markPeak = 0.0f;
-    for (const auto &bin : markBins) {
-        float mag_f = (float)bin.magnitude / Q15_SCALE;
-        markPeak = std::max(markPeak, mag_f);
+    float markSum = 0.0f;
+    for (auto &bin : markBins) {
+        // Használjuk a bin.q1/q2 értékét mint raw mintavételi egységet (nem normalizáljuk Q15-re)
+        float q1f = (float)bin.q1;
+        float q2f = (float)bin.q2;
+        float coefff = (float)bin.coeff / Q15_MAX_AS_FLOAT; // visszaállítjuk a 2*cos(omega) lebegőpontos értékre
+        float magSq = (q1f * q1f) + (q2f * q2f) - (q1f * q2f * coefff);
+        float mag = (magSq > 0.0f) ? sqrtf(magSq) : 0.0f;
+        // Tároljuk a magnitúdót mint mintavételi egységben kerekített int-et (ahogy a minta referencia is használja)
+        bin.magnitude = (q15_t)constrain((int32_t)(mag + 0.5f), -32768, 32767);
+        markSum += mag;
+        markPeak = std::max(markPeak, mag);
     }
 
     float spacePeak = 0.0f;
-    for (const auto &bin : spaceBins) {
-        float mag_f = (float)bin.magnitude / Q15_SCALE;
-        spacePeak = std::max(spacePeak, mag_f);
+    float spaceSum = 0.0f;
+    for (auto &bin : spaceBins) {
+        float q1f = (float)bin.q1;
+        float q2f = (float)bin.q2;
+        float coefff = (float)bin.coeff / Q15_MAX_AS_FLOAT;
+        float magSq = (q1f * q1f) + (q2f * q2f) - (q1f * q2f * coefff);
+        float mag = (magSq > 0.0f) ? sqrtf(magSq) : 0.0f;
+        bin.magnitude = (q15_t)constrain((int32_t)(mag + 0.5f), -32768, 32767);
+        spaceSum += mag;
+        spacePeak = std::max(spacePeak, mag);
     }
 
-    // Egyszerű metric: log10(mark/space)
-    // Pozitív -> MARK, Negatív -> SPACE
-    float metric = log10f((markPeak + 0.001f) / (spacePeak + 0.001f));
+    // Noise floor samples (exclude peak bin)
+    float markNoiseSample = (BINS_PER_TONE > 1) ? ((markSum - markPeak) / static_cast<float>(BINS_PER_TONE - 1)) : 0.0f;
+    float spaceNoiseSample = (BINS_PER_TONE > 1) ? ((spaceSum - spacePeak) / static_cast<float>(BINS_PER_TONE - 1)) : 0.0f;
+
+    // Update noise floors similar to reference
+    auto updateNoiseFloor = [](float currentFloor, float noiseSample, float peak) -> float {
+        float sample = std::max(noiseSample, 0.0f);
+        if (currentFloor == 0.0f) {
+            return std::max(sample, MIN_NOISE_FLOOR);
+        }
+
+        bool strongSignal = (peak > currentFloor * NOISE_PEAK_RATIO) && (peak > (MIN_DOMINANT_MAG * 0.6f));
+        if (strongSignal) {
+            sample = std::min(sample, currentFloor * NOISE_PEAK_RATIO);
+        }
+
+        float alpha = (sample < currentFloor) ? NOISE_DECAY_ALPHA : NOISE_ALPHA;
+        alpha = constrain(alpha, 0.01f, 0.95f);
+        float blended = currentFloor * (1.0f - alpha) + sample * alpha;
+        return std::max(blended, MIN_NOISE_FLOOR);
+    };
+
+    float markNoise = (float)markNoiseFloor_q15 / Q15_SCALE;
+    float spaceNoise = (float)spaceNoiseFloor_q15 / Q15_SCALE;
+    markNoise = updateNoiseFloor(markNoise, markNoiseSample, markPeak);
+    spaceNoise = updateNoiseFloor(spaceNoise, spaceNoiseSample, spacePeak);
+
+    // Tároljuk a zajpadlót mint egész számú mintavételi egységet (nem Q15-skalázva)
+    markNoiseFloor_q15 = (q15_t)constrain((int32_t)(markNoise + 0.5f), -32768, 32767);
+    spaceNoiseFloor_q15 = (q15_t)constrain((int32_t)(spaceNoise + 0.5f), -32768, 32767);
+
+    // Envelope update (like reference)
+    static float markEnvelope = 0.0f;
+    static float spaceEnvelope = 0.0f;
+
+    auto updateEnvelope = [](float currentEnv, float magnitude) -> float {
+        if (currentEnv == 0.0f) {
+            return magnitude;
+        }
+        float alpha = (magnitude > currentEnv) ? ENVELOPE_ATTACK : ENVELOPE_DECAY;
+        return currentEnv * (1.0f - alpha) + magnitude * alpha;
+    };
+
+    markEnvelope = updateEnvelope(markEnvelope, markPeak);
+    spaceEnvelope = updateEnvelope(spaceEnvelope, spacePeak);
+
+    // Clip to envelope and ensure >= noise floor
+    float markClipped = std::min(markPeak, markEnvelope);
+    float spaceClipped = std::min(spacePeak, spaceEnvelope);
+    float noiseFloor = std::min(markNoise, spaceNoise);
+    markClipped = std::max(markClipped, noiseFloor);
+    spaceClipped = std::max(spaceClipped, noiseFloor);
+
+    float markAgc = markClipped;
+    float spaceAgc = spaceClipped;
+
+    // ATC log-domain metric
+    float metric = log10f((markAgc + 1.0f) / (spaceAgc + 1.0f));
     isMark = (metric > 0.0f);
     confidence = fabsf(metric);
 
-    bool toneDetected = (markPeak > 0.001f) || (spacePeak > 0.001f);
+    float dominantMagnitude = std::max(markPeak, spacePeak);
+    bool toneDetected = dominantMagnitude >= MIN_DOMINANT_MAG;
 
-    // Debug: periodikus kiírás (ritkán)
+    // Periodic debug print (only when toneDetected similar to reference)
     static int debugCounter = 0;
-    if (++debugCounter >= 100) {
-        RTTY_DEBUG("RTTY: mark=%.3f space=%.3f met=%.3f -> %s\n", markPeak, spacePeak, metric, isMark ? "MARK" : "SPACE");
+    if (++debugCounter >= 20) {
+        RTTY_DEBUG("RTTY: M=%.0f/%.0f NF=%.1f, S=%.0f/%.0f NF=%.1f, metric=%.3f, %s (conf: %.2f)\n", markPeak, markEnvelope, markNoise, spacePeak,
+                   spaceEnvelope, spaceNoise, metric, isMark ? "MARK" : "SPACE", confidence);
         debugCounter = 0;
     }
 
@@ -483,7 +566,7 @@ void DecoderRTTY_C1::processBit(bool bitValue) {
                 currentState = DATA_BITS;
                 bitsReceived = 0;
                 currentByte = 0;
-                // RTTY_DEBUG("RTTY-C1: Start bit detektálva\n");
+                RTTY_DEBUG("RTTY-C1: Start bit detektálva\n");
             }
             break;
 
@@ -503,8 +586,13 @@ void DecoderRTTY_C1::processBit(bool bitValue) {
             // Stop bit kellene Mark legyen, de toleráljuk ha Space
             // RTTY_DEBUG("RTTY-C1: Stop bit = %s\n", isMark ? "Mark (OK)" : "Space (tolerálva)");
 
+            RTTY_DEBUG("RTTY-C1: Stop bit received, baudot=0x%02X\n", currentByte);
+            // Print raw 5-bit pattern LSB-first for debugging
+            RTTY_DEBUG("RTTY-C1: Baudot bits (LSB..MSB) = %d%d%d%d%d\n", (currentByte >> 0) & 1, (currentByte >> 1) & 1, (currentByte >> 2) & 1,
+                       (currentByte >> 3) & 1, (currentByte >> 4) & 1);
             char decoded = decodeBaudotCharacter(currentByte);
             if (decoded != '\0') {
+                RTTY_DEBUG("RTTY-C1: Dekódolt karakter: '%c' (code=0x%02X, shift=%s)\n", decoded, currentByte, figsShift ? "FIGS" : "LTRS");
                 if (!decodedData.textBuffer.put(decoded)) {
                     RTTY_DEBUG("RTTY-C1: textBuffer tele (karakter='%c')\n", decoded);
                 }
@@ -530,11 +618,13 @@ char DecoderRTTY_C1::decodeBaudotCharacter(uint8_t baudotCode) {
 
     if (baudotCode == 0x1B) { // FIGS
         figsShift = true;
+        RTTY_DEBUG("RTTY-C1: FIGS shift code encountered\n");
         return '\0';
     }
 
     if (baudotCode == 0x1F) { // LTRS
         figsShift = false;
+        RTTY_DEBUG("RTTY-C1: LTRS shift code encountered\n");
         return '\0';
     }
 

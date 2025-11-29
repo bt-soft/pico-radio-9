@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
  * -----                                                                                                               *
- * Last Modified: 2025.11.29, Saturday  03:36:21                                                                       *
+ * Last Modified: 2025.11.29, Saturday  04:45:59                                                                       *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -166,7 +166,7 @@ constexpr BandwidthScaleConfig BANDWIDTH_SCALE_TABLE[] = {
     {CW_AF_BANDWIDTH_HZ, SC_LOWRES_BAR, SC_HIGHRES_BAR, SC_OSCI, SC_ENVELOPE, SC_WATERFALL, 3072, 100},    // CW (1500 Hz) - SNR curve csökkentve
     {3000, SC_LOWRES_BAR, SC_HIGHRES_BAR, SC_OSCI, SC_ENVELOPE, SC_WATERFALL, 1536, 100},                  // Köztes (3000 Hz)
     {WEFAX_AF_BANDWIDTH_HZ, SC_LOWRES_BAR, SC_HIGHRES_BAR, SC_OSCI, SC_ENVELOPE, SC_WATERFALL, 1100, 100}, // WeFax (4410 Hz)
-    {AM_AF_BANDWIDTH_HZ, SC_LOWRES_BAR, SC_HIGHRES_BAR, SC_OSCI, SC_ENVELOPE, SC_WATERFALL, 768, 100},     // AM/RTTY/SSTV (6000 Hz) - SNR curve növelve
+    {AM_AF_BANDWIDTH_HZ, SC_LOWRES_BAR, SC_HIGHRES_BAR, SC_OSCI, SC_ENVELOPE, SC_WATERFALL, 768, 768},     // AM/RTTY/SSTV (6000 Hz) - SNR curve növelve
     {FM_AF_BANDWIDTH_HZ, SC_LOWRES_BAR, SC_HIGHRES_BAR, SC_OSCI, 3840, 3328, 307, 100}                     // FM (15000 Hz)
 };
 constexpr size_t BANDWIDTH_SCALE_TABLE_SIZE = ARRAY_ITEM_COUNT(BANDWIDTH_SCALE_TABLE);
