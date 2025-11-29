@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
  * -----                                                                                                               *
- * Last Modified: 2025.11.22, Saturday  09:51:47                                                                       *
+ * Last Modified: 2025.11.29, Saturday  07:49:17                                                                       *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -416,7 +416,7 @@ void processFifoCommands() {
         }
         case RP2040CommandCode::CMD_AUDIOPROC_GET_USE_FFT_ENABLED: {
             rp2040.fifo.push(RP2040ResponseCode::RESP_USE_FFT_ENABLED);
-            rp2040.fifo.push(audioProcC1.useFFT ? 1 : 0);
+            rp2040.fifo.push(audioProcC1.isUseFFT() ? 1 : 0);
             break;
         }
 
@@ -470,7 +470,7 @@ void processFifoCommands() {
 
         case RP2040CommandCode::CMD_AUDIOPROC_SET_USE_FFT_ENABLED: {
             bool enabled = (rp2040.fifo.pop() != 0);
-            audioProcC1.useFFT = enabled;
+            audioProcC1.setUseFFT(enabled);
             rp2040.fifo.push(RP2040ResponseCode::RESP_ACK);
             break;
         }

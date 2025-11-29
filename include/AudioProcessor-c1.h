@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                       *
  * -----                                                                                                               *
- * Last Modified: 2025.11.29, Saturday  06:50:10                                                                       *
+ * Last Modified: 2025.11.29, Saturday  07:49:12                                                                       *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -42,6 +42,8 @@ class AudioProcessorC1 {
     void start();
     void stop();
 
+    inline bool isUseFFT() const { return useFFT; } // visszaadja, hogy FFT-t használunk-e
+    inline void setUseFFT(bool enabled) { useFFT = enabled; }
     inline uint16_t getSampleCount() { return adcDmaC1.getSampleCount(); }                                // visszaadja a mintaszámot blokkonként
     inline uint32_t getSamplingRate() { return adcDmaC1.getSamplingRate(); }                              // visszaadja a mintavételezési sebességet Hz-ben
     void reconfigureAudioSampling(uint16_t sampleCount, uint16_t samplingRate, uint32_t bandwidthHz = 0); // átméretezi a mintavételezési konfigurációt
@@ -95,32 +97,11 @@ class AudioProcessorC1 {
     inline void setFixedPointFFTEnabled(bool enabled) { useFixedPointFFT_ = enabled; }
     inline bool isFixedPointFFTEnabled() const { return useFixedPointFFT_; }
 
-  public:
-    bool useFFT;
-
   private:
-    void removeDcAndSmooth(const uint16_t *input, int16_t *output, uint16_t count);
-    void applyAgc(int16_t *samples, uint16_t count);
-    bool checkSignalThreshold(int16_t *samples, uint16_t count);
-    void applyFftGaussianWindow(float *data, uint16_t size, float fftBinWidthHz, float boostMinHz, float boostMaxHz, float boostGain);
-
-    // CMSIS-DSP Q15 fixpontos FFT metódusok
-    // Returns FFT and dominant-search times in microseconds via output references
-    bool processFixedPointFFT(SharedData &sharedData, uint32_t &fftTime_us, uint32_t &domTime_us);
-    void initFixedPointFFT(uint16_t sampleCount);
-    void buildHanningWindow_q15(uint16_t size);
-
-    // Konverziós segédfüggvények
-    inline q15_t floatToQ15(float val) { return (q15_t)(val * 32767.0f); }
-    inline float q15ToFloat(q15_t val) { return (float)val / 32767.0f; }
-
-    // Goertzel detektor API: számolja a magnitúdót egy célfrekvenciára az utolsó feldolgozott minták alapján
-    // Visszatérési érték: magnitúdó (lineáris) vagy -1 hibára
-    float computeGoertzelMagnitude(float targetFreqHz);
-
     AdcDmaC1 adcDmaC1;
     AdcDmaC1::CONFIG adcConfig;
     bool is_running;
+    bool useFFT;
     bool useBlockingDma; // Blokkoló (true) vagy nem-blokkoló (false) DMA mód
 
     uint16_t currentFftSize; // Aktuális FFT méret
@@ -158,8 +139,23 @@ class AudioProcessorC1 {
     bool useNoiseReduction_;  // Zajszűrés be/ki kapcsoló
     uint8_t smoothingPoints_; // Mozgó átlag simítás pontok száma (0=nincs, 3 vagy 5)
 
-    void gainFttMagnitudeValues(SharedData &sharedData);
-    // Bin-kizárás segédfüggvény: visszaadja, hogy az adott binIndex-et be kell-e vonni
-    // a megjelenítésbe/feldolgozásba a megadott binWidthHz alapján és a spektrum mérete szerint.
+    void removeDcAndSmooth(const uint16_t *input, int16_t *output, uint16_t count);
+    void applyAgc(int16_t *samples, uint16_t count);
+    void applyFftGaussianWindow(float *data, uint16_t size, float fftBinWidthHz, float boostMinHz, float boostMaxHz, float boostGain);
+
+    // CMSIS-DSP Q15 fixpontos FFT metódusok
+    // Returns FFT and dominant-search times in microseconds via output references
+    bool processFixedPointFFT(SharedData &sharedData, uint32_t &fftTime_us, uint32_t &domTime_us);
+    void initFixedPointFFT(uint16_t sampleCount);
+    void buildHanningWindow_q15(uint16_t size);
+
+    // Konverziós segédfüggvények
+    inline q15_t floatToQ15(float val) { return (q15_t)(val * 32767.0f); }
+    inline float q15ToFloat(q15_t val) { return (float)val / 32767.0f; }
+
+    // Goertzel detektor API: számolja a magnitúdót egy célfrekvenciára az utolsó feldolgozott minták alapján
+    // Visszatérési érték: magnitúdó (lineáris) vagy -1 hibára
+    float computeGoertzelMagnitude(float targetFreqHz);
+
     bool isBinInAudioRange(uint16_t binIndex, float binWidthHz, uint16_t spectrumSize) const;
 };

@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
  * -----                                                                                                               *
- * Last Modified: 2025.11.29, Saturday  07:39:47                                                                       *
+ * Last Modified: 2025.11.29, Saturday  07:45:44                                                                       *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -192,39 +192,6 @@ void AudioProcessorC1::reconfigureAudioSampling(uint16_t sampleCount, uint16_t s
     this->start();
 }
 
-// /**
-//  * @brief Ellenőrzi, hogy a bemeneti jel meghaladja-e a küszöbértéket.
-//  * @param sharedData A SharedData struktúra referencia, amit fel kell tölteni.
-//  * @return true, ha a jel meghaladja a küszöböt, különben false.
-//  */
-// //[[maybe_unused]] // sehol sem használjuk
-// bool AudioProcessorC1::checkSignalThreshold(int16_t *samples, uint16_t count) {
-
-//     // Kikeressük a max abszolút értéket a bemeneti minták között
-//     int16_t maxAbsRaw = std::abs(*std::max_element( //
-//         samples, samples + count,                   //
-//         [](int16_t a, int16_t b) {                  //
-//             return std::abs(a) < std::abs(b);       //
-//         }));
-
-//     // Küszöb: ha a bemenet túl kicsi, akkor ne vegyen fel hamis spektrum-csúcsot.
-//     constexpr int16_t RAW_SIGNAL_THRESHOLD = 80; // nyers ADC egységben, hangolandó
-//     if (maxAbsRaw < RAW_SIGNAL_THRESHOLD) {
-// #ifdef __ADPROC_DEBUG
-//         // Ha túl kicsi a jel akkor azt jelezzük
-//         static uint8_t thresholdDebugCounter = 0;
-//         if (++thresholdDebugCounter >= 100) {
-//             ADPROC_DEBUG("AudioProc-c1: nincs audió jel (maxAbsRaw=%d) -- FFT kihagyva\n", (int)maxAbsRaw);
-//             thresholdDebugCounter = 0;
-//         }
-// #endif
-//         return false;
-//     }
-
-//     // Jel meghaladja a küszöböt
-//     return true;
-// }
-
 /**
  * @brief DC komponens eltávolítása és zajszűrés mozgó átlaggal
  * @param input Bemeneti nyers ADC minták (uint16_t)
@@ -278,7 +245,6 @@ void AudioProcessorC1::removeDcAndSmooth(const uint16_t *input, int16_t *output,
             });
         }
 
-        // Ezen az ágon nincs további feldolgozás
         return;
     }
 
@@ -462,46 +428,6 @@ void AudioProcessorC1::applyFftGaussianWindow(float *data, uint16_t size, float 
             gain = minGain + (boostGain - minGain) * gauss;
         }
         data[i] *= gain;
-    }
-}
-
-/**
- * @brief FFT magnitúdó értékek erősítése bizonyos frekvenciatartományokban.
- * @param sharedData A SharedData struktúra referencia, amit fel kell tölteni.
- */
-void AudioProcessorC1::gainFttMagnitudeValues(SharedData &sharedData) {
-    // Frequency-dependent amplifier profile (dB -> linear)
-    // Profile requested:
-    // - baseline 0 dB
-    // - < 4 kHz : -6 dB (csillapítás)
-    // - 7 kHz .. 9 kHz : +8 dB
-    // - >= 9 kHz : +10 dB
-
-    if (sharedData.fftBinWidthHz <= 0.0f) {
-        return;
-    }
-
-    const float binHz = sharedData.fftBinWidthHz;
-    for (uint16_t i = 0; i < sharedData.fftSpectrumSize; ++i) {
-        float freq = i * binHz;
-
-        float dbGain = 0.0f; // default 0 dB
-
-        if (freq < 4000.0f) {
-            dbGain = -10.0f; // csillapítás
-        } else if (freq >= 7000.0f && freq < 9000.0f) {
-            dbGain = 18.0f; // erősítés
-        } else if (freq >= 9000.0f) {
-            dbGain = 8.0f; // erősítés
-        } else {
-            dbGain = 0.0f; // alapértelmezett
-        }
-
-        // Convert dB to linear
-        float linearGain = powf(10.0f, dbGain / 20.0f);
-
-        // Apply per-bin
-        sharedData.fftSpectrumData[i] *= linearGain;
     }
 }
 
