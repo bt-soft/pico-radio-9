@@ -160,9 +160,9 @@ constexpr float OSCI_SENSITIVITY_FACTOR = 3.5f; // Legacy
 constexpr uint16_t ENVELOPE_SCALE_Q8 = 15;
 constexpr float ENVELOPE_SENSITIVITY_FACTOR = 0.06f; // Legacy
 
-// Waterfall mód (Q8: 0.2 * 256 ≈ 51)
-constexpr uint16_t WATERFALL_SCALE_Q8 = 51;
-constexpr float WATERFALL_SENSITIVITY_FACTOR = 0.2f; // Legacy
+// Waterfall mód (Q8: 0.05 * 256 ≈ 13) - CSÖKKENTVE a túlvezérlés elkerülésére
+constexpr uint16_t WATERFALL_SCALE_Q8 = 13;
+constexpr float WATERFALL_SENSITIVITY_FACTOR = 0.05f; // Legacy
 
 // CW/RTTY SNR Curve (Q8: 0.08 * 256 ≈ 20)
 constexpr uint16_t TUNING_AID_SNR_CURVE_SCALE_Q8 = 20;

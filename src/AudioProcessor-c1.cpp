@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
  * -----                                                                                                               *
- * Last Modified: 2025.11.29, Saturday  07:45:44                                                                       *
+ * Last Modified: 2025.11.29, Saturday  08:38:53                                                                       *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -661,26 +661,6 @@ bool AudioProcessorC1::isBinInAudioRange(uint16_t binIndex, float binWidthHz, ui
     if (binWidthHz <= 0.0f || spectrumSize == 0) {
         return false;
     }
-    // Először megvizsgáljuk az egész spektrum legnagyobb (pre-zero) csúcsát.
-    // Ha a legnagyobb pre-zero csúcs teljesen kívül esik a megengedett sávon,
-    // akkor a spektrumot ki kell zárni (minden bin false lesz).
-    uint16_t fullSearchSize = std::min((uint16_t)magnitude_q15.size(), spectrumSize);
-    q15_t preMaxVal = 0;
-    uint16_t preMaxIdx = 0;
-    for (uint16_t i = 1; i < fullSearchSize; ++i) { // DC kihagyása
-        if (magnitude_q15[i] > preMaxVal) {
-            preMaxVal = magnitude_q15[i];
-            preMaxIdx = i;
-        }
-    }
-
-    if (preMaxVal > 0) {
-        float preMaxFreq = (float)preMaxIdx * binWidthHz;
-        if (preMaxFreq < MIN_AUDIO_FREQEUNCY_HZ || preMaxFreq > MAX_AUDIO_FREQUENCY_HZ) {
-            // A teljes spektrum legnagyobb komponense kívül van -> minden bin kizárva
-            return false;
-        }
-    }
 
     // Bin alsó és felső határa (Hz)
     float binLow = (float)binIndex * binWidthHz;
@@ -762,12 +742,16 @@ bool AudioProcessorC1::processFixedPointFFT(SharedData &sharedData, uint32_t &ff
         N >>= 1;
     }
 
-    // Skálázás visszaállítása: balra shift (de óvatosan a túlcsordulás miatt)
-    // Inkább csak 6-8 bitet toljunk vissza, hogy ne legyen túlcsordulás
-    uint16_t safeScaleBits = (fftScaleBits > 8) ? 8 : fftScaleBits;
+    // JAVÍTÁS: Teljes skálázás visszaállítása! A magnitude számításnál nincs túlcsordulás veszély,
+    // mert az arm_cmplx_mag_q15 sqrt()-ot végez (komplex -> valós magnitude), ami csökkenti a dinamikát.
+    // A butterfly kimenet komplex (re, im), de a magnitude = sqrt(re^2 + im^2) mindig <= max(|re|, |im|) * sqrt(2).
+    // Ezért biztonságos a teljes rescale, mivel utána jön a magnitude számítás.
+    //
+    // FONTOS: Ne használjunk "safe" korlátozást, mert az adatvesztést okoz!
+    uint16_t rescaleBits = fftScaleBits;
 
     for (uint16_t i = 0; i < adcConfig.sampleCount * 2; i++) {
-        q31_t scaled = ((q31_t)fftInput_q15[i]) << safeScaleBits;
+        q31_t scaled = ((q31_t)fftInput_q15[i]) << rescaleBits;
         fftInput_q15[i] = __SSAT(scaled, 16);
     }
 
@@ -807,15 +791,67 @@ bool AudioProcessorC1::processFixedPointFFT(SharedData &sharedData, uint32_t &ff
         sharedData.fftSpectrumData[0] = 0;
     }
 
-    // Bin szélesség beállítása
+    // Bin szélesség beállítása (ELŐBB, mert a bin-kizáráshoz kell)
     sharedData.fftBinWidthHz = currentBinWidthHz;
 
-    // Kizárjuk a kívül eső bin-eket a SharedData-ban.
+    // --- BIN-KIZÁRÁS: Frekvencia tartományon kívüli bin-ek nullázása (MIN/MAX alapján) ---
+    // KRITIKUS: Ez ELŐBB fut le, mint a zajküszöb!
     if (sharedData.fftBinWidthHz > 0.0f) {
+        // Először: egyszerű bin-enkénti kizárás a tartományon kívülre
         for (uint16_t i = 0; i < sharedData.fftSpectrumSize; ++i) {
             if (!isBinInAudioRange(i, sharedData.fftBinWidthHz, sharedData.fftSpectrumSize)) {
                 sharedData.fftSpectrumData[i] = 0;
             }
+        }
+
+        // Másodszor: pre-max ellenőrzés (MOST MÁR a kizárt adatokon dolgozunk!)
+        uint16_t preMaxIdx = 0;
+        q15_t preMaxVal = 0;
+        for (uint16_t i = 1; i < sharedData.fftSpectrumSize; ++i) { // DC kihagyása
+            if (sharedData.fftSpectrumData[i] > preMaxVal) {
+                preMaxVal = sharedData.fftSpectrumData[i];
+                preMaxIdx = i;
+            }
+        }
+
+        if (preMaxVal > 0) {
+            float preMaxFreq = (float)preMaxIdx * sharedData.fftBinWidthHz;
+            // Ha a legnagyobb csúcs out-of-band (ez már NEM kellene hogy előforduljon a fenti kizárás után)
+            if (preMaxFreq < MIN_AUDIO_FREQEUNCY_HZ || preMaxFreq > MAX_AUDIO_FREQUENCY_HZ) {
+                // Biztonsági fallback: teljes spektrum törlése
+                memset(sharedData.fftSpectrumData, 0, sharedData.fftSpectrumSize * sizeof(sharedData.fftSpectrumData[0]));
+                sharedData.dominantAmplitude = 0;
+                sharedData.dominantFrequency = 0;
+                return true;
+            }
+        }
+    }
+
+    // --- ZAJKÜSZÖB ALKALMAZÁSA (BIN-KIZÁRÁS UTÁN!) ---
+    // Az alacsony amplitúdójú bin-eket nullázzuk (zaj-elnyomás)
+    // KRITIKUS: Ez UTÁN történik a bin-kizárásnak, így csak az érvényes tartományon belüli zajt szűri!
+    //
+    // ADAPTÍV KÜSZÖB: A domináns jel 10%-a (minimum 500)
+    // Ez automatikusan alkalmazkodik a jel erősségéhez
+    q15_t adaptiveThreshold = 500; // Alapértelmezett küszöb
+
+    // Először megkeressük a max értéket (pre-scan)
+    q15_t preMaxValue = 0;
+    for (uint16_t i = 0; i < sharedData.fftSpectrumSize; ++i) {
+        if (sharedData.fftSpectrumData[i] > preMaxValue) {
+            preMaxValue = sharedData.fftSpectrumData[i];
+        }
+    }
+
+    // Küszöb = max * 0.1, de minimum 500
+    if (preMaxValue > 5000) {
+        adaptiveThreshold = preMaxValue / 10; // 10% a maximum-ból
+    }
+
+    // Zajküszöb alkalmazása
+    for (uint16_t i = 0; i < sharedData.fftSpectrumSize; ++i) {
+        if (sharedData.fftSpectrumData[i] > 0 && sharedData.fftSpectrumData[i] < adaptiveThreshold) {
+            sharedData.fftSpectrumData[i] = 0;
         }
     }
 
@@ -846,19 +882,34 @@ bool AudioProcessorC1::processFixedPointFFT(SharedData &sharedData, uint32_t &ff
     uint32_t endTotal = micros();
     uint32_t totalTime_us = endTotal - startTotal;
 
-    // Teljesítmény kimutatás minden 100. blokkban
+    // Teljesítmény kimutatás minden 200. blokkban
     static uint8_t runDebugCounter = 0;
-    if (++runDebugCounter >= 100) {
+    if (++runDebugCounter >= 200) {
         const float N = (float)adcConfig.sampleCount;
         float amp_q15 = (float)maxValue / 32767.0f; // Q15 → float konverzió csak debug céljára
         float amp_mV_peak = amp_q15 * ADC_LSB_VOLTAGE_MV * N;
 
-        ADPROC_DEBUG("AudioProc-c1 [Q15-FIXED]: Total=%lu us, PreProc=%lu us, FFT=%lu us, DomSearch=%lu us, "
-                     "DomFreq=%.1f Hz, amp_q15=%d, peak=%.3f mV\n",
-                     totalTime_us, preprocTime, fftTime_us, domTime_us, dominantFreqHz, maxValue, amp_mV_peak);
+        // Spektrum statisztika: hány bin nulla/nem-nulla
+        uint16_t nonZeroBins = 0;
+        uint16_t zeroBins = 0;
+        q15_t minNonZero = 32767;
+        q15_t maxNonZero = 0;
+        for (uint16_t i = 0; i < sharedData.fftSpectrumSize; ++i) {
+            if (sharedData.fftSpectrumData[i] == 0) {
+                zeroBins++;
+            } else {
+                nonZeroBins++;
+                if (sharedData.fftSpectrumData[i] < minNonZero)
+                    minNonZero = sharedData.fftSpectrumData[i];
+                if (sharedData.fftSpectrumData[i] > maxNonZero)
+                    maxNonZero = sharedData.fftSpectrumData[i];
+            }
+        }
 
-        // Részletes debug pipeline
-        // ADPROC_DEBUG("  [PIPELINE] inputMax=%d, windowedMax=%d, fftMax=%d (scaled), magMax=%d (idx=%d)\n", inputMax, windowedMax, fftMax, magMax, magMaxIdx);
+        ADPROC_DEBUG("AudioProc-c1 [Q15]: T=%lu us, FFT=%lu us, DomFreq=%.1f Hz, amp=%d, pk=%.1f mV\n", totalTime_us, fftTime_us, dominantFreqHz, maxValue,
+                     amp_mV_peak);
+        ADPROC_DEBUG("  Spectrum: bins=%d, nonZero=%d, zero=%d, range=[%d..%d], binWidth=%.1f Hz\n", sharedData.fftSpectrumSize, nonZeroBins, zeroBins,
+                     minNonZero, maxNonZero, currentBinWidthHz);
 
         runDebugCounter = 0;
     }
