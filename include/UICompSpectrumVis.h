@@ -231,6 +231,11 @@ class UICompSpectrumVis : public UIComponent {
 
     // Envelope és Waterfall buffer - egyszerűsített 2D vektor
     std::vector<std::vector<uint8_t>> wabuf;
+    // HighRes simítási puffer a képkockák közötti villogás csökkentésére
+    std::vector<float> highresSmoothedCols;
+
+    // HighRes időbeli (temporal) simítás mértéke (0.0 = nincs simítás, 1.0 = lefagyasztás)
+    static constexpr float HIGHRES_SMOOTH_ALPHA = 0.7f;
 
     /**
      * @brief Sprite kezelő függvények

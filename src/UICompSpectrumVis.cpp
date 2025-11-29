@@ -1082,6 +1082,10 @@ void UICompSpectrumVis::renderSpectrumBar(bool isLowRes) {
 
         // HighRes: kétfázisos számítás (Q15 optimalizált - direkt pixel konverzió)
         std::vector<uint16_t> computedCols(bounds.width, 0);
+        // Simítási puffer inicializálása, ha szükséges
+        if (highresSmoothedCols.size() != bounds.width) {
+            highresSmoothedCols.assign(bounds.width, 0.0f);
+        }
         for (uint8_t screen_pixel_x = 0; screen_pixel_x < bounds.width; ++screen_pixel_x) {
             uint16_t fft_bin_index;
             if (bounds.width == 1) {
@@ -1100,7 +1104,11 @@ void UICompSpectrumVis::renderSpectrumBar(bool isLowRes) {
 
             // Direkt Q15 → pixel magasság (integer aritmetika)
             uint16_t height = q15ToPixelHeight(magnitude_q15, scaleFactorQ8, MAX_BAR_HEIGHT);
-            computedCols[screen_pixel_x] = height;
+            // Oszloponkénti időbeli simítás alkalmazása a villogás csökkentésére
+            float sm = highresSmoothedCols[screen_pixel_x];
+            float newSm = UICompSpectrumVis::HIGHRES_SMOOTH_ALPHA * sm + (1.0f - UICompSpectrumVis::HIGHRES_SMOOTH_ALPHA) * static_cast<float>(height);
+            highresSmoothedCols[screen_pixel_x] = newSm;
+            computedCols[screen_pixel_x] = static_cast<uint16_t>(newSm + 0.5f);
         }
 
         // Második passz: skálázzuk úgy, hogy a legnagyobb oszlop a cél kitöltést adja
@@ -1119,7 +1127,8 @@ void UICompSpectrumVis::renderSpectrumBar(bool isLowRes) {
         }
 
         for (uint8_t screen_pixel_x = 0; screen_pixel_x < bounds.width; ++screen_pixel_x) {
-            uint16_t scaledHeight = static_cast<uint16_t>(computedCols[screen_pixel_x] * finalScale);
+            // Use smoothed computedCols for final scaling
+            uint16_t scaledHeight = static_cast<uint16_t>(static_cast<float>(computedCols[screen_pixel_x]) * finalScale);
 
             sprite_->drawFastVLine(screen_pixel_x, 0, graphH, TFT_BLACK);
             uint8_t scaled_magnitude = static_cast<uint8_t>(constrain(scaledHeight, 0, static_cast<int>(graphH) - 1));
