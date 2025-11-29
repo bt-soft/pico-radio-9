@@ -1,25 +1,22 @@
 /*
- * Project: [pico-radio-9] Raspberry Pi Pico Si4735 Radio                                                              *
- * File: decoder_api.h                                                                                                 *
- * Created Date: 2025.11.15.                                                                                           *
- *                                                                                                                     *
- * Author: BT-Soft                                                                                                     *
- * GitHub: https://github.com/bt-soft                                                                                  *
- * Blog: https://electrodiy.blog.hu/                                                                                   *
- * -----                                                                                                               *
- * Copyright (c) 2025 BT-Soft                                                                                          *
- * License: MIT License                                                                                                *
- * 	Bárki szabadon használhatja, módosíthatja, terjeszthet, beépítheti más                                             *
- * 	projektbe (akár zártkódúba is), akár pénzt is kereshet vele                                                        *
- * 	Egyetlen feltétel:                                                                                                 *
- * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
- * -----                                                                                                               *
- * Last Modified: 2025.11.29, Saturday  12:56:43                                                                       *
- * Modified By: BT-Soft                                                                                                *
- * -----                                                                                                               *
- * HISTORY:                                                                                                            *
- * Date      	By	Comments                                                                                           *
- * ----------	---	-------------------------------------------------------------------------------------------------  *
+ * Projekt: [pico-radio-9] Raspberry Pi Pico Si4735 Radio
+ * Fájl: decoder_api.h
+ * Létrehozva: 2025.11.15.
+ *
+ * Szerző: BT-Soft
+ * GitHub: https://github.com/bt-soft
+ * Blog: https://electrodiy.blog.hu/
+ * -----
+ * Copyright (c) 2025 BT-Soft
+ * Licenc: MIT
+ * 	A forrás szabadon használható, módosítható és terjeszthető; egyetlen feltétel a licenc és a szerző feltüntetése.
+ * -----
+ * Utolsó módosítás: 2025.11.29.
+ * Módosította: BT-Soft
+ * -----
+ * TÖRTÉNET (HISTORY):
+ * Dátum		By	Megjegyzés
+ * ---------------------------------------------------------------
  */
 
 #pragma once
@@ -69,6 +66,7 @@ enum RP2040CommandCode : uint32_t {
     CMD_AUDIOPROC_SET_SPECTRUM_AVERAGING_COUNT, // AudioProcessor spektrum nem-koherens átlagolási keretszámának beállítása
     CMD_AUDIOPROC_SET_USE_FFT_ENABLED,          // AudioProcessor FFT engedélyezés beállítása
     CMD_AUDIOPROC_GET_USE_FFT_ENABLED,          // AudioProcessor FFT engedélyezés lekérdezése
+    CMD_AUDIOPROC_CALIBRATE_DC,                 // AudioProcessor: DC midpoint kalibrálás Core1-en
 
     // Dekóder specifikus parancsok
     CMD_DECODER_SET_USE_ADAPTIVE_THRESHOLD, // Dekóder adaptív küszöb használatának beállítása
@@ -116,8 +114,10 @@ struct DecoderConfig {
 #define ADC_REFERENCE_VOLTAGE_MV 3300.0f                                            // ADC referencia feszültség mV-ban
 #define ADC_LSB_VOLTAGE_MV (ADC_REFERENCE_VOLTAGE_MV / (float)(1 << ADC_BIT_DEPTH)) // 1 ADC LSB minta hány mV?
 
-#define ADC_BIT_DEPTH 12                        // ADC felbontás bit-ben
-#define ADC_MIDPOINT (1 << (ADC_BIT_DEPTH - 1)) // DC offset az ADC-hez (2048 a 12 bithez)
+#define ADC_BIT_DEPTH 12 // ADC felbontás bit-ben
+// Az ADC középpontját (midpoint) most futásidőben méri az AudioProcessorC1 és
+// a `adcMidpoint_` mezőben tárolja. A fordítási időben használt ADC_MIDPOINT
+// konstans eltávolításra került, hogy kezelni tudjuk a valós, nem-ideális DC offseteket.
 
 // --- Megosztott Adatstruktúrák ---
 

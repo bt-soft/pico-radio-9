@@ -68,6 +68,8 @@ class AudioController {
     // FFT vezérlés
     bool setUseFftEnabled(bool enabled);
     bool getUseFftEnabled();
+    // Inicializációs lánc: kérjük meg a Core1-et az ADC DC középpont kalibrálására
+    void init();
     // Spektrális átlagolás beállítása (1 = nincs átlagolás)
     bool setSpectrumAveragingCount(uint32_t n);
     // Engedélyezi/tiltja a dekóder oldali bandpass szűrőt (ha a dekóder implementálja)

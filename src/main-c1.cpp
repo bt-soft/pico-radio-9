@@ -475,6 +475,14 @@ void processFifoCommands() {
             break;
         }
 
+        case RP2040CommandCode::CMD_AUDIOPROC_CALIBRATE_DC: {
+            // Perform DC midpoint calibration on Core1 and ACK
+            uint32_t measured = audioProcC1.calibrateDcMidpoint(128);
+            CORE1_DEBUG("core-1: CMD_AUDIOPROC_CALIBRATE_DC -> measured midpoint=%u\n", measured);
+            rp2040.fifo.push(RP2040ResponseCode::RESP_ACK);
+            break;
+        }
+
         case RP2040CommandCode::CMD_DECODER_SET_USE_ADAPTIVE_THRESHOLD: {
             bool enabled = (rp2040.fifo.pop() != 0);
             // Beállítjuk a dekóder adaptív küszöb használatát

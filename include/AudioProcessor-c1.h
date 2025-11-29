@@ -52,6 +52,10 @@ class AudioProcessorC1 {
     void setSpectrumAveragingCount(uint8_t n);
     uint8_t getSpectrumAveragingCount() const;
 
+    // ADC DC középpont kalibrálása: az ADC közvetlen mintavételezése (Core1-en kell hívni)
+    // Visszatér a mért középponttal (egész ADC egységekben).
+    uint32_t calibrateDcMidpoint(uint32_t sampleCount = 128);
+
     /**
      * @brief Beállítja a DMA blokkoló/nem-blokkoló módját.
      * @param blocking true = blokkoló (SSTV/WEFAX), false = nem-blokkoló (CW/RTTY)
@@ -129,6 +133,9 @@ class AudioProcessorC1 {
     // AM ~6kHz, FM ~15kHz - ezt használjuk a dinamikus bin-kizáráshoz
     uint32_t currentBandwidthHz = 0;
 
+    // Runtime measured ADC midpoint (in ADC units, e.g., ~2048 for 12-bit). Measured on Core1.
+    uint32_t adcMidpoint_ = (1u << (ADC_BIT_DEPTH - 1));
+
     // AGC (Automatikus Erősítésszabályozás) paraméterek
     float agcLevel_;       // AGC mozgó átlag szint
     float agcAlpha_;       // AGC szűrési állandó (exponenciális mozgó átlag)
@@ -148,7 +155,7 @@ class AudioProcessorC1 {
     void applyFftGaussianWindow(float *data, uint16_t size, float fftBinWidthHz, float boostMinHz, float boostMaxHz, float boostGain);
 
     // CMSIS-DSP Q15 fixpontos FFT metódusok
-    // Returns FFT and dominant-search times in microseconds via output references
+    // A FFT és a domináns frekvencia keresés idejét mikroszekundumban adja vissza kimeneti referenciákon keresztül
     bool processFixedPointFFT(SharedData &sharedData, uint32_t &fftTime_us, uint32_t &domTime_us);
     void initFixedPointFFT(uint16_t sampleCount);
     void buildHanningWindow_q15(uint16_t size);
@@ -157,8 +164,8 @@ class AudioProcessorC1 {
     inline q15_t floatToQ15(float val) { return (q15_t)(val * Q15_MAX_AS_FLOAT); }
     inline float q15ToFloat(q15_t val) { return (float)val / Q15_MAX_AS_FLOAT; }
 
-    // Goertzel detektor API: számolja a magnitúdót egy célfrekvenciára az utolsó feldolgozott minták alapján
-    // Visszatérési érték: magnitúdó (lineáris) vagy -1 hibára
+    // Goertzel detektor API: kiszámolja a magnitúdót egy célfrekvenciára az utolsó feldolgozott minták alapján
+    // Visszatérési érték: magnitúdó (lineáris), vagy -1 hibára
     float computeGoertzelMagnitude(float targetFreqHz);
 
     bool isBinInAudioRange(uint16_t binIndex, float binWidthHz, uint16_t spectrumSize) const;

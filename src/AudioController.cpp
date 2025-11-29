@@ -29,12 +29,9 @@
 //-------------------------------------------------------------------------------------
 
 /**
- * @brief Beállítja a dekódert és a mintavételezési konfigurációt a Core 1-en.
- * @param id A dekóder azonosítója.
- * @param samplingRate A mintavételezési sebesség Hz-ben.
- * @param sampleCount A minták száma blokkonként.
- * @param bandwidthHz A sávszélesség Hz-ben.
- *
+ * @brief Indítja a Core1-en futó audio dekódert és elküldi a konfigurációt.
+ * Ezt a hívást a Core0 oldalról kell használni, hogy a Core1 beállítsa a mintavételezést,
+ * sávszélességet és a dekóder specifikus paramétereket.
  */
 void AudioController::startAudioController(DecoderId id, uint32_t sampleCount, uint32_t bandwidthHz, uint32_t cwCenterFreqHz, uint32_t rttyMarkFreqHz,
                                            uint32_t rttySpaceFreqHz, float rttyBaud) {
@@ -241,4 +238,19 @@ bool AudioController::getDecoderUseAdaptiveThreshold() {
 void AudioController::resetDecoder() {
     rp2040.fifo.push(RP2040CommandCode::CMD_DECODER_RESET);
     (void)rp2040.fifo.pop(); // ACK várás
+}
+
+/**
+ * @brief Inicializációs lánc: kérjük meg a Core1-et, hogy kalibrálja az ADC DC középpontját.
+ * Ezt a hívást a hardveres audio némítás alatt kell végrehajtani, hogy elkerüljük a hallható zajt.
+ */
+void AudioController::init() {
+    DEBUG("AudioController: init() - DC kalibráció kérése a Core1 felé\n");
+    rp2040.fifo.push(RP2040CommandCode::CMD_AUDIOPROC_CALIBRATE_DC);
+    uint32_t resp = rp2040.fifo.pop();
+    if (resp == RP2040ResponseCode::RESP_ACK) {
+        DEBUG("AudioController: init() - DC kalibráció ACK érkezett\n");
+    } else {
+        DEBUG("AudioController: init() - DC kalibráció NACK vagy nincs válasz (kód=%u)\n", resp);
+    }
 }

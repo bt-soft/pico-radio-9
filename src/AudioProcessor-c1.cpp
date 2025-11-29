@@ -229,18 +229,19 @@ void AudioProcessorC1::removeDcAndSmooth(const uint16_t *input, int16_t *output,
         if constexpr (SHIFT == 0) {
             // A std::transform végigmegy az input tömbön,
             // és minden mintából kivonja az ADC középpont értékét.
-            std::transform(input, input + count, output, [](uint16_t v) {
+            std::transform(input, input + count, output, [this](uint16_t v) {
                 // DC offset eltávolítás
-                return int16_t(v - ADC_MIDPOINT);
+                // Use runtime measured midpoint
+                return int16_t((int32_t)v - (int32_t)adcMidpoint_);
             });
         } else {
             // --------------------------------------------------
             // 1/B) DC eltávolítás + shift + clamp-elés
             // SHIFT > 0 esetén történhet túlfutás, ezért kell clamp
             // --------------------------------------------------
-            std::transform(input, input + count, output, [](uint16_t v) {
+            std::transform(input, input + count, output, [this](uint16_t v) {
                 // Minta DC korrekcióval
-                int32_t val = ((int32_t)v - ADC_MIDPOINT) << SHIFT;
+                int32_t val = ((int32_t)v - (int32_t)adcMidpoint_) << SHIFT;
 
                 // Clamp int16_t tartományra
                 val = std::clamp(val, (int32_t)INT16_MIN, (int32_t)INT16_MAX);
@@ -261,26 +262,26 @@ void AudioProcessorC1::removeDcAndSmooth(const uint16_t *input, int16_t *output,
     if (smoothingPoints_ == 5) {
         for (uint16_t i = 0; i < count; i++) {
             // A sum kezdetben az aktuális minta DC-offset korrigált értéke
-            int32_t sum = (int32_t)input[i] - ADC_MIDPOINT;
+            int32_t sum = (int32_t)input[i] - (int32_t)adcMidpoint_;
             uint8_t div = 1;
 
             // Előző 2 minta
             if (i >= 2) {
-                sum += (int32_t)input[i - 2] - ADC_MIDPOINT;
+                sum += (int32_t)input[i - 2] - (int32_t)adcMidpoint_;
                 div++;
             }
             if (i >= 1) {
-                sum += (int32_t)input[i - 1] - ADC_MIDPOINT;
+                sum += (int32_t)input[i - 1] - (int32_t)adcMidpoint_;
                 div++;
             }
 
             // Következő 2 minta
             if (i + 1 < count) {
-                sum += (int32_t)input[i + 1] - ADC_MIDPOINT;
+                sum += (int32_t)input[i + 1] - (int32_t)adcMidpoint_;
                 div++;
             }
             if (i + 2 < count) {
-                sum += (int32_t)input[i + 2] - ADC_MIDPOINT;
+                sum += (int32_t)input[i + 2] - (int32_t)adcMidpoint_;
                 div++;
             }
 
@@ -292,18 +293,18 @@ void AudioProcessorC1::removeDcAndSmooth(const uint16_t *input, int16_t *output,
         // 2/b) 3-pontos mozgó átlag (gyorsabb, enyhébb simítás)
         // ------------------------------------------------------
         for (uint16_t i = 0; i < count; i++) {
-            int32_t sum = (int32_t)input[i] - ADC_MIDPOINT;
+            int32_t sum = (int32_t)input[i] - (int32_t)adcMidpoint_;
             uint8_t div = 1;
 
             // Előző minta
             if (i >= 1) {
-                sum += (int32_t)input[i - 1] - ADC_MIDPOINT;
+                sum += (int32_t)input[i - 1] - (int32_t)adcMidpoint_;
                 div++;
             }
 
             // Következő minta
             if (i + 1 < count) {
-                sum += (int32_t)input[i + 1] - ADC_MIDPOINT;
+                sum += (int32_t)input[i + 1] - (int32_t)adcMidpoint_;
                 div++;
             }
 
@@ -432,6 +433,41 @@ void AudioProcessorC1::applyFftGaussianWindow(float *data, uint16_t size, float 
         }
         data[i] *= gain;
     }
+}
+
+uint32_t AudioProcessorC1::calibrateDcMidpoint(uint32_t sampleCount) {
+    if (sampleCount == 0)
+        sampleCount = 128;
+
+    // Ha a DMA fut, ideiglenesen leállítjuk, hogy biztonságosan tudjuk olvasni az ADC-t
+    bool wasRunning = is_running;
+    if (wasRunning) {
+        stop();
+    }
+
+    // Állítsuk az ADC csatornát az audio bemenetre (ADC0 / GPIO26)
+    adc_select_input(0);
+
+    uint64_t sum = 0;
+    for (uint32_t i = 0; i < sampleCount; ++i) {
+        // analogRead returns 12-bit value when analogReadResolution(12) set in core1 setup
+        uint32_t v = analogRead(PIN_AUDIO_INPUT);
+        sum += v;
+    }
+
+    uint32_t midpoint = static_cast<uint32_t>(sum / sampleCount);
+    adcMidpoint_ = midpoint;
+
+    // Ha előtte futott a DMA, indítsuk újra
+    if (wasRunning) {
+        start();
+    }
+
+#ifdef __ADPROC_DEBUG
+    ADPROC_DEBUG("AudioProc-c1: Calibrated ADC midpoint=%u (over %u samples)\n", midpoint, sampleCount);
+#endif
+
+    return midpoint;
 }
 
 /**

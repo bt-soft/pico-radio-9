@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
  * -----                                                                                                               *
- * Last Modified: 2025.11.16, Sunday  09:39:15                                                                         *
+ * Last Modified: 2025.11.29, Saturday  05:23:26                                                                       *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -303,12 +303,16 @@ void setup() {
     // --- Lépés 5: Frekvencia beállítások
     splash->updateProgress(splashProgressCnt++, SPLASH_SCREEN_PROGRESS_BAR_STEPS, "Setting up radio...");
     pSi4735Manager->init(true);
-    pSi4735Manager->getSi4735().setVolume(config.data.currVolume); // Hangerő visszaállítása
     delay(100);
 
     // --- Lépés 6: AudioController inicializálása
     splash->updateProgress(splashProgressCnt++, SPLASH_SCREEN_PROGRESS_BAR_STEPS, "AudioController initializing...");
-    audioController.stopAudioController(); // Alaphelyzetbe állítás
+    audioController.stopAudioController();                         // Alaphelyzetbe állítás
+    pSi4735Manager->getSi4735().setVolume(0);                      // Hangerő leállítása a zaj elkerülése érdekében
+    pSi4735Manager->getSi4735().setHardwareAudioMute(true);        // Hardver némítás bekapcsolása az audio inicializálás előtt
+    audioController.init();                                        // DC szint mérése az AD bemeneten (Core1)
+    pSi4735Manager->getSi4735().setHardwareAudioMute(false);       // Hardver némítás kikapcsolása az audio inicializálás után
+    pSi4735Manager->getSi4735().setVolume(config.data.currVolume); // Hangerő visszaállítása a konfigurációban mentett értékre
     delay(100);
 
     // --- Lépés 7: Kezdő képernyőtípus beállítása
@@ -324,7 +328,8 @@ void setup() {
 
     //-----------------------------------------------------------------------------------------------
     PicoMemoryInfo::MemoryStatus_t memStatus = PicoMemoryInfo::getMemoryStatus();
-    DEBUG("core-0: System clock: %u MHz, Heap: used: %u kB, free: %u kB\n", (unsigned)clock_get_hz(clk_sys) / 1000000u, memStatus.usedHeap / 1024u, memStatus.freeHeap / 1024);
+    DEBUG("core-0: System clock: %u MHz, Heap: used: %u kB, free: %u kB\n", (unsigned)clock_get_hz(clk_sys) / 1000000u, memStatus.usedHeap / 1024u,
+          memStatus.freeHeap / 1024);
 
     // Csippantunk egyet a végén
     Utils::beepTick();
