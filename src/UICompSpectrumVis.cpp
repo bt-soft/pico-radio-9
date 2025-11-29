@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
  * -----                                                                                                               *
- * Last Modified: 2025.11.29, Saturday  05:39:55                                                                       *
+ * Last Modified: 2025.11.29, Saturday  05:57:03                                                                       *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -115,7 +115,7 @@ constexpr float HIGHRES_SPECTRUMBAR_SENSITIVITY_FACTOR = 0.08f; // HighRes Spekt
 constexpr float OSCI_SENSITIVITY_FACTOR = 3.5f; // Oszcilloszkóp jel erősítése
 
 // Envelope mód
-constexpr float ENVELOPE_SENSITIVITY_FACTOR = 0.15f; // Envelope amplitúdó erősítése
+constexpr float ENVELOPE_SENSITIVITY_FACTOR = 0.06f; // Envelope amplitúdó erősítése
 
 // Waterfall mód
 constexpr float WATERFALL_SENSITIVITY_FACTOR = 0.2f; // Waterfall intenzitás skálázása
@@ -1244,15 +1244,19 @@ void UICompSpectrumVis::renderEnvelope() {
         // Q15 direkt float konverzió (hasonló tartomány mint a float FFT)
         float rawMagnitude = FftDisplayConstants::q15ToDisplayMagnitude(magnitudeData[fft_bin_index]);
 
-        // KRITIKUS: Infinity és NaN értékek szűrése!
+        // Infinity és NaN értékek szűrése!
         if (!isfinite(rawMagnitude) || rawMagnitude < 0.0) {
             rawMagnitude = 0.0;
         }
 
         // ELŐSZÖR zajszűrés a nyers adaton (NOISE_THRESHOLD)
-        if (rawMagnitude < (this->radioMode_ == RadioMode::AM ? NOISE_THRESHOLD_AM : NOISE_THRESHOLD_FM)) {
+        constexpr float ENVELOPE_MIN_DISPLAY_VALUE = 380.0f;                                             // Minimum megjelenítési érték az envelope-nál
+        if (rawMagnitude < (this->radioMode_ == RadioMode::AM ? NOISE_THRESHOLD_AM : NOISE_THRESHOLD_FM) //
+            || rawMagnitude < ENVELOPE_MIN_DISPLAY_VALUE) {
             rawMagnitude = 0.0;
         }
+
+        DEBUG("UICompSpectrumVis::renderEnvelope - Row %d, FFT Bin %d, Raw Magnitude: %.3f\n", r, fft_bin_index, rawMagnitude);
 
         // ----------------------------------------
         // AGC vagy manuális erősítés alkalmazása
