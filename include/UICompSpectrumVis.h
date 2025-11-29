@@ -266,7 +266,7 @@ class UICompSpectrumVis : public UIComponent {
      * @param fmScale Skálázási faktor FM módhoz (15kHz bandwidth, szétoszló energia → nagyobb skála)
      * @return A megfelelő skálázási faktor a jelenlegi rádió mód alapján
      */
-    inline uint16_t getScaleFactorForMode(uint16_t amScale, uint16_t fmScale) const { return (radioMode_ == RadioMode::AM) ? amScale : fmScale; }
+    inline uint32_t getScaleFactorForMode(uint32_t amScale, uint32_t fmScale) const { return (radioMode_ == RadioMode::AM) ? amScale : fmScale; }
 
     /**
      * @brief Spectrum bar függvények

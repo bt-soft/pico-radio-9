@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
  * -----                                                                                                               *
- * Last Modified: 2025.11.29, Saturday  10:29:50                                                                       *
+ * Last Modified: 2025.11.29, Saturday  10:44:25                                                                       *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -91,19 +91,20 @@ constexpr uint8_t SPECTRUM_FPS = 25;                              // FPS limitá
 static inline int16_t q15Abs(q15_t v) { return (v < 0) ? -v : v; }
 
 // Q15 → uint8_t direkt konverzió (waterfall/envelope buffer-hez)
-// scale_q8: skálázási tényező Q8 formátumban (256 = 1.0x, 512 = 2.0x, 128 = 0.5x)
-static inline uint8_t q15ToUint8(q15_t v, uint16_t scale_q8) {
+// scale_q16: skálázási tényező Q16 formátumban (65536 = 1.0x, 131072 = 2.0x, 32768 = 0.5x)
+// Q16 használata 256× finomabb tartományt ad, mint Q8 (1-es érték = 0.000015x)
+static inline uint8_t q15ToUint8(q15_t v, uint32_t scale_q16) {
     int32_t abs_val = q15Abs(v);
-    int32_t scaled = (abs_val * scale_q8) >> 8; // Gyors bit-shift osztás
+    int32_t scaled = (abs_val * scale_q16) >> 16; // Q16 bit-shift osztás
     return (scaled > 255) ? 255 : static_cast<uint8_t>(scaled);
 }
 
 // Q15 → pixel magasság direkt skálázás (spektrum bar-okhoz)
-// scale_q8: skálázási tényező Q8 formátumban (256 = 1.0x)
+// scale_q16: skálázási tényező Q16 formátumban (65536 = 1.0x)
 // max_height: maximális pixel magasság
-static inline uint16_t q15ToPixelHeight(q15_t v, uint16_t scale_q8, uint16_t max_height) {
+static inline uint16_t q15ToPixelHeight(q15_t v, uint32_t scale_q16, uint16_t max_height) {
     int32_t abs_val = q15Abs(v);
-    int32_t scaled = (abs_val * scale_q8) >> 8;
+    int32_t scaled = (abs_val * scale_q16) >> 16; // Q16 bit-shift
     return (scaled > max_height) ? max_height : static_cast<uint16_t>(scaled);
 }
 
@@ -137,35 +138,38 @@ constexpr float NOISE_THRESHOLD_AM = 0.0f; // Zajszűrés: zaj magnitúdó ért�
 constexpr q15_t NOISE_THRESHOLD_Q15 = 0;   // Q15 zajküszöb (0 = kikapcsolva)
 
 // ===== ÉRZÉKENYSÉGI / AMPLITÚDÓ SKÁLÁZÁSI KONSTANSOK =====
-// Q8 fixpontos formátum: 256 = 1.0x, 512 = 2.0x, 128 = 0.5x, 64 = 0.25x
+// Q16 fixpontos formátum: 65536 = 1.0x, 131072 = 2.0x, 32768 = 0.5x, 256 = 0.004x
+// Q16 használata 256× finomabb beállítási lehetőséget ad, mint Q8
 // Nagyobb érték = nagyobb érzékenység (minden módnál)
 //
 // FONTOS: Az érzékenységi értékek az Si4703 50-es hangerőssége mellett
 // a kapcsrajznak megfelelő hardveren lettek beállítva
 namespace SensitivityConstants {
 
-// LowRes Spektrum mód (Q8: 0.003 * 256 ≈ 1, manuálisan finomhangolt)
-constexpr uint16_t LOWRES_SPECTRUMBAR_SCALE_Q8 = 1;
+// LowRes Spektrum mód (Q16: 1 * 256 = 256, azaz 0.004x)
+constexpr uint32_t LOWRES_SPECTRUMBAR_SCALE_Q16 = 256;
 
-// HighRes Spektrum mód (Q8: 0.02 * 256 ≈ 5)
-constexpr uint16_t HIGHRES_SPECTRUMBAR_SCALE_Q8 = 5;
+// HighRes Spektrum mód (Q16: 5 * 256 = 1280, azaz 0.02x)
+constexpr uint32_t HIGHRES_SPECTRUMBAR_SCALE_Q16 = 1280;
 
-// Oszcilloszkóp mód (Q8: 3.5 * 256 ≈ 896) - raw sample skálázás, nem Q15
-constexpr uint16_t OSCI_SCALE_Q8 = 896;
+// Oszcilloszkóp mód (Q16: 896 * 256 = 229376, azaz 3.5x) - raw sample skálázás, nem Q15
+constexpr uint32_t OSCI_SCALE_Q16 = 229376;
 
-// Envelope mód (Q8: 0.06 * 256 ≈ 15)
-constexpr uint16_t ENVELOPE_SCALE_FM_Q8 = 15; // FM: eredeti skála (jó)
-constexpr uint16_t ENVELOPE_SCALE_AM_Q8 = 5;  // AM: csökkentett skála (túlvezérlés elkerülése)
+// Envelope mód FM (Q16: 15 * 256 = 3840, azaz 0.06x)
+constexpr uint32_t ENVELOPE_SCALE_FM_Q16 = 3840;
+// Envelope mód AM (Q16: 5 * 256 = 1280, azaz 0.02x)
+constexpr uint32_t ENVELOPE_SCALE_AM_Q16 = 1280;
 
-// Waterfall mód (Q8: 0.05 * 256 ≈ 13)
-constexpr uint16_t WATERFALL_SCALE_FM_Q8 = 13; // FM: eredeti skála (jó)
-constexpr uint16_t WATERFALL_SCALE_AM_Q8 = 3;  // AM: csökkentett skála (túlvezérlés elkerülése)
+// Waterfall mód FM (Q16: 13 * 256 = 3328, azaz 0.05x)
+constexpr uint32_t WATERFALL_SCALE_FM_Q16 = 3328;
+// Waterfall mód AM (Q16: 3 * 256 = 768, azaz 0.01x)
+constexpr uint32_t WATERFALL_SCALE_AM_Q16 = 768;
 
-// CW/RTTY Tuning Aid Waterfall
-constexpr uint16_t TUNING_AID_WATERFALL_SCALE_Q8 = 1;
+// CW/RTTY Tuning Aid Waterfall (Q16: 1 * 256 = 256, azaz 0.004x)
+constexpr uint32_t TUNING_AID_WATERFALL_SCALE_Q16 = 256;
 
-// CW/RTTY SNR Curve
-constexpr uint16_t TUNING_AID_SNR_CURVE_SCALE_Q8 = 1;
+// CW/RTTY SNR Curve (Q16)
+constexpr uint32_t TUNING_AID_SNR_CURVE_SCALE_Q16 = 512;
 
 }; // namespace SensitivityConstants
 
@@ -972,18 +976,18 @@ void UICompSpectrumVis::renderSpectrumBar(bool isLowRes) {
             }
         }
 
-        // Q8 skálázási konstans (LowRes)
-        uint16_t scaleFactorQ8 = SensitivityConstants::LOWRES_SPECTRUMBAR_SCALE_Q8;
+        // Q16 skálázási konstans (LowRes)
+        uint32_t scaleFactorQ16 = SensitivityConstants::LOWRES_SPECTRUMBAR_SCALE_Q16;
         if (isAutoGainMode()) {
-            // 5.5x finomhangolás = 5.5 * 256 = 1408
-            scaleFactorQ8 = (scaleFactorQ8 * 1408) >> 8;
+            // 5.5x finomhangolás = 5.5 * 65536 = 360448
+            scaleFactorQ16 = (scaleFactorQ16 * 360448) >> 16;
         }
 
         // Sávok számítása (első passz): direkt Q15 → pixel konverzió (NINCS float köztes lépés!)
         uint16_t computedHeights[LOW_RES_BANDS] = {0};
         for (uint8_t band_idx = 0; band_idx < bands_to_display; band_idx++) {
             // Direkt Q15 → pixel magasság (integer aritmetika, bit-shift)
-            uint16_t height = q15ToPixelHeight(band_magnitudes_q15[band_idx], scaleFactorQ8, MAX_BAR_HEIGHT);
+            uint16_t height = q15ToPixelHeight(band_magnitudes_q15[band_idx], scaleFactorQ16, MAX_BAR_HEIGHT);
 
             // Minimum 1 pixel, ha van jel
             if (height == 0 && band_magnitudes_q15[band_idx] != 0) {
@@ -1078,8 +1082,8 @@ void UICompSpectrumVis::renderSpectrumBar(bool isLowRes) {
         // Pixel-per-bin rajzolás (vékony vonalak)
         const uint16_t num_bins_in_range = std::max(1, max_bin_idx - min_bin_idx + 1);
 
-        // Q8 skálázási konstans (HighRes)
-        uint16_t scaleFactorQ8 = SensitivityConstants::HIGHRES_SPECTRUMBAR_SCALE_Q8;
+        // Q16 skálázási konstans (HighRes)
+        uint32_t scaleFactorQ16 = SensitivityConstants::HIGHRES_SPECTRUMBAR_SCALE_Q16;
 
         // HighRes: kétfázisos számítás (Q15 optimalizált - direkt pixel konverzió)
         std::vector<uint16_t> computedCols(bounds.width, 0);
@@ -1104,7 +1108,7 @@ void UICompSpectrumVis::renderSpectrumBar(bool isLowRes) {
             magnitude_q15 = q15ApplyNoiseThreshold(magnitude_q15, NOISE_THRESHOLD_Q15);
 
             // Direkt Q15 → pixel magasság (integer aritmetika)
-            uint16_t height = q15ToPixelHeight(magnitude_q15, scaleFactorQ8, MAX_BAR_HEIGHT);
+            uint16_t height = q15ToPixelHeight(magnitude_q15, scaleFactorQ16, MAX_BAR_HEIGHT);
             // Oszloponkénti időbeli simítás alkalmazása a villogás csökkentésére
             float sm = highresSmoothedCols[screen_pixel_x];
             float newSm = UICompSpectrumVis::HIGHRES_SMOOTH_ALPHA * sm + (1.0f - UICompSpectrumVis::HIGHRES_SMOOTH_ALPHA) * static_cast<float>(height);
@@ -1191,18 +1195,18 @@ void UICompSpectrumVis::renderOscilloscope() {
 
         int16_t raw_sample = osciData[i];
 
-        // Integer Q8 alapú skálázás: az érzékenység az `OSCI_SCALE_Q8` konstansban van (Q8 fixpontos)
-        // scaled_q8 = raw_sample * OSCI_SCALE_Q8
-        int32_t scaled_q8 = (int32_t)raw_sample * (int32_t)SensitivityConstants::OSCI_SCALE_Q8; // Q8 representation
+        // Integer Q16 alapú skálázás: az érzékenység az `OSCI_SCALE_Q16` konstansban van (Q16 fixpontos)
+        // scaled_q16 = raw_sample * OSCI_SCALE_Q16
+        int32_t scaled_q16 = (int32_t)raw_sample * (int32_t)SensitivityConstants::OSCI_SCALE_Q16; // Q16 representation
 
-        // Leképezés pixelekre: pixel = scaled_q8 * (graphH/2 - 1) / (2048 * 256)
+        // Leképezés pixelekre: pixel = scaled_q16 * (graphH/2 - 1) / (2048 * 65536)
         int32_t half_span = static_cast<int32_t>(graphH) / 2 - 1;
         if (half_span < 0)
             half_span = 0;
-        const int32_t denom = 2048 * 256; // normalize raw_sample (assumes 12-bit range) and Q8 scaling
+        const int32_t denom = 2048 * 65536; // normalize raw_sample (assumes 12-bit range) and Q16 scaling
         int32_t pixel_deflection = 0;
         if (denom != 0) {
-            pixel_deflection = (scaled_q8 * half_span + (denom / 2)) / denom; // rounded
+            pixel_deflection = (scaled_q16 * half_span + (denom / 2)) / denom; // rounded
         }
 
         int32_t y_pos_i = static_cast<int32_t>(graphH) / 2 - pixel_deflection;
@@ -1270,13 +1274,13 @@ void UICompSpectrumVis::renderEnvelope() {
         std::min(static_cast<int>(actualFftSize - 1), static_cast<int>(std::round(maxDisplayFrequencyHz_ * 0.2f / currentBinWidthHz)));
     const uint16_t num_bins_in_env_range = std::max(1, max_bin_for_env - min_bin_for_env + 1);
 
-    // Q8 skálázási konstans (Q15 optimalizált) - dinamikus AM/FM alapján
+    // Q16 skálázási konstans (Q15 optimalizált) - dinamikus AM/FM alapján
     // AM (6kHz): kisebb skála (koncentráltabb energia), FM (15kHz): nagyobb skála (szétoszló energia)
-    uint16_t scaleFactorQ8 = getScaleFactorForMode(SensitivityConstants::ENVELOPE_SCALE_AM_Q8, SensitivityConstants::ENVELOPE_SCALE_FM_Q8);
+    uint32_t scaleFactorQ16 = getScaleFactorForMode(SensitivityConstants::ENVELOPE_SCALE_AM_Q16, SensitivityConstants::ENVELOPE_SCALE_FM_Q16);
 
-    // AGC: scale_q8 módosítása (AGC esetén csökkentés)
+    // AGC: scale_q16 módosítása (AGC esetén csökkentés)
     if (isAutoGainMode()) {
-        scaleFactorQ8 = (scaleFactorQ8 * 179) >> 8; // 0.7x = 179/256
+        scaleFactorQ16 = (scaleFactorQ16 * 45875) >> 16; // 0.7x = 45875/65536
     }
 
     // 2. Új adatok betöltése (Q15 OPTIMALIZÁLT - nincs float konverzió!)
@@ -1296,7 +1300,7 @@ void UICompSpectrumVis::renderEnvelope() {
         rawMagnitudeQ15 = q15ApplyNoiseThreshold(rawMagnitudeQ15, ENVELOPE_MIN_DISPLAY_Q15);
 
         // Direkt Q15 → uint8_t skálázás (integer aritmetika, bit-shift)
-        wabuf[r][bounds.width - 1] = q15ToUint8(rawMagnitudeQ15, scaleFactorQ8);
+        wabuf[r][bounds.width - 1] = q15ToUint8(rawMagnitudeQ15, scaleFactorQ16);
     }
 
     // 3. Sprite törlése és burkológörbe kirajzolása
@@ -1427,13 +1431,13 @@ void UICompSpectrumVis::renderWaterfall() {
     const int max_bin_for_wf = std::min(static_cast<int>(actualFftSize - 1), static_cast<int>(std::round(maxDisplayFrequencyHz_ / currentBinWidthHz)));
     const int num_bins_in_wf_range = std::max(1, max_bin_for_wf - min_bin_for_wf + 1);
 
-    // Q8 skálázási konstans (Q15 optimalizált) - dinamikus AM/FM alapján
+    // Q16 skálázási konstans (Q15 optimalizált) - dinamikus AM/FM alapján
     // AM (6kHz): kisebb skála (koncentráltabb energia), FM (15kHz): nagyobb skála (szétoszló energia)
-    uint16_t scaleFactorQ8 = getScaleFactorForMode(SensitivityConstants::WATERFALL_SCALE_AM_Q8, SensitivityConstants::WATERFALL_SCALE_FM_Q8);
+    uint32_t scaleFactorQ16 = getScaleFactorForMode(SensitivityConstants::WATERFALL_SCALE_AM_Q16, SensitivityConstants::WATERFALL_SCALE_FM_Q16);
 
-    // AGC: scale_q8 módosítása (AGC esetén kisebb csökkentés)
+    // AGC: scale_q16 módosítása (AGC esetén kisebb csökkentés)
     if (isAutoGainMode()) {
-        scaleFactorQ8 = (scaleFactorQ8 * 243) >> 8; // 0.95x = 243/256
+        scaleFactorQ16 = (scaleFactorQ16 * 62259) >> 16; // 0.95x = 62259/65536
     }
 
     // 2. Új adatok betöltése a wabuf jobb szélére (Q15 OPTIMALIZÁLT - nincs float konverzió!)
@@ -1450,7 +1454,7 @@ void UICompSpectrumVis::renderWaterfall() {
         rawMagnitudeQ15 = q15ApplyNoiseThreshold(rawMagnitudeQ15, NOISE_THRESHOLD_Q15);
 
         // Direkt Q15 → uint8_t skálázás (integer aritmetika, bit-shift)
-        wabuf[r][bounds.width - 1] = q15ToUint8(rawMagnitudeQ15, scaleFactorQ8);
+        wabuf[r][bounds.width - 1] = q15ToUint8(rawMagnitudeQ15, scaleFactorQ16);
     }
 
     // 3. Sprite görgetése és új oszlop kirajzolása
@@ -1641,12 +1645,12 @@ void UICompSpectrumVis::renderCwOrRttyTuningAidWaterfall() {
     const int max_bin_for_tuning = std::min(static_cast<int>(actualFftSize - 1), static_cast<int>(std::round(currentTuningAidMaxFreqHz_ / currentBinWidthHz)));
     const int num_bins_in_tuning_range = std::max(1, max_bin_for_tuning - min_bin_for_tuning + 1);
 
-    // Q8 skálázási konstans (Q15 optimalizált - CW/RTTY waterfall)
-    uint16_t scaleFactorQ8 = SensitivityConstants::TUNING_AID_WATERFALL_SCALE_Q8;
+    // Q16 skálázási konstans (Q15 optimalizált - CW/RTTY waterfall)
+    uint32_t scaleFactorQ16 = SensitivityConstants::TUNING_AID_WATERFALL_SCALE_Q16;
 
     // AGC esetén kis csökkentés (konzisztens a fő waterfall-lal)
     if (isAutoGainMode()) {
-        scaleFactorQ8 = (scaleFactorQ8 * 243) >> 8; // 0.95x = 243/256
+        scaleFactorQ16 = (scaleFactorQ16 * 62259) >> 16; // 0.95x = 62259/65536
     }
 
     // 2. Új adatok betöltése a legfelső sorba (Q15 OPTIMALIZÁLT - konzisztens a fő waterfall-lal)
@@ -1664,7 +1668,7 @@ void UICompSpectrumVis::renderCwOrRttyTuningAidWaterfall() {
         magnitude_q15 = q15ApplyNoiseThreshold(magnitude_q15, NOISE_THRESHOLD_Q15);
 
         // Direkt Q15 → uint8_t skálázás (integer aritmetika)
-        uint8_t finalValue = q15ToUint8(magnitude_q15, scaleFactorQ8);
+        uint8_t finalValue = q15ToUint8(magnitude_q15, scaleFactorQ16);
         wabuf[0][c] = finalValue;
 
         // Csak a legfelső sort rajzoljuk ki (y=0)
@@ -1793,12 +1797,12 @@ void UICompSpectrumVis::renderSnrCurve() {
 
     float maxMagnitude = 0.0f;
 
-    // Q8 skálázási konstans (Q15 optimalizált - SNR curve)
-    uint16_t scaleFactorQ8 = SensitivityConstants::TUNING_AID_SNR_CURVE_SCALE_Q8;
+    // Q16 skálázási konstans (Q15 optimalizált - SNR curve)
+    uint32_t scaleFactorQ16 = SensitivityConstants::TUNING_AID_SNR_CURVE_SCALE_Q16;
 
     // AGC esetén kis csökkentés
     if (isAutoGainMode()) {
-        scaleFactorQ8 = (scaleFactorQ8 * 243) >> 8; // 0.95x
+        scaleFactorQ16 = (scaleFactorQ16 * 62259) >> 16; // 0.95x
     }
 
     // Előző pont koordinátái a görbe rajzolásához
@@ -1819,7 +1823,7 @@ void UICompSpectrumVis::renderSnrCurve() {
         magnitude_q15 = q15ApplyNoiseThreshold(magnitude_q15, NOISE_THRESHOLD_Q15);
 
         // Q15 → pixel magasság (direkt integer skálázás)
-        float snrValue = q15ToPixelHeight(magnitude_q15, scaleFactorQ8, graphH);
+        float snrValue = q15ToPixelHeight(magnitude_q15, scaleFactorQ16, graphH);
         maxMagnitude = std::max(maxMagnitude, snrValue);
 
         // Y koordináta számítása (invertált, mert a képernyő teteje y=0)
