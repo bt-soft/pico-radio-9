@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
  * -----                                                                                                               *
- * Last Modified: 2025.11.29, Saturday  12:42:35                                                                       *
+ * Last Modified: 2025.11.29, Saturday  03:36:21                                                                       *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -163,11 +163,11 @@ const uint32_t SC_ENVELOPE = 512;     // Alapértelmezett envelope scale (0.008x
 const uint32_t SC_WATERFALL = 768;    // Alapértelmezett waterfall scale (0.012x)
 constexpr BandwidthScaleConfig BANDWIDTH_SCALE_TABLE[] = {
     // bandwidth, lowResBar, highResBar, oscilloscope, envelope, waterfall, tuningAidWf, tuningAidSnr
-    {CW_AF_BANDWIDTH_HZ, SC_LOWRES_BAR, SC_HIGHRES_BAR, SC_OSCI, SC_ENVELOPE, SC_WATERFALL, 3072, 2048},    // CW (1500 Hz) - 4.0× erősebb tuning aid
-    {3000, SC_LOWRES_BAR, SC_HIGHRES_BAR, SC_OSCI, SC_ENVELOPE, SC_WATERFALL, 1536, 1536},                  // Köztes (3000 Hz) - 2.0× erősebb tuning aid
-    {WEFAX_AF_BANDWIDTH_HZ, SC_LOWRES_BAR, SC_HIGHRES_BAR, SC_OSCI, SC_ENVELOPE, SC_WATERFALL, 1100, 1100}, // WeFax (4410 Hz) - ~1.4× erősebb tuning aid
-    {AM_AF_BANDWIDTH_HZ, SC_LOWRES_BAR, SC_HIGHRES_BAR, SC_OSCI, SC_ENVELOPE, SC_WATERFALL, 768, 768},      // AM/RTTY/SSTV (6000 Hz) - referencia
-    {FM_AF_BANDWIDTH_HZ, SC_LOWRES_BAR, SC_HIGHRES_BAR, SC_OSCI, 3840, 3328, 307, 307}                      // FM (15000 Hz) - széles sáv
+    {CW_AF_BANDWIDTH_HZ, SC_LOWRES_BAR, SC_HIGHRES_BAR, SC_OSCI, SC_ENVELOPE, SC_WATERFALL, 3072, 100},    // CW (1500 Hz) - SNR curve csökkentve
+    {3000, SC_LOWRES_BAR, SC_HIGHRES_BAR, SC_OSCI, SC_ENVELOPE, SC_WATERFALL, 1536, 100},                  // Köztes (3000 Hz)
+    {WEFAX_AF_BANDWIDTH_HZ, SC_LOWRES_BAR, SC_HIGHRES_BAR, SC_OSCI, SC_ENVELOPE, SC_WATERFALL, 1100, 100}, // WeFax (4410 Hz)
+    {AM_AF_BANDWIDTH_HZ, SC_LOWRES_BAR, SC_HIGHRES_BAR, SC_OSCI, SC_ENVELOPE, SC_WATERFALL, 768, 100},     // AM/RTTY/SSTV (6000 Hz) - SNR curve növelve
+    {FM_AF_BANDWIDTH_HZ, SC_LOWRES_BAR, SC_HIGHRES_BAR, SC_OSCI, 3840, 3328, 307, 100}                     // FM (15000 Hz)
 };
 constexpr size_t BANDWIDTH_SCALE_TABLE_SIZE = ARRAY_ITEM_COUNT(BANDWIDTH_SCALE_TABLE);
 

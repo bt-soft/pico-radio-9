@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
  * -----                                                                                                               *
- * Last Modified: 2025.11.29, Saturday  01:06:33                                                                       *
+ * Last Modified: 2025.11.29, Saturday  01:09:31                                                                       *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -179,7 +179,7 @@ void ScreenAMCW::activate() {
     ::audioController.setManualGain(1.0f);             // Manuális erősítés: a kissebb HF sávszéleség miatt erősítünk rajta
     ::audioController.setSpectrumAveragingCount(0);    // Spektrum nem-koherens átlagolás: x db keret átlagolása, 0 = kikapcsolva
     ::audioController.setNoiseReductionEnabled(false); // Zajszűrés kikapcsolva (tisztább spektrum)
-    ::audioController.setSmoothingPoints(5);           // Zajszűrés simítási pontok száma = 5 (erősebb zajszűrés, nincs frekvencia felbontási igény)
+    ::audioController.setSmoothingPoints(0);           // Zajszűrés simítási pontok száma = 5 (erősebb zajszűrés, nincs frekvencia felbontási igény)
 
     // CW Dekóder specifikus beállítások
     ::audioController.setDecoderUseAdaptiveThreshold(false); // Adaptív AGC küszöb használata a CW dekóderben

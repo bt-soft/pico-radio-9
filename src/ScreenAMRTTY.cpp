@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
  * -----                                                                                                               *
- * Last Modified: 2025.11.22, Saturday  11:24:11                                                                       *
+ * Last Modified: 2025.11.29, Saturday  02:27:27                                                                       *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -282,9 +282,6 @@ void ScreenAMRTTY::checkDecodedData() {
         uint16_t labelY = textBoxTop - gap - textHeight; // Szöveg alja 2px-re a textbox teteje fölött
 
         tft.fillRect(labelX, labelY, labelW, textHeight, TFT_BLACK); // Csak a szöveg magasságát töröljük
-        tft.setCursor(labelX, labelY);
-        tft.setTextSize(1);
-        tft.setTextColor(TFT_SILVER, TFT_BLACK);
 
         // RTTY beállítások kiírása: Mark / Space / Shift / Baud
         char markStr[16];
@@ -321,6 +318,10 @@ void ScreenAMRTTY::checkDecodedData() {
             baudStr[sizeof(baudStr) - 1] = '\0';
         }
 
+        tft.setCursor(labelX, labelY);
+        tft.setFreeFont();
+        tft.setTextSize(1);
+        tft.setTextColor(TFT_SILVER, TFT_BLACK);
         tft.printf("Mark: %s /  Space: %s / Shift: %s / Baud: %s", markStr, spaceStr, shiftStr, baudStr);
     }
 

@@ -476,6 +476,23 @@ bool AudioProcessorC1::processAndFillSharedData(SharedData &sharedData) {
     memcpy(lastRawSamples.data(), sharedData.rawSampleData, sharedData.rawSampleCount * sizeof(int16_t));
     lastRawSampleCount = sharedData.rawSampleCount;
 
+#ifdef __ADPROC_DEBUG
+    // RTTY debug: mintavételi kimenet ellenőrzése (100. blokkonként)
+    static int rttyDebugCtr = 0;
+    if (++rttyDebugCtr >= 100) {
+        int16_t maxSample = 0, minSample = 0;
+        for (uint16_t i = 0; i < sharedData.rawSampleCount; i++) {
+            if (sharedData.rawSampleData[i] > maxSample)
+                maxSample = sharedData.rawSampleData[i];
+            if (sharedData.rawSampleData[i] < minSample)
+                minSample = sharedData.rawSampleData[i];
+        }
+        ADPROC_DEBUG("AudioProc->RTTY: samples[0..4]=%d,%d,%d,%d,%d, range=[%d..%d]\n", sharedData.rawSampleData[0], sharedData.rawSampleData[1],
+                     sharedData.rawSampleData[2], sharedData.rawSampleData[3], sharedData.rawSampleData[4], minSample, maxSample);
+        rttyDebugCtr = 0;
+    }
+#endif
+
     // #ifdef __ADPROC_DEBUG
     //     // --- Gyors mérés: RMS, maxAbs, medián zajbecslés, SNR becslés ---
     //     auto computeRms = [](const int16_t *buf, uint16_t n) -> float {

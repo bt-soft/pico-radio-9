@@ -73,11 +73,11 @@ class DecoderRTTY_C1 : public IDecoder {
 
     std::array<GoertzelBin, BINS_PER_TONE> markBins;
     std::array<GoertzelBin, BINS_PER_TONE> spaceBins;
-    q15_t markNoiseFloor_q15;  // Zajpadló Q15
-    q15_t spaceNoiseFloor_q15; // Zajpadló Q15
-    q15_t markEnvelope_q15;    // Envelope a mark számára (Q15)
-    q15_t spaceEnvelope_q15;   // Envelope a space számára (Q15)
-    uint8_t toneBlockAccumulated;
+    q15_t markNoiseFloor_q15;      // Zajpadló Q15
+    q15_t spaceNoiseFloor_q15;     // Zajpadló Q15
+    q15_t markEnvelope_q15;        // Envelope a mark számára (Q15)
+    q15_t spaceEnvelope_q15;       // Envelope a space számára (Q15)
+    uint16_t toneBlockAccumulated; // TONE_BLOCK_SIZE=256, ezért uint16_t kell!
     bool lastToneIsMark;
 
     // Ha a confidence érték kicsi (pl. < 0.1), akkor a dekóder bizonytalan a döntésben.
@@ -120,7 +120,7 @@ class DecoderRTTY_C1 : public IDecoder {
 
     // Windowing helper for Goertzel blocks
     WindowApplier windowApplier;
-    bool useWindow_ = true;
+    bool useWindow_ = false; // Windowing kikapcsolva - elrontja a Q15 Goertzel-t
 
     // Két külön bandpass szűrő: egy mark-hoz és egy space-hez
     BiquadBandpass markBandpassFilter_;
