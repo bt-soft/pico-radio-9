@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
  * -----                                                                                                               *
- * Last Modified: 2025.11.29, Saturday  09:14:33                                                                       *
+ * Last Modified: 2025.11.29, Saturday  10:29:50                                                                       *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -147,24 +147,25 @@ namespace SensitivityConstants {
 // LowRes Spektrum mód (Q8: 0.003 * 256 ≈ 1, manuálisan finomhangolt)
 constexpr uint16_t LOWRES_SPECTRUMBAR_SCALE_Q8 = 1;
 
-// HighRes Spektrum mód (Q8: 0.02 * 256 ≈ 5) - CSÖKKENTVE villogás és túlvezérlés ellen
+// HighRes Spektrum mód (Q8: 0.02 * 256 ≈ 5)
 constexpr uint16_t HIGHRES_SPECTRUMBAR_SCALE_Q8 = 5;
 
 // Oszcilloszkóp mód (Q8: 3.5 * 256 ≈ 896) - raw sample skálázás, nem Q15
-// MEGJEGYZÉS: az érzékenység be van ágyazva az `OSCI_SCALE_Q8` Q8 konstansba (256 = 1.0x). Külön lebegőpontos faktor nem szükséges.
 constexpr uint16_t OSCI_SCALE_Q8 = 896;
 
 // Envelope mód (Q8: 0.06 * 256 ≈ 15)
-constexpr uint16_t ENVELOPE_SCALE_Q8 = 15;
+constexpr uint16_t ENVELOPE_SCALE_FM_Q8 = 15; // FM: eredeti skála (jó)
+constexpr uint16_t ENVELOPE_SCALE_AM_Q8 = 5;  // AM: csökkentett skála (túlvezérlés elkerülése)
 
-// Waterfall mód (Q8: 0.05 * 256 ≈ 13) - CSÖKKENTVE a túlvezérlés elkerülésére
-constexpr uint16_t WATERFALL_SCALE_Q8 = 13;
+// Waterfall mód (Q8: 0.05 * 256 ≈ 13)
+constexpr uint16_t WATERFALL_SCALE_FM_Q8 = 13; // FM: eredeti skála (jó)
+constexpr uint16_t WATERFALL_SCALE_AM_Q8 = 3;  // AM: csökkentett skála (túlvezérlés elkerülése)
 
-// CW/RTTY SNR Curve (Q8: 0.02 * 256 ≈ 5) - CSÖKKENTVE túlvezérlés ellen
-constexpr uint16_t TUNING_AID_SNR_CURVE_SCALE_Q8 = 5;
+// CW/RTTY Tuning Aid Waterfall
+constexpr uint16_t TUNING_AID_WATERFALL_SCALE_Q8 = 1;
 
-// CW/RTTY Tuning Aid Waterfall (Q8: 0.05 * 256 ≈ 13) - CSÖKKENTVE a fő waterfall-lal konzisztensen
-constexpr uint16_t TUNING_AID_WATERFALL_SCALE_Q8 = 13;
+// CW/RTTY SNR Curve
+constexpr uint16_t TUNING_AID_SNR_CURVE_SCALE_Q8 = 1;
 
 }; // namespace SensitivityConstants
 
@@ -1269,8 +1270,9 @@ void UICompSpectrumVis::renderEnvelope() {
         std::min(static_cast<int>(actualFftSize - 1), static_cast<int>(std::round(maxDisplayFrequencyHz_ * 0.2f / currentBinWidthHz)));
     const uint16_t num_bins_in_env_range = std::max(1, max_bin_for_env - min_bin_for_env + 1);
 
-    // Q8 skálázási konstans (Q15 optimalizált)
-    uint16_t scaleFactorQ8 = SensitivityConstants::ENVELOPE_SCALE_Q8;
+    // Q8 skálázási konstans (Q15 optimalizált) - dinamikus AM/FM alapján
+    // AM (6kHz): kisebb skála (koncentráltabb energia), FM (15kHz): nagyobb skála (szétoszló energia)
+    uint16_t scaleFactorQ8 = getScaleFactorForMode(SensitivityConstants::ENVELOPE_SCALE_AM_Q8, SensitivityConstants::ENVELOPE_SCALE_FM_Q8);
 
     // AGC: scale_q8 módosítása (AGC esetén csökkentés)
     if (isAutoGainMode()) {
@@ -1425,8 +1427,9 @@ void UICompSpectrumVis::renderWaterfall() {
     const int max_bin_for_wf = std::min(static_cast<int>(actualFftSize - 1), static_cast<int>(std::round(maxDisplayFrequencyHz_ / currentBinWidthHz)));
     const int num_bins_in_wf_range = std::max(1, max_bin_for_wf - min_bin_for_wf + 1);
 
-    // Q8 skálázási konstans (Q15 optimalizált)
-    uint16_t scaleFactorQ8 = SensitivityConstants::WATERFALL_SCALE_Q8;
+    // Q8 skálázási konstans (Q15 optimalizált) - dinamikus AM/FM alapján
+    // AM (6kHz): kisebb skála (koncentráltabb energia), FM (15kHz): nagyobb skála (szétoszló energia)
+    uint16_t scaleFactorQ8 = getScaleFactorForMode(SensitivityConstants::WATERFALL_SCALE_AM_Q8, SensitivityConstants::WATERFALL_SCALE_FM_Q8);
 
     // AGC: scale_q8 módosítása (AGC esetén kisebb csökkentés)
     if (isAutoGainMode()) {

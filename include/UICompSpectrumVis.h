@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                       *
  * -----                                                                                                               *
- * Last Modified: 2025.11.29, Saturday  06:55:44                                                                       *
+ * Last Modified: 2025.11.29, Saturday  10:23:12                                                                       *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -259,6 +259,14 @@ class UICompSpectrumVis : public UIComponent {
 
     // Általános AGC segédfüggvény (privát, statikus) - összevonja a bar/magnitude AGC logikát
     static float calculateAgcGainGeneric(const float *history, uint8_t historySize, float currentGainFactor, float targetValue);
+
+    /**
+     * @brief Sávszélesség alapú dinamikus skálázási faktor számítás
+     * @param amScale Skálázási faktor AM módhoz (6kHz bandwidth, koncentráltabb energia → kisebb skála)
+     * @param fmScale Skálázási faktor FM módhoz (15kHz bandwidth, szétoszló energia → nagyobb skála)
+     * @return A megfelelő skálázási faktor a jelenlegi rádió mód alapján
+     */
+    inline uint16_t getScaleFactorForMode(uint16_t amScale, uint16_t fmScale) const { return (radioMode_ == RadioMode::AM) ? amScale : fmScale; }
 
     /**
      * @brief Spectrum bar függvények
