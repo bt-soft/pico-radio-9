@@ -252,6 +252,9 @@ class UICompSpectrumVis : public UIComponent {
 
     void startShowModeIndicator();
 
+    // Általános AGC segédfüggvény (privát, statikus) - összevonja a bar/magnitude AGC logikát
+    static float calculateAgcGainGeneric(const float *history, uint8_t historySize, float currentGainFactor, float targetValue);
+
     /**
      * @brief Spectrum bar függvények
      */

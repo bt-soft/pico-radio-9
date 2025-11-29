@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
  * -----                                                                                                               *
- * Last Modified: 2025.11.29, Saturday  08:52:03                                                                       *
+ * Last Modified: 2025.11.29, Saturday  09:14:33                                                                       *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -269,10 +269,12 @@ void UICompSpectrumVis::updateBarBasedGain(float currentBarMaxValue) {
  * @param currentMagnitudeMaxValue Jelenlegi frame legnagyobb magnitude értéke (nyers FFT adat)
  */
 void UICompSpectrumVis::updateMagnitudeBasedGain(float currentMagnitudeMaxValue) {
+
     // Ha némított állapotban vagyunk, az AGC ne működjön!
     if (rtv::muteStat) {
         return;
     }
+
     // Magnitude maximum hozzáadása a history bufferhez
     magnitudeAgcHistory_[magnitudeAgcHistoryIndex_] = currentMagnitudeMaxValue;
     magnitudeAgcHistoryIndex_ = (magnitudeAgcHistoryIndex_ + 1) % AGC_HISTORY_SIZE;
@@ -298,31 +300,8 @@ void UICompSpectrumVis::updateMagnitudeBasedGain(float currentMagnitudeMaxValue)
  * @return Új gain faktor
  */
 float UICompSpectrumVis::calculateBarAgcGain(const float *history, uint8_t historySize, float currentGainFactor) const {
-
-    // History átlag számítása (stabil érték több frame alapján)
-    float sum = 0.0f;
-    uint8_t validCount = 0;
-    for (uint8_t i = 0; i < historySize; i++) {
-        if (history[i] > AGC_MIN_SIGNAL_THRESHOLD) {
-            sum += history[i];
-            validCount++;
-        }
-    }
-
-    if (validCount == 0) {
-        return currentGainFactor; // Nincs elég jel, megtartjuk a jelenlegi gain-t
-    }
-
-    float averageMax = sum / validCount;
-    int graphH = getGraphHeight();
-    float targetHeight = graphH * UI_TARGET_HEIGHT_UTILIZATION; // Pixel magasság cél
-    float idealGain = targetHeight / averageMax;
-
-    // Simított átmenet az új gain-hez
-    float newGain = AGC_SMOOTH_FACTOR * idealGain + (1.0f - AGC_SMOOTH_FACTOR) * currentGainFactor;
-
-    // Biztonsági korlátok
-    return constrain(newGain, 0.1f, 20.0f);
+    float targetHeight = static_cast<float>(getGraphHeight()) * UI_TARGET_HEIGHT_UTILIZATION;
+    return calculateAgcGainGeneric(history, historySize, currentGainFactor, targetHeight);
 }
 
 /**
@@ -333,10 +312,23 @@ float UICompSpectrumVis::calculateBarAgcGain(const float *history, uint8_t histo
  * @return Új gain faktor
  */
 float UICompSpectrumVis::calculateMagnitudeAgcGain(const float *history, uint8_t historySize, float currentGainFactor) const {
+    return calculateAgcGainGeneric(history, historySize, currentGainFactor, MAGNITUDE_AGC_TARGET_VALUE);
+}
+
+//
+/**
+ * @brief Általános AGC gain számítás, mindkét AGC típushoz
+ * @param history History buffer (bar magasságok pixelben vagy magnitude értékek
+ * @param historySize History buffer mérete
+ * @param currentGainFactor Jelenlegi gain faktor
+ * @param targetValue Célérték (pixel magasság vagy magnitude érték)
+ * @return Új gain faktor
+ */
+float UICompSpectrumVis::calculateAgcGainGeneric(const float *history, uint8_t historySize, float currentGainFactor, float targetValue) {
     // History átlag számítása (stabil érték több frame alapján)
     float sum = 0.0f;
-    int validCount = 0;
-    for (int i = 0; i < historySize; i++) {
+    uint8_t validCount = 0;
+    for (uint8_t i = 0; i < historySize; ++i) {
         if (history[i] > AGC_MIN_SIGNAL_THRESHOLD) {
             sum += history[i];
             validCount++;
@@ -348,8 +340,7 @@ float UICompSpectrumVis::calculateMagnitudeAgcGain(const float *history, uint8_t
     }
 
     float averageMax = sum / validCount;
-    float targetMagnitude = MAGNITUDE_AGC_TARGET_VALUE; // Fix magnitude cél
-    float idealGain = targetMagnitude / averageMax;
+    float idealGain = targetValue / averageMax;
 
     // Simított átmenet az új gain-hez
     float newGain = AGC_SMOOTH_FACTOR * idealGain + (1.0f - AGC_SMOOTH_FACTOR) * currentGainFactor;
@@ -624,7 +615,7 @@ void UICompSpectrumVis::manageSpriteForMode(DisplayMode modeToPrepareForDisplayM
 
     // Sprite használata MINDEN módhoz (kivéve Off)
     if (modeToPrepareForDisplayMode != DisplayMode::Off) {
-        int graphH = getGraphHeight();
+        uint16_t graphH = getGraphHeight();
         if (bounds.width > 0 && graphH > 0) {
             sprite_->setColorDepth(16); // RGB565
             spriteCreated_ = sprite_->createSprite(bounds.width, graphH);
@@ -639,7 +630,7 @@ void UICompSpectrumVis::manageSpriteForMode(DisplayMode modeToPrepareForDisplayM
     }
 
     // LowRes Bar magasságok nullázása módváltáskor
-    for (int i = 0; i < MAX_SPECTRUM_BANDS; ++i) {
+    for (uint8_t i = 0; i < MAX_SPECTRUM_BANDS; ++i) {
         bar_height_[i] = 0;
     }
 
@@ -1065,7 +1056,7 @@ void UICompSpectrumVis::renderSpectrumBar(bool isLowRes) {
             // Rajzolás
             uint8_t bar_draw_height = bar_height_[band_idx];
             if (bar_draw_height > 0) {
-                int16_t y_start = graphH - bar_draw_height;
+                int16_t y_start = static_cast<int16_t>(static_cast<int>(graphH) - static_cast<int>(bar_draw_height));
                 uint8_t bar_h = bar_draw_height;
                 if (y_start < 0) {
                     bar_h -= (0 - y_start);
@@ -1077,7 +1068,7 @@ void UICompSpectrumVis::renderSpectrumBar(bool isLowRes) {
             }
 
             if (Rpeak_[band_idx] > 3) {
-                int16_t y_peak = graphH - Rpeak_[band_idx];
+                int16_t y_peak = static_cast<int16_t>(static_cast<int>(graphH) - static_cast<int>(Rpeak_[band_idx]));
                 sprite_->fillRect(x_pos, y_peak, bar_width, 2, TFT_CYAN);
             }
         }
@@ -1131,13 +1122,13 @@ void UICompSpectrumVis::renderSpectrumBar(bool isLowRes) {
             uint16_t scaledHeight = static_cast<uint16_t>(computedCols[screen_pixel_x] * finalScale);
 
             sprite_->drawFastVLine(screen_pixel_x, 0, graphH, TFT_BLACK);
-            uint8_t scaled_magnitude = static_cast<uint8_t>(constrain(scaledHeight, 0, graphH - 1));
+            uint8_t scaled_magnitude = static_cast<uint8_t>(constrain(scaledHeight, 0, static_cast<int>(graphH) - 1));
 
             if (scaled_magnitude == 0 && computedCols[screen_pixel_x] > 0) {
                 scaled_magnitude = 1;
             }
 
-            int16_t y_bar_start = graphH - 1 - scaled_magnitude;
+            int16_t y_bar_start = static_cast<int16_t>(static_cast<int>(graphH) - 1 - static_cast<int>(scaled_magnitude));
             uint8_t bar_actual_height = scaled_magnitude + 1;
             if (y_bar_start < 0) {
                 bar_actual_height -= (0 - y_bar_start);
@@ -1195,7 +1186,7 @@ void UICompSpectrumVis::renderOscilloscope() {
         int32_t scaled_q8 = (int32_t)raw_sample * (int32_t)SensitivityConstants::OSCI_SCALE_Q8; // Q8 representation
 
         // Leképezés pixelekre: pixel = scaled_q8 * (graphH/2 - 1) / (2048 * 256)
-        int32_t half_span = (graphH / 2) - 1;
+        int32_t half_span = static_cast<int32_t>(graphH) / 2 - 1;
         if (half_span < 0)
             half_span = 0;
         const int32_t denom = 2048 * 256; // normalize raw_sample (assumes 12-bit range) and Q8 scaling
@@ -1204,8 +1195,8 @@ void UICompSpectrumVis::renderOscilloscope() {
             pixel_deflection = (scaled_q8 * half_span + (denom / 2)) / denom; // rounded
         }
 
-        int32_t y_pos_i = (graphH / 2) - pixel_deflection;
-        uint16_t y_pos = static_cast<uint16_t>(constrain(y_pos_i, 0, graphH - 1));
+        int32_t y_pos_i = static_cast<int32_t>(graphH) / 2 - pixel_deflection;
+        uint16_t y_pos = static_cast<uint16_t>(constrain(y_pos_i, 0, static_cast<int>(graphH) - 1));
 
         uint16_t x_pos = 0;
         if (sampleCount <= 1) {
@@ -1234,7 +1225,7 @@ void UICompSpectrumVis::renderOscilloscope() {
 void UICompSpectrumVis::renderEnvelope() {
     // Audio feldolgozás Core1-en történik, AudioCore1Manager-en keresztül
 
-    int graphH = getGraphHeight();
+    uint16_t graphH = getGraphHeight();
     if (!spriteCreated_ || bounds.width == 0 || graphH <= 0 || wabuf.empty() || wabuf[0].empty()) {
         if (!spriteCreated_) {
             UISPECTRUM_DEBUG("UICompSpectrumVis::renderEnvelope - Sprite nincs létrehozva\n");
@@ -1305,7 +1296,7 @@ void UICompSpectrumVis::renderEnvelope() {
     // ENVELOPE_NOISE_THRESHOLD ELTÁVOLÍTVA - használjuk az általános NOISE_THRESHOLD-ot!
 
     // Először rajzoljunk egy vékony központi vízszintes vonalat (alapvonal) - mindig látható
-    uint8_t yCenter_on_sprite = graphH / 2;
+    uint8_t yCenter_on_sprite = static_cast<uint8_t>(static_cast<int>(graphH) / 2);
     sprite_->drawFastHLine(0, yCenter_on_sprite, bounds.width, TFT_WHITE);
 
     for (uint8_t c = 0; c < bounds.width; ++c) {
@@ -1355,7 +1346,7 @@ void UICompSpectrumVis::renderEnvelope() {
             float y_offset_float = (displayValue / 100.0f) * (graphH * UI_TARGET_HEIGHT_UTILIZATION);
 
             int y_offset_pixels = static_cast<int>(round(y_offset_float));
-            y_offset_pixels = std::min(y_offset_pixels, graphH - 4); // Kis margó
+            y_offset_pixels = std::min(y_offset_pixels, static_cast<int>(graphH) - 4); // Kis margó
             if (y_offset_pixels < 0) {
                 y_offset_pixels = 0;
             }
@@ -1365,8 +1356,8 @@ void UICompSpectrumVis::renderEnvelope() {
                 int yUpper_on_sprite = yCenter_on_sprite - y_offset_pixels / 2;
                 int yLower_on_sprite = yCenter_on_sprite + y_offset_pixels / 2;
 
-                yUpper_on_sprite = constrain(yUpper_on_sprite, 2, graphH - 3);
-                yLower_on_sprite = constrain(yLower_on_sprite, 2, graphH - 3);
+                yUpper_on_sprite = constrain(yUpper_on_sprite, 2, static_cast<int>(graphH) - 3);
+                yLower_on_sprite = constrain(yLower_on_sprite, 2, static_cast<int>(graphH) - 3);
 
                 if (yUpper_on_sprite <= yLower_on_sprite) {
                     // Vastagabb vonal a jobb láthatóságért
@@ -1390,7 +1381,7 @@ void UICompSpectrumVis::renderEnvelope() {
 void UICompSpectrumVis::renderWaterfall() {
     // Audio feldolgozás Core1-en történik, AudioCore1Manager-en keresztül
 
-    int graphH = getGraphHeight();
+    uint16_t graphH = getGraphHeight();
     if (!spriteCreated_ || bounds.width == 0 || graphH <= 0 || wabuf.empty() || wabuf[0].empty()) {
         if (!spriteCreated_) {
             UISPECTRUM_DEBUG("UICompSpectrumVis::renderWaterfall - Sprite nincs létrehozva\n");
@@ -1415,8 +1406,8 @@ void UICompSpectrumVis::renderWaterfall() {
     }
 
     // 1. Adatok eltolása balra a wabuf-ban (ez továbbra is szükséges a wabuf frissítéséhez)
-    for (int r = 0; r < bounds.height; ++r) { // A teljes bounds.height magasságon iterálunk a wabuf miatt
-        for (int c = 0; c < bounds.width - 1; ++c) {
+    for (uint16_t r = 0; r < bounds.height; ++r) { // A teljes bounds.height magasságon iterálunk a wabuf miatt
+        for (uint16_t c = 0; c < bounds.width - 1; ++c) {
             wabuf[r][c] = wabuf[r][c + 1];
         }
     }
@@ -1434,7 +1425,7 @@ void UICompSpectrumVis::renderWaterfall() {
     }
 
     // 2. Új adatok betöltése a wabuf jobb szélére (Q15 OPTIMALIZÁLT - nincs float konverzió!)
-    for (int r = 0; r < bounds.height; ++r) {
+    for (uint16_t r = 0; r < bounds.height; ++r) {
         // 'r' (0 to bounds.height-1) leképezése FFT bin indexre a szűkített tartományon belül
         int fft_bin_index =
             min_bin_for_wf + static_cast<int>(std::round(static_cast<float>(r) / std::max(1, (bounds.height - 1)) * (num_bins_in_wf_range - 1)));
@@ -1456,13 +1447,13 @@ void UICompSpectrumVis::renderWaterfall() {
     // Az új (jobb szélső) oszlop kirajzolása a sprite-ra INTERPOLÁCIÓVAL
     // A sprite graphH magas, a wabuf bounds.height magas.
     // Interpolálunk a wabuf bin-ek között a simább megjelenítésért
-    constexpr int WF_GRADIENT = 100;
+    constexpr uint16_t WF_GRADIENT = 100;
 
-    for (int y_on_sprite = 0; y_on_sprite < graphH; ++y_on_sprite) {
+    for (uint16_t y_on_sprite = 0; y_on_sprite < graphH; ++y_on_sprite) {
         // y_on_sprite (0..graphH-1) leképezése wabuf indexre (float, interpolációhoz)
         // A vízesés "fentről lefelé" jelenik meg (y=0 felül), a wabuf sorai frekvenciák (r=0 alacsony frekvencia)
-        int screen_y_inverted = graphH - 1 - y_on_sprite;
-        float r_wabuf_float = (screen_y_inverted * (bounds.height - 1)) / static_cast<float>(std::max(1, graphH - 1));
+        int screen_y_inverted = static_cast<int>(graphH) - 1 - y_on_sprite;
+        float r_wabuf_float = (screen_y_inverted * (bounds.height - 1)) / static_cast<float>(std::max(1, static_cast<int>(graphH) - 1));
 
         // Interpoláció a két legközelebbi wabuf sor között
         int r_wabuf_lower = static_cast<int>(std::floor(r_wabuf_float));
@@ -1605,7 +1596,7 @@ void UICompSpectrumVis::updateTuningAidParameters() {
 void UICompSpectrumVis::renderCwOrRttyTuningAidWaterfall() {
     // Audio feldolgozás Core1-en történik, AudioCore1Manager-en keresztül
 
-    int graphH = getGraphHeight();
+    uint16_t graphH = getGraphHeight();
     if (!spriteCreated_ || bounds.width == 0 || graphH <= 0 || wabuf.empty() || wabuf[0].empty()) {
         if (!spriteCreated_) {
             UISPECTRUM_DEBUG("UICompSpectrumVis::renderTuningAid - Sprite nincs létrehozva\n");
@@ -1647,9 +1638,9 @@ void UICompSpectrumVis::renderCwOrRttyTuningAidWaterfall() {
     }
 
     // 2. Új adatok betöltése a legfelső sorba (Q15 OPTIMALIZÁLT - konzisztens a fő waterfall-lal)
-    constexpr int WF_GRADIENT = 100;
+    constexpr uint16_t WF_GRADIENT = 100;
 
-    for (int c = 0; c < bounds.width; ++c) {
+    for (uint16_t c = 0; c < bounds.width; ++c) {
         // Pixel → FFT bin leképezés (lebegőpontos index interpolációhoz)
         float ratio_in_display_width = (bounds.width <= 1) ? 0.0f : (static_cast<float>(c) / (bounds.width - 1));
         float exact_bin_index = min_bin_for_tuning + ratio_in_display_width * (num_bins_in_tuning_range - 1);
@@ -1821,7 +1812,7 @@ void UICompSpectrumVis::renderSnrCurve() {
 
         // Y koordináta számítása (invertált, mert a képernyő teteje y=0)
         uint16_t y = graphH - static_cast<int>(constrain(snrValue, 0.0f, static_cast<float>(graphH)));
-        y = constrain(y, 0, graphH - 1);
+        y = constrain(y, 0, static_cast<int>(graphH) - 1);
 
         // Görbe rajzolása - pont összekötése az előzővel
         if (prevX >= 0 && prevY >= 0) {
@@ -1842,7 +1833,7 @@ void UICompSpectrumVis::renderSnrCurve() {
     uint16_t max_freq_displayed = MAX_FREQ_HZ;
     uint16_t displayed_span_hz = max_freq_displayed - min_freq_displayed;
 
-    constexpr int LABEL_Y_POS = 12; // Y pozíció a frekvencia címkéknek
+    constexpr uint16_t LABEL_Y_POS = 12; // Y pozíció a frekvencia címkéknek
 
     if (displayed_span_hz > 0) {
 
