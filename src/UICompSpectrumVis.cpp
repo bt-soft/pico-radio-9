@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
  * -----                                                                                                               *
- * Last Modified: 2025.11.28, Friday  07:27:26                                                                         *
+ * Last Modified: 2025.11.29, Saturday  05:39:55                                                                       *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -112,10 +112,10 @@ constexpr float LOWRES_SPECTRUMBAR_SENSITIVITY_FACTOR = 0.003f; // LowRes Spektr
 constexpr float HIGHRES_SPECTRUMBAR_SENSITIVITY_FACTOR = 0.08f; // HighRes Spektrum bar-ok amplitúdó skálázása
 
 // Oszcilloszkóp mód
-constexpr float OSCI_SENSITIVITY_FACTOR = 28.0f; // Oszcilloszkóp jel erősítése
+constexpr float OSCI_SENSITIVITY_FACTOR = 3.5f; // Oszcilloszkóp jel erősítése
 
 // Envelope mód
-constexpr float ENVELOPE_SENSITIVITY_FACTOR = 0.2f; // Envelope amplitúdó erősítése
+constexpr float ENVELOPE_SENSITIVITY_FACTOR = 0.15f; // Envelope amplitúdó erősítése
 
 // Waterfall mód
 constexpr float WATERFALL_SENSITIVITY_FACTOR = 0.2f; // Waterfall intenzitás skálázása
