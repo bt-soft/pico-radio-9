@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
  * -----                                                                                                               *
- * Last Modified: 2025.11.29, Saturday  10:05:38                                                                       *
+ * Last Modified: 2025.11.29, Saturday  12:57:17                                                                       *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -906,7 +906,7 @@ bool AudioProcessorC1::processFixedPointFFT(SharedData &sharedData, uint32_t &ff
     static uint8_t runDebugCounter = 0;
     if (++runDebugCounter >= 200) {
         const float N = (float)adcConfig.sampleCount;
-        float amp_q15 = (float)maxValue / 32767.0f; // Q15 → float konverzió csak debug céljára
+        float amp_q15 = (float)maxValue / Q15_MAX_AS_FLOAT; // Q15 → float konverzió csak debug céljára
         float amp_mV_peak = amp_q15 * ADC_LSB_VOLTAGE_MV * N;
 
         ADPROC_DEBUG("AudioProc-c1 [Q15]: T=%lu us, FFT=%lu us, DomFreq=%.1f Hz, amp=%d, pk=%.1f mV\n", totalTime_us, fftTime_us, dominantFreqHz, maxValue,

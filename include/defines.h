@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
  * -----                                                                                                               *
- * Last Modified: 2025.11.29, Saturday  08:52:18                                                                       *
+ * Last Modified: 2025.11.29, Saturday  01:04:39                                                                       *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -108,11 +108,8 @@
 //--- C String compare -----
 #define STREQ(a, b) (strcmp((a), (b)) == 0)
 
-// Egy másodperc mikroszekundumban
-#define ONE_SECOND_IN_MICROS 1000000.0f
-
 #define SPECTRUM_GAIN_MODE_AUTO ((int8_t)-128)        // Auto Gain mód spektrum vizualizációhoz (int8_t sentinel)
 #define SPECTRUM_GAIN_MODE_MANUAL_DEFAULT ((int8_t)0) // Manual Gain mód alapértelmezett érték spektrum vizualizációhoz (0 dB)
 
-#define MIN_AUDIO_FREQUENCY_HZ 300.0f   // Minimum audio frekvencia (Hz)
-#define MAX_AUDIO_FREQUENCY_HZ 15000.0f // Maximum audio fre
+#define MIN_AUDIO_FREQUENCY_HZ 300   // Minimum audio frekvencia (Hz)
+#define MAX_AUDIO_FREQUENCY_HZ 15000 // Maximum audio frekvencia (Hz)

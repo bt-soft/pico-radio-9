@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
  * -----                                                                                                               *
- * Last Modified: 2025.11.22, Saturday  09:53:13                                                                       *
+ * Last Modified: 2025.11.29, Saturday  12:59:39                                                                       *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -26,6 +26,7 @@
 #include <cmath>
 
 #include "BiquadFilter.h"
+#include "decoder_api.h"
 
 /*
  * Egyszerű Biquad band-pass filter (RBJ cookbook) core-1
@@ -101,7 +102,7 @@ void BiquadBandpass::processInPlace(const int16_t *in, int16_t *out, size_t coun
         z1_ = x;
 
         // clamp to int16 range
-        float yf = std::clamp(y, -32768.0f, 32767.0f);
+        float yf = std::clamp(y, (-1) * Q15_SCALE, Q15_MAX_AS_FLOAT);
         out[n] = (int16_t)yf;
     }
 }

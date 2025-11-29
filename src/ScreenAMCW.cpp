@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
  * -----                                                                                                               *
- * Last Modified: 2025.11.22, Saturday  10:23:56                                                                       *
+ * Last Modified: 2025.11.29, Saturday  12:58:38                                                                       *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -183,7 +183,7 @@ void ScreenAMCW::activate() {
 
     // CW Dekóder specifikus beállítások
     ::audioController.setDecoderUseAdaptiveThreshold(false); // Adaptív AGC küszöb használata a CW dekóderben
-    ::audioController.setDecoderBandpassEnabled(true);       // Engedélyezzük a dekóder oldali bandpass szűrőt
+    //::audioController.setDecoderBandpassEnabled(true);       // A CW dekódefnek nincs bandpass filtere
 }
 
 /**

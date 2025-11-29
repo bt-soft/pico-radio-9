@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
  * -----                                                                                                               *
- * Last Modified: 2025.11.23, Sunday  09:21:07                                                                         *
+ * Last Modified: 2025.11.29, Saturday  01:00:04                                                                       *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -46,7 +46,7 @@ constexpr char DecoderCW_C1::morseSymbols_[128];
  * @brief CwDecoderC1 konstruktor - inicializálja az alapértelmezett értékeket
  */
 DecoderCW_C1::DecoderCW_C1()
-    : samplingRate_(0), targetFreq_(800.0f), goertzelCoeff_(0.0f), threshold_(2000.0f), currentFreqIndex_(4), toneDetected_(false), leadingEdgeTime_(0),
+    : samplingRate_(0), targetFreq_(800.0f), goertzelCoeff_(0), threshold_q15(1311), currentFreqIndex_(4), toneDetected_(false), leadingEdgeTime_(0),
       trailingEdgeTime_(0), startReference_(200), reference_(200), toneMin_(9999), toneMax_(0), lastElement_(0), currentWpm_(0), toneIndex_(0),
       symbolIndex_(63), symbolOffset_(32), symbolCount_(0), started_(false), measuring_(false), wpmHistoryIndex_(0), freqHistoryCount_(0), lastPublishedWpm_(0),
       lastPublishedFreq_(0.0f), stableFreqIndex_(4), stableHoldUntilMs_(0), candidateFreqIndex_(4), candidateCount_(0), candidateFirstSeenMs_(0) {
@@ -60,7 +60,7 @@ DecoderCW_C1::DecoderCW_C1()
     // A `processSamples()` által feltöltött csúszó puffer használata
     lastSampleCount_ = 0;
     lastSamplePos_ = 0;
-    threshold_ = minThreshold_;
+    // Q15 AGC initialization is in header defaults
 }
 
 /**
@@ -79,7 +79,9 @@ bool DecoderCW_C1::start(const DecoderConfig &decoderConfig) {
     for (size_t i = 0; i < FREQ_SCAN_STEPS; i++) {
         scanFrequencies_[i] = targetFreq_ + FREQ_STEPS[i];
         scanCoeffs_[i] = calculateGoertzelCoeff(scanFrequencies_[i]);
-        CW_DEBUG("CW-C1: Scan freq[%d] = %.1f Hz, coeff = %.4f\n", i, scanFrequencies_[i], scanCoeffs_[i]);
+        // Q15 → float debug konverzió
+        float coeff_f = (float)scanCoeffs_[i] / Q15_MAX_AS_FLOAT;
+        CW_DEBUG("CW-C1: Scan freq[%d] = %.1f Hz, coeff[Q15] = %d (%.4f)\n", i, scanFrequencies_[i], scanCoeffs_[i], coeff_f);
     }
 
     currentFreqIndex_ = 4; // Kezdjük a középső frekvenciával (0 Hz offset)
@@ -109,13 +111,15 @@ void DecoderCW_C1::stop() {
 
 /**
  * @brief Goertzel együttható számítása adott frekvenciára
- * @param frequency Célfrekvencia Hz-ben
- * @return Goertzel együttható
+ * @param frequency Célfrekvencia (Hz)
+ * @return Goertzel együttható Q15 formátumban (32767 = 1.0)
  */
-float DecoderCW_C1::calculateGoertzelCoeff(float frequency) {
+q15_t DecoderCW_C1::calculateGoertzelCoeff(float frequency) {
     float k = (GOERTZEL_N * frequency) / samplingRate_;
     float omega = (2.0f * PI * k) / GOERTZEL_N;
-    return 2.0f * cos(omega);
+    float coeff_float = 2.0f * cos(omega);
+    // Q15 konverzió: [-1.0, 1.0] → [-32768, 32767]
+    return (q15_t)(coeff_float * Q15_MAX_AS_FLOAT);
 }
 
 /**
@@ -124,29 +128,48 @@ float DecoderCW_C1::calculateGoertzelCoeff(float frequency) {
 void DecoderCW_C1::initGoertzel() { goertzelCoeff_ = scanCoeffs_[currentFreqIndex_]; }
 
 /**
- * @brief Goertzel algoritmus futtatása egy blokkon
- * @param samples Bemeneti minták
+ * @brief Goertzel algoritmus futtatása egy blokkon - FIXPONTOS Q15 implementáció
+ * @param samples Bemeneti mintak int16_t formátumban (raw audio)
  * @param count Minták száma
- * @param coeff Goertzel együttható
- * @return Jelszint (magnitude)
+ * @param coeff Goertzel együttható Q15 formátumban
+ * @return Jelszint (magnitude) Q15 formátumban (approximate, nincs sqrt)
  */
-float DecoderCW_C1::processGoertzelBlock(const float *samples, size_t count, float coeff) {
-    float q1 = 0.0f;
-    float q2 = 0.0f;
+q15_t DecoderCW_C1::processGoertzelBlock(const int16_t *samples, size_t count, q15_t coeff) {
+    // Goertzel állapotváltozók Q15 formátumban
+    int32_t q1 = 0; // Q15 (de 32-bit a túlcsordulás elkerülésére)
+    int32_t q2 = 0;
 
+    // Goertzel iteráció: q0 = coeff * q1 - q2 + sample
+    // Fixpontos szorzás: (Q15 * Q15) >> 15 = Q15
     for (size_t i = 0; i < count && i < GOERTZEL_N; i++) {
-        float q0 = coeff * q1 - q2 + samples[i];
+        // coeff (Q15) * q1 (Q15) = Q30, >> 15 = Q15
+        int32_t coeff_q1 = ((int32_t)coeff * q1) >> 15;
+        int32_t q0 = coeff_q1 - q2 + (int32_t)samples[i];
         q2 = q1;
         q1 = q0;
     }
 
-    float magnitudeSquared = (q1 * q1) + (q2 * q2) - q1 * q2 * coeff;
-    return sqrtf(magnitudeSquared);
+    // Magnitutó számítás gyors approximációval (nincs sqrt!)
+    // Használjuk: mag ≈ max(|q1|, |q2|) + 0.5*min(|q1|, |q2|)
+    // Ez gyors és elég pontos Goertzel-hez
+    int32_t abs_q1 = (q1 < 0) ? -q1 : q1;
+    int32_t abs_q2 = (q2 < 0) ? -q2 : q2;
+    int32_t max_val = (abs_q1 > abs_q2) ? abs_q1 : abs_q2;
+    int32_t min_val = (abs_q1 > abs_q2) ? abs_q2 : abs_q1;
+    int32_t magnitude = max_val + (min_val >> 1); // max + 0.5*min
+
+    // Clamp Q15 tartományba
+    if (magnitude > 32767)
+        magnitude = 32767;
+    if (magnitude < -32768)
+        magnitude = -32768;
+
+    return (q15_t)magnitude;
 }
 
 /**
- * @brief Tónus detekció Goertzel filterrel
- * @param samples Bemeneti minták
+ * @brief Tónus detekció Goertzel filterrel - FIXPONTOS Q15
+ * @param samples Bemeneti minták int16_t formátumban
  * @param count Minták száma
  * @return true ha tónus detektálva
  */
@@ -157,53 +180,62 @@ bool DecoderCW_C1::detectTone(const int16_t *samples, size_t count) {
         return toneDetected_;
     }
 
-    // Minden blokkban mérjük a legerősebb frekvenciát
-    float maxMagnitude = 0.0f;
+    // Minden blokkban mérjük a legerősebb frekvenciát (Q15 magnitúdók)
+    q15_t maxMagnitude = 0;
     int bestIndex = currentFreqIndex_;
 
-    // Az ablak alkalmazása a mintákra (helyi pufferbe)
-    float buf[GOERTZEL_N];
-    windowApplier.apply(samples, buf, GOERTZEL_N);
+    // Ablak NEM kell fixpontos Goertzel-nél (a raw minták már int16_t-ben jönnek)
     for (size_t i = 0; i < FREQ_SCAN_STEPS; i++) {
-        float mag = processGoertzelBlock(buf, GOERTZEL_N, scanCoeffs_[i]);
+        q15_t mag = processGoertzelBlock(samples, GOERTZEL_N, scanCoeffs_[i]);
         if (mag > maxMagnitude) {
             maxMagnitude = mag;
             bestIndex = i;
         }
     }
     measuredFreqIndex_ = bestIndex;
-    float magnitude = maxMagnitude;
+    q15_t magnitude = maxMagnitude;
 
-    // --- AGC: threshold_ dinamikus optimalizálása ---
+    // --- AGC: threshold_q15 dinamikus optimalizálása (fixpontos Q15) ---
     if (useAdaptiveThreshold_) {
 
-        // Seed AGC on first meaningful measurement to avoid huge initial agcLevel_
+        // Seed AGC első értelmes mérésnél
         if (!agcInitialized_) {
-            // If magnitude is very small, don't seed yet
-            if (magnitude > 1.0f) {
-                agcLevel_ = magnitude;
+            // Ha a magnitúdó túl kicsi, még nem inicializálunk
+            if (magnitude > 100) { // Q15: 100 ≈ 0.003
+                agcLevel_q15 = magnitude;
                 agcInitialized_ = true;
             }
         } else {
-            agcLevel_ = (1.0f - agcAlpha_) * agcLevel_ + agcAlpha_ * magnitude;
+            // Exponenciális mozgó átlag Q15-ben
+            // agcLevel = (1-alpha)*agcLevel + alpha*magnitude
+            // alpha = agcAlpha_q15 / 32768
+            // Fixpontos: agcLevel = agcLevel - (agcLevel*alpha)/32768 + (magnitude*alpha)/32768
+            int32_t delta_old = ((int32_t)agcLevel_q15 * agcAlpha_q15) >> 15;
+            int32_t delta_new = ((int32_t)magnitude * agcAlpha_q15) >> 15;
+            agcLevel_q15 = agcLevel_q15 - delta_old + delta_new;
         }
 
-        // Threshold számítása
-        threshold_ = agcLevel_ * THRESH_FACTOR;
-        if (threshold_ < minThreshold_) {
-            threshold_ = minThreshold_;
+        // Threshold számítása: threshold = agcLevel * THRESH_FACTOR
+        // THRESH_FACTOR = 0.80 → Q15: 0.80 * 32768 ≈ 26214
+        constexpr q15_t THRESH_FACTOR_Q15 = 26214; // 0.80 Q15-ben
+        int32_t thresh = ((int32_t)agcLevel_q15 * THRESH_FACTOR_Q15) >> 15;
+        threshold_q15 = (q15_t)thresh;
+
+        // Minimum threshold ellenőrzés
+        if (threshold_q15 < minThreshold_q15) {
+            threshold_q15 = minThreshold_q15;
         }
 
     } else {
-        // Ha az adaptív küszöb ki van kapcsolva, használjuk a fix minThreshold_-t
-        threshold_ = minThreshold_;
+        // Fix küszöb használata
+        threshold_q15 = minThreshold_q15;
         if (agcInitialized_) {
             agcInitialized_ = false; // ha az adaptív küszöb ki van kapcsolva, reseteljük az AGC állapotot
         }
     }
 
-    // Tónus detekció küszöb alapján
-    bool rawToneState = (magnitude > threshold_);
+    // Tónus detekció küszöb alapján (Q15)
+    bool rawToneState = (magnitude > threshold_q15);
 
     // Debounce / hysteresis: require 2 consecutive blocks above/below to change state
     // Debounce / hiszterézis: a státuszváltáshoz két egymás utáni blokk szükséges a küszöb felett/alatt
@@ -228,10 +260,15 @@ bool DecoderCW_C1::detectTone(const int16_t *samples, size_t count) {
     if (++__cw_dbg_cnt >= 10) {
         // Mért frekvencia a legjobb index alapján
         float detectedFreq = scanFrequencies_[measuredFreqIndex_];
+        // Q15 → float debug konverzió
+        float mag_f = (float)magnitude / Q15_SCALE;
+        float agc_f = (float)agcLevel_q15 / Q15_SCALE;
+        float thr_f = (float)threshold_q15 / Q15_SCALE;
         if (useAdaptiveThreshold_) {
-            CW_DEBUG("CW-C1: detectTone: freq=%.1f Hz, mag=%.1f, agc=ON, agcLevel=%.1f, threshold=%.1f\n", detectedFreq, magnitude, agcLevel_, threshold_);
+            CW_DEBUG("CW-C1: detectTone: freq=%.1f Hz, mag[Q15]=%d(%.4f), agc=ON, agcLevel[Q15]=%d(%.4f), threshold[Q15]=%d(%.4f)\n", //
+                     detectedFreq, magnitude, mag_f, agcLevel_q15, agc_f, threshold_q15, thr_f);
         } else {
-            CW_DEBUG("CW-C1: detectTone: freq=%.1f Hz, mag=%.1f, agc=OFF\n", detectedFreq, magnitude);
+            CW_DEBUG("CW-C1: detectTone: freq=%.1f Hz, mag[Q15]=%d(%.4f), agc=OFF\n", detectedFreq, magnitude, mag_f);
         }
         __cw_dbg_cnt = 0;
     }
@@ -258,31 +295,32 @@ void DecoderCW_C1::updateFrequencyTracking() {
     if (!toneDetected_) {
         return;
     }
-    // A processSamples() által feltöltött tag csúszó pufferét használjuk
+    // A processSamples() által feltöltött csúszó pufferét használjuk
     if (lastSampleCount_ < GOERTZEL_N) {
         return; // Még nincs elég minta
     }
 
     // Keressük meg a legerősebb frekvenciát (minden index magnitúdójának meghatározása)
-    float maxMagnitude = 0.0f;
+    // Q15 fixpoint használat - nincs szükség ablakfüggvényre (direkt int16_t minták)
+    q15_t maxMagnitude = 0;
     uint8_t bestIndex = currentFreqIndex_;
 
-    // Az ablak alkalmazása az utolsó mintákra (helyi pufferbe)
-    float buf[GOERTZEL_N];
+    // Ideiglenesen rendezett puffer az utolsó GOERTZEL_N mintához
+    int16_t orderedSamples[GOERTZEL_N];
     if (lastSamplePos_ == 0) {
-        windowApplier.apply(lastSamples_, buf, GOERTZEL_N);
+        // Ha a pozíció 0, a teljes puffer lineáris
+        memcpy(orderedSamples, lastSamples_, GOERTZEL_N * sizeof(int16_t));
     } else {
-        int16_t temp[GOERTZEL_N];
+        // Körkörös puffer: összefűzzük a farkot és a fejét
         size_t tail = GOERTZEL_N - lastSamplePos_;
-        memcpy(temp, lastSamples_ + lastSamplePos_, tail * sizeof(int16_t));
-        memcpy(temp + tail, lastSamples_, lastSamplePos_ * sizeof(int16_t));
-        windowApplier.apply(temp, buf, GOERTZEL_N);
+        memcpy(orderedSamples, lastSamples_ + lastSamplePos_, tail * sizeof(int16_t));
+        memcpy(orderedSamples + tail, lastSamples_, lastSamplePos_ * sizeof(int16_t));
     }
 
     // Tároljuk az egyes frekvenciaindexek magnitúdóit, hogy összehasonlíthassuk az aktuálissal
-    float mags[FREQ_SCAN_STEPS] = {0};
+    q15_t mags[FREQ_SCAN_STEPS] = {0};
     for (size_t i = 0; i < FREQ_SCAN_STEPS; i++) {
-        float magnitude = processGoertzelBlock(buf, GOERTZEL_N, scanCoeffs_[i]);
+        q15_t magnitude = processGoertzelBlock(orderedSamples, GOERTZEL_N, scanCoeffs_[i]);
         mags[i] = magnitude;
         if (magnitude > maxMagnitude) {
             maxMagnitude = magnitude;
@@ -294,14 +332,21 @@ void DecoderCW_C1::updateFrequencyTracking() {
     // - Az új frekvencia magnitúdója elég nagy
     // - Nem váltunk azonnal; először jelöltként számoljuk, és ha ez 10 egymás utáni mérésben
     //   (vagy elegendő időn át) fennáll, akkor véglegesítjük a váltást.
-    const float MAG_RATIO = 1.5f; // új magnitúdónak ennyivel kell nagyobbnak lennie
-    float newMag = mags[bestIndex];
-    float curMag = mags[currentFreqIndex_];
+
+    // Q15 küszöb konstansok (statikus értékek Q15 formátumban)
+    // CHANGE_TONE_MAG_THRESHOLD = 10.0f → Q15: 10.0f * 32768 / 1000 ≈ 327
+    const q15_t MAG_THRESHOLD_Q15 = 327;
+    // MAG_RATIO = 1.5x: newMag > curMag * 1.5 → newMag * 2 > curMag * 3
+    q15_t newMag = mags[bestIndex];
+    q15_t curMag = mags[currentFreqIndex_];
     float freqDiff = fabsf(scanFrequencies_[bestIndex] - scanFrequencies_[currentFreqIndex_]);
 
     bool meetsBasicCriteria = false;
     if (bestIndex != currentFreqIndex_) {
-        if (newMag >= CHANGE_TONE_MAG_THRESHOLD && newMag > curMag * MAG_RATIO && freqDiff > CHANGE_TONE_THRESHOLD) {
+        // newMag >= MAG_THRESHOLD_Q15 && newMag * 2 > curMag * 3 && freqDiff > CHANGE_TONE_THRESHOLD
+        int32_t newMagx2 = (int32_t)newMag * 2;
+        int32_t curMagx3 = (int32_t)curMag * 3;
+        if (newMag >= MAG_THRESHOLD_Q15 && newMagx2 > curMagx3 && freqDiff > CHANGE_TONE_THRESHOLD) {
             meetsBasicCriteria = true;
         }
     }
@@ -332,7 +377,11 @@ void DecoderCW_C1::updateFrequencyTracking() {
                 // Stabil státusz beállítása: megtartjuk legalább STABLE_HOLD_MS-ig
                 stableFreqIndex_ = currentFreqIndex_;
                 stableHoldUntilMs_ = now + STABLE_HOLD_MS;
-                CW_DEBUG("CW-C1: Frekvencia végleges váltás: %.1f Hz (mag=%.1f, cur=%.1f)\n", scanFrequencies_[currentFreqIndex_], newMag, curMag);
+                // Q15 → float debug konverzió
+                float newMag_f = (float)newMag / Q15_SCALE;
+                float curMag_f = (float)curMag / Q15_SCALE;
+                CW_DEBUG("CW-C1: Frekvencia végleges váltás: %.1f Hz (mag[Q15]=%d(%.4f), cur[Q15]=%d(%.4f))\n", //
+                         scanFrequencies_[currentFreqIndex_], newMag, newMag_f, curMag, curMag_f);
             } else {
                 CW_DEBUG("CW-C1: Frekvencia váltás elhalasztva, tartási idő alatt: %.1f Hz\n", scanFrequencies_[stableFreqIndex_]);
             }
@@ -351,8 +400,8 @@ void DecoderCW_C1::updateFrequencyTracking() {
     // Ritka debug: mi történik a váltási logikával
     static int __cw_fs_dbg = 0;
     if (++__cw_fs_dbg >= 500) {
-        CW_DEBUG("CW-C1: Váltási állapot: cur=%.1fHz stableUntil=%lu candidate=%d count=%u\n", scanFrequencies_[currentFreqIndex_], stableHoldUntilMs_,
-                 candidateFreqIndex_, candidateCount_);
+        CW_DEBUG("CW-C1: Váltási állapot: cur=%.1fHz stableUntil=%lu candidate=%d count=%u\n", //
+                 scanFrequencies_[currentFreqIndex_], stableHoldUntilMs_, candidateFreqIndex_, candidateCount_);
         __cw_fs_dbg = 0;
     }
 }

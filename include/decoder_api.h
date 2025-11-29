@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
  * -----                                                                                                               *
- * Last Modified: 2025.11.29, Saturday  06:56:58                                                                       *
+ * Last Modified: 2025.11.29, Saturday  12:56:43                                                                       *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -34,6 +34,9 @@
  * Csek az kellene az arm_math.h-ból,csak ezért nem húzzuk be a headert
  */
 typedef int16_t q15_t;
+
+constexpr float Q15_SCALE = 32768.0f;        // (2^15)
+constexpr float Q15_MAX_AS_FLOAT = 32767.0f; // Max pozitív érték float-ként
 
 /**
  * @brief Dekóder azonosítók

@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                       *
  * -----                                                                                                               *
- * Last Modified: 2025.11.29, Saturday  07:49:12                                                                       *
+ * Last Modified: 2025.11.29, Saturday  12:58:38                                                                       *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -154,8 +154,8 @@ class AudioProcessorC1 {
     void buildHanningWindow_q15(uint16_t size);
 
     // Konverziós segédfüggvények
-    inline q15_t floatToQ15(float val) { return (q15_t)(val * 32767.0f); }
-    inline float q15ToFloat(q15_t val) { return (float)val / 32767.0f; }
+    inline q15_t floatToQ15(float val) { return (q15_t)(val * Q15_MAX_AS_FLOAT); }
+    inline float q15ToFloat(q15_t val) { return (float)val / Q15_MAX_AS_FLOAT; }
 
     // Goertzel detektor API: számolja a magnitúdót egy célfrekvenciára az utolsó feldolgozott minták alapján
     // Visszatérési érték: magnitúdó (lineáris) vagy -1 hibára

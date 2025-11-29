@@ -71,19 +71,19 @@ class DecoderCW_C1 : public IDecoder {
 
     // --- Goertzel filter paraméterek ---
     static constexpr size_t GOERTZEL_N = 48; // Minták száma Goertzel blokkhoz
-    float goertzelCoeff_;                    // Goertzel együttható
-    float threshold_;                        // Jelszint küszöb
+    q15_t goertzelCoeff_;                    // Goertzel együttható (Q15)
+    q15_t threshold_q15;                     // Jelszint küszöb (Q15)
 
     // --- AGC paraméterek ---
     // Ha true, a dekóder adaptív küszöböt számol (agc-szerű viselkedés)
-    // Ha false, csak a `minThreshold_` értéket használjuk (fix küszöb)
+    // Ha false, csak a `minThreshold_q15` értéket használjuk (fix küszöb)
     bool useAdaptiveThreshold_ = false;
 
-    // AGC runtime paraméterek
+    // AGC runtime paraméterek (Q15 fixpoint)
     // Kezdeti AGC értékek a gyakoribb mért magnitúdókhoz igazítva
-    float agcLevel_ = 15.0f;           // AGC szint (mozgó átlag) - kezdeti tipp a mérések alapján (konzervatív)
-    float agcAlpha_ = 0.02f;           // AGC szűrési állandó (lassabb követés, kevesebb fluktuáció)
-    float minThreshold_ = 40.0f;       // Minimális threshold_ érték
+    q15_t agcLevel_q15 = 492;          // AGC szint (mozgó átlag) Q15: 15.0f × 32768 / 1000 ≈ 492
+    q15_t agcAlpha_q15 = 655;          // AGC szűrési állandó (lassabb követés) Q15: 0.02f × 32768 ≈ 655
+    q15_t minThreshold_q15 = 1311;     // Minimális threshold_q15 érték Q15: 40.0f × 32768 / 1000 ≈ 1311
     const float THRESH_FACTOR = 0.80f; // Jelszint küszöbfaktor - nagyobb érték konzervatívabb detektálást eredményez
 
     // Jelzi, hogy az AGC egyszer már inicializálva lett valódi mérésből
@@ -97,8 +97,8 @@ class DecoderCW_C1 : public IDecoder {
 
     // Frekvencia követéshez szükséges adatok
     float scanFrequencies_[FREQ_SCAN_STEPS];
-    float scanCoeffs_[FREQ_SCAN_STEPS];
-    uint8_t currentFreqIndex_; // Aktuális frekvencia index
+    q15_t scanCoeffs_[FREQ_SCAN_STEPS]; // Goertzel együtthatók (Q15)
+    uint8_t currentFreqIndex_;          // Aktuális frekvencia index
 
     // --- Türelmes váltási szabályok (kezeljük, ha rövid ideig ingadozik a mért frekvencia) ---
     // Ha egyszer stabilnak tekintettük a frekvenciát, tartsa meg legalább 3 percig
@@ -205,8 +205,8 @@ class DecoderCW_C1 : public IDecoder {
 
     // --- Segéd függvények ---
     void initGoertzel();
-    float calculateGoertzelCoeff(float frequency);
-    float processGoertzelBlock(const float *samples, size_t count, float coeff);
+    q15_t calculateGoertzelCoeff(float frequency);
+    q15_t processGoertzelBlock(const int16_t *samples, size_t count, q15_t coeff);
 
     // Hann ablak a Goertzel blokkok számára (alapértelmezett Hann)
     WindowApplier windowApplier;

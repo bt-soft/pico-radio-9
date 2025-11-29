@@ -60,23 +60,23 @@ class DecoderRTTY_C1 : public IDecoder {
     float baudRate;
     float samplingRate;
 
-    // Tone Detector - kisebb Goertzel blokkokkal
+    // Tone Detector - kisebb Goertzel blokkokkal (Q15 fixpoint)
     struct GoertzelBin {
-        float targetFreq;
-        float coeff;
-        float q1;
-        float q2;
-        float magnitude;
+        float targetFreq; // Megmarad float (csak referencia)
+        q15_t coeff;      // Goertzel együttható (Q15)
+        int32_t q1;       // Goertzel állapot (Q15 extended)
+        int32_t q2;       // Goertzel állapot (Q15 extended)
+        q15_t magnitude;  // Magnitúdó (Q15)
     };
 
     static constexpr uint8_t BINS_PER_TONE = 3;
 
     std::array<GoertzelBin, BINS_PER_TONE> markBins;
     std::array<GoertzelBin, BINS_PER_TONE> spaceBins;
-    float markNoiseFloor;
-    float spaceNoiseFloor;
-    float markEnvelope;  // envelope a mark számára
-    float spaceEnvelope; // envelope a space számára
+    q15_t markNoiseFloor_q15;  // Zajpadló Q15
+    q15_t spaceNoiseFloor_q15; // Zajpadló Q15
+    q15_t markEnvelope_q15;    // Envelope a mark számára (Q15)
+    q15_t spaceEnvelope_q15;   // Envelope a space számára (Q15)
     uint8_t toneBlockAccumulated;
     bool lastToneIsMark;
 
@@ -92,7 +92,7 @@ class DecoderRTTY_C1 : public IDecoder {
     // -- Soft-decision dekódolás: Ha nem csak bináris döntés a cél, hanem a confidence alapján súlyozottan történik
     //    a dekódolás (pl. FEC, error correction), akkor a confidence értékek segítenek a hibajavításban.
     //
-    float lastToneConfidence; // az utolsó detektált tone döntés biztonsága
+    q15_t lastToneConfidence_q15; // Az utolsó detektált tone döntés biztonsága (Q15)
 
     // Hibás vagy bizonytalan blokkok szűrése:
     // Bit Recovery PLL
@@ -114,9 +114,9 @@ class DecoderRTTY_C1 : public IDecoder {
     uint8_t currentByte;
     bool figsShift;
 
-    // Debug/diagnosztika
-    float lastDominantMagnitude;
-    float lastOppositeMagnitude;
+    // Debug/diagnosztika (Q15)
+    q15_t lastDominantMagnitude_q15;
+    q15_t lastOppositeMagnitude_q15;
 
     // Windowing helper for Goertzel blocks
     WindowApplier windowApplier;

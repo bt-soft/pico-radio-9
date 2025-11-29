@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
  * -----                                                                                                               *
- * Last Modified: 2025.11.29, Saturday  10:44:25                                                                       *
+ * Last Modified: 2025.11.29, Saturday  12:42:35                                                                       *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -133,45 +133,43 @@ static inline q15_t q15Interpolate(const q15_t *data, float exactIndex, int minI
 static inline q15_t q15ApplyNoiseThreshold(q15_t v, q15_t threshold) { return (q15Abs(v) < threshold) ? 0 : v; }
 
 // Zajküszöb - alacsony szintű zajt nullázza
-constexpr float NOISE_THRESHOLD_FM = 0.0f; // Zajszűrés: zaj magnitúdó értékével
-constexpr float NOISE_THRESHOLD_AM = 0.0f; // Zajszűrés: zaj magnitúdó értékével
-constexpr q15_t NOISE_THRESHOLD_Q15 = 0;   // Q15 zajküszöb (0 = kikapcsolva)
+constexpr q15_t NOISE_THRESHOLD_Q15 = 0; // Q15 zajküszöb (0 = kikapcsolva)
 
-// ===== ÉRZÉKENYSÉGI / AMPLITÚDÓ SKÁLÁZÁSI KONSTANSOK =====
-// Q16 fixpontos formátum: 65536 = 1.0x, 131072 = 2.0x, 32768 = 0.5x, 256 = 0.004x
-// Q16 használata 256× finomabb beállítási lehetőséget ad, mint Q8
-// Nagyobb érték = nagyobb érzékenység (minden módnál)
-//
-// FONTOS: Az érzékenységi értékek az Si4703 50-es hangerőssége mellett
-// a kapcsrajznak megfelelő hardveren lettek beállítva
-namespace SensitivityConstants {
+/**
+ * @brief Sávszélesség-specifikus scale faktor konfiguráció (MINDEN megjelenítési módhoz)
+ *
+ * Keskenyebb sávszélesség = kevesebb FFT bin = kisebb összenergia → nagyobb erősítés szükséges
+ * Szélesebb sávszélesség = több FFT bin = nagyobb összenergia → kisebb erősítés elegendő
+ *
+ * MINDEN scale faktor (envelope, waterfall, tuning aid, spectrum bar, oszcilloszkóp)
+ * egységesen a táblázatból származik.
+ */
+struct BandwidthScaleConfig {
+    uint32_t bandwidthHz;           // Dekóder sávszélesség (Hz)
+    uint32_t lowResBarScaleQ16;     // LowRes Spektrum bar (Q16: 256 = 0.004x)
+    uint32_t highResBarScaleQ16;    // HighRes Spektrum bar (Q16: 1280 = 0.02x)
+    uint32_t oscilloscopeScaleQ16;  // Oszcilloszkóp (Q16: 229376 = 3.5x, raw sample)
+    uint32_t envelopeScaleQ16;      // Envelope spectrum scale faktor (Q16)
+    uint32_t waterfallScaleQ16;     // Waterfall scale faktor (Q16)
+    uint32_t tuningAidWaterfallQ16; // CW/RTTY Tuning Aid Waterfall (Q16)
+    uint32_t tuningAidSnrCurveQ16;  // CW/RTTY SNR Curve scale faktor (Q16)
+};
 
-// LowRes Spektrum mód (Q16: 1 * 256 = 256, azaz 0.004x)
-constexpr uint32_t LOWRES_SPECTRUMBAR_SCALE_Q16 = 256;
-
-// HighRes Spektrum mód (Q16: 5 * 256 = 1280, azaz 0.02x)
-constexpr uint32_t HIGHRES_SPECTRUMBAR_SCALE_Q16 = 1280;
-
-// Oszcilloszkóp mód (Q16: 896 * 256 = 229376, azaz 3.5x) - raw sample skálázás, nem Q15
-constexpr uint32_t OSCI_SCALE_Q16 = 229376;
-
-// Envelope mód FM (Q16: 15 * 256 = 3840, azaz 0.06x)
-constexpr uint32_t ENVELOPE_SCALE_FM_Q16 = 3840;
-// Envelope mód AM (Q16: 5 * 256 = 1280, azaz 0.02x)
-constexpr uint32_t ENVELOPE_SCALE_AM_Q16 = 1280;
-
-// Waterfall mód FM (Q16: 13 * 256 = 3328, azaz 0.05x)
-constexpr uint32_t WATERFALL_SCALE_FM_Q16 = 3328;
-// Waterfall mód AM (Q16: 3 * 256 = 768, azaz 0.01x)
-constexpr uint32_t WATERFALL_SCALE_AM_Q16 = 768;
-
-// CW/RTTY Tuning Aid Waterfall (Q16: 1 * 256 = 256, azaz 0.004x)
-constexpr uint32_t TUNING_AID_WATERFALL_SCALE_Q16 = 256;
-
-// CW/RTTY SNR Curve (Q16)
-constexpr uint32_t TUNING_AID_SNR_CURVE_SCALE_Q16 = 512;
-
-}; // namespace SensitivityConstants
+// Előre definiált scale táblázat (sávszélesség szerint növekvő sorrendben!)
+const uint32_t SC_LOWRES_BAR = 256;   // Alapértelmezett lowRes spektrum bar scale (0.004x)
+const uint32_t SC_HIGHRES_BAR = 1280; // Alapértelmezett highRes spektrum bar scale (0.02x)
+const uint32_t SC_OSCI = 229376;      // Alapértelmezett oszcilloszkóp scale (3.5x)
+const uint32_t SC_ENVELOPE = 512;     // Alapértelmezett envelope scale (0.008x)
+const uint32_t SC_WATERFALL = 768;    // Alapértelmezett waterfall scale (0.012x)
+constexpr BandwidthScaleConfig BANDWIDTH_SCALE_TABLE[] = {
+    // bandwidth, lowResBar, highResBar, oscilloscope, envelope, waterfall, tuningAidWf, tuningAidSnr
+    {CW_AF_BANDWIDTH_HZ, SC_LOWRES_BAR, SC_HIGHRES_BAR, SC_OSCI, SC_ENVELOPE, SC_WATERFALL, 3072, 2048},    // CW (1500 Hz) - 4.0× erősebb tuning aid
+    {3000, SC_LOWRES_BAR, SC_HIGHRES_BAR, SC_OSCI, SC_ENVELOPE, SC_WATERFALL, 1536, 1536},                  // Köztes (3000 Hz) - 2.0× erősebb tuning aid
+    {WEFAX_AF_BANDWIDTH_HZ, SC_LOWRES_BAR, SC_HIGHRES_BAR, SC_OSCI, SC_ENVELOPE, SC_WATERFALL, 1100, 1100}, // WeFax (4410 Hz) - ~1.4× erősebb tuning aid
+    {AM_AF_BANDWIDTH_HZ, SC_LOWRES_BAR, SC_HIGHRES_BAR, SC_OSCI, SC_ENVELOPE, SC_WATERFALL, 768, 768},      // AM/RTTY/SSTV (6000 Hz) - referencia
+    {FM_AF_BANDWIDTH_HZ, SC_LOWRES_BAR, SC_HIGHRES_BAR, SC_OSCI, 3840, 3328, 307, 307}                      // FM (15000 Hz) - széles sáv
+};
+constexpr size_t BANDWIDTH_SCALE_TABLE_SIZE = ARRAY_ITEM_COUNT(BANDWIDTH_SCALE_TABLE);
 
 // Tunnnig Aid/Curve Színek
 constexpr uint16_t TUNING_AID_CW_TARGET_COLOR = TFT_GREEN;
@@ -976,8 +974,9 @@ void UICompSpectrumVis::renderSpectrumBar(bool isLowRes) {
             }
         }
 
-        // Q16 skálázási konstans (LowRes)
-        uint32_t scaleFactorQ16 = SensitivityConstants::LOWRES_SPECTRUMBAR_SCALE_Q16;
+        // Q16 skálázási konstans (LowRes) - sávszélesség-adaptív
+        uint32_t estimatedBandwidthHz = static_cast<uint32_t>(actualFftSize * currentBinWidthHz / 2.0f);
+        uint32_t scaleFactorQ16 = getScaleForBandwidth(estimatedBandwidthHz, false, false, false, false, true); // forLowResBar=true
         if (isAutoGainMode()) {
             // 5.5x finomhangolás = 5.5 * 65536 = 360448
             scaleFactorQ16 = (scaleFactorQ16 * 360448) >> 16;
@@ -1082,8 +1081,9 @@ void UICompSpectrumVis::renderSpectrumBar(bool isLowRes) {
         // Pixel-per-bin rajzolás (vékony vonalak)
         const uint16_t num_bins_in_range = std::max(1, max_bin_idx - min_bin_idx + 1);
 
-        // Q16 skálázási konstans (HighRes)
-        uint32_t scaleFactorQ16 = SensitivityConstants::HIGHRES_SPECTRUMBAR_SCALE_Q16;
+        // Q16 skálázási konstans (HighRes) - sávszélesség-adaptív
+        uint32_t estimatedBandwidthHz = static_cast<uint32_t>(actualFftSize * currentBinWidthHz / 2.0f);
+        uint32_t scaleFactorQ16 = getScaleForBandwidth(estimatedBandwidthHz, false, false, false, false, false, true); // forHighResBar=true
 
         // HighRes: kétfázisos számítás (Q15 optimalizált - direkt pixel konverzió)
         std::vector<uint16_t> computedCols(bounds.width, 0);
@@ -1195,9 +1195,11 @@ void UICompSpectrumVis::renderOscilloscope() {
 
         int16_t raw_sample = osciData[i];
 
-        // Integer Q16 alapú skálázás: az érzékenység az `OSCI_SCALE_Q16` konstansban van (Q16 fixpontos)
-        // scaled_q16 = raw_sample * OSCI_SCALE_Q16
-        int32_t scaled_q16 = (int32_t)raw_sample * (int32_t)SensitivityConstants::OSCI_SCALE_Q16; // Q16 representation
+        // Integer Q16 alapú skálázás - oszcilloszkópnál fix érték (nincs FFT)
+        // scaled_q16 = raw_sample * oscilloscopeScaleQ16
+        // Referencia: 6000 Hz (AM) sávszélesség
+        uint32_t oscilloscopeScaleQ16 = getScaleForBandwidth(6000, false, false, false, false, false, false, true); // forOscilloscope=true
+        int32_t scaled_q16 = (int32_t)raw_sample * (int32_t)oscilloscopeScaleQ16;                                   // Q16 representation
 
         // Leképezés pixelekre: pixel = scaled_q16 * (graphH/2 - 1) / (2048 * 65536)
         int32_t half_span = static_cast<int32_t>(graphH) / 2 - 1;
@@ -1274,9 +1276,10 @@ void UICompSpectrumVis::renderEnvelope() {
         std::min(static_cast<int>(actualFftSize - 1), static_cast<int>(std::round(maxDisplayFrequencyHz_ * 0.2f / currentBinWidthHz)));
     const uint16_t num_bins_in_env_range = std::max(1, max_bin_for_env - min_bin_for_env + 1);
 
-    // Q16 skálázási konstans (Q15 optimalizált) - dinamikus AM/FM alapján
-    // AM (6kHz): kisebb skála (koncentráltabb energia), FM (15kHz): nagyobb skála (szétoszló energia)
-    uint32_t scaleFactorQ16 = getScaleFactorForMode(SensitivityConstants::ENVELOPE_SCALE_AM_Q16, SensitivityConstants::ENVELOPE_SCALE_FM_Q16);
+    // Q16 skálázási konstans (Q15 optimalizált) - sávszélesség-adaptív
+    // Keskenebb sáv (AM 6kHz): kisebb skála, szélesebb sáv (FM 15kHz): nagyobb skála
+    uint32_t estimatedBandwidthHz = static_cast<uint32_t>(actualFftSize * currentBinWidthHz / 2.0f);
+    uint32_t scaleFactorQ16 = getScaleForBandwidth(estimatedBandwidthHz, false, true); // forEnvelope=true
 
     // AGC: scale_q16 módosítása (AGC esetén csökkentés)
     if (isAutoGainMode()) {
@@ -1431,9 +1434,10 @@ void UICompSpectrumVis::renderWaterfall() {
     const int max_bin_for_wf = std::min(static_cast<int>(actualFftSize - 1), static_cast<int>(std::round(maxDisplayFrequencyHz_ / currentBinWidthHz)));
     const int num_bins_in_wf_range = std::max(1, max_bin_for_wf - min_bin_for_wf + 1);
 
-    // Q16 skálázási konstans (Q15 optimalizált) - dinamikus AM/FM alapján
-    // AM (6kHz): kisebb skála (koncentráltabb energia), FM (15kHz): nagyobb skála (szétoszló energia)
-    uint32_t scaleFactorQ16 = getScaleFactorForMode(SensitivityConstants::WATERFALL_SCALE_AM_Q16, SensitivityConstants::WATERFALL_SCALE_FM_Q16);
+    // Q16 skálázási konstans (Q15 optimalizált) - sávszélesség-adaptív
+    // Keskenyebb sáv (AM 6kHz): kisebb skála, szélesebb sáv (FM 15kHz): nagyobb skála
+    uint32_t estimatedBandwidthHz = static_cast<uint32_t>(actualFftSize * currentBinWidthHz / 2.0f);
+    uint32_t scaleFactorQ16 = getScaleForBandwidth(estimatedBandwidthHz, false, false, true); // forWaterfall=true
 
     // AGC: scale_q16 módosítása (AGC esetén kisebb csökkentés)
     if (isAutoGainMode()) {
@@ -1607,6 +1611,92 @@ void UICompSpectrumVis::updateTuningAidParameters() {
 }
 
 /**
+ * @brief Sávszélesség-arányos adaptív scale faktor számítás (MINDEN megjelenítési módhoz)
+ *
+ * @param currentBandwidthHz Az aktuális dekóder sávszélesség Hz-ben
+ * @param forTuningAid true = Tuning Aid waterfall scale
+ * @param forEnvelope true = Envelope spectrum scale
+ * @param forWaterfall true = Normal waterfall scale
+ * @param forSnrCurve true = SNR curve scale (csak ha forTuningAid=true)
+ * @param forLowResBar true = LowRes Spektrum bar scale
+ * @param forHighResBar true = HighRes Spektrum bar scale
+ * @param forOscilloscope true = Oszcilloszkóp scale
+ * @return A számított scale faktor Q16 formátumban
+ */
+uint32_t UICompSpectrumVis::getScaleForBandwidth(uint32_t currentBandwidthHz, bool forTuningAid, bool forEnvelope, bool forWaterfall, bool forSnrCurve,
+                                                 bool forLowResBar, bool forHighResBar, bool forOscilloscope) const {
+
+    // Biztonsági ellenőrzés
+    if (currentBandwidthHz == 0) {
+        // Fallback: AM referencia érték (6000 Hz sor)
+        if (forEnvelope)
+            return 512;
+        if (forWaterfall)
+            return 768;
+        if (forTuningAid && forSnrCurve)
+            return 768;
+        if (forTuningAid)
+            return 768;
+        return 768;
+    }
+
+    // Lambda a megfelelő scale mező kiválasztásához
+    auto getScale = [forTuningAid, forEnvelope, forWaterfall, forSnrCurve, forLowResBar, forHighResBar,
+                     forOscilloscope](const BandwidthScaleConfig &cfg) -> uint32_t {
+        if (forEnvelope)
+            return cfg.envelopeScaleQ16;
+        if (forWaterfall)
+            return cfg.waterfallScaleQ16;
+        if (forTuningAid && forSnrCurve)
+            return cfg.tuningAidSnrCurveQ16;
+        if (forTuningAid)
+            return cfg.tuningAidWaterfallQ16;
+        if (forLowResBar)
+            return cfg.lowResBarScaleQ16;
+        if (forHighResBar)
+            return cfg.highResBarScaleQ16;
+        if (forOscilloscope)
+            return cfg.oscilloscopeScaleQ16;
+        return cfg.envelopeScaleQ16; // fallback
+    };
+
+    // 1. Pontos egyezés keresése a táblázatban
+    for (size_t i = 0; i < BANDWIDTH_SCALE_TABLE_SIZE; ++i) {
+        if (BANDWIDTH_SCALE_TABLE[i].bandwidthHz == currentBandwidthHz) {
+            return getScale(BANDWIDTH_SCALE_TABLE[i]);
+        }
+    }
+
+    // 2. Nincs pontos egyezés -> lineáris interpoláció a két legközelebbi érték között
+    for (size_t i = 0; i < BANDWIDTH_SCALE_TABLE_SIZE - 1; ++i) {
+        uint32_t bwLow = BANDWIDTH_SCALE_TABLE[i].bandwidthHz;
+        uint32_t bwHigh = BANDWIDTH_SCALE_TABLE[i + 1].bandwidthHz;
+
+        if (currentBandwidthHz > bwLow && currentBandwidthHz < bwHigh) {
+            // Interpoláció szükséges
+            uint32_t scaleLow = getScale(BANDWIDTH_SCALE_TABLE[i]);
+            uint32_t scaleHigh = getScale(BANDWIDTH_SCALE_TABLE[i + 1]);
+
+            // Lineáris interpoláció: scale = scaleLow + ratio × (scaleHigh - scaleLow)
+            float ratio = (float)(currentBandwidthHz - bwLow) / (float)(bwHigh - bwLow);
+            uint32_t interpolated = scaleLow + (uint32_t)(ratio * (int32_t)(scaleHigh - scaleLow));
+
+            return interpolated;
+        }
+    }
+
+    // 3. Tartományon kívül esik
+    if (currentBandwidthHz <= BANDWIDTH_SCALE_TABLE[0].bandwidthHz) {
+        // Kisebb mint a legkisebb -> legkisebb érték használata (legnagyobb erősítés)
+        return getScale(BANDWIDTH_SCALE_TABLE[0]);
+    } else {
+        // Nagyobb mint a legnagyobb -> legnagyobb érték használata (legkisebb erősítés)
+        size_t lastIdx = BANDWIDTH_SCALE_TABLE_SIZE - 1;
+        return getScale(BANDWIDTH_SCALE_TABLE[lastIdx]);
+    }
+}
+
+/**
  * @brief Hangolási segéd renderelése (CW/RTTY waterfall)
  */
 void UICompSpectrumVis::renderCwOrRttyTuningAidWaterfall() {
@@ -1645,8 +1735,12 @@ void UICompSpectrumVis::renderCwOrRttyTuningAidWaterfall() {
     const int max_bin_for_tuning = std::min(static_cast<int>(actualFftSize - 1), static_cast<int>(std::round(currentTuningAidMaxFreqHz_ / currentBinWidthHz)));
     const int num_bins_in_tuning_range = std::max(1, max_bin_for_tuning - min_bin_for_tuning + 1);
 
-    // Q16 skálázási konstans (Q15 optimalizált - CW/RTTY waterfall)
-    uint32_t scaleFactorQ16 = SensitivityConstants::TUNING_AID_WATERFALL_SCALE_Q16;
+    // Sávszélesség becslése az FFT méretéből és bin szélességéből
+    // bandwidth ≈ (fftSize / 2) × binWidth × 2 = fftSize × binWidth
+    uint32_t estimatedBandwidthHz = (uint32_t)(actualFftSize * currentBinWidthHz / 2.0f);
+
+    // Adaptív scale faktor sávszélesség alapján (táblázat + interpoláció)
+    uint32_t scaleFactorQ16 = getScaleForBandwidth(estimatedBandwidthHz, true, false, false, false); // forTuningAid=true (waterfall)
 
     // AGC esetén kis csökkentés (konzisztens a fő waterfall-lal)
     if (isAutoGainMode()) {
@@ -1797,8 +1891,11 @@ void UICompSpectrumVis::renderSnrCurve() {
 
     float maxMagnitude = 0.0f;
 
-    // Q16 skálázási konstans (Q15 optimalizált - SNR curve)
-    uint32_t scaleFactorQ16 = SensitivityConstants::TUNING_AID_SNR_CURVE_SCALE_Q16;
+    // Sávszélesség becslése az FFT méretéből és bin szélességéből
+    uint32_t estimatedBandwidthHz = (uint32_t)(actualFftSize * currentBinWidthHz / 2.0f);
+
+    // Adaptív scale faktor sávszélesség alapján (táblázat + interpoláció)
+    uint32_t scaleFactorQ16 = getScaleForBandwidth(estimatedBandwidthHz, true, false, false, true); // forTuningAid=true, forSnrCurve=true
 
     // AGC esetén kis csökkentés
     if (isAutoGainMode()) {
