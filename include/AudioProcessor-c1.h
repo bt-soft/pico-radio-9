@@ -125,6 +125,10 @@ class AudioProcessorC1 {
     // Az aktuális FFT bin szélesség, amelyet a konfiguráció során számoltunk ki (Hz)
     float currentBinWidthHz = 0.0f;
 
+    // Az aktuális audio bandwidth (Hz), amelyet a reconfigureAudioSampling állít be
+    // AM ~6kHz, FM ~15kHz - ezt használjuk a dinamikus bin-kizáráshoz
+    uint32_t currentBandwidthHz = 0;
+
     // AGC (Automatikus Erősítésszabályozás) paraméterek
     float agcLevel_;       // AGC mozgó átlag szint
     float agcAlpha_;       // AGC szűrési állandó (exponenciális mozgó átlag)

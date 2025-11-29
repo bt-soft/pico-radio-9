@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
  * -----                                                                                                               *
- * Last Modified: 2025.11.29, Saturday  09:29:27                                                                       *
+ * Last Modified: 2025.11.29, Saturday  10:05:38                                                                       *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -163,6 +163,9 @@ void AudioProcessorC1::reconfigureAudioSampling(uint16_t sampleCount, uint16_t s
 
         // Egy bin szélessége Hz-ben
         float binWidth = (sampleCount > 0) ? ((float)finalRate / (float)sampleCount) : 0.0f;
+
+        // Eltároljuk a bandwidth-et a dinamikus bin-kizáráshoz (AM ~6kHz, FM ~15kHz)
+        this->currentBandwidthHz = bandwidthHz;
 
 #ifdef __ADPROC_DEBUG
         // Kiírjuk a FFT-hez kapcsolódó paramétereket
@@ -652,15 +655,21 @@ void AudioProcessorC1::buildHanningWindow_q15(uint16_t size) {
 
 /**
  * @brief Ellenőrzi, hogy egy FFT bin index a megadott audio frekvenciatartományon belül van-e.
+ * A felső határt dinamikusan határozza meg az aktuális bandwidth alapján (AM ~6kHz, FM ~15kHz).
+ * Ez javítja az AM waterfall három-sáv artefaktját, ami a statikus MAX_AUDIO_FREQUENCY_HZ (15kHz) miatt keletkezett.
  * @param binIndex A vizsgált bin index
  * @param binWidthHz Egy bin szélessége Hz-ben
  * @param spectrumSize A spektrum mérete (bin-ek száma)
- * @return true, ha a bin benne van a [MIN_AUDIO_FREQUENCY_HZ, MAX_AUDIO_FREQUENCY_HZ] tartományban, különben false
+ * @return true, ha a bin benne van a [MIN_AUDIO_FREQUENCY_HZ, dinamikus maxFreq] tartományban, különben false
  */
 bool AudioProcessorC1::isBinInAudioRange(uint16_t binIndex, float binWidthHz, uint16_t spectrumSize) const {
     if (binWidthHz <= 0.0f || spectrumSize == 0) {
         return false;
     }
+
+    // Dinamikus felső határ: ha currentBandwidthHz be van állítva (AM ~6kHz, FM ~15kHz),
+    // akkor azt használjuk; egyébként visszaesünk a statikus MAX_AUDIO_FREQUENCY_HZ-re (kompatibilitás)
+    float maxFreq = (currentBandwidthHz > 0) ? (float)currentBandwidthHz : MAX_AUDIO_FREQUENCY_HZ;
 
     // Bin alsó és felső határa (Hz)
     float binLow = (float)binIndex * binWidthHz;
@@ -670,7 +679,7 @@ bool AudioProcessorC1::isBinInAudioRange(uint16_t binIndex, float binWidthHz, ui
     if (binHigh <= MIN_AUDIO_FREQUENCY_HZ) {
         return false;
     }
-    if (binLow >= MAX_AUDIO_FREQUENCY_HZ) {
+    if (binLow >= maxFreq) {
         return false;
     }
 
@@ -806,9 +815,11 @@ bool AudioProcessorC1::processFixedPointFFT(SharedData &sharedData, uint32_t &ff
         }
 
         if (preMaxVal > 0) {
+            // Dinamikus felső határ használata (AM ~6kHz, FM ~15kHz)
+            float maxFreq = (currentBandwidthHz > 0) ? (float)currentBandwidthHz : MAX_AUDIO_FREQUENCY_HZ;
             float preMaxFreq = (float)preMaxIdx * sharedData.fftBinWidthHz;
             // Ha a legnagyobb csúcs out-of-band (ez már NEM kellene hogy előforduljon a fenti kizárás után)
-            if (preMaxFreq < MIN_AUDIO_FREQUENCY_HZ || preMaxFreq > MAX_AUDIO_FREQUENCY_HZ) {
+            if (preMaxFreq < MIN_AUDIO_FREQUENCY_HZ || preMaxFreq > maxFreq) {
                 // Biztonsági fallback: teljes spektrum törlése
                 memset(sharedData.fftSpectrumData, 0, sharedData.fftSpectrumSize * sizeof(sharedData.fftSpectrumData[0]));
                 sharedData.dominantAmplitude = 0;
@@ -822,9 +833,8 @@ bool AudioProcessorC1::processFixedPointFFT(SharedData &sharedData, uint32_t &ff
     // Az alacsony amplitúdójú bin-eket nullázzuk (zaj-elnyomás)
     // KRITIKUS: Ez UTÁN történik a bin-kizárásnak, így csak az érvényes tartományon belüli zajt szűri!
     //
-    // ADAPTÍV KÜSZÖB: A domináns jel 10%-a (minimum 500)
-    // Ez automatikusan alkalmazkodik a jel erősségéhez
-    q15_t adaptiveThreshold = 500; // Alapértelmezett küszöb
+    // ADAPTÍV KÜSZÖB: Sávszélesség alapú + jelerősség alapú
+    // AM (6kHz) → magasabb küszöb, FM (15kHz) → alacsonyabb küszöb
 
     // Először megkeressük a max értéket (pre-scan)
     q15_t preMaxValue = 0;
@@ -834,9 +844,28 @@ bool AudioProcessorC1::processFixedPointFFT(SharedData &sharedData, uint32_t &ff
         }
     }
 
-    // Küszöb = max * 0.1, de minimum 500
-    if (preMaxValue > 5000) {
-        adaptiveThreshold = preMaxValue / 10; // 10% a maximum-ból
+    // Sávszélesség alapú statikus küszöb számítás:
+    // AM (6kHz)  → 1500 küszöb (szűk sáv, erősebb zajszűrés)
+    // FM (15kHz) → 400 küszöb (széles sáv, enyhébb zajszűrés)
+    // Lineáris interpoláció a kettő között
+    constexpr uint16_t STATIC_NOISE_THRESHOLD_AM = 1500;
+    constexpr uint16_t STATIC_NOISE_THRESHOLD_FM = 380;
+    q15_t staticThreshold = STATIC_NOISE_THRESHOLD_FM; // FM az alapértelmezett érték
+    if (currentBandwidthHz > 0 && currentBandwidthHz <= AM_AF_BANDWIDTH_HZ) {
+        // AM tartomány (≤6kHz): magas küszöb
+        staticThreshold = STATIC_NOISE_THRESHOLD_AM;
+    } else if (currentBandwidthHz > AM_AF_BANDWIDTH_HZ && currentBandwidthHz < FM_AF_BANDWIDTH_HZ) {
+        // Köztes sávszélesség: lineáris interpoláció STATIC_NOISE_THRESHOLD_AM (6kHz) és STATIC_NOISE_THRESHOLD_FM (15kHz) között
+        staticThreshold = STATIC_NOISE_THRESHOLD_AM - ((currentBandwidthHz - AM_AF_BANDWIDTH_HZ) * (STATIC_NOISE_THRESHOLD_AM - STATIC_NOISE_THRESHOLD_FM)) /
+                                                          (FM_AF_BANDWIDTH_HZ - AM_AF_BANDWIDTH_HZ);
+    }
+    // Ha currentBandwidthHz == 0 (nincs beállítva) vagy ≥FM_AF_BANDWIDTH_HZ, akkor marad STATIC_NOISE_THRESHOLD_FM
+
+    // Jelerősség alapú adaptív küszöb (ha van elég erős jel)
+    q15_t adaptiveThreshold = staticThreshold;
+    if (preMaxValue > 2000) {
+        // Adaptív: 8% a maximum-ból, de minimum a staticThreshold
+        adaptiveThreshold = std::max(staticThreshold, (q15_t)(preMaxValue / 12));
     }
 
     // Zajküszöb alkalmazása
