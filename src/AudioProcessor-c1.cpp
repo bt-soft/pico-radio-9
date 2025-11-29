@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
  * -----                                                                                                               *
- * Last Modified: 2025.11.29, Saturday  06:11:08                                                                       *
+ * Last Modified: 2025.11.29, Saturday  06:18:48                                                                       *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -516,23 +516,6 @@ bool AudioProcessorC1::processAndFillSharedData(SharedData &sharedData) {
     lastRawSamples.resize(sharedData.rawSampleCount);
     memcpy(lastRawSamples.data(), sharedData.rawSampleData, sharedData.rawSampleCount * sizeof(int16_t));
     lastRawSampleCount = sharedData.rawSampleCount;
-
-#ifdef __ADPROC_DEBUG
-    // RTTY debug: mintavételi kimenet ellenőrzése (100. blokkonként)
-    static int rttyDebugCtr = 0;
-    if (++rttyDebugCtr >= 100) {
-        int16_t maxSample = 0, minSample = 0;
-        for (uint16_t i = 0; i < sharedData.rawSampleCount; i++) {
-            if (sharedData.rawSampleData[i] > maxSample)
-                maxSample = sharedData.rawSampleData[i];
-            if (sharedData.rawSampleData[i] < minSample)
-                minSample = sharedData.rawSampleData[i];
-        }
-        ADPROC_DEBUG("AudioProc->RTTY: samples[0..4]=%d,%d,%d,%d,%d, range=[%d..%d]\n", sharedData.rawSampleData[0], sharedData.rawSampleData[1],
-                     sharedData.rawSampleData[2], sharedData.rawSampleData[3], sharedData.rawSampleData[4], minSample, maxSample);
-        rttyDebugCtr = 0;
-    }
-#endif
 
     // #ifdef __ADPROC_DEBUG
     //     // --- Gyors mérés: RMS, maxAbs, medián zajbecslés, SNR becslés ---

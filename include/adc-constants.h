@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
  * -----                                                                                                               *
- * Last Modified: 2025.11.29, Saturday  06:07:22                                                                       *
+ * Last Modified: 2025.11.29, Saturday  06:16:53                                                                       *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -34,4 +34,4 @@
 #define CORE1_ADC_CONVERSION_FACTOR (1 << CORE1_ADC_RESOLUTION) // 4096
 #define CORE1_VBUSDIVIDER_RATIO ((VBUS_DIVIDER_R1 + VBUS_DIVIDER_R2) / VBUS_DIVIDER_R2)
 
-#define ADC_MIDPOINT_MEASURE_SAMPLE_COUNT 256 // Alapértelmezett mintaszám az ADC DC középpont kalibrációhoz
+#define ADC_MIDPOINT_MEASURE_SAMPLE_COUNT 32 // Alapértelmezett mintaszám az ADC DC középpont kalibrációhoz
