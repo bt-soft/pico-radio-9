@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
  * -----                                                                                                               *
- * Last Modified: 2025.11.16, Sunday  09:48:04                                                                         *
+ * Last Modified: 2025.11.29, Saturday  06:53:55                                                                       *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -113,3 +113,6 @@
 
 #define SPECTRUM_GAIN_MODE_AUTO ((int8_t)-128)        // Auto Gain mód spektrum vizualizációhoz (int8_t sentinel)
 #define SPECTRUM_GAIN_MODE_MANUAL_DEFAULT ((int8_t)0) // Manual Gain mód alapértelmezett érték spektrum vizualizációhoz (0 dB)
+
+#define MIN_AUDIO_FREQEUNCY_HZ 300.0f   // Minimum audio frekvencia (Hz)
+#define MAX_AUDIO_FREQUENCY_HZ 15000.0f // Maximum audio fre

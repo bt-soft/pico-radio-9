@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
  * -----                                                                                                               *
- * Last Modified: 2025.11.28, Friday  05:09:33                                                                         *
+ * Last Modified: 2025.11.29, Saturday  06:56:58                                                                       *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -28,7 +28,11 @@
 #include "RingBuffer.h" // A ring buffer implementációnk
 #include "defines.h"
 
-// CMSIS-DSP Q15 fixpontos típus definíció
+/**
+ * @brief CMSIS-DSP Q15 fixpontos típus definíció
+ * 16 bites fixpontos adattípus 1.15 formátumban.
+ * Csek az kellene az arm_math.h-ból,csak ezért nem húzzuk be a headert
+ */
 typedef int16_t q15_t;
 
 /**
@@ -144,8 +148,8 @@ struct SharedData {
 #define TEXT_BUFFER_SIZE 64 // 64 karakter a CW/RTTY szövegnek (növelve a stabilitás érdekében)
 
 // FM audio sávszélesség
-#define FM_AF_BANDWIDTH_HZ 15000   // FM dekódolt audio sávszélesség (Hz)
-#define FM_AF_RAW_SAMPLES_SIZE 256 // FM módban a minták száma blokkonként (128->256: jobb frekvencia felbontás)
+#define FM_AF_BANDWIDTH_HZ MAX_AUDIO_FREQUENCY_HZ // FM dekódolt audio sávszélesség (Hz)
+#define FM_AF_RAW_SAMPLES_SIZE 256                // FM módban a minták száma blokkonként (128->256: jobb frekvencia felbontás)
 
 // AM audio sávszélesség (Sima Közép Hullámú vagy SW AM demoduláció esetén)
 #define AM_AF_BANDWIDTH_HZ 6000     // AM dekódolt audio sávszélesség (Hz)
@@ -154,8 +158,8 @@ struct SharedData {
 // Dominant Frequency Dekóder paraméterek
 // A mintavételezési frekvenciát a sávszélességből számoljuk (Nyquist + margin),
 // ezért itt csak a nyers minták számát és a sávszélességet tartjuk meg.
-#define DOMINANT_FREQ_AF_BANDWIDTH_HZ 15000 // Dominant Frequency audio sávszélesség
-#define DOMINANT_FREQ_RAW_SAMPLES_SIZE 1024 // Dominant Frequency bemeneti audio minták száma blok
+#define DOMINANT_FREQ_AF_BANDWIDTH_HZ MAX_AUDIO_FREQUENCY_HZ // Dominant Frequency audio sávszélesség
+#define DOMINANT_FREQ_RAW_SAMPLES_SIZE 1024                  // Dominant Frequency bemeneti audio minták száma blok
 
 // CW paraméterek
 // A mintavételezési frekvencia a CW sávszélességből számolódik.
@@ -174,7 +178,7 @@ struct SharedData {
 
 // SSTV paraméterek
 // Mintavételezési frekvencia a sávszélességből számítódik.
-#define C_SSTV_DECODER_SAMPLE_RATE_HZ 15000 // A 'c_sstv_decoder' SSTV dekóder 'bevarrt' mintavételezési frekvenciája
+#define C_SSTV_DECODER_SAMPLE_RATE_HZ MAX_AUDIO_FREQUENCY_HZ // A 'c_sstv_decoder' SSTV dekóder 'bevarrt' mintavételezési frekvenciája
 // SSTV audio sávszélesség -> Ebből 15kHz lesz a mintavételezés, ez kell az SSTV-nek
 // 15kHz / 2 = 7.5kHz Nyquist -> 7.5kHz / 1.25 = 6kHz sávszélesség
 #define SSTV_AF_BANDWIDTH_HZ (C_SSTV_DECODER_SAMPLE_RATE_HZ / 2.0f / AUDIO_SAMPLING_OVERSAMPLE_FACTOR)

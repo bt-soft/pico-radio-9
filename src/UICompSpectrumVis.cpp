@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
  * -----                                                                                                               *
- * Last Modified: 2025.11.29, Saturday  06:15:15                                                                       *
+ * Last Modified: 2025.11.29, Saturday  06:43:20                                                                       *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -1995,13 +1995,6 @@ bool UICompSpectrumVis::getCore1SpectrumData(const q15_t **outData, uint16_t *ou
 
     *outData = data.fftSpectrumData; // Q15 pointer
     *outSize = data.fftSpectrumSize;
-
-    // DEBUG: SharedData tartalom ellenőrzése
-    static uint8_t sharedDebugCounter = 0;
-    if (++sharedDebugCounter >= 100) {
-        UISPECTRUM_DEBUG("[SHARED DATA] idx=%d, fftSpectrumSize=%d, binWidth=%.2f Hz\n", ::activeSharedDataIndex, data.fftSpectrumSize, data.fftBinWidthHz);
-        sharedDebugCounter = 0;
-    }
 
     if (outBinWidth) {
         *outBinWidth = data.fftBinWidthHz;

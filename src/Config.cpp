@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
  * -----                                                                                                               *
- * Last Modified: 2025.11.16, Sunday  09:40:37                                                                         *
+ * Last Modified: 2025.11.29, Saturday  06:40:22                                                                       *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -50,11 +50,11 @@ const Config_t DEFAULT_CONFIG = {
     .rdsEnabled = true,
 
     // Hangerő
-    .currVolume = 50, // hangerő
+    .currVolume = 40, // Alapértelmezett hangerő
 
     // AGC
-    .agcGain = 1,        // static_cast<uint8_t>(Si4735Runtime::AgcGainMode::Automatic),        // -> 1,
-    .currentAGCgain = 1, // static_cast<uint8_t>(Si4735Runtime::AgcGainMode::Automatic), // -> 1
+    .agcGain = 1,        // Si4735Runtime::AgcGainMode::Automatic  -> 1
+    .currentAGCgain = 1, // Si4735Runtime::AgcGainMode::Automatic  -> 1
 
     //--- TFT
     .tftCalibrateData = {0, 0, 0, 0, 0},                          // TFT touch kalibrációs adatok

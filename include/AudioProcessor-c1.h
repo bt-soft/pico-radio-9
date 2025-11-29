@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                       *
  * -----                                                                                                               *
- * Last Modified: 2025.11.28, Friday  05:51:48                                                                         *
+ * Last Modified: 2025.11.29, Saturday  06:50:10                                                                       *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -75,12 +75,13 @@ class AudioProcessorC1 {
     inline void setNoiseReductionEnabled(bool enabled) { useNoiseReduction_ = enabled; }
     inline void setSmoothingPoints(uint8_t points) {
         // Csak 0 (nincs simítás), 3 vagy 5 engedélyezett
-        if (points == 0)
+        if (points == 0) {
             smoothingPoints_ = 0;
-        else if (points >= 5)
+        } else if (points >= 5) {
             smoothingPoints_ = 5;
-        else
+        } else {
             smoothingPoints_ = 3;
+        }
     }
 
     // AGC állapot lekérdezése
@@ -158,4 +159,7 @@ class AudioProcessorC1 {
     uint8_t smoothingPoints_; // Mozgó átlag simítás pontok száma (0=nincs, 3 vagy 5)
 
     void gainFttMagnitudeValues(SharedData &sharedData);
+    // Bin-kizárás segédfüggvény: visszaadja, hogy az adott binIndex-et be kell-e vonni
+    // a megjelenítésbe/feldolgozásba a megadott binWidthHz alapján és a spektrum mérete szerint.
+    bool isBinInAudioRange(uint16_t binIndex, float binWidthHz, uint16_t spectrumSize) const;
 };

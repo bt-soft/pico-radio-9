@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                       *
  * -----                                                                                                               *
- * Last Modified: 2025.11.22, Saturday  12:10:40                                                                       *
+ * Last Modified: 2025.11.29, Saturday  06:55:44                                                                       *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -72,8 +72,8 @@ class UICompSpectrumVis : public UIComponent {
     /**
      * @brief Konstansok
      */
-    static constexpr float MAX_DISPLAY_FREQUENCY_AM = 6000.0f;  // AM max frekvencia
-    static constexpr float MAX_DISPLAY_FREQUENCY_FM = 15000.0f; // FM max frekvencia
+    static constexpr float MAX_DISPLAY_FREQUENCY_AM = 6000.0f;                // AM max frekvencia
+    static constexpr float MAX_DISPLAY_FREQUENCY_FM = MAX_AUDIO_FREQUENCY_HZ; // FM max frekvencia
 
     /**
      * @brief Waterfall színpaletta
