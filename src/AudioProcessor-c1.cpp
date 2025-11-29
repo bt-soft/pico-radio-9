@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
  * -----                                                                                                               *
- * Last Modified: 2025.11.29, Saturday  08:53:00                                                                       *
+ * Last Modified: 2025.11.29, Saturday  09:26:52                                                                       *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -683,6 +683,7 @@ bool AudioProcessorC1::isBinInAudioRange(uint16_t binIndex, float binWidthHz, ui
  * @return Sikeres feldolgozás esetén true
  */
 bool AudioProcessorC1::processFixedPointFFT(SharedData &sharedData, uint32_t &fftTime_us, uint32_t &domTime_us) {
+
     // Biztonsági ellenőrzés
     if (fftInput_q15.size() < adcConfig.sampleCount * 2) {
         ADPROC_DEBUG("HIBA: Fixpontos FFT puffer túl kicsi\n");
@@ -691,7 +692,6 @@ bool AudioProcessorC1::processFixedPointFFT(SharedData &sharedData, uint32_t &ff
 
 #ifdef __ADPROC_DEBUG
     uint32_t startTotal = micros();
-    uint32_t startPreproc = startTotal;
     q15_t inputMax = 0, windowedMax = 0, fftMax = 0;
 #endif
 
@@ -888,27 +888,30 @@ bool AudioProcessorC1::processFixedPointFFT(SharedData &sharedData, uint32_t &ff
         float amp_q15 = (float)maxValue / 32767.0f; // Q15 → float konverzió csak debug céljára
         float amp_mV_peak = amp_q15 * ADC_LSB_VOLTAGE_MV * N;
 
-        // Spektrum statisztika: hány bin nulla/nem-nulla
-        uint16_t nonZeroBins = 0;
-        uint16_t zeroBins = 0;
-        q15_t minNonZero = 32767;
-        q15_t maxNonZero = 0;
-        for (uint16_t i = 0; i < sharedData.fftSpectrumSize; ++i) {
-            if (sharedData.fftSpectrumData[i] == 0) {
-                zeroBins++;
-            } else {
-                nonZeroBins++;
-                if (sharedData.fftSpectrumData[i] < minNonZero)
-                    minNonZero = sharedData.fftSpectrumData[i];
-                if (sharedData.fftSpectrumData[i] > maxNonZero)
-                    maxNonZero = sharedData.fftSpectrumData[i];
-            }
-        }
-
         ADPROC_DEBUG("AudioProc-c1 [Q15]: T=%lu us, FFT=%lu us, DomFreq=%.1f Hz, amp=%d, pk=%.1f mV\n", totalTime_us, fftTime_us, dominantFreqHz, maxValue,
                      amp_mV_peak);
-        ADPROC_DEBUG("  Spectrum: bins=%d, nonZero=%d, zero=%d, range=[%d..%d], binWidth=%.1f Hz\n", sharedData.fftSpectrumSize, nonZeroBins, zeroBins,
-                     minNonZero, maxNonZero, currentBinWidthHz);
+
+        // // Spektrum statisztika: hány bin nulla/nem-nulla
+        // uint16_t nonZeroBins = 0;
+        // uint16_t zeroBins = 0;
+        // q15_t minNonZero = 32767;
+        // q15_t maxNonZero = 0;
+        // for (uint16_t i = 0; i < sharedData.fftSpectrumSize; ++i) {
+        //     if (sharedData.fftSpectrumData[i] == 0) {
+        //         zeroBins++;
+        //     } else {
+        //         nonZeroBins++;
+        //         if (sharedData.fftSpectrumData[i] < minNonZero) {
+        //             minNonZero = sharedData.fftSpectrumData[i];
+        //         }
+        //         if (sharedData.fftSpectrumData[i] > maxNonZero) {
+        //             maxNonZero = sharedData.fftSpectrumData[i];
+        //         }
+        //     }
+        // }
+        //
+        // ADPROC_DEBUG("  Spectrum: bins=%d, nonZero=%d, zero=%d, range=[%d..%d], binWidth=%.1f Hz\n", sharedData.fftSpectrumSize, nonZeroBins, zeroBins,
+        //              minNonZero, maxNonZero, currentBinWidthHz);
 
         runDebugCounter = 0;
     }
