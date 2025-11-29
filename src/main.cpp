@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
  * -----                                                                                                               *
- * Last Modified: 2025.11.29, Saturday  05:35:53                                                                       *
+ * Last Modified: 2025.11.29, Saturday  06:26:37                                                                       *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -27,6 +27,13 @@
 #include "PicoMemoryInfo.h"
 #include "PicoSensorUtils.h"
 #include "SplashScreen.h"
+
+#ifdef __DEBUG
+// Soros portra várakozás az induláskor debug módban
+// #define DEBUG_WAIT_FOR_SERIAL
+// Memória monitor bekapcsolása az esteleges memory leak nyomon követésére
+// #define SHOW_MEMORY_INFO
+#endif
 
 //------------------ TFT
 #include <TFT_eSPI.h>
@@ -351,8 +358,9 @@ void loop() {
         lastEepromSaveCheck = millis();
     }
 
-    // Memória információk megjelenítése ha engedélyezve van
 #ifdef SHOW_MEMORY_INFO
+    // Memória információk megjelenítése ha engedélyezve van
+    constexpr uint32_t MEMORY_INFO_INTERVAL = 20 * 1000; // 20mp
     static uint32_t lastDebugMemoryInfo = 0;
     if (Utils::timeHasPassed(lastDebugMemoryInfo, MEMORY_INFO_INTERVAL)) {
         PicoMemoryInfo::debugMemoryInfo();
