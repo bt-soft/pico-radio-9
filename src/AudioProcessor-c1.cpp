@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
  * -----                                                                                                               *
- * Last Modified: 2025.11.29, Saturday  08:38:53                                                                       *
+ * Last Modified: 2025.11.29, Saturday  08:53:00                                                                       *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -655,7 +655,7 @@ void AudioProcessorC1::buildHanningWindow_q15(uint16_t size) {
  * @param binIndex A vizsgált bin index
  * @param binWidthHz Egy bin szélessége Hz-ben
  * @param spectrumSize A spektrum mérete (bin-ek száma)
- * @return true, ha a bin benne van a [MIN_AUDIO_FREQEUNCY_HZ, MAX_AUDIO_FREQUENCY_HZ] tartományban, különben false
+ * @return true, ha a bin benne van a [MIN_AUDIO_FREQUENCY_HZ, MAX_AUDIO_FREQUENCY_HZ] tartományban, különben false
  */
 bool AudioProcessorC1::isBinInAudioRange(uint16_t binIndex, float binWidthHz, uint16_t spectrumSize) const {
     if (binWidthHz <= 0.0f || spectrumSize == 0) {
@@ -667,7 +667,7 @@ bool AudioProcessorC1::isBinInAudioRange(uint16_t binIndex, float binWidthHz, ui
     float binHigh = (float)(binIndex + 1) * binWidthHz;
 
     // Ha a bin teljesen a tartományon kívül esik, false.
-    if (binHigh <= MIN_AUDIO_FREQEUNCY_HZ) {
+    if (binHigh <= MIN_AUDIO_FREQUENCY_HZ) {
         return false;
     }
     if (binLow >= MAX_AUDIO_FREQUENCY_HZ) {
@@ -704,7 +704,6 @@ bool AudioProcessorC1::processFixedPointFFT(SharedData &sharedData, uint32_t &ff
 
 #ifdef __ADPROC_DEBUG
     // DEBUG: Nyers bemeneti statisztika (ablakozás előtt)
-    uint32_t preprocTime = micros() - startPreproc;
     for (uint16_t i = 0; i < adcConfig.sampleCount; i++) {
         q15_t absVal = abs(fftInput_q15[2 * i]);
         if (absVal > inputMax)
@@ -817,7 +816,7 @@ bool AudioProcessorC1::processFixedPointFFT(SharedData &sharedData, uint32_t &ff
         if (preMaxVal > 0) {
             float preMaxFreq = (float)preMaxIdx * sharedData.fftBinWidthHz;
             // Ha a legnagyobb csúcs out-of-band (ez már NEM kellene hogy előforduljon a fenti kizárás után)
-            if (preMaxFreq < MIN_AUDIO_FREQEUNCY_HZ || preMaxFreq > MAX_AUDIO_FREQUENCY_HZ) {
+            if (preMaxFreq < MIN_AUDIO_FREQUENCY_HZ || preMaxFreq > MAX_AUDIO_FREQUENCY_HZ) {
                 // Biztonsági fallback: teljes spektrum törlése
                 memset(sharedData.fftSpectrumData, 0, sharedData.fftSpectrumSize * sizeof(sharedData.fftSpectrumData[0]));
                 sharedData.dominantAmplitude = 0;

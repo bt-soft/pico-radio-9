@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
  * -----                                                                                                               *
- * Last Modified: 2025.11.29, Saturday  06:43:20                                                                       *
+ * Last Modified: 2025.11.29, Saturday  08:52:03                                                                       *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -146,38 +146,27 @@ namespace SensitivityConstants {
 
 // LowRes Spektrum mód (Q8: 0.003 * 256 ≈ 1, manuálisan finomhangolt)
 constexpr uint16_t LOWRES_SPECTRUMBAR_SCALE_Q8 = 1;
-constexpr float LOWRES_SPECTRUMBAR_SENSITIVITY_FACTOR = 0.003f; // Legacy (fokozatosan eltávolítjuk)
 
-// HighRes Spektrum mód (Q8: 0.08 * 256 ≈ 20)
-constexpr uint16_t HIGHRES_SPECTRUMBAR_SCALE_Q8 = 20;
-constexpr float HIGHRES_SPECTRUMBAR_SENSITIVITY_FACTOR = 0.08f; // Legacy
+// HighRes Spektrum mód (Q8: 0.02 * 256 ≈ 5) - CSÖKKENTVE villogás és túlvezérlés ellen
+constexpr uint16_t HIGHRES_SPECTRUMBAR_SCALE_Q8 = 5;
 
 // Oszcilloszkóp mód (Q8: 3.5 * 256 ≈ 896) - raw sample skálázás, nem Q15
+// MEGJEGYZÉS: az érzékenység be van ágyazva az `OSCI_SCALE_Q8` Q8 konstansba (256 = 1.0x). Külön lebegőpontos faktor nem szükséges.
 constexpr uint16_t OSCI_SCALE_Q8 = 896;
-constexpr float OSCI_SENSITIVITY_FACTOR = 3.5f; // Legacy
 
 // Envelope mód (Q8: 0.06 * 256 ≈ 15)
 constexpr uint16_t ENVELOPE_SCALE_Q8 = 15;
-constexpr float ENVELOPE_SENSITIVITY_FACTOR = 0.06f; // Legacy
 
 // Waterfall mód (Q8: 0.05 * 256 ≈ 13) - CSÖKKENTVE a túlvezérlés elkerülésére
 constexpr uint16_t WATERFALL_SCALE_Q8 = 13;
-constexpr float WATERFALL_SENSITIVITY_FACTOR = 0.05f; // Legacy
 
-// CW/RTTY SNR Curve (Q8: 0.08 * 256 ≈ 20)
-constexpr uint16_t TUNING_AID_SNR_CURVE_SCALE_Q8 = 20;
-constexpr float TUNING_AID_SNR_CURVE_SENSITIVITY_FACTOR = 0.08f; // Legacy
+// CW/RTTY SNR Curve (Q8: 0.02 * 256 ≈ 5) - CSÖKKENTVE túlvezérlés ellen
+constexpr uint16_t TUNING_AID_SNR_CURVE_SCALE_Q8 = 5;
 
-// CW/RTTY Tuning Aid Waterfall (Q8: 0.2 * 256 ≈ 51)
-constexpr uint16_t TUNING_AID_WATERFALL_SCALE_Q8 = 51;
-constexpr float TUNING_AID_WATERFALL_SENSITIVITY_FACTOR = 0.2f; // Legacy
+// CW/RTTY Tuning Aid Waterfall (Q8: 0.05 * 256 ≈ 13) - CSÖKKENTVE a fő waterfall-lal konzisztensen
+constexpr uint16_t TUNING_AID_WATERFALL_SCALE_Q8 = 13;
 
 }; // namespace SensitivityConstants
-
-// Analizátor konstansok
-namespace AnalyzerConstants {
-constexpr uint16_t ANALYZER_MIN_FREQ_HZ = 300;
-}; // namespace AnalyzerConstants
 
 // Tunnnig Aid/Curve Színek
 constexpr uint16_t TUNING_AID_CW_TARGET_COLOR = TFT_GREEN;
@@ -739,7 +728,7 @@ void UICompSpectrumVis::setFftParametersForDisplayMode() {
         frequencyLabelsDrawn_ = true;
     } else if (sdToUse != nullptr) {
         // Egyéb módokban a SharedData alapján
-        uint16_t minHz = sdToUse->displayMinFreqHz ? sdToUse->displayMinFreqHz : AnalyzerConstants::ANALYZER_MIN_FREQ_HZ;
+        uint16_t minHz = sdToUse->displayMinFreqHz ? sdToUse->displayMinFreqHz : MIN_AUDIO_FREQUENCY_HZ;
         uint16_t maxHz = sdToUse->displayMaxFreqHz ? sdToUse->displayMaxFreqHz : static_cast<uint16_t>(maxDisplayFrequencyHz_);
         if (maxHz < minHz + 100) {
             maxHz = minHz + 100;
@@ -915,7 +904,7 @@ void UICompSpectrumVis::renderSpectrumBar(bool isLowRes) {
     }
 
     // FFT bin index tartomány számítása a megjelenítési frekvencia határok alapján
-    const uint16_t min_bin_idx = std::max(2, static_cast<int>(std::round(AnalyzerConstants::ANALYZER_MIN_FREQ_HZ / currentBinWidthHz)));
+    const uint16_t min_bin_idx = std::max(2, static_cast<int>(std::round(MIN_AUDIO_FREQUENCY_HZ / currentBinWidthHz)));
     const uint16_t max_bin_idx = std::min(static_cast<int>(actualFftSize - 1), static_cast<int>(std::round(maxDisplayFrequencyHz_ / currentBinWidthHz)));
 
     // DEBUG: Frekvencia skálázás ellenőrzése
@@ -1164,7 +1153,7 @@ void UICompSpectrumVis::renderSpectrumBar(bool isLowRes) {
     sprite_->pushSprite(bounds.x, bounds.y);
 
     // Frekvencia feliratok kirajzolása, ha szükséges
-    renderFrequencyRangeLabels(AnalyzerConstants::ANALYZER_MIN_FREQ_HZ, maxDisplayFrequencyHz_);
+    renderFrequencyRangeLabels(MIN_AUDIO_FREQUENCY_HZ, maxDisplayFrequencyHz_);
 }
 
 /**
@@ -1201,12 +1190,31 @@ void UICompSpectrumVis::renderOscilloscope() {
 
         int16_t raw_sample = osciData[i];
 
-        float gain_adjusted_deviation = static_cast<float>(raw_sample) * SensitivityConstants::OSCI_SENSITIVITY_FACTOR;
-        float scaled_y_deflection = gain_adjusted_deviation * (static_cast<float>(graphH) / 2.0f - 1.0f) / 2048.0f;
+        // Integer Q8 alapú skálázás: az érzékenység az `OSCI_SCALE_Q8` konstansban van (Q8 fixpontos)
+        // scaled_q8 = raw_sample * OSCI_SCALE_Q8
+        int32_t scaled_q8 = (int32_t)raw_sample * (int32_t)SensitivityConstants::OSCI_SCALE_Q8; // Q8 representation
 
-        uint16_t y_pos = graphH / 2 - static_cast<int>(round(scaled_y_deflection));
-        y_pos = constrain(y_pos, 0, graphH - 1);
-        uint16_t x_pos = (sampleCount == 1) ? 0 : (int)round((float)i / (sampleCount - 1) * (bounds.width - 1));
+        // Leképezés pixelekre: pixel = scaled_q8 * (graphH/2 - 1) / (2048 * 256)
+        int32_t half_span = (graphH / 2) - 1;
+        if (half_span < 0)
+            half_span = 0;
+        const int32_t denom = 2048 * 256; // normalize raw_sample (assumes 12-bit range) and Q8 scaling
+        int32_t pixel_deflection = 0;
+        if (denom != 0) {
+            pixel_deflection = (scaled_q8 * half_span + (denom / 2)) / denom; // rounded
+        }
+
+        int32_t y_pos_i = (graphH / 2) - pixel_deflection;
+        uint16_t y_pos = static_cast<uint16_t>(constrain(y_pos_i, 0, graphH - 1));
+
+        uint16_t x_pos = 0;
+        if (sampleCount <= 1) {
+            x_pos = 0;
+        } else {
+            // mintavételi index → x pixel leképezés integer kerekítéssel
+            int32_t num = (int32_t)i * (int32_t)(bounds.width - 1) + (int32_t)((sampleCount - 1) / 2);
+            x_pos = static_cast<uint16_t>(num / (int32_t)(sampleCount - 1));
+        }
 
         if (prev_x != -1 && i > 0) {
             sprite_->drawLine(prev_x, prev_y, x_pos, y_pos, TFT_GREEN);
@@ -1256,7 +1264,7 @@ void UICompSpectrumVis::renderEnvelope() {
         }
     }
 
-    const uint16_t min_bin_for_env = std::max(10, static_cast<int>(std::round(AnalyzerConstants::ANALYZER_MIN_FREQ_HZ / currentBinWidthHz)));
+    const uint16_t min_bin_for_env = std::max(10, static_cast<int>(std::round(MIN_AUDIO_FREQUENCY_HZ / currentBinWidthHz)));
     const uint16_t max_bin_for_env =
         std::min(static_cast<int>(actualFftSize - 1), static_cast<int>(std::round(maxDisplayFrequencyHz_ * 0.2f / currentBinWidthHz)));
     const uint16_t num_bins_in_env_range = std::max(1, max_bin_for_env - min_bin_for_env + 1);
@@ -1413,7 +1421,7 @@ void UICompSpectrumVis::renderWaterfall() {
         }
     }
 
-    const int min_bin_for_wf = std::max(2, static_cast<int>(std::round(AnalyzerConstants::ANALYZER_MIN_FREQ_HZ / currentBinWidthHz)));
+    const int min_bin_for_wf = std::max(2, static_cast<int>(std::round(MIN_AUDIO_FREQUENCY_HZ / currentBinWidthHz)));
     const int max_bin_for_wf = std::min(static_cast<int>(actualFftSize - 1), static_cast<int>(std::round(maxDisplayFrequencyHz_ / currentBinWidthHz)));
     const int num_bins_in_wf_range = std::max(1, max_bin_for_wf - min_bin_for_wf + 1);
 
@@ -1482,7 +1490,7 @@ void UICompSpectrumVis::renderWaterfall() {
 
     // Frekvencia feliratok rajzolása, ha még nem történt meg és nincs aktív mód indicator
     if (!modeIndicatorVisible_) {
-        renderFrequencyRangeLabels(AnalyzerConstants::ANALYZER_MIN_FREQ_HZ, maxDisplayFrequencyHz_);
+        renderFrequencyRangeLabels(MIN_AUDIO_FREQUENCY_HZ, maxDisplayFrequencyHz_);
     }
 }
 
@@ -1630,19 +1638,15 @@ void UICompSpectrumVis::renderCwOrRttyTuningAidWaterfall() {
     const int max_bin_for_tuning = std::min(static_cast<int>(actualFftSize - 1), static_cast<int>(std::round(currentTuningAidMaxFreqHz_ / currentBinWidthHz)));
     const int num_bins_in_tuning_range = std::max(1, max_bin_for_tuning - min_bin_for_tuning + 1);
 
-    // Magnitude-alapú adaptív skálázás a módtól függően
-    float adaptiveScale = getMagnitudeAgcScale(SensitivityConstants::TUNING_AID_WATERFALL_SENSITIVITY_FACTOR);
-    adaptiveScale = getMagnitudeAgcScale(SensitivityConstants::TUNING_AID_WATERFALL_SENSITIVITY_FACTOR);
-    // ----------------------------------------
-    // AGC vagy manuális erősítés alkalmazása
-    // ----------------------------------------
-    // AGC esetén a cwwaterfall túlvezérlődik, csökkentjük az erősítést
+    // Q8 skálázási konstans (Q15 optimalizált - CW/RTTY waterfall)
+    uint16_t scaleFactorQ8 = SensitivityConstants::TUNING_AID_WATERFALL_SCALE_Q8;
+
+    // AGC esetén kis csökkentés (konzisztens a fő waterfall-lal)
     if (isAutoGainMode()) {
-        adaptiveScale *= 0.03f;
+        scaleFactorQ8 = (scaleFactorQ8 * 243) >> 8; // 0.95x = 243/256
     }
 
-    float maxRawMagnitude = 0.0f;
-    // 2. Új adatok betöltése a legfelső sorba INTERPOLÁCIÓVAL (simább tuning aid)
+    // 2. Új adatok betöltése a legfelső sorba (Q15 OPTIMALIZÁLT - konzisztens a fő waterfall-lal)
     constexpr int WF_GRADIENT = 100;
 
     for (int c = 0; c < bounds.width; ++c) {
@@ -1650,22 +1654,20 @@ void UICompSpectrumVis::renderCwOrRttyTuningAidWaterfall() {
         float ratio_in_display_width = (bounds.width <= 1) ? 0.0f : (static_cast<float>(c) / (bounds.width - 1));
         float exact_bin_index = min_bin_for_tuning + ratio_in_display_width * (num_bins_in_tuning_range - 1);
 
-        // Interpolált magnitude érték (közös helper metódus használata)
-        // A getInterpolatedMagnitude már normalizált float-ot ad vissza
-        float rawMagnitude = getInterpolatedMagnitude(magnitudeData, exact_bin_index, min_bin_for_tuning, max_bin_for_tuning);
-        maxRawMagnitude = std::max(maxRawMagnitude, rawMagnitude);
+        // Q15 interpoláció (q15Interpolate helper)
+        q15_t magnitude_q15 = q15Interpolate(magnitudeData, exact_bin_index, min_bin_for_tuning, max_bin_for_tuning);
 
-        float scaledMagnitude = rawMagnitude * adaptiveScale;
-        uint8_t finalValue = static_cast<uint8_t>(constrain(scaledMagnitude, 0.0, 255.0));
+        // Zajküszöb alkalmazása Q15-ben
+        magnitude_q15 = q15ApplyNoiseThreshold(magnitude_q15, NOISE_THRESHOLD_Q15);
+
+        // Direkt Q15 → uint8_t skálázás (integer aritmetika)
+        uint8_t finalValue = q15ToUint8(magnitude_q15, scaleFactorQ8);
         wabuf[0][c] = finalValue;
 
-        // Csak a legfelső sort rajzoljuk ki (y=0) interpolált értékkel
+        // Csak a legfelső sort rajzoljuk ki (y=0)
         uint16_t color = valueToWaterfallColor(WF_GRADIENT * finalValue, 0.0f, 255.0f * WF_GRADIENT, WATERFALL_COLOR_INDEX);
         sprite_->drawPixel(c, 0, color);
     }
-
-    // Frissítjük a magnitude-alapú AGC-t
-    updateMagnitudeBasedGain(maxRawMagnitude);
 
     uint16_t min_freq_displayed = currentTuningAidMinFreqHz_;
     uint16_t max_freq_displayed = currentTuningAidMaxFreqHz_;
@@ -1778,7 +1780,7 @@ void UICompSpectrumVis::renderSnrCurve() {
 
         UISPECTRUM_DEBUG("UICompSpectrumVis::renderSnrCurve - Érvénytelen frekvencia határok miatt alapértelmezett értékek beállítása\n");
         // Állítsuk be az alapértelmezett határokat
-        currentTuningAidMinFreqHz_ = AnalyzerConstants::ANALYZER_MIN_FREQ_HZ;
+        currentTuningAidMinFreqHz_ = MIN_AUDIO_FREQUENCY_HZ;
         currentTuningAidMaxFreqHz_ = maxDisplayFrequencyHz_;
     }
 
@@ -1787,6 +1789,14 @@ void UICompSpectrumVis::renderSnrCurve() {
     const uint16_t num_bins = std::max(1, max_bin - min_bin + 1);
 
     float maxMagnitude = 0.0f;
+
+    // Q8 skálázási konstans (Q15 optimalizált - SNR curve)
+    uint16_t scaleFactorQ8 = SensitivityConstants::TUNING_AID_SNR_CURVE_SCALE_Q8;
+
+    // AGC esetén kis csökkentés
+    if (isAutoGainMode()) {
+        scaleFactorQ8 = (scaleFactorQ8 * 243) >> 8; // 0.95x
+    }
 
     // Előző pont koordinátái a görbe rajzolásához
     int16_t prevX = -1;
@@ -1799,29 +1809,15 @@ void UICompSpectrumVis::renderSnrCurve() {
         float ratio = (bounds.width <= 1) ? 0.0f : (static_cast<float>(x) / (bounds.width - 1));
         float exact_bin_index = min_bin + ratio * (num_bins - 1);
 
-        // Interpolált magnitude érték (közös helper metódus használata)
-        // A getInterpolatedMagnitude már normalizált float-ot ad vissza
-        float rawMagnitude = getInterpolatedMagnitude(magnitudeData, exact_bin_index, min_bin, max_bin);
+        // Q15 interpoláció (q15Interpolate helper)
+        q15_t magnitude_q15 = q15Interpolate(magnitudeData, exact_bin_index, min_bin, max_bin);
 
-        // ELŐSZÖR zajszűrés a nyers adaton
-        if (rawMagnitude < (this->radioMode_ == RadioMode::AM ? NOISE_THRESHOLD_AM : NOISE_THRESHOLD_FM)) {
-            rawMagnitude = 0.0f;
-        }
+        // Zajküszöb alkalmazása Q15-ben
+        magnitude_q15 = q15ApplyNoiseThreshold(magnitude_q15, NOISE_THRESHOLD_Q15);
 
-        // Magnitude-alapú adaptív skálázás a módtól függően
-        float adaptiveScale = getMagnitudeAgcScale(SensitivityConstants::TUNING_AID_SNR_CURVE_SENSITIVITY_FACTOR);
-
-        // UTÁNA erősítés a tiszta jelen
-        float snrValue = rawMagnitude * adaptiveScale;
+        // Q15 → pixel magasság (direkt integer skálázás)
+        float snrValue = q15ToPixelHeight(magnitude_q15, scaleFactorQ8, graphH);
         maxMagnitude = std::max(maxMagnitude, snrValue);
-
-        // ----------------------------------------
-        // AGC vagy manuális erősítés alkalmazása a maxMagnitude kikeresése UTÁN!!
-        // ----------------------------------------
-        // AGC esetén az snrcurve túlvezérlődik, csökkentjük az erősítést
-        if (isAutoGainMode()) {
-            snrValue *= 0.015f;
-        }
 
         // Y koordináta számítása (invertált, mert a képernyő teteje y=0)
         uint16_t y = graphH - static_cast<int>(constrain(snrValue, 0.0f, static_cast<float>(graphH)));
