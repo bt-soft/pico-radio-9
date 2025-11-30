@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                       *
  * -----                                                                                                               *
- * Last Modified: 2025.11.30, Sunday  07:10:32                                                                         *
+ * Last Modified: 2025.11.30, Sunday  08:25:11                                                                         *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -178,6 +178,11 @@ class UICompSpectrumVis : public UIComponent {
      */
     void setCurrentDisplayMode(DisplayMode newdisplayMode);
 
+    /**
+     * @brief Előre kiszámolt sávszélesség alapú erősítés százalékban.
+     */
+    void computeCachedGainPercent();
+
   private:
     RadioMode radioMode_;
     DisplayMode currentMode_;
@@ -269,16 +274,8 @@ class UICompSpectrumVis : public UIComponent {
      */
     inline uint32_t getScaleFactorForMode(uint32_t amScale, uint32_t fmScale) const { return (radioMode_ == RadioMode::AM) ? amScale : fmScale; }
 
-    /**
-     * @brief Sávszélesség-arányos adaptív scale faktor számítás (MINDEN megjelenítési módhoz)
-     *
-     * Táblázat alapú keresés lineáris interpolációval a két legközelebbi érték között.
-     * Keskenyebb sávszélesség = nagyobb erősítés (kevesebb bin = kevesebb energia → nagyobb scale kell)
-     *
-     * @return A számított scale faktor Q16 formátumban
-     */
-    int16_t getScaleForBandwidth(uint32_t estimatedBandwidthHz) const;
-
+    // Cache-elt erősítés százalék (bázis érték, AGC korrekció nélkül)
+    int16_t cachedGainPercent_ = 0;
     /**
      * @brief Spectrum bar függvények
      */

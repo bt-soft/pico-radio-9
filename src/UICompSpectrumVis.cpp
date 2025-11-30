@@ -222,6 +222,9 @@ UICompSpectrumVis::UICompSpectrumVis(int x, int y, int w, int h, RadioMode radio
       currentTuningAidMaxFreqHz_(0.0f),                //
       isMutedDrawn(false) {
 
+    // Inicializáljuk a cache-elt gain értéket
+    cachedGainPercent_ = 0;
+
     maxDisplayFrequencyHz_ = radioMode_ == RadioMode::AM ? UICompSpectrumVis::MAX_DISPLAY_FREQUENCY_AM : UICompSpectrumVis::MAX_DISPLAY_FREQUENCY_FM;
 
     // Peak detection buffer inicializálása
@@ -840,28 +843,28 @@ void UICompSpectrumVis::setCurrentDisplayMode(DisplayMode newdisplayMode) {
 
     // Sprite előkészítése az új módhoz
     manageSpriteForMode(currentMode_);
+
+    // Számoljuk ki egyszer a sávszélesség alapú erősítést és cache-eljük
+    computeCachedGainPercent();
 }
 
 /**
- * @brief Módkijelző láthatóságának beállítása
+ * @brief Egyszeri számítás a sávszélesség alapú erősítésre, cache-eli az eredményt.
+ * Ezt a metódust a módváltáskor hívjuk meg, így a render ciklusok gyorsabbak lesznek.
  */
-void UICompSpectrumVis::setModeIndicatorVisible(bool visible) {
-    modeIndicatorVisible_ = visible;
-    modeIndicatorDrawn_ = false; // Reset draw flag when visibility changes
-    if (visible) {
-        modeIndicatorHideTime_ = millis() + 20000; // 20 másodperc
+void UICompSpectrumVis::computeCachedGainPercent() {
+    // Alapértelmezett becslés: a jelenlegi rádió mód sávszélessége
+    uint32_t estimatedBandwidthHz = (radioMode_ == RadioMode::AM) ? AM_AF_BANDWIDTH_HZ : FM_AF_BANDWIDTH_HZ;
+
+    // Ha a shared data tartalmaz pontosabb információt, használjuk azt
+    if (::activeSharedDataIndex >= 0) {
+        const SharedData &sd = ::sharedData[::activeSharedDataIndex];
+        if (sd.fftSpectrumSize > 0 && sd.fftBinWidthHz > 0.0f) {
+            estimatedBandwidthHz = static_cast<uint32_t>(sd.fftSpectrumSize * sd.fftBinWidthHz / 2.0f);
+        }
     }
-}
 
-/**
- * @brief Sávszélesség-arányos adaptív scale faktor számítás
- *
- * @param currentBandwidthHz Az aktuális dekóder sávszélesség Hz-ben
- * @return Skálázási százalék érték (int16_t)
- */
-int16_t UICompSpectrumVis::getScaleForBandwidth(uint32_t estimatedBandwidthHz) const {
-
-    // MIlyen üzemmódban vagyunk?
+    // Milyen üzemmódban vagyunk?
     bool forLowResBar = (currentMode_ == DisplayMode::SpectrumLowRes //
                          || currentMode_ == DisplayMode::Off);
     bool forHighResBar = (currentMode_ == DisplayMode::SpectrumHighRes);
@@ -902,7 +905,7 @@ int16_t UICompSpectrumVis::getScaleForBandwidth(uint32_t estimatedBandwidthHz) c
     // 1. Pontos egyezés keresése a táblázatban
     for (size_t i = 0; i < BANDWIDTH_SCALE_TABLE_SIZE; ++i) {
         if (BANDWIDTH_SCALE_TABLE[i].bandwidthHz == estimatedBandwidthHz) {
-            return getPercentFromTable(BANDWIDTH_SCALE_TABLE[i]);
+            cachedGainPercent_ = getPercentFromTable(BANDWIDTH_SCALE_TABLE[i]);
         }
     }
 
@@ -944,16 +947,27 @@ int16_t UICompSpectrumVis::getScaleForBandwidth(uint32_t estimatedBandwidthHz) c
                 percent = pLow + ((int32_t)(pHigh - pLow) * (int32_t)numer) / (int32_t)denom;
             }
 
-            return static_cast<int16_t>(percent);
+            cachedGainPercent_ = static_cast<int16_t>(percent);
         }
     }
 
     // 3. Tartományon kívül esik
     if (estimatedBandwidthHz <= BANDWIDTH_SCALE_TABLE[0].bandwidthHz) {
-        return getPercentFromTable(BANDWIDTH_SCALE_TABLE[0]);
+        cachedGainPercent_ = getPercentFromTable(BANDWIDTH_SCALE_TABLE[0]);
     } else {
         size_t lastIdx = BANDWIDTH_SCALE_TABLE_SIZE - 1;
-        return getPercentFromTable(BANDWIDTH_SCALE_TABLE[lastIdx]);
+        cachedGainPercent_ = getPercentFromTable(BANDWIDTH_SCALE_TABLE[lastIdx]);
+    }
+}
+
+/**
+ * @brief Módkijelző láthatóságának beállítása
+ */
+void UICompSpectrumVis::setModeIndicatorVisible(bool visible) {
+    modeIndicatorVisible_ = visible;
+    modeIndicatorDrawn_ = false; // Reset draw flag when visibility changes
+    if (visible) {
+        modeIndicatorHideTime_ = millis() + 20000; // 20 másodperc
     }
 }
 
@@ -1090,8 +1104,7 @@ void UICompSpectrumVis::renderSpectrumBar(bool isLowRes) {
         }
 
         // Q16 skálázási konstans (LowRes) - sávszélesség-adaptív
-        uint32_t estimatedBandwidthHz = static_cast<uint32_t>(actualFftSize * currentBinWidthHz / 2.0f);
-        int16_t gainPercent = getScaleForBandwidth(estimatedBandwidthHz);
+        int16_t gainPercent = cachedGainPercent_;
         if (isAutoGainMode()) {
             // AGC korrekció: 5.5x alkalmazása százalékos formában -> szorozzuk a százalékot 550/100-zal
             gainPercent = static_cast<int16_t>((gainPercent * 550) / 100);
@@ -1197,8 +1210,7 @@ void UICompSpectrumVis::renderSpectrumBar(bool isLowRes) {
         const uint16_t num_bins_in_range = std::max(1, max_bin_idx - min_bin_idx + 1);
 
         // Q16 skálázási konstans (HighRes) - sávszélesség-adaptív
-        uint32_t estimatedBandwidthHz = static_cast<uint32_t>(actualFftSize * currentBinWidthHz / 2.0f);
-        int16_t gainPercent = getScaleForBandwidth(estimatedBandwidthHz); // forHighResBar=true
+        int16_t gainPercent = cachedGainPercent_; // forHighResBar=true
 
         // HighRes: kétfázisos számítás (Q15 optimalizált - direkt pixel konverzió)
         std::vector<uint16_t> computedCols(bounds.width, 0);
@@ -1309,8 +1321,7 @@ void UICompSpectrumVis::renderOscilloscope() {
 
     uint16_t prev_x = -1, prev_y = -1;
     // Sávszélesség becslése az oszcilloszkóphoz szükséges skála lekéréséhez
-    uint32_t estimatedBandwidthHz = (radioMode_ == RadioMode::AM) ? AM_AF_BANDWIDTH_HZ : FM_AF_BANDWIDTH_HZ;
-    int16_t gainPercent = getScaleForBandwidth(estimatedBandwidthHz);
+    int16_t gainPercent = cachedGainPercent_;
 
     // Egész alapú dinamikus skálázás: mérjük a buffer legnagyobb abszolút mintáját
     int32_t max_abs = 1;
@@ -1390,8 +1401,7 @@ void UICompSpectrumVis::renderEnvelope() {
 
     // Százalékos skálázási konstans (Q15 optimalizált) - sávszélesség-adaptív
     // Keskenebb sáv (AM 6kHz): kisebb skála, szélesebb sáv (FM 15kHz): nagyobb skála
-    uint32_t estimatedBandwidthHz = static_cast<uint32_t>(actualFftSize * currentBinWidthHz / 2.0f);
-    int16_t gainPercent = getScaleForBandwidth(estimatedBandwidthHz);
+    int16_t gainPercent = cachedGainPercent_;
     // AGC: if enabled reduce effective gain by 30% -> multiply by 70%
     if (isAutoGainMode()) {
         gainPercent = static_cast<int16_t>((gainPercent * 70) / 100);
@@ -1538,8 +1548,7 @@ void UICompSpectrumVis::renderWaterfall() {
 
     // Q16 skálázási konstans (Q15 optimalizált) - sávszélesség-adaptív
     // Keskenyebb sáv (AM 6kHz): kisebb skála, szélesebb sáv (FM 15kHz): nagyobb skála
-    uint32_t estimatedBandwidthHz = static_cast<uint32_t>(actualFftSize * currentBinWidthHz / 2.0f);
-    int16_t gainPercent = getScaleForBandwidth(estimatedBandwidthHz);
+    int16_t gainPercent = cachedGainPercent_;
     if (isAutoGainMode()) {
         gainPercent = static_cast<int16_t>((gainPercent * 95) / 100); // 95%
     }
@@ -1744,10 +1753,9 @@ void UICompSpectrumVis::renderCwOrRttyTuningAidWaterfall() {
 
     // Sávszélesség becslése az FFT méretéből és bin szélességéből
     // bandwidth ≈ (fftSize / 2) × binWidth × 2 = fftSize × binWidth
-    uint32_t estimatedBandwidthHz = (uint32_t)(actualFftSize * currentBinWidthHz / 2.0f);
 
     // Adaptív scale faktor sávszélesség alapján (táblázat + interpoláció)
-    int16_t gainPercent = getScaleForBandwidth(estimatedBandwidthHz);
+    int16_t gainPercent = cachedGainPercent_;
     if (isAutoGainMode()) {
         gainPercent = static_cast<int16_t>((gainPercent * 95) / 100);
     }
@@ -1890,11 +1898,8 @@ void UICompSpectrumVis::renderSnrCurve() {
 
     float maxMagnitude = 0.0f;
 
-    // Sávszélesség becslése az FFT méretéből és bin szélességéből
-    uint32_t estimatedBandwidthHz = (uint32_t)(actualFftSize * currentBinWidthHz / 2.0f);
-
-    // Adaptív százalékos gain (táblázat + interpoláció)
-    int16_t gainPercent = getScaleForBandwidth(estimatedBandwidthHz);
+    // Adaptív százalékos gain (cache-elt érték használata)
+    int16_t gainPercent = cachedGainPercent_;
     if (isAutoGainMode()) {
         gainPercent = static_cast<int16_t>((gainPercent * 95) / 100); // 95%
     }
