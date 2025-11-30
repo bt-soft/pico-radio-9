@@ -347,4 +347,15 @@ class UICompSpectrumVis : public UIComponent {
      * @brief Előre kiszámolt sávszélesség alapú erősítés (dB-ben) cache-elése.
      */
     void computeCachedGain();
+
+    /**
+     * @brief Mute állapot kezelése
+     * @return true ha a renderelés szünetel, false egyébként
+     */
+    bool handleMuteState();
+
+    /**
+     * @brief Mód indikátor állapotának és láthatóságának kezelése
+     */
+    void handleModeIndicator();
 };
