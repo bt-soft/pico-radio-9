@@ -47,10 +47,6 @@
 // A képernyő ennyi százalékát töltse ki a grafikon a rendelkezésre álló magasságból
 #define UI_TARGET_HEIGHT_UTILIZATION 0.85f // 85%-os magasságú maximális magasság
 
-// Oszcilloszkóp zajküszöb (raw sample egységekben). Ha a blokk OSI_UTILIZATION_PERCENT %-os percentilis értéke
-// ennél kisebb, feltételezzük, hogy nincs hasznos jel és csak a középvonalat rajzoljuk.
-#define OSCILLOSCOPE_NOISE_THRESHOLD 60
-
 // Magnitude-alapú AGC célértékek (nyers FFT magnitude tartomány)
 #define MAGNITUDE_AGC_TARGET_VALUE 8000.0f // Célérték magnitude módokhoz
 
@@ -120,8 +116,8 @@ static inline uint16_t q15ToPixelHeight(q15_t v, int16_t gainPercent, uint16_t m
     if (abs_val == 0)
         return 0;
 
-    // Calculate pixel = (abs_val / 32767) * max_height * (100 + gainPercent) / 100
-    // Do integer math safely using 64-bit intermediates: numerator = abs_val * (100 + gainPercent) * max_height
+    // Számított pixel = (abs_val / 32767) * max_height * (100 + gainPercent) / 100
+    // => egész aritmetika formában:
     int64_t numerator = (int64_t)abs_val * (int64_t)(100 + gainPercent) * (int64_t)max_height;
     int64_t denominator = (int64_t)32767 * 100LL;
     int64_t scaled = numerator / denominator;
@@ -175,15 +171,10 @@ constexpr BandwidthScaleConfig BANDWIDTH_SCALE_TABLE[] = {
     {CW_AF_BANDWIDTH_HZ, +40, +30, +20, +25, +20, +30, +35},   // 1.5Khz: nagyobb boost
     {RTTY_AF_BANDWIDTH_HZ, +25, +20, +10, +15, +12, +18, +20}, // még ez is 6kHz
     {AM_AF_BANDWIDTH_HZ, +10, +8, 0, +5, +0, +5, +8},          // 6kHz
-    {WEFAX_SAMPLE_RATE_HZ, 0, 0, 0, 0, -5, -3, -2},            // 11025Hz: enyhe csillapítás
-    {FM_AF_BANDWIDTH_HZ, -20, -15, -10, -12, -20, -18, -15},   // 15kHz: csillapítás
+    {WEFAX_SAMPLE_RATE_HZ, 0, 0, 0, 0, -5, -3, -2},            // 11025Hz:
+    {FM_AF_BANDWIDTH_HZ, 90, -15, -10, -12, -20, -18, -15},    // 15kHz: FM mód, kisebb boost
 };
 constexpr size_t BANDWIDTH_SCALE_TABLE_SIZE = ARRAY_ITEM_COUNT(BANDWIDTH_SCALE_TABLE);
-
-// Tunnnig Aid/Curve Színek
-constexpr uint16_t TUNING_AID_CW_TARGET_COLOR = TFT_GREEN;
-constexpr uint16_t TUNING_AID_RTTY_SPACE_COLOR = TFT_MAGENTA;
-constexpr uint16_t TUNING_AID_RTTY_MARK_COLOR = TFT_YELLOW;
 
 /**
  * @brief Konstruktor
@@ -1482,7 +1473,7 @@ void UICompSpectrumVis::renderSpectrumBar(bool isLowRes) {
             gainPercent = static_cast<int16_t>((gainPercent * 550) / 100);
         }
 
-        // Sávok számítása (első passz): direkt Q15 → pixel konverzió (NINCS float köztes lépés!)
+        // Sávok számítása (első passz): direkt Q15 → pixel konverzió
         uint16_t computedHeights[LOW_RES_BANDS] = {0};
         for (uint8_t band_idx = 0; band_idx < bands_to_display; band_idx++) {
             // Direkt int16 -> pixel magasság (integer aritmetika, bit-shift)
@@ -1496,14 +1487,14 @@ void UICompSpectrumVis::renderSpectrumBar(bool isLowRes) {
             computedHeights[band_idx] = height;
         }
 
-        // Második passz: skálázzuk a teljes sor magasságait úgy, hogy a legnagyobb bar a cél százalékot kitöltse
+        // Második passz: skálázzuk a teljes sor magasságait úgy,
+        // hogy a legnagyobb bar a UI_TARGET_HEIGHT_UTILIZATION százalékot kitöltse
         uint16_t maxComputed = 0;
         for (uint8_t i = 0; i < bands_to_display; ++i) {
             if (computedHeights[i] > maxComputed) {
                 maxComputed = computedHeights[i];
             }
         }
-
         float targetHeight = static_cast<float>(graphH) * UI_TARGET_HEIGHT_UTILIZATION; // cél pixelmagasság
         float finalScale = 1.0f;
         if (maxComputed > 0) {
@@ -1617,14 +1608,13 @@ void UICompSpectrumVis::renderSpectrumBar(bool isLowRes) {
             computedCols[screen_pixel_x] = static_cast<uint16_t>(newSm + 0.5f);
         }
 
-        // Második passz: skálázzuk úgy, hogy a legnagyobb oszlop a cél kitöltést adja
+        // Második passz: skálázzuk úgy, hogy a legnagyobb oszlop a UI_TARGET_HEIGHT_UTILIZATION százalékot kitöltse
         uint16_t maxComputed = 0;
         for (auto v : computedCols) {
             if (v > maxComputed) {
                 maxComputed = v;
             }
         }
-
         float targetHeight = static_cast<float>(graphH) * UI_TARGET_HEIGHT_UTILIZATION;
         float finalScale = 1.0f;
         if (maxComputed > 0) {
@@ -1633,7 +1623,7 @@ void UICompSpectrumVis::renderSpectrumBar(bool isLowRes) {
         }
 
         for (uint8_t screen_pixel_x = 0; screen_pixel_x < bounds.width; ++screen_pixel_x) {
-            // Use smoothed computedCols for final scaling
+            // Használjuk a simított computedCols értékeket a végső skálázáshoz
             uint16_t scaledHeight = static_cast<uint16_t>(static_cast<float>(computedCols[screen_pixel_x]) * finalScale);
 
             sprite_->drawFastVLine(screen_pixel_x, 0, graphH, TFT_BLACK);
