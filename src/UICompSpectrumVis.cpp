@@ -1667,18 +1667,17 @@ void UICompSpectrumVis::renderOscilloscope() {
         rms = std::sqrt(sum_sq / sampleCount);
     }
 
+    constexpr float OSC_RMS_SMOOTH_ALPHA = 0.08f;       // RMS simítási faktora (0..1)
+    constexpr float OSC_RMS_SILENCE_THRESHOLD = 120.0f; // RMS küszöb alatt csendnek tekintjük (int16 skálán)
+
     // RMS simítása a villogás elkerülésére
-    oscRmsSmoothed_ = static_cast<float>(UICompSpectrumVis::OSC_RMS_SMOOTH_ALPHA * oscRmsSmoothed_ +
-                                         (1.0f - UICompSpectrumVis::OSC_RMS_SMOOTH_ALPHA) * static_cast<float>(rms));
+    oscRmsSmoothed_ = static_cast<float>(OSC_RMS_SMOOTH_ALPHA * oscRmsSmoothed_ + (1.0f - OSC_RMS_SMOOTH_ALPHA) * static_cast<float>(rms));
 
     // Lágy csillapítás alacsony energiájú pufferekhez: kiszámoljuk a soft-knee erősítési tényezőt
     constexpr float minGainWhenSilent = 0.12f; // minimális lineáris erősítés nagyon csendes esetben (12%)
     constexpr float kneeExp = 2.0f;            // kitevő a knee alakításához (nagyobb = meredekebb)
-    float rms_ratio = (UICompSpectrumVis::OSC_RMS_SILENCE_THRESHOLD <= 0.0f) ? 1.0f : (oscRmsSmoothed_ / UICompSpectrumVis::OSC_RMS_SILENCE_THRESHOLD);
-    if (rms_ratio < 0.0f)
-        rms_ratio = 0.0f;
-    if (rms_ratio > 1.0f)
-        rms_ratio = 1.0f;
+    float rms_ratio = (OSC_RMS_SILENCE_THRESHOLD <= 0.0f) ? 1.0f : (oscRmsSmoothed_ / OSC_RMS_SILENCE_THRESHOLD);
+    rms_ratio = constrain(rms_ratio, 0.0f, 1.0f);
 
     float softGainFactor = 1.0f;
     if (rms_ratio < 1.0f) {

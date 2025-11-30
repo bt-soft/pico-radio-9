@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                       *
  * -----                                                                                                               *
- * Last Modified: 2025.11.30, Sunday  11:38:17                                                                         *
+ * Last Modified: 2025.11.30, Sunday  11:57:29                                                                         *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -255,9 +255,7 @@ class UICompSpectrumVis : public UIComponent {
     float cachedGainDb_ = 0.0f;
 
     // Oszcilloszkóp zaj/silence detektáláshoz
-    float oscRmsSmoothed_ = 0.0f;                              // Simított RMS érték
-    static constexpr float OSC_RMS_SMOOTH_ALPHA = 0.08f;       // RMS simítási faktora (0..1)
-    static constexpr float OSC_RMS_SILENCE_THRESHOLD = 120.0f; // RMS küszöb alatt csendnek tekintjük (int16 skálán)
+    float oscRmsSmoothed_ = 0.0f; // Simított RMS érték
 
     /**
      * @brief Spectrum bar függvények
