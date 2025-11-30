@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                       *
  * -----                                                                                                               *
- * Last Modified: 2025.11.30, Sunday  05:18:32                                                                         *
+ * Last Modified: 2025.11.30, Sunday  07:10:32                                                                         *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -28,9 +28,10 @@
 #include <vector>
 
 #include "UIComponent.h"
+#include "decoder_api.h"
 
-// Q15 fixpontos típus definíció
-typedef int16_t q15_t;
+// A Core1 által szolgáltatott FFT adat típusa (egész alakban)
+// Az FFT magnitúdó értékek int16_t tartományban érkeznek (±32768 körüli skála)
 
 /**
  * @brief Rádió módok
@@ -276,7 +277,7 @@ class UICompSpectrumVis : public UIComponent {
      *
      * @return A számított scale faktor Q16 formátumban
      */
-    uint32_t getScaleForBandwidth(uint32_t estimatedBandwidthHz) const;
+    int16_t getScaleForBandwidth(uint32_t estimatedBandwidthHz) const;
 
     /**
      * @brief Spectrum bar függvények
@@ -298,19 +299,9 @@ class UICompSpectrumVis : public UIComponent {
     uint16_t getEffectiveHeight() const;
 
     /**
-     * @brief Interpolált magnitude érték lekérése két FFT bin között
-     * @param magnitudeData Az FFT magnitude adatok tömbje
-     * @param exactBinIndex Pontos (lebegőpontos) bin index
-     * @param minBin Minimum megengedett bin index
-     * @param maxBin Maximum megengedett bin index
-     * @return Interpolált magnitude érték
-     */
-    float getInterpolatedMagnitude(const q15_t *magnitudeData, float exactBinIndex, int minBin, int maxBin) const;
-
-    /**
      * @brief Core1 audio adatok kezelése
      */
-    bool getCore1SpectrumData(const q15_t **outData, uint16_t *outSize, float *outBinWidth, float *outAutoGain);
+    bool getCore1SpectrumData(const q15_t **outData, uint16_t *outSize, float *outBinWidth);
     bool getCore1OscilloscopeData(const int16_t **outData, uint16_t *outSampleCount);
 
     /**

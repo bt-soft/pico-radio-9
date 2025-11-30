@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
  * -----                                                                                                               *
- * Last Modified: 2025.11.29, Saturday  06:18:48                                                                       *
+ * Last Modified: 2025.11.30, Sunday  06:39:19                                                                         *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -588,12 +588,7 @@ bool AudioProcessorC1::processAndFillSharedData(SharedData &sharedData) {
 
     // CMSIS-DSP Q15 fixpontos FFT feldolgozás
     uint32_t fftTime_us = 0, domTime_us = 0;
-    bool ok = processFixedPointFFT(sharedData, fftTime_us, domTime_us);
-
-    // Debug: pontos időmérések kiírása itt, hogy a teljes idő is mérhető legyen
-    // Note: a processFixedPointFFT most már kitölti az FFT és domináns keresési időket
-    (void)ok; // caller already handles ok internally
-    return ok;
+    return processFixedPointFFT(sharedData, fftTime_us, domTime_us);
 }
 
 /**
