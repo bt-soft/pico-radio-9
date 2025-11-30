@@ -1653,17 +1653,53 @@ void UICompSpectrumVis::renderOscilloscope() {
         if (v > max_abs)
             max_abs = v;
     }
+    // Rövid távú RMS számítása: eldönteni, van-e valódi bemenet vagy csak zaj
+    double sum_sq = 0.0;
+    for (uint16_t j = 0; j < sampleCount; ++j) {
+        double v = static_cast<double>(osciRawData[j]);
+        sum_sq += v * v;
+    }
+    double rms = 0.0;
+    if (sampleCount > 0) {
+        rms = std::sqrt(sum_sq / sampleCount);
+    }
+
+    // RMS simítása a villogás elkerülésére
+    oscRmsSmoothed_ = static_cast<float>(UICompSpectrumVis::OSC_RMS_SMOOTH_ALPHA * oscRmsSmoothed_ +
+                                         (1.0f - UICompSpectrumVis::OSC_RMS_SMOOTH_ALPHA) * static_cast<float>(rms));
 
     const int32_t half_h = static_cast<int32_t>(graphH) / 2 - 1;
+
+    // Lágyszárnyú csillapítás alacsony energiájú pufferekhez: számoljuk a soft-knee erősítési tényezőt
+    float minGainWhenSilent = 0.12f; // minimális lineáris erősítés nagyon csendes esetben (12%)
+    float kneeExp = 2.0f;            // kitevő a knee alakításához (nagyobb = meredekebb)
+    float rms_ratio = (UICompSpectrumVis::OSC_RMS_SILENCE_THRESHOLD <= 0.0f) ? 1.0f : (oscRmsSmoothed_ / UICompSpectrumVis::OSC_RMS_SILENCE_THRESHOLD);
+    if (rms_ratio < 0.0f)
+        rms_ratio = 0.0f;
+    if (rms_ratio > 1.0f)
+        rms_ratio = 1.0f;
+
+    float softGainFactor = 1.0f;
+    if (rms_ratio < 1.0f) {
+        // soft-knee interpoláció a minimális és az 1.0 közötti tartományban
+        softGainFactor = minGainWhenSilent + powf(rms_ratio, kneeExp) * (1.0f - minGainWhenSilent);
+    }
+
+    // Finom középvonal rajzolása referencia gyanánt (nagyon halvány), de nem helyettesíti a hullámformát
+    int y_center = static_cast<int>(graphH) / 2;
+    sprite_->drawFastHLine(0, y_center, bounds.width, TFT_DARKGREY);
+
     for (uint16_t i = 0; i < sampleCount; i++) {
         int16_t raw = osciRawData[i];
 
-        // pixel_offset = raw/max_abs * half_h * gain_lin
+        // pixel_offset = raw/max_abs * half_h * gain_lin * softGainFactor (pixelekben számolva)
         float gain_lin = powf(10.0f, static_cast<float>(gainDb) / 20.0f);
+        float gain_lin_modified = gain_lin * softGainFactor;
+
         int32_t pixel_offset = 0;
         if (max_abs != 0) {
             float frac = static_cast<float>(raw) / static_cast<float>(max_abs);
-            float pxf = frac * static_cast<float>(half_h) * gain_lin;
+            float pxf = frac * static_cast<float>(half_h) * gain_lin_modified;
             pixel_offset = static_cast<int32_t>(pxf + (pxf >= 0 ? 0.5f : -0.5f));
         }
 

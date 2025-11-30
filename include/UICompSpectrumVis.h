@@ -254,6 +254,11 @@ class UICompSpectrumVis : public UIComponent {
     // Cache-elt erősítés dB-ben (bázis érték, AGC korrekció nélkül)
     float cachedGainDb_ = 0.0f;
 
+    // Oszcilloszkóp zaj/silence detektáláshoz
+    float oscRmsSmoothed_ = 0.0f;                              // Simított RMS érték
+    static constexpr float OSC_RMS_SMOOTH_ALPHA = 0.08f;       // RMS simítási faktora (0..1)
+    static constexpr float OSC_RMS_SILENCE_THRESHOLD = 120.0f; // RMS küszöb alatt csendnek tekintjük (int16 skálán)
+
     /**
      * @brief Spectrum bar függvények
      */
