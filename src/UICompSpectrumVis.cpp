@@ -44,11 +44,9 @@
 #define UISPECTRUM_DEBUG(fmt, ...) // Üres makró, ha __DEBUG nincs definiálva
 #endif
 
-// A képernyő ennyi százalékát töltse ki a grafikon a rendelkezésre álló magasságból
-#define UI_TARGET_HEIGHT_UTILIZATION 0.85f // 85%-os magasságú maximális magasság
-
-// Magnitude-alapú AGC célértékek (nyers FFT magnitude tartomány)
-#define MAGNITUDE_AGC_TARGET_VALUE 8000.0f // Célérték magnitude módokhoz
+// A grafikon megjelenítési kitöltése
+// Itt egyszerre határozzuk meg a vizuális kitöltést és az AGC célját.
+static constexpr float GRAPH_TARGET_HEIGHT_UTILIZATION = 0.85f; // grafikon kitöltés / AGC cél (85%)
 
 // Színprofilok
 namespace FftDisplayConstants {
@@ -315,7 +313,7 @@ void UICompSpectrumVis::updateMagnitudeBasedGain(float currentMagnitudeMaxValue)
  * @return Új gain faktor
  */
 float UICompSpectrumVis::calculateBarAgcGain(const float *history, uint8_t historySize, float currentGainFactor) const {
-    float targetHeight = static_cast<float>(getGraphHeight()) * UI_TARGET_HEIGHT_UTILIZATION;
+    float targetHeight = static_cast<float>(getGraphHeight()) * GRAPH_TARGET_HEIGHT_UTILIZATION;
     return calculateAgcGainGeneric(history, historySize, currentGainFactor, targetHeight);
 }
 
@@ -327,7 +325,9 @@ float UICompSpectrumVis::calculateBarAgcGain(const float *history, uint8_t histo
  * @return Új gain faktor
  */
 float UICompSpectrumVis::calculateMagnitudeAgcGain(const float *history, uint8_t historySize, float currentGainFactor) const {
-    return calculateAgcGainGeneric(history, historySize, currentGainFactor, MAGNITUDE_AGC_TARGET_VALUE);
+    // Target is a percentage of the graph display height (pixels)
+    float targetHeight = static_cast<float>(getGraphHeight()) * GRAPH_TARGET_HEIGHT_UTILIZATION;
+    return calculateAgcGainGeneric(history, historySize, currentGainFactor, targetHeight);
 }
 
 //
@@ -1356,7 +1356,7 @@ void UICompSpectrumVis::renderSpectrumBar(bool isLowRes) {
     const uint16_t max_bin_idx = std::min(static_cast<int>(actualFftSize - 1), static_cast<int>(std::round(maxDisplayFrequencyHz_ / currentBinWidthHz)));
 
     // Maximális magnitude érték keresése a megjelenítési tartományban
-    const uint8_t MAX_BAR_HEIGHT = static_cast<uint8_t>(graphH * UI_TARGET_HEIGHT_UTILIZATION);
+    const uint8_t MAX_BAR_HEIGHT = static_cast<uint8_t>(graphH * GRAPH_TARGET_HEIGHT_UTILIZATION);
 
     // Compute short-term RMS of magnitude in displayed bin range to detect silence/noise
     float magRms = computeMagnitudeRmsMember(magnitudeData, min_bin_idx, max_bin_idx);
@@ -1457,7 +1457,7 @@ void UICompSpectrumVis::renderSpectrumBar(bool isLowRes) {
                 maxComputed = computedHeights[i];
             }
         }
-        float targetHeight = static_cast<float>(graphH) * UI_TARGET_HEIGHT_UTILIZATION; // cél pixelmagasság
+        float targetHeight = static_cast<float>(graphH) * GRAPH_TARGET_HEIGHT_UTILIZATION; // cél pixelmagasság
         float finalScale = 1.0f;
         if (maxComputed > 0) {
             finalScale = targetHeight / maxComputed;
@@ -1579,7 +1579,7 @@ void UICompSpectrumVis::renderSpectrumBar(bool isLowRes) {
                 maxComputed = v;
             }
         }
-        float targetHeight = static_cast<float>(graphH) * UI_TARGET_HEIGHT_UTILIZATION;
+        float targetHeight = static_cast<float>(graphH) * GRAPH_TARGET_HEIGHT_UTILIZATION;
         float finalScale = 1.0f;
         if (maxComputed > 0) {
             finalScale = targetHeight / maxComputed;
@@ -1610,6 +1610,10 @@ void UICompSpectrumVis::renderSpectrumBar(bool isLowRes) {
     }
 
     // Sprite kirakása
+    // Update magnitude AGC using estimated display pixel peak from envelope
+    float estimatedDisplayPeak = (envelopeLastSmoothedValue_ / 100.0f) * (static_cast<float>(graphH) * GRAPH_TARGET_HEIGHT_UTILIZATION);
+    updateMagnitudeBasedGain(estimatedDisplayPeak);
+
     sprite_->pushSprite(bounds.x, bounds.y);
 
     // Frekvencia feliratok kirajzolása, ha szükséges
@@ -1873,7 +1877,7 @@ void UICompSpectrumVis::renderEnvelope() {
                 displayValue = 150.0f + (displayValue - 150.0f) * 0.1f;
             }
 
-            float y_offset_float = (displayValue / 100.0f) * (graphH * UI_TARGET_HEIGHT_UTILIZATION);
+            float y_offset_float = (displayValue / 100.0f) * (graphH * GRAPH_TARGET_HEIGHT_UTILIZATION);
             int y_offset_pixels = static_cast<int>(round(y_offset_float));
             y_offset_pixels = std::min(y_offset_pixels, static_cast<int>(graphH) - 4);
             if (y_offset_pixels < 0) {
@@ -1942,13 +1946,17 @@ void UICompSpectrumVis::renderWaterfall() {
         }
     }
 
+    uint8_t maxWabufVal = 0;
     for (uint16_t r = 0; r < bounds.height; ++r) {
         int fft_bin_index =
             min_bin_for_wf + static_cast<int>(std::round(static_cast<float>(r) / std::max(1, (bounds.height - 1)) * (num_bins_in_wf_range - 1)));
         fft_bin_index = constrain(fft_bin_index, min_bin_for_wf, max_bin_for_wf);
 
         q15_t rawMagnitudeQ15 = magnitudeData[fft_bin_index];
-        wabuf[r][bounds.width - 1] = q15ToUint8(rawMagnitudeQ15, gainDb);
+        uint8_t val = q15ToUint8(rawMagnitudeQ15, gainDb);
+        wabuf[r][bounds.width - 1] = val;
+        if (val > maxWabufVal)
+            maxWabufVal = val;
     }
 
     sprite_->scroll(-1, 0);
@@ -1972,6 +1980,10 @@ void UICompSpectrumVis::renderWaterfall() {
         uint16_t color = valueToWaterfallColor(WF_GRADIENT * interpolated_val, 0.0f, 255.0f * WF_GRADIENT, WATERFALL_COLOR_INDEX);
         sprite_->drawPixel(bounds.width - 1, y_on_sprite, color);
     }
+
+    // Update magnitude AGC using the interpolated wabuf max value mapped to display pixels
+    float estimatedDisplayPeak = (static_cast<float>(maxWabufVal) / 255.0f) * (static_cast<float>(graphH) * GRAPH_TARGET_HEIGHT_UTILIZATION);
+    updateMagnitudeBasedGain(estimatedDisplayPeak);
 
     sprite_->pushSprite(bounds.x, bounds.y);
     if (!modeIndicatorVisible_) {
@@ -2017,6 +2029,7 @@ void UICompSpectrumVis::renderCwOrRttyTuningAidWaterfall() {
     }
 
     constexpr uint16_t WF_GRADIENT = 100;
+    uint8_t maxWabufVal = 0;
     for (uint16_t c = 0; c < bounds.width; ++c) {
         float ratio_in_display_width = (bounds.width <= 1) ? 0.0f : (static_cast<float>(c) / (bounds.width - 1));
         float exact_bin_index = min_bin_for_tuning + ratio_in_display_width * (num_bins_in_tuning_range - 1);
@@ -2025,10 +2038,16 @@ void UICompSpectrumVis::renderCwOrRttyTuningAidWaterfall() {
         q15_t magnitude_q15 = static_cast<q15_t>(std::round(magnitude_f));
         uint8_t finalValue = q15ToUint8(magnitude_q15, gainDb);
         wabuf[0][c] = finalValue;
+        if (finalValue > maxWabufVal)
+            maxWabufVal = finalValue;
 
         uint16_t color = valueToWaterfallColor(WF_GRADIENT * finalValue, 0.0f, 255.0f * WF_GRADIENT, WATERFALL_COLOR_INDEX);
         sprite_->drawPixel(c, 0, color);
     }
+
+    // Update magnitude AGC using estimated display peak from tuning aid waterfall
+    float estimatedDisplayPeak = (static_cast<float>(maxWabufVal) / 255.0f) * (static_cast<float>(graphH) * GRAPH_TARGET_HEIGHT_UTILIZATION);
+    updateMagnitudeBasedGain(estimatedDisplayPeak);
 
     uint16_t min_freq_displayed = currentTuningAidMinFreqHz_;
     uint16_t max_freq_displayed = currentTuningAidMaxFreqHz_;

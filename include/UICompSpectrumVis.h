@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                       *
  * -----                                                                                                               *
- * Last Modified: 2025.11.30, Sunday  12:28:04                                                                         *
+ * Last Modified: 2025.11.30, Sunday  01:00:14                                                                         *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -182,10 +182,10 @@ class UICompSpectrumVis : public UIComponent {
     static constexpr uint8_t LOW_RES_BANDS = 24; // lowres sávok száma
 
     // ===== KÖZÖS AGC KONSTANSOK =====
-    static constexpr uint32_t AGC_UPDATE_INTERVAL_MS = 2000; // Időalapú AGC frissítés (ms)
-    static constexpr float AGC_SMOOTH_FACTOR = 0.2f;         // Simítási faktor (közös)
-    static constexpr float AGC_MIN_SIGNAL_THRESHOLD = 0.1f;  // Minimum jel küszöb (közös)
-    static constexpr uint8_t AGC_HISTORY_SIZE = 10;          // History buffer méret (közös)
+    static constexpr uint32_t AGC_UPDATE_INTERVAL_MS = 500; // Időalapú AGC frissítés (ms)
+    static constexpr float AGC_SMOOTH_FACTOR = 0.2f;        // Simítási faktor (közös)
+    static constexpr float AGC_MIN_SIGNAL_THRESHOLD = 0.1f; // Minimum jel küszöb (közös)
+    static constexpr uint8_t AGC_HISTORY_SIZE = 40;         // History buffer méret (közös) - per-frame history (~30-40 frames)
 
     // ===== BAR-ALAPÚ AGC (Spektrum módok: LowRes, HighRes) =====
     // Spektrum bar-ok magasságát méri, nem a nyers magnitude-ot
@@ -251,13 +251,12 @@ class UICompSpectrumVis : public UIComponent {
     // Általános AGC segédfüggvény (privát, statikus) - összevonja a bar/magnitude AGC logikát
     static float calculateAgcGainGeneric(const float *history, uint8_t historySize, float currentGainFactor, float targetValue);
 
-    // Cache-elt erősítés dB-ben (bázis érték, AGC korrekció nélkül)
+    // Cache-elt grafikun és mód (CW/RTTY/FM/AM, stb) típustól függő erősítés dB-ben (bázis érték, AGC korrekció nélkül)
     float cachedGainDb_ = 0.0f;
 
-    // Oszcilloszkóp zaj/silence detektáláshoz
-    float oscRmsSmoothed_ = 0.0f; // Simított RMS érték
-    // Közös RMS simítás spektrum/envelope/waterfall célokra
-    float magRmsSmoothed_ = 0.0f;
+    // Zajszűrő/silence detektáláshoz simított RMS értékek
+    float oscRmsSmoothed_ = 0.0f; // Oszcilloszkóp zaj/silence detektáláshoz
+    float magRmsSmoothed_ = 0.0f; // RMS simítás spektrum/envelope/waterfall célokra
 
     /**
      * @brief Kiszámolja a rövidtávú RMS-et a magnitude (q15) tömb adott bin tartományán
