@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                       *
  * -----                                                                                                               *
- * Last Modified: 2025.11.30, Sunday  01:00:14                                                                         *
+ * Last Modified: 2025.11.30, Sunday  05:06:11                                                                         *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -249,7 +249,7 @@ class UICompSpectrumVis : public UIComponent {
     void startShowModeIndicator();
 
     // Általános AGC segédfüggvény (privát, statikus) - összevonja a bar/magnitude AGC logikát
-    static float calculateAgcGainGeneric(const float *history, uint8_t historySize, float currentGainFactor, float targetValue);
+    float calculateAgcGainGeneric(const float *history, uint8_t historySize, float currentGainFactor, float targetValue) const;
 
     // Cache-elt grafikun és mód (CW/RTTY/FM/AM, stb) típustól függő erősítés dB-ben (bázis érték, AGC korrekció nélkül)
     float cachedGainDb_ = 0.0f;
@@ -301,12 +301,17 @@ class UICompSpectrumVis : public UIComponent {
     /**
      * @brief Autogain kezelés - REFAKTORÁLT 2 KÜLÖN AGC RENDSZER
      */
-    bool isAutoGainMode();
+    bool isAutoGainMode() const;
 
     // Bar-alapú AGC (Spektrum módok: LowRes, HighRes)
     void updateBarBasedGain(float currentBarMaxValue);
     float getBarAgcScale(float baseConstant);
     void resetBarAgc();
+
+    // AGC logging helper values (for consolidated debug output)
+    float lastBarAgcMaxForLog_ = 0.0f;   // cached latest bar max for logging
+    float lastBarAgcGainForLog_ = 1.0f;  // cached latest bar gain for logging
+    uint32_t lastAgcSummaryLogTime_ = 0; // last time consolidated AGC log was emitted
 
     // Magnitude-alapú AGC (Jel-alapú módok: Envelope, Waterfall, Oszcilloszkóp)
     void updateMagnitudeBasedGain(float currentMagnitudeMaxValue);

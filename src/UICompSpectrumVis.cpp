@@ -37,7 +37,7 @@
 #define TEST_DO_NOT_PROCESS_MUTED_STATE
 
 // UICompSpectrumVis működés debug engedélyezése de csak DEBUG módban
-#define __UISPECTRUM_DEBUG
+//#define __UISPECTRUM_DEBUG
 #if defined(__DEBUG) && defined(__UISPECTRUM_DEBUG)
 #define UISPECTRUM_DEBUG(fmt, ...) DEBUG(fmt __VA_OPT__(, ) __VA_ARGS__)
 #else
@@ -174,9 +174,13 @@ constexpr BandwidthScaleConfig BANDWIDTH_GAIN_TABLE[] = {
     {RTTY_AF_BANDWIDTH_HZ, 4.0f, 3.0f, 2.0f, 3.0f, 2.0f, 3.0f, 3.0f},          // 3kHz: RTTY mód
     {AM_AF_BANDWIDTH_HZ, -18.0f, -18.0f, 0.0f, -10.0f, -10.0f, 10.0f, -10.0f}, // 6kHz: AM mód
     {WEFAX_SAMPLE_RATE_HZ, 0.0f, 0.0f, 0.0f, 0.0f, -1.0f, -1.0f, -1.0f},       // 11025Hz: WEFAX mód
-    {FM_AF_BANDWIDTH_HZ, 20.0f, 25.0f, -3.0f, 20.0f, 22.0f, NOAMP, NOAMP},     // 15kHz: FM mód
+    {FM_AF_BANDWIDTH_HZ, 20.0f, 25.0f, -3.0f, 18.0f, 22.0f, NOAMP, NOAMP},     // 15kHz: FM mód
 };
 constexpr size_t BANDWIDTH_GAIN_TABLE_SIZE = ARRAY_ITEM_COUNT(BANDWIDTH_GAIN_TABLE);
+
+//--- AGC konstansok ---
+constexpr float AGC_GENERIC_MIN_GAIN_VALUE = 0.0001f;
+constexpr float AGC_GENERIC_MAX_GAIN_VALUE = 80.0f;
 
 /**
  * @brief Konstruktor
@@ -272,8 +276,9 @@ void UICompSpectrumVis::updateBarBasedGain(float currentBarMaxValue) {
             barAgcGainFactor_ = newGain;
         }
         barAgcLastUpdateTime_ = millis();
-
-        UISPECTRUM_DEBUG("UICompSpectrumVis [Bar AGC]: jelenlegiBarMax=%.1f barAgcGainFactor=%.3f\n", currentBarMaxValue, barAgcGainFactor_);
+        // Értékek cache-elése a konszolidált AGC naplózáshoz
+        lastBarAgcMaxForLog_ = currentBarMaxValue;
+        lastBarAgcGainForLog_ = barAgcGainFactor_;
     }
 }
 
@@ -288,15 +293,6 @@ void UICompSpectrumVis::updateMagnitudeBasedGain(float currentMagnitudeMaxValue)
         return;
     }
 
-    // During debugging allow zero values into the history so we can observe
-    // where display estimates originate. Change back to a small positive
-    // guard (e.g. 1.0f) after diagnosis to avoid history pollution.
-    constexpr float MAG_AGC_MIN_HISTORY_VALUE = 0.0f; // in display-pixel units
-    if (currentMagnitudeMaxValue <= MAG_AGC_MIN_HISTORY_VALUE) {
-        UISPECTRUM_DEBUG("UICompSpectrumVis [Magnitude AGC]: érték=%.2f (engedélyezve debug miatt)\n", currentMagnitudeMaxValue);
-        // continue - we deliberately allow 0.0 to be pushed during diagnosis
-    }
-
     // Magnitude maximum hozzáadása a history bufferhez
     magnitudeAgcHistory_[magnitudeAgcHistoryIndex_] = currentMagnitudeMaxValue;
     magnitudeAgcHistoryIndex_ = (magnitudeAgcHistoryIndex_ + 1) % AGC_HISTORY_SIZE;
@@ -308,9 +304,6 @@ void UICompSpectrumVis::updateMagnitudeBasedGain(float currentMagnitudeMaxValue)
             magnitudeAgcGainFactor_ = newGain;
         }
         magnitudeAgcLastUpdateTime_ = millis();
-
-        UISPECTRUM_DEBUG("UICompSpectrumVis [Magnitude AGC]: jelenlegiMagnitudeMax=%.1f magnitudeAgcGainFactor=%.3f\n", currentMagnitudeMaxValue,
-                         magnitudeAgcGainFactor_);
     }
 }
 
@@ -334,7 +327,7 @@ float UICompSpectrumVis::calculateBarAgcGain(const float *history, uint8_t histo
  * @return Új gain faktor
  */
 float UICompSpectrumVis::calculateMagnitudeAgcGain(const float *history, uint8_t historySize, float currentGainFactor) const {
-    // Target is a percentage of the graph display height (pixels)
+    // A célérték a grafikon megjelenítési magasságának százaléka (pixelekben)
     float targetHeight = static_cast<float>(getGraphHeight()) * GRAPH_TARGET_HEIGHT_UTILIZATION;
     return calculateAgcGainGeneric(history, historySize, currentGainFactor, targetHeight);
 }
@@ -348,7 +341,8 @@ float UICompSpectrumVis::calculateMagnitudeAgcGain(const float *history, uint8_t
  * @param targetValue Célérték (pixel magasság vagy magnitude érték)
  * @return Új gain faktor
  */
-float UICompSpectrumVis::calculateAgcGainGeneric(const float *history, uint8_t historySize, float currentGainFactor, float targetValue) {
+float UICompSpectrumVis::calculateAgcGainGeneric(const float *history, uint8_t historySize, float currentGainFactor, float targetValue) const {
+
     // History átlag számítása (stabil érték több frame alapján)
     float sum = 0.0f;
     uint8_t validCount = 0;
@@ -367,10 +361,22 @@ float UICompSpectrumVis::calculateAgcGainGeneric(const float *history, uint8_t h
     float idealGain = targetValue / averageMax;
 
     // Simított átmenet az új gain-hez
-    float newGain = AGC_SMOOTH_FACTOR * idealGain + (1.0f - AGC_SMOOTH_FACTOR) * currentGainFactor;
+    float newGainSuggested = AGC_SMOOTH_FACTOR * idealGain + (1.0f - AGC_SMOOTH_FACTOR) * currentGainFactor;
 
     // Biztonsági korlátok
-    return constrain(newGain, 0.1f, 20.0f);
+    float newgainLimited = constrain(newGainSuggested, AGC_GENERIC_MIN_GAIN_VALUE, AGC_GENERIC_MAX_GAIN_VALUE);
+#ifdef __DEBUG
+    if (this->isAutoGainMode()) {
+        static long lastAgcGeneritLogTime = 0;
+        if (Utils::timeHasPassed(lastAgcGeneritLogTime, 2000)) {
+            UISPECTRUM_DEBUG("UICompSpectrumVis [AGC Generic]: averageMax=%.4f idealGain=%.4f newGainSuggested=%.4f (min=%.4f max=%.4f), newgainLimited=%.3f\n",
+                             averageMax, idealGain, newGainSuggested, AGC_GENERIC_MIN_GAIN_VALUE, AGC_GENERIC_MAX_GAIN_VALUE, newgainLimited);
+            lastAgcGeneritLogTime = millis();
+        }
+    }
+#endif
+
+    return newgainLimited;
 }
 
 /**
@@ -413,7 +419,7 @@ float UICompSpectrumVis::getMagnitudeAgcScale(float baseConstant) {
 void UICompSpectrumVis::resetBarAgc() {
     memset(barAgcHistory_, 0, sizeof(barAgcHistory_));
     barAgcHistoryIndex_ = 0;
-    barAgcGainFactor_ = 0.02f;
+    barAgcGainFactor_ = 1.0f;
     barAgcLastUpdateTime_ = 0;
 }
 
@@ -423,7 +429,7 @@ void UICompSpectrumVis::resetBarAgc() {
 void UICompSpectrumVis::resetMagnitudeAgc() {
     memset(magnitudeAgcHistory_, 0, sizeof(magnitudeAgcHistory_));
     magnitudeAgcHistoryIndex_ = 0;
-    magnitudeAgcGainFactor_ = 0.02f;
+    magnitudeAgcGainFactor_ = 1.0f;
     magnitudeAgcLastUpdateTime_ = 0;
 }
 
@@ -431,7 +437,7 @@ void UICompSpectrumVis::resetMagnitudeAgc() {
  * @brief Ellenőrzi, hogy auto gain módban vagyunk-e
  * @return True, ha auto gain mód aktív
  */
-bool UICompSpectrumVis::isAutoGainMode() {
+bool UICompSpectrumVis::isAutoGainMode() const {
     int8_t currentGainConfig = this->radioMode_ == RadioMode::AM ? config.data.audioFftGainConfigAm : config.data.audioFftGainConfigFm;
     return (currentGainConfig == SPECTRUM_GAIN_MODE_AUTO); // -128 = Auto Gain (speciális érték)
 }
@@ -475,11 +481,15 @@ void UICompSpectrumVis::draw() {
     lastFrameTime_ = currentTime;
 
 #ifdef __DEBUG
-    // AGC logolás 1mp-ként, de csak ha be van kapcsolva az auto agc
-    static uint32_t lastAgcLogTime = 0;
-    if (isAutoGainMode() && Utils::timeHasPassed(lastAgcLogTime, 1000)) {
-        UISPECTRUM_DEBUG("UICompSpectrumVis [Auto AGC] mód=%d barGain=%.3f magGain=%.3f\n", (int)currentMode_, barAgcGainFactor_, magnitudeAgcGainFactor_);
-        lastAgcLogTime = currentTime;
+    //  AGC naplózás időzítése
+    if (isAutoGainMode() && Utils::timeHasPassed(lastAgcSummaryLogTime_, 2000)) {
+        if (currentMode_ == DisplayMode::SpectrumLowRes || currentMode_ == DisplayMode::SpectrumHighRes) {
+            UISPECTRUM_DEBUG("UICompSpectrumVis [Bar AGC]: mód=%d barGain=%.3f jelenlegiBarMax=%.1f\n", (int)currentMode_, lastBarAgcGainForLog_,
+                             lastBarAgcMaxForLog_);
+        } else if (currentMode_ != DisplayMode::Off) {
+            UISPECTRUM_DEBUG("UICompSpectrumVis [Magnitude AGC]: mód=%d magnitudeAgcGainFactor_=%.3f\n", (int)currentMode_, magnitudeAgcGainFactor_);
+        }
+        lastAgcSummaryLogTime_ = currentTime;
     }
 #endif
 
@@ -500,7 +510,7 @@ void UICompSpectrumVis::draw() {
 
     if (needBorderDrawn) {
         drawFrame();             // Rajzoljuk meg a keretet, ha szükséges
-        needBorderDrawn = false; // Reset the flag after drawing
+        needBorderDrawn = false; // A flag visszaállítása a kirajzolás után
     }
 
 #if not defined TEST_DO_NOT_PROCESS_MUTED_STATE
@@ -560,7 +570,7 @@ void UICompSpectrumVis::draw() {
     // Mode indicator megjelenítése ha szükséges
     if (modeIndicatorVisible_ && !modeIndicatorDrawn_) {
         renderModeIndicator();
-        modeIndicatorDrawn_ = true; // Mark as drawn
+        modeIndicatorDrawn_ = true; // Megjelölés: az indikátor kirajzolva
     }
 
     // A mode indicator időzített eltüntetése
@@ -789,7 +799,7 @@ void UICompSpectrumVis::cycleThroughModes() {
 void UICompSpectrumVis::startShowModeIndicator() {
     // Mode indicator megjelenítése 20 másodpercig
     modeIndicatorVisible_ = true;
-    modeIndicatorDrawn_ = false; // Reset a flag-et hogy azonnal megjelenjen
+    modeIndicatorDrawn_ = false; // A flag visszaállítása, hogy az indikátor azonnal megjelenhessen
     needBorderDrawn = true;      // Kényszerítjük a keret újrarajzolását
 
     // Indikátor eltüntetésének időzítése
@@ -812,9 +822,9 @@ void UICompSpectrumVis::loadModeFromConfig() {
         configDisplayMode = DisplayMode::Waterfall; // Alapértelmezés FM módban
     }
 
-    // TODO: BUG - Még nem találtam meg a hibát (2025.11), de ha a config-ban SNR Curve van lementve AM módban, akkor lefagy a rendszer az induláskor
-    // Emiatt ha AM módban, ha valamelyi SNR Curve van elmentve, akkor visszaállunk Spectrum LowRes módra, így legalább elindul...
-    // Nyilván a renderSnrCurve metódusban van valami gond, amit még ki kell javítani...
+    // TODO: HIBA - Még nem találtam meg a hibát (2025.11). Ha a config-ba SNR Curve van lementve AM módban,
+    // akkor a rendszer induláskor lefagy. Ezért AM módban, ha SNR Curve van beállítva, visszaállunk Spectrum LowRes módra
+    // hogy legalább elinduljon az eszköz. A pontos hiba a renderSnrCurve metódusban található, ezt később javítani kell.
     if (radioMode_ == RadioMode::AM && (configDisplayMode == DisplayMode::CwSnrCurve || configDisplayMode == DisplayMode::RttySnrCurve)) {
         configDisplayMode = DisplayMode::SpectrumLowRes;
     }
@@ -852,8 +862,8 @@ void UICompSpectrumVis::setCurrentDisplayMode(DisplayMode newdisplayMode) {
  * @brief Egyszeri számítás a sávszélesség alapú erősítésre, cache-eli az eredményt.
  * Ezt a metódust a módváltáskor hívjuk meg, így a render ciklusok gyorsabbak lesznek.
  */
-// Helper: konvertálja a cached dB értéket egy render-barát százalék értékre
-// NO cached percent helper: render kód közvetlenül dB-t használ
+// Segéd: a cache-elt dB értéket renderelésbarát százalékértékre konvertálja
+// NINCS külön cached-percent segéd: a render kód közvetlenül a dB-t használja
 
 void UICompSpectrumVis::computeCachedGain() {
 
@@ -913,7 +923,7 @@ void UICompSpectrumVis::computeCachedGain() {
  */
 void UICompSpectrumVis::setModeIndicatorVisible(bool visible) {
     modeIndicatorVisible_ = visible;
-    modeIndicatorDrawn_ = false; // Reset draw flag when visibility changes
+    modeIndicatorDrawn_ = false; // A rajzolási flag visszaállítása, ha megváltozik a láthatóság
     if (visible) {
         modeIndicatorHideTime_ = millis() + 20000; // 20 másodperc
     }
@@ -946,8 +956,9 @@ void UICompSpectrumVis::renderOffMode() {
 
     // OFF szöveg középre igazítása, nagyobb betűmérettel
     tft.setTextColor(TFT_WHITE, TFT_BLACK);
+    tft.setFreeFont();
     tft.setTextSize(3);         // Még nagyobb betűméret
-    tft.setTextDatum(MC_DATUM); // Középre igazítás (Middle Center)
+    tft.setTextDatum(MC_DATUM); // Középre igazítás (függőlegesen és vízszintesen középre)
     int textX = bounds.x + bounds.width / 2;
     int textY = bounds.y + (bounds.height - 1) / 2; // Pontos középre igazítás, figyelembe véve az alsó border-t
     tft.drawString("OFF", textX, textY);
@@ -1124,7 +1135,7 @@ void UICompSpectrumVis::drawMutedMessage() {
     tft.setFreeFont();
     tft.setTextSize(2);
     tft.setTextColor(TFT_YELLOW, TFT_BLACK);
-    tft.setTextDatum(MC_DATUM); // Middle center
+    tft.setTextDatum(MC_DATUM); // Középre igazítás
     tft.drawString("-- Muted --", x, y);
 
     isMutedDrawn = true;
@@ -1239,13 +1250,13 @@ void UICompSpectrumVis::renderFrequencyRangeLabels(uint16_t minDisplayFrequencyH
     // Waterfall módban alul/felül középre igazított a freki címkék elrendezése
     if (currentMode_ == DisplayMode::Waterfall) {
         // Min frekvencia a spektrum alatt középen
-        tft.setTextDatum(BC_DATUM); // Bottom center
+        tft.setTextDatum(BC_DATUM); // Alsó-középre igazítás
         tft.drawString(Utils::formatFrequencyString(minDisplayFrequencyHz), bounds.x + bounds.width / 2, indicatorY + indicatorH);
 
         // Max frekvencia a spektrum felett középen - csak a címke mögötti kis területet töröljük,
         // hogy ne töröljük a teljes felső keretet.
         String topLabel = Utils::formatFrequencyString(maxDisplayFrequencyHz);
-        tft.setTextDatum(TC_DATUM);    // Top center
+        tft.setTextDatum(TC_DATUM);    // Felső-középre igazítás
         const int approxCharWidth = 6; // jó közelítés a setTextSize(1) esetén
         int textWidth = topLabel.length() * approxCharWidth;
 
@@ -1339,6 +1350,7 @@ void UICompSpectrumVis::updateTuningAidParameters() {
  */
 void UICompSpectrumVis::renderSpectrumBar(bool isLowRes) {
 
+    float maxBarHeightThisFrame = 0.0f; // AGC-hez
     uint8_t graphH = getGraphHeight();
     if (!spriteCreated_ || bounds.width == 0 || graphH <= 0) {
         if (!spriteCreated_) {
@@ -1436,10 +1448,11 @@ void UICompSpectrumVis::renderSpectrumBar(bool isLowRes) {
         // Q16 skálázási konstans (LowRes) - sávszélesség-adaptív
         float gainDb = cachedGainDb_;
         if (isAutoGainMode()) {
-            // AGC korrekció: korábbi logika 5.5x amplitude boost-ot kívánt (percent-ben);
-            // dB-ben ez hozzáadást jelent: 20*log10(5.5) ≈ 14.807 dB
-            float extraDb = LINEAR_TO_DECIBELL(5.5f);
-            gainDb = static_cast<int16_t>(roundf(static_cast<float>(gainDb) + extraDb));
+            // AGC korrekció: a lineáris AGC faktort (barAgcGainFactor_) átalakítjuk dB-re és hozzáadjuk
+            if (barAgcGainFactor_ > 0.0f) {
+                float agc_gain_db = 20.0f * log10f(barAgcGainFactor_);
+                gainDb += agc_gain_db;
+            }
         }
 
         // Sávok számítása (első passz): direkt Q15 → pixel konverzió
@@ -1466,6 +1479,7 @@ void UICompSpectrumVis::renderSpectrumBar(bool isLowRes) {
                 maxComputed = computedHeights[i];
             }
         }
+        maxBarHeightThisFrame = static_cast<float>(maxComputed);
         float targetHeight = static_cast<float>(graphH) * GRAPH_TARGET_HEIGHT_UTILIZATION; // cél pixelmagasság
         float finalScale = 1.0f;
         if (maxComputed > 0) {
@@ -1545,6 +1559,13 @@ void UICompSpectrumVis::renderSpectrumBar(bool isLowRes) {
 
         // Q16 skálázási konstans (HighRes) - sávszélesség-adaptív
         float gainDb = cachedGainDb_; // forHighResBar=true
+        if (isAutoGainMode()) {
+            // AGC korrekció: a lineáris AGC faktort (barAgcGainFactor_) átalakítjuk dB-re és hozzáadjuk
+            if (barAgcGainFactor_ > 0.0f) {
+                float agc_gain_db = 20.0f * log10f(barAgcGainFactor_);
+                gainDb += agc_gain_db;
+            }
+        }
 
         // HighRes: kétfázisos számítás (Q15 optimalizált - direkt pixel konverzió)
         std::vector<uint16_t> computedCols(bounds.width, 0);
@@ -1588,6 +1609,7 @@ void UICompSpectrumVis::renderSpectrumBar(bool isLowRes) {
                 maxComputed = v;
             }
         }
+        maxBarHeightThisFrame = static_cast<float>(maxComputed);
         float targetHeight = static_cast<float>(graphH) * GRAPH_TARGET_HEIGHT_UTILIZATION;
         float finalScale = 1.0f;
         if (maxComputed > 0) {
@@ -1619,12 +1641,12 @@ void UICompSpectrumVis::renderSpectrumBar(bool isLowRes) {
     }
 
     // Sprite kirakása
-    // Update magnitude AGC using estimated display pixel peak from envelope
-    float estimatedDisplayPeak = (envelopeLastSmoothedValue_ / 100.0f) * (static_cast<float>(graphH) * GRAPH_TARGET_HEIGHT_UTILIZATION);
-    UISPECTRUM_DEBUG("UICompSpectrumVis [AGC Debug][Envelope]: envelopeUtolsó=%.2f becsültCsúcs=%.2f\n", envelopeLastSmoothedValue_, estimatedDisplayPeak);
-    updateMagnitudeBasedGain(estimatedDisplayPeak);
-
     sprite_->pushSprite(bounds.x, bounds.y);
+
+    // AGC frissítése a mostani frame maximum bar magassága alapján
+    if (isAutoGainMode()) {
+        updateBarBasedGain(maxBarHeightThisFrame);
+    }
 
     // Frekvencia feliratok kirajzolása, ha szükséges
     renderFrequencyRangeLabels(MIN_AUDIO_FREQUENCY_HZ, maxDisplayFrequencyHz_);
@@ -1648,7 +1670,6 @@ void UICompSpectrumVis::renderOscilloscope() {
     uint16_t sampleCount = 0;
     bool dataAvailable = getCore1OscilloscopeData(&osciRawData, &sampleCount);
 
-    // Ha nincs friss adat vagy nincs oszcilloszkóp adat, ne rajzoljunk újra (megelőzzük a villogást)
     if (!dataAvailable || !osciRawData || sampleCount <= 0) {
         // Csak a sprite kirakása a korábbi tartalommal
         UISPECTRUM_DEBUG("UICompSpectrumVis::renderOscilloscope - Nincs elérhető adat a rajzoláshoz\n");
@@ -1656,79 +1677,84 @@ void UICompSpectrumVis::renderOscilloscope() {
         return;
     }
 
-    // Sprite törlése - csak akkor, ha van új adat
     sprite_->fillSprite(TFT_BLACK);
-
-    // Középvonal rajzolása
     sprite_->drawFastHLine(0, graphH / 2, bounds.width, TFT_DARKGREY);
 
-    uint16_t prev_x = -1, prev_y = -1;
-    // Sávszélesség becslése az oszcilloszkóphoz szükséges skála lekéréséhez
-    float gainDb = cachedGainDb_;
-
-    // Egész alapú dinamikus skálázás: mérjük a buffer legnagyobb abszolút mintáját
+    // Közös rész: max abszolút érték és RMS számítás
     int32_t max_abs = 1;
-    for (uint16_t j = 0; j < sampleCount; ++j) {
-        int32_t v = (int32_t)osciRawData[j];
-        if (v < 0)
-            v = -v;
-        if (v > max_abs)
-            max_abs = v;
-    }
-    // Rövid távú RMS számítása: eldönteni, van-e valódi bemenet vagy csak zaj
     double sum_sq = 0.0;
     for (uint16_t j = 0; j < sampleCount; ++j) {
-        double v = static_cast<double>(osciRawData[j]);
-        sum_sq += v * v;
-    }
-    double rms = 0.0;
-    if (sampleCount > 0) {
-        rms = std::sqrt(sum_sq / sampleCount);
+        int16_t v_abs = abs(osciRawData[j]);
+        if (v_abs > max_abs) {
+            max_abs = v_abs;
+        }
+        double v_double = static_cast<double>(osciRawData[j]);
+        sum_sq += v_double * v_double;
     }
 
-    constexpr float OSC_RMS_SMOOTH_ALPHA = 0.08f;       // RMS simítási faktora (0..1)
-    constexpr float OSC_RMS_SILENCE_THRESHOLD = 120.0f; // RMS küszöb alatt csendnek tekintjük (int16 skálán)
-
-    // RMS simítása a villogás elkerülésére
+    double rms = (sampleCount > 0) ? std::sqrt(sum_sq / sampleCount) : 0.0;
+    constexpr float OSC_RMS_SMOOTH_ALPHA = 0.08f;
+    constexpr float OSC_RMS_SILENCE_THRESHOLD = 30.0f;
     oscRmsSmoothed_ = static_cast<float>(OSC_RMS_SMOOTH_ALPHA * oscRmsSmoothed_ + (1.0f - OSC_RMS_SMOOTH_ALPHA) * static_cast<float>(rms));
 
-    // Lágy csillapítás alacsony energiájú pufferekhez: kiszámoljuk a soft-knee erősítési tényezőt
-    constexpr float minGainWhenSilent = 0.12f; // minimális lineáris erősítés nagyon csendes esetben (12%)
-    constexpr float kneeExp = 2.0f;            // kitevő a knee alakításához (nagyobb = meredekebb)
+    constexpr float minGainWhenSilent = 0.12f;
+    constexpr float kneeExp = 2.0f;
     float rms_ratio = (OSC_RMS_SILENCE_THRESHOLD <= 0.0f) ? 1.0f : (oscRmsSmoothed_ / OSC_RMS_SILENCE_THRESHOLD);
     rms_ratio = constrain(rms_ratio, 0.0f, 1.0f);
-
-    float softGainFactor = 1.0f;
-    if (rms_ratio < 1.0f) {
-        // soft-knee interpoláció a minimális és az 1.0 közötti tartományban
-        softGainFactor = minGainWhenSilent + powf(rms_ratio, kneeExp) * (1.0f - minGainWhenSilent);
-    }
+    float softGainFactor = (rms_ratio < 1.0f) ? (minGainWhenSilent + powf(rms_ratio, kneeExp) * (1.0f - minGainWhenSilent)) : 1.0f;
 
     const int32_t half_h = static_cast<int32_t>(graphH) / 2 - 1;
+    float gain_lin;
+
+    if (isAutoGainMode()) {
+        // --- AUTO MODE ---
+        uint16_t maxPixelHeight = q15ToPixelHeight(max_abs, cachedGainDb_, graphH / 4);
+        if (maxPixelHeight == 0 && max_abs > 0) {
+            maxPixelHeight = 1;
+        }
+        updateMagnitudeBasedGain(static_cast<float>(maxPixelHeight));
+
+        float gainDb = cachedGainDb_;
+        if (magnitudeAgcGainFactor_ > 0.0f) {
+            float agc_gain_db = 20.0f * log10f(magnitudeAgcGainFactor_);
+            gainDb += agc_gain_db;
+        }
+        // softGainFactor nélkül, hogy az AGC teljes erejét kihasználjuk
+        gain_lin = powf(10.0f, gainDb / 20.0f);
+    } else {
+        // --- MANUAL MODE ---
+        int8_t gainCfg = this->radioMode_ == RadioMode::AM ? config.data.audioFftGainConfigAm : config.data.audioFftGainConfigFm;
+        float gainDb = cachedGainDb_ + static_cast<float>(gainCfg);
+        gain_lin = powf(10.0f, gainDb / 20.0f) * softGainFactor;
+    }
+
+    // --- RAJZOLÁS ---
+    uint16_t prev_x = 0;
+    int16_t prev_y = 0;
+    bool first_point = true;
+
     for (uint16_t i = 0; i < sampleCount; i++) {
         int16_t raw = osciRawData[i];
+        float pxf;
 
-        // pixel_offset = raw/max_abs * half_h * gain_lin * softGainFactor (pixelekben számolva)
-        float gain_lin = powf(10.0f, static_cast<float>(gainDb) / 20.0f);
-        float gain_lin_modified = gain_lin * softGainFactor;
-
-        int32_t pixel_offset = 0;
-        if (max_abs != 0) {
+        if (isAutoGainMode()) {
+            pxf = (static_cast<float>(raw) / 32767.0f) * static_cast<float>(half_h) * gain_lin;
+        } else {
             float frac = static_cast<float>(raw) / static_cast<float>(max_abs);
-            float pxf = frac * static_cast<float>(half_h) * gain_lin_modified;
-            pixel_offset = static_cast<int32_t>(pxf + (pxf >= 0 ? 0.5f : -0.5f));
+            pxf = frac * static_cast<float>(half_h) * gain_lin;
         }
 
-        int16_t y_pos = static_cast<int16_t>((static_cast<int32_t>(graphH) / 2) - pixel_offset);
+        int32_t pixel_offset = static_cast<int32_t>(pxf + (pxf >= 0 ? 0.5f : -0.5f));
+        int16_t y_pos = static_cast<int16_t>((graphH / 2) - pixel_offset);
         y_pos = constrain(y_pos, 0, graphH - 1);
-        uint16_t x_pos = (sampleCount == 1) ? 0 : (int)round((float)i / (sampleCount - 1) * (bounds.width - 1));
+        uint16_t x_pos = (sampleCount <= 1) ? 0 : (int)round((float)i / (sampleCount - 1) * (bounds.width - 1));
 
-        if (prev_x != -1 && i > 0) {
+        if (!first_point) {
             sprite_->drawLine(prev_x, prev_y, x_pos, y_pos, TFT_GREEN);
-        } else if (prev_x == -1) {
+        } else {
             sprite_->drawPixel(x_pos, y_pos, TFT_GREEN);
+            first_point = false;
         }
-
         prev_x = x_pos;
         prev_y = y_pos;
     }
@@ -1758,7 +1784,7 @@ float UICompSpectrumVis::computeMagnitudeRmsMember(const q15_t *data, int startB
 }
 
 /**
- * @brief Member implementation: update internal smoothed RMS and return a soft gain (0..1)
+ * @brief Tagfüggvény implementáció: belső simított RMS frissítése és egy "soft" erősítés visszaadása (0..1)
  */
 float UICompSpectrumVis::updateRmsAndGetSoftGain(float newRms, float smoothAlpha, float silenceThreshold, float minGain) {
     // Update member smoothed RMS
@@ -1810,17 +1836,36 @@ void UICompSpectrumVis::renderEnvelope() {
         std::min(static_cast<int>(actualFftSize - 1), static_cast<int>(std::round(maxDisplayFrequencyHz_ * 0.2f / currentBinWidthHz)));
     const uint16_t num_bins_in_env_range = std::max(1, max_bin_for_env - min_bin_for_env + 1);
 
-    // Százalékos skálázási konstans (Q15 optimalizált) - sávszélesség-adaptív
+    // ================== AGC FIX START ==================
+    // AGC: 1. lépés - A maximális magnitude megkeresése az aktuális frame-ben
+    if (isAutoGainMode()) {
+        q15_t maxMagnitudeQ15 = 0;
+        for (uint16_t i = min_bin_for_env; i <= max_bin_for_env; i++) {
+            if (q15Abs(magnitudeData[i]) > maxMagnitudeQ15) {
+                maxMagnitudeQ15 = q15Abs(magnitudeData[i]);
+            }
+        }
+        // A nyers Q15 maximumot átalakítjuk pixel magassággá az AGC számára.
+        // Itt az alap gain-t használjuk (AGC faktor nélkül), hogy a bemenet tiszta legyen.
+        uint16_t maxPixelHeight = q15ToPixelHeight(maxMagnitudeQ15, cachedGainDb_, getGraphHeight());
+        updateMagnitudeBasedGain(static_cast<float>(maxPixelHeight));
+    }
+
+    // AGC: 2. lépés - A rendereléshez használt gain érték kiszámítása az AGC faktorral
     float gainDb = cachedGainDb_;
     if (isAutoGainMode()) {
-        float extraDb = LINEAR_TO_DECIBELL(0.7f);
-        gainDb = static_cast<int16_t>(roundf(static_cast<float>(gainDb) + extraDb));
+        // AGC korrekció: a lineáris AGC faktort (magnitudeAgcGainFactor_) átalakítjuk dB-re és hozzáadjuk
+        if (magnitudeAgcGainFactor_ > 0.0f) {
+            float agc_gain_db = 20.0f * log10f(magnitudeAgcGainFactor_);
+            gainDb += agc_gain_db;
+        }
     }
+    // ================== AGC FIX END ====================
 
     // 2. Új oszlop számítása a wabuf jobb szélére
     // Minden sort feldolgozunk a teljes felbontásért
 
-    // Envelope diagnostics counter (increments once per rendered envelope frame)
+    // Envelope diagnosztika számláló (minden renderelt envelope frame-nél növekszik)
     static uint16_t envelopeDbgCounter = 0;
     envelopeDbgCounter++;
 
@@ -1839,39 +1884,18 @@ void UICompSpectrumVis::renderEnvelope() {
 
         // Q15 értékből direkt uint8_t konverzió (Q15 szemantika)
         q15_t rawMagnitudeQ15 = magnitudeData[fft_bin_index];
-        // Apply soft gain to suppress noise and avoid sparse spikes
+
+        // Zaj csillapításához "soft" erősítés alkalmazása, így ritka tüskék csökkennek
         rawMagnitudeQ15 = static_cast<q15_t>(static_cast<int>(rawMagnitudeQ15 * env_softGain));
-        // Convert and apply an additional local smoothing to wabuf insertion
+
+        // Átalakítás és további lokális simítás alkalmazása a wabuf-ba írás előtt
         uint8_t rawVal = q15ToUint8(rawMagnitudeQ15, gainDb);
-        // Smooth with previous rightmost column value to reduce single-frame spikes
+
+        // Simítás a jobb oldali előző oszloppal, hogy csökkentsük az egy-frame tüskéket
         uint8_t prevVal = wabuf[r][bounds.width - 2];
-        float smooth = 0.35f; // stronger smoothing for envelope
-        uint8_t finalVal = static_cast<uint8_t>(roundf(smooth * prevVal + (1.0f - smooth) * rawVal));
+        constexpr float SMOOTH = 0.35f; // erősebb simítás a burkológörbéhez
+        uint8_t finalVal = static_cast<uint8_t>(roundf(SMOOTH * prevVal + (1.0f - SMOOTH) * rawVal));
         wabuf[r][bounds.width - 1] = finalVal;
-
-        // Low-rate diagnostics: log center row mapping every 10 envelope frames
-        if ((r == static_cast<uint8_t>(bounds.height / 2)) && (envelopeDbgCounter % 10 == 0)) {
-            UISPECTRUM_DEBUG("UICompSpectrumVis [Envelope DIAG]: r=%u fft_bin=%u rawQ15=%d rawVal=%u prevVal=%u finalVal=%u gainDb=%d\n", (unsigned)r,
-                             (unsigned)fft_bin_index, (int)rawMagnitudeQ15, (unsigned)rawVal, (unsigned)prevVal, (unsigned)finalVal, static_cast<int>(gainDb));
-        }
-    }
-
-    // Per-frame diagnostic summary for envelope: print some raw FFT bins (safe indices)
-    if ((envelopeDbgCounter % 10) == 0) {
-        uint16_t b0 = min_bin_for_env;
-        uint16_t b4 = max_bin_for_env;
-        uint16_t mid = (b0 + b4) / 2;
-        uint16_t b1 = (b0 + mid) / 2;
-        uint16_t b2 = mid;
-        uint16_t b3 = (mid + b4) / 2;
-        auto safeVal = [&](uint16_t idx) -> int {
-            if (idx < actualFftSize)
-                return static_cast<int>(magnitudeData[idx]);
-            return 0;
-        };
-        UISPECTRUM_DEBUG("UICompSpectrumVis [Envelope INFO]: bins=%u..%u gainDb=%d bounds=%ux%u samples:[%d,%d,%d,%d,%d]\n", (unsigned)b0, (unsigned)b4,
-                         static_cast<int>(gainDb), (unsigned)bounds.width, (unsigned)bounds.height, safeVal(b0), safeVal(b1), safeVal(b2), safeVal(b3),
-                         safeVal(b4));
     }
 
     // 3. Sprite törlése és burkológörbe kirajzolása
@@ -1903,9 +1927,6 @@ void UICompSpectrumVis::renderEnvelope() {
         }
 
         envelopeLastSmoothedValue_ = ENVELOPE_SMOOTH_FACTOR * envelopeLastSmoothedValue_ + (1.0f - ENVELOPE_SMOOTH_FACTOR) * current_col_max_amplitude;
-
-        UISPECTRUM_DEBUG("UICompSpectrumVis [Envelope DBG]: oszlop=%u oszlop_max=%.2f envelopeSimított=%.2f\n", (unsigned)c, current_col_max_amplitude,
-                         envelopeLastSmoothedValue_);
 
         constexpr float ENVELOPE_CHANGE_THRESHOLD = 2.0f; // Minimális változás az átrajzoláshoz
         if (abs(current_col_max_amplitude - envelopeLastSmoothedValue_) < ENVELOPE_CHANGE_THRESHOLD) {
@@ -2022,9 +2043,16 @@ void UICompSpectrumVis::renderWaterfall() {
         sprite_->drawPixel(bounds.width - 1, y_on_sprite, color);
     }
 
-    // Update magnitude AGC using the interpolated wabuf max value mapped to display pixels
     float estimatedDisplayPeak = (static_cast<float>(maxWabufVal) / 255.0f) * (static_cast<float>(graphH) * GRAPH_TARGET_HEIGHT_UTILIZATION);
-    UISPECTRUM_DEBUG("UICompSpectrumVis [AGC Debug][Waterfall]: maxWabufVal=%u becsültCsúcs=%.2f\n", maxWabufVal, estimatedDisplayPeak);
+
+#ifdef __DEBUG
+    //  Update magnitude AGC using the interpolated wabuf max value mapped to display pixels
+    static uint16_t waterfallDbgCounter = 0;
+    if (++waterfallDbgCounter >= 100) {
+        UISPECTRUM_DEBUG("UICompSpectrumVis [AGC Debug][Waterfall]: maxWabufVal=%u becsültCsúcs=%.2f\n", maxWabufVal, estimatedDisplayPeak);
+        waterfallDbgCounter = 0;
+    }
+#endif
     updateMagnitudeBasedGain(estimatedDisplayPeak);
 
     sprite_->pushSprite(bounds.x, bounds.y);

@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
  * -----                                                                                                               *
- * Last Modified: 2025.11.22, Saturday  01:33:39                                                                       *
+ * Last Modified: 2025.11.30, Sunday  03:41:12                                                                         *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -238,13 +238,13 @@ void ScreenSetupAudioProc::handleFFTGainDialog(int index, bool isAM) {
                     auto tempGainPtr = std::make_shared<int>((currentConfig == SPECTRUM_GAIN_MODE_AUTO) ? 0 : static_cast<int>(currentConfig));
 
                     auto gainDialog = std::make_shared<UIValueChangeDialog>(
-                        this, (String(title) + " - Manual Gain").c_str(), "Set gain (dB): -40 ... +40", //
+                        this, (String(title) + " - Manual Gain").c_str(), "Set gain (dB): -20 ... +20", //
                         tempGainPtr.get(),                                                              // Pointer a temp értékhez (int*)
-                        -40, 40, 1,                                                                     // Min, Max, Step (dB-ben)
+                        -20, 20, 1,                                                                     // Min, Max, Step (dB-ben)
                         nullptr,                                                                        // Élő előnézet callback (nem szükséges)
                         [this, index, &currentConfig, tempGainPtr](UIDialogBase *sender, UIMessageDialog::DialogResult result) { // Eredmény kezelése
                             if (result == UIMessageDialog::DialogResult::Accepted) {
-                                int clamped = constrain(*tempGainPtr, -40, 40);
+                                int clamped = constrain(*tempGainPtr, -20, 20);
                                 currentConfig = static_cast<int8_t>(clamped);
                                 populateMenuItems(); // Teljes frissítés a helyes érték megjelenítéséhez
                             }
