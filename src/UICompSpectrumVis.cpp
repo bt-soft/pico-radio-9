@@ -951,16 +951,10 @@ uint16_t UICompSpectrumVis::valueToWaterfallColor(float val, float min_val, floa
     const uint16_t *colors = (colorProfileIndex == 0) ? FftDisplayConstants::waterFallColors_0 : FftDisplayConstants::waterFallColors_1;
     byte color_size = 16;
 
-    if (val < min_val)
-        val = min_val;
-    if (val > max_val)
-        val = max_val;
+    val = constrain(val, min_val, max_val);
 
     int index = (int)((val - min_val) * (color_size - 1) / (max_val - min_val));
-    if (index < 0)
-        index = 0;
-    if (index >= color_size)
-        index = color_size - 1;
+    index = constrain(index, 0, color_size - 1);
 
     return colors[index];
 }
