@@ -93,15 +93,19 @@ static inline int32_t q15Abs(q15_t v) { return (v < 0) ? -(int32_t)v : (int32_t)
 
 // Q15 -> uint8 (0..255) alkalmazva egy Q16 skálát (scaleQ16: 16.16 fixed)
 // Q15 -> uint8 (0..255) alkalmazva egész százalékos gain-del
-static inline uint8_t q15ToUint8(q15_t v, int16_t gainPercent) {
+// Q15 -> uint8 (0..255) alkalmazva dB alapú gain-del
+static inline uint8_t q15ToUint8(q15_t v, float gainDb) {
     int32_t abs_val = q15Abs(v); // 0..32767
     if (abs_val == 0)
         return 0;
 
-    // abs_val leképezése 0..255 tartományba a gainPercent alkalmazásával: hasonló megközelítés mint q15ToPixelHeight
-    int64_t numerator = (int64_t)abs_val * (int64_t)(100 + gainPercent) * 255LL;
-    int64_t denominator = (int64_t)32767 * 100LL;
-    int64_t scaled = numerator / denominator;
+    // dB -> linear gain (amplitude): gain_lin = 10^(dB/20)
+    float gain_lin = powf(10.0f, static_cast<float>(gainDb) / 20.0f);
+
+    // abs_val leképezése 0..255 tartományba a gain alkalmazásával
+    // scaled = abs_val * gain_lin / 32767 * 255
+    float scaled_f = (static_cast<float>(abs_val) * gain_lin) / 32767.0f * 255.0f;
+    int32_t scaled = static_cast<int32_t>(scaled_f + 0.5f);
     if (scaled <= 0)
         return 0;
     if (scaled >= 255)
@@ -111,16 +115,15 @@ static inline uint8_t q15ToUint8(q15_t v, int16_t gainPercent) {
 
 // Q15 -> pixel magasság (0..max_height) alkalmazva Q16 skálát
 // Q15 -> pixel magasság (0..max_height) alkalmazva százalékos gain (integer aritmetika)
-static inline uint16_t q15ToPixelHeight(q15_t v, int16_t gainPercent, uint16_t max_height) {
+// Q15 -> pixel magasság (0..max_height) alkalmazva dB alapú gain-del
+static inline uint16_t q15ToPixelHeight(q15_t v, float gainDb, uint16_t max_height) {
     int32_t abs_val = q15Abs(v); // 0..32767
     if (abs_val == 0)
         return 0;
 
-    // Számított pixel = (abs_val / 32767) * max_height * (100 + gainPercent) / 100
-    // => egész aritmetika formában:
-    int64_t numerator = (int64_t)abs_val * (int64_t)(100 + gainPercent) * (int64_t)max_height;
-    int64_t denominator = (int64_t)32767 * 100LL;
-    int64_t scaled = numerator / denominator;
+    float gain_lin = powf(10.0f, static_cast<float>(gainDb) / 20.0f);
+    float scaled_f = (static_cast<float>(abs_val) * gain_lin) / 32767.0f * static_cast<float>(max_height);
+    int32_t scaled = static_cast<int32_t>(scaled_f + 0.5f);
 
     if (scaled <= 0)
         return 0;
@@ -154,27 +157,28 @@ static inline float q15InterpolateFloat(const q15_t *data, float exactIndex, int
  * egységesen a táblázatból származik.
  */
 struct BandwidthScaleConfig {
-    uint32_t bandwidthHz;             // Dekóder sávszélesség (Hz)
-    int8_t lowResBarGainPercent;      // +/-% a low-res bar megjelenítéshez
-    int8_t highResBarGainPercent;     // +/-% a high-res bar megjelenítéshez
-    int8_t oscilloscopeGainPercent;   // +/-% az oszcilloszkóphoz
-    int8_t envelopeGainPercent;       // +/-% a burkológörbéhez
-    int8_t waterfallGainPercent;      // +/-% a vízeséshez
-    int8_t tuningAidWaterfallPercent; // +/-% tuning aid waterfall
-    int8_t tuningAidSnrCurvePercent;  // +/-% tuning aid SNR curve
+    uint32_t bandwidthHz;       // Dekóder sávszélesség (Hz)
+    float lowResBarGainDb;      // dB a low-res bar megjelenítéshez (float támogatja a tizedesjegyeket)
+    float highResBarGainDb;     // dB a high-res bar megjelenítéshez
+    float oscilloscopeGainDb;   // dB az oszcilloszkóphoz
+    float envelopeGainDb;       // dB a burkológörbéhez
+    float waterfallGainDb;      // dB a vízeséshez
+    float tuningAidWaterfallDb; // dB tuning aid waterfall
+    float tuningAidSnrCurveDb;  // dB tuning aid SNR curve
 };
 
-// Előre definiált scale táblázat (sávszélesség szerint növekvő sorrendben!)
-constexpr BandwidthScaleConfig BANDWIDTH_SCALE_TABLE[] = {
-    // bandwidthHz,    lowResBarGainPercent, highResBarGainPercent, oscilloscopeGainPercent, envelopeGainPercent, waterfallGainPercent,
-    // tuningAidWaterfallPercent, tuningAidSnrCurvePercent
-    {CW_AF_BANDWIDTH_HZ, +40, +30, +20, +25, +20, +30, +35},   // 1.5Khz: nagyobb boost
-    {RTTY_AF_BANDWIDTH_HZ, +25, +20, +10, +15, +12, +18, +20}, // még ez is 6kHz
-    {AM_AF_BANDWIDTH_HZ, +10, +8, 0, +5, +0, +5, +8},          // 6kHz
-    {WEFAX_SAMPLE_RATE_HZ, 0, 0, 0, 0, -5, -3, -2},            // 11025Hz:
-    {FM_AF_BANDWIDTH_HZ, 90, -15, -10, -12, -20, -18, -15},    // 15kHz: FM mód, kisebb boost
+// Előre definiált gain táblázat (sávszélesség szerint növekvő sorrendben!)
+#define NOAMP 0.0f // Nincs erősítés
+constexpr BandwidthScaleConfig BANDWIDTH_GAIN_TABLE[] = {
+    // bandwidthHz,    lowResBarGainDb, highResBarGainDb, oscilloscopeGainDb, envelopeGainDb, waterfallGainDb,
+    // csak CW éls RRTY módban: tuningAidWaterfallDb, tuningAidSnrCurveDb
+    {CW_AF_BANDWIDTH_HZ, 6.0f, 5.0f, 3.0f, 4.0f, 3.0f, 4.0f, 5.0f},        // 1.5kHz: CW mód
+    {RTTY_AF_BANDWIDTH_HZ, 4.0f, 3.0f, 2.0f, 3.0f, 2.0f, 3.0f, 3.0f},      // 3kHz: RTTY mód
+    {AM_AF_BANDWIDTH_HZ, 2.0f, 1.0f, 0.0f, 1.0f, 0.0f, 1.0f, 1.0f},        // 6kHz: AM mód
+    {WEFAX_SAMPLE_RATE_HZ, 0.0f, 0.0f, 0.0f, 0.0f, -1.0f, -1.0f, -1.0f},   // 11025Hz: WEFAX mód
+    {FM_AF_BANDWIDTH_HZ, 20.0f, 25.0f, -3.0f, 15.0f, 22.0f, NOAMP, NOAMP}, // 15kHz: FM mód
 };
-constexpr size_t BANDWIDTH_SCALE_TABLE_SIZE = ARRAY_ITEM_COUNT(BANDWIDTH_SCALE_TABLE);
+constexpr size_t BANDWIDTH_GAIN_TABLE_SIZE = ARRAY_ITEM_COUNT(BANDWIDTH_GAIN_TABLE);
 
 /**
  * @brief Konstruktor
@@ -204,8 +208,8 @@ UICompSpectrumVis::UICompSpectrumVis(int x, int y, int w, int h, RadioMode radio
       currentTuningAidMaxFreqHz_(0.0f),                //
       isMutedDrawn(false) {
 
-    // Inicializáljuk a cache-elt gain értéket
-    cachedGainPercent_ = 0;
+    // Inicializáljuk a cache-elt gain értéket (dB-ben)
+    cachedGainDb_ = 0;
 
     maxDisplayFrequencyHz_ = radioMode_ == RadioMode::AM ? UICompSpectrumVis::MAX_DISPLAY_FREQUENCY_AM : UICompSpectrumVis::MAX_DISPLAY_FREQUENCY_FM;
 
@@ -826,15 +830,18 @@ void UICompSpectrumVis::setCurrentDisplayMode(DisplayMode newdisplayMode) {
     // Sprite előkészítése az új módhoz
     manageSpriteForMode(currentMode_);
 
-    // Számoljuk ki egyszer a sávszélesség alapú erősítést és cache-eljük
-    computeCachedGainPercent();
+    // Számoljuk ki egyszer a sávszélesség alapú erősítést (dB-ben) és cache-eljük
+    computeCachedGain();
 }
 
 /**
  * @brief Egyszeri számítás a sávszélesség alapú erősítésre, cache-eli az eredményt.
  * Ezt a metódust a módváltáskor hívjuk meg, így a render ciklusok gyorsabbak lesznek.
  */
-void UICompSpectrumVis::computeCachedGainPercent() {
+// Helper: konvertálja a cached dB értéket egy render-barát százalék értékre
+// NO cached percent helper: render kód közvetlenül dB-t használ
+
+void UICompSpectrumVis::computeCachedGain() {
     // Alapértelmezett becslés: a jelenlegi rádió mód sávszélessége
     uint32_t estimatedBandwidthHz = (radioMode_ == RadioMode::AM) ? AM_AF_BANDWIDTH_HZ : FM_AF_BANDWIDTH_HZ;
 
@@ -864,81 +871,75 @@ void UICompSpectrumVis::computeCachedGainPercent() {
     bool forSnrCurve = (currentMode_ == DisplayMode::CwSnrCurve //
                         || currentMode_ == DisplayMode::RttySnrCurve);
 
-    // Lambda a megfelelő scale mező kiválasztásához
-    auto getPercentFromTable = [forEnvelope, forWaterfall, forTuningAid, forSnrCurve, forLowResBar, forHighResBar,
-                                forOscilloscope](const BandwidthScaleConfig &cfg) -> int16_t {
+    // Lambda a megfelelő scale mező kiválasztásához (dB érték visszaadása)
+    auto getDbFromTable = [forEnvelope, forWaterfall, forTuningAid, forSnrCurve, forLowResBar, forHighResBar,
+                           forOscilloscope](const BandwidthScaleConfig &cfg) -> float {
         if (forEnvelope)
-            return cfg.envelopeGainPercent;
+            return cfg.envelopeGainDb;
         if (forWaterfall)
-            return cfg.waterfallGainPercent;
+            return cfg.waterfallGainDb;
         if (forTuningAid && forSnrCurve)
-            return cfg.tuningAidSnrCurvePercent;
+            return cfg.tuningAidSnrCurveDb;
         if (forTuningAid)
-            return cfg.tuningAidWaterfallPercent;
+            return cfg.tuningAidWaterfallDb;
         if (forLowResBar)
-            return cfg.lowResBarGainPercent;
+            return cfg.lowResBarGainDb;
         if (forHighResBar)
-            return cfg.highResBarGainPercent;
+            return cfg.highResBarGainDb;
         if (forOscilloscope)
-            return cfg.oscilloscopeGainPercent;
-        return cfg.envelopeGainPercent;
+            return cfg.oscilloscopeGainDb;
+        return cfg.envelopeGainDb;
     };
 
     // 1. Pontos egyezés keresése a táblázatban
-    for (size_t i = 0; i < BANDWIDTH_SCALE_TABLE_SIZE; ++i) {
-        if (BANDWIDTH_SCALE_TABLE[i].bandwidthHz == estimatedBandwidthHz) {
-            cachedGainPercent_ = getPercentFromTable(BANDWIDTH_SCALE_TABLE[i]);
+    for (size_t i = 0; i < BANDWIDTH_GAIN_TABLE_SIZE; ++i) {
+        if (BANDWIDTH_GAIN_TABLE[i].bandwidthHz == estimatedBandwidthHz) {
+            cachedGainDb_ = getDbFromTable(BANDWIDTH_GAIN_TABLE[i]);
         }
     }
 
     // 2. Nincs pontos egyezés -> lineáris interpoláció a két legközelebbi érték között
-    for (size_t i = 0; i < BANDWIDTH_SCALE_TABLE_SIZE - 1; ++i) {
-        uint32_t bwLow = BANDWIDTH_SCALE_TABLE[i].bandwidthHz;
-        uint32_t bwHigh = BANDWIDTH_SCALE_TABLE[i + 1].bandwidthHz;
+    for (size_t i = 0; i < BANDWIDTH_GAIN_TABLE_SIZE - 1; ++i) {
+        uint32_t bwLow = BANDWIDTH_GAIN_TABLE[i].bandwidthHz;
+        uint32_t bwHigh = BANDWIDTH_GAIN_TABLE[i + 1].bandwidthHz;
 
         if (estimatedBandwidthHz > bwLow && estimatedBandwidthHz < bwHigh) {
-            // Interpoláció szükséges - mindegyik mező int8_t százalék
-            auto pickPercent = [forEnvelope, forWaterfall, forTuningAid, forSnrCurve, forLowResBar, forHighResBar,
-                                forOscilloscope](const BandwidthScaleConfig &cfg) -> int32_t {
+            // Interpoláció szükséges - most float dB mezők vannak
+            auto pickDbF = [forEnvelope, forWaterfall, forTuningAid, forSnrCurve, forLowResBar, forHighResBar,
+                            forOscilloscope](const BandwidthScaleConfig &cfg) -> float {
                 if (forEnvelope)
-                    return cfg.envelopeGainPercent;
+                    return cfg.envelopeGainDb;
                 if (forWaterfall)
-                    return cfg.waterfallGainPercent;
+                    return cfg.waterfallGainDb;
                 if (forTuningAid && forSnrCurve)
-                    return cfg.tuningAidSnrCurvePercent;
+                    return cfg.tuningAidSnrCurveDb;
                 if (forTuningAid)
-                    return cfg.tuningAidWaterfallPercent;
+                    return cfg.tuningAidWaterfallDb;
                 if (forLowResBar)
-                    return cfg.lowResBarGainPercent;
+                    return cfg.lowResBarGainDb;
                 if (forHighResBar)
-                    return cfg.highResBarGainPercent;
+                    return cfg.highResBarGainDb;
                 if (forOscilloscope)
-                    return cfg.oscilloscopeGainPercent;
-                return cfg.envelopeGainPercent; // fallback
+                    return cfg.oscilloscopeGainDb;
+                return cfg.envelopeGainDb; // fallback
             };
 
-            int32_t pLow = pickPercent(BANDWIDTH_SCALE_TABLE[i]);
-            int32_t pHigh = pickPercent(BANDWIDTH_SCALE_TABLE[i + 1]);
+            float vLow = pickDbF(BANDWIDTH_GAIN_TABLE[i]);
+            float vHigh = pickDbF(BANDWIDTH_GAIN_TABLE[i + 1]);
 
-            uint32_t numer = estimatedBandwidthHz - bwLow;
-            uint32_t denom = bwHigh - bwLow;
-            int32_t percent = 0;
-            if (denom == 0) {
-                percent = pLow;
-            } else {
-                percent = pLow + ((int32_t)(pHigh - pLow) * (int32_t)numer) / (int32_t)denom;
-            }
-
-            cachedGainPercent_ = static_cast<int16_t>(percent);
+            float numerF = static_cast<float>(estimatedBandwidthHz - bwLow);
+            float denomF = static_cast<float>(bwHigh - bwLow);
+            float t = (denomF == 0.0f) ? 0.0f : numerF / denomF;
+            cachedGainDb_ = vLow * (1.0f - t) + vHigh * t;
         }
     }
 
     // 3. Tartományon kívül esik
-    if (estimatedBandwidthHz <= BANDWIDTH_SCALE_TABLE[0].bandwidthHz) {
-        cachedGainPercent_ = getPercentFromTable(BANDWIDTH_SCALE_TABLE[0]);
+    if (estimatedBandwidthHz <= BANDWIDTH_GAIN_TABLE[0].bandwidthHz) {
+        cachedGainDb_ = getDbFromTable(BANDWIDTH_GAIN_TABLE[0]);
     } else {
-        size_t lastIdx = BANDWIDTH_SCALE_TABLE_SIZE - 1;
-        cachedGainPercent_ = getPercentFromTable(BANDWIDTH_SCALE_TABLE[lastIdx]);
+        size_t lastIdx = BANDWIDTH_GAIN_TABLE_SIZE - 1;
+        cachedGainDb_ = getDbFromTable(BANDWIDTH_GAIN_TABLE[lastIdx]);
     }
 }
 
@@ -1467,17 +1468,19 @@ void UICompSpectrumVis::renderSpectrumBar(bool isLowRes) {
         }
 
         // Q16 skálázási konstans (LowRes) - sávszélesség-adaptív
-        int16_t gainPercent = cachedGainPercent_;
+        float gainDb = cachedGainDb_;
         if (isAutoGainMode()) {
-            // AGC korrekció: 5.5x alkalmazása százalékos formában -> szorozzuk a százalékot 550/100-zal
-            gainPercent = static_cast<int16_t>((gainPercent * 550) / 100);
+            // AGC korrekció: korábbi logika 5.5x amplitude boost-ot kívánt (percent-ben);
+            // dB-ben ez hozzáadást jelent: 20*log10(5.5) ≈ 14.807 dB
+            float extraDb = 20.0f * log10f(5.5f);
+            gainDb = static_cast<int16_t>(roundf(static_cast<float>(gainDb) + extraDb));
         }
 
         // Sávok számítása (első passz): direkt Q15 → pixel konverzió
         uint16_t computedHeights[LOW_RES_BANDS] = {0};
         for (uint8_t band_idx = 0; band_idx < bands_to_display; band_idx++) {
             // Direkt int16 -> pixel magasság (integer aritmetika, bit-shift)
-            uint16_t height = q15ToPixelHeight(band_magnitudes_q15[band_idx], gainPercent, MAX_BAR_HEIGHT);
+            uint16_t height = q15ToPixelHeight(band_magnitudes_q15[band_idx], gainDb, MAX_BAR_HEIGHT);
 
             // Minimum 1 pixel, ha van jel
             if (height == 0 && band_magnitudes_q15[band_idx] != 0) {
@@ -1573,7 +1576,7 @@ void UICompSpectrumVis::renderSpectrumBar(bool isLowRes) {
         const uint16_t num_bins_in_range = std::max(1, max_bin_idx - min_bin_idx + 1);
 
         // Q16 skálázási konstans (HighRes) - sávszélesség-adaptív
-        int16_t gainPercent = cachedGainPercent_; // forHighResBar=true
+        float gainDb = cachedGainDb_; // forHighResBar=true
 
         // HighRes: kétfázisos számítás (Q15 optimalizált - direkt pixel konverzió)
         std::vector<uint16_t> computedCols(bounds.width, 0);
@@ -1599,7 +1602,7 @@ void UICompSpectrumVis::renderSpectrumBar(bool isLowRes) {
             if (magnitude_q15 < ENVELOPE_MIN_DISPLAY_Q15) {
                 magnitude_q15 = 0;
             }
-            uint16_t height = q15ToPixelHeight(magnitude_q15, gainPercent, MAX_BAR_HEIGHT);
+            uint16_t height = q15ToPixelHeight(magnitude_q15, gainDb, MAX_BAR_HEIGHT);
 
             // Oszloponkénti időbeli simítás alkalmazása a villogás csökkentésére
             float sm = highresSmoothedCols[screen_pixel_x];
@@ -1683,7 +1686,7 @@ void UICompSpectrumVis::renderOscilloscope() {
 
     uint16_t prev_x = -1, prev_y = -1;
     // Sávszélesség becslése az oszcilloszkóphoz szükséges skála lekéréséhez
-    int16_t gainPercent = cachedGainPercent_;
+    float gainDb = cachedGainDb_;
 
     // Egész alapú dinamikus skálázás: mérjük a buffer legnagyobb abszolút mintáját
     int32_t max_abs = 1;
@@ -1699,12 +1702,14 @@ void UICompSpectrumVis::renderOscilloscope() {
     for (uint16_t i = 0; i < sampleCount; i++) {
         int16_t raw = osciRawData[i];
 
-        // pixel_offset = raw/max_abs * half_h * (100+gainPercent)/100  (egész aritmetika)
-        int64_t numer = (int64_t)raw * (int64_t)half_h * (int64_t)(100 + gainPercent);
-        int64_t denom = (int64_t)max_abs * 100LL;
+        // pixel_offset = raw/max_abs * half_h * gain_lin
+        float gain_lin = powf(10.0f, static_cast<float>(gainDb) / 20.0f);
         int32_t pixel_offset = 0;
-        if (denom != 0)
-            pixel_offset = static_cast<int32_t>(numer / denom);
+        if (max_abs != 0) {
+            float frac = static_cast<float>(raw) / static_cast<float>(max_abs);
+            float pxf = frac * static_cast<float>(half_h) * gain_lin;
+            pixel_offset = static_cast<int32_t>(pxf + (pxf >= 0 ? 0.5f : -0.5f));
+        }
 
         int16_t y_pos = static_cast<int16_t>((static_cast<int32_t>(graphH) / 2) - pixel_offset);
         y_pos = constrain(y_pos, 0, graphH - 1);
@@ -1762,10 +1767,10 @@ void UICompSpectrumVis::renderEnvelope() {
     const uint16_t num_bins_in_env_range = std::max(1, max_bin_for_env - min_bin_for_env + 1);
 
     // Százalékos skálázási konstans (Q15 optimalizált) - sávszélesség-adaptív
-    int16_t gainPercent = cachedGainPercent_;
-    // AGC: if enabled reduce effective gain by 30% -> multiply by 70%
+    float gainDb = cachedGainDb_;
     if (isAutoGainMode()) {
-        gainPercent = static_cast<int16_t>((gainPercent * 70) / 100);
+        float extraDb = 20.0f * log10f(0.7f);
+        gainDb = static_cast<int16_t>(roundf(static_cast<float>(gainDb) + extraDb));
     }
 
     // 2. Új oszlop számítása a wabuf jobb szélére
@@ -1778,7 +1783,7 @@ void UICompSpectrumVis::renderEnvelope() {
 
         // Q15 értékből direkt uint8_t konverzió (Q15 szemantika)
         q15_t rawMagnitudeQ15 = magnitudeData[fft_bin_index];
-        wabuf[r][bounds.width - 1] = q15ToUint8(rawMagnitudeQ15, gainPercent);
+        wabuf[r][bounds.width - 1] = q15ToUint8(rawMagnitudeQ15, gainDb);
     }
 
     // 3. Sprite törlése és burkológörbe kirajzolása
@@ -1883,9 +1888,12 @@ void UICompSpectrumVis::renderWaterfall() {
     const int max_bin_for_wf = std::min(static_cast<int>(actualFftSize - 1), static_cast<int>(std::round(maxDisplayFrequencyHz_ / currentBinWidthHz)));
     const int num_bins_in_wf_range = std::max(1, max_bin_for_wf - min_bin_for_wf + 1);
 
-    int16_t gainPercent = cachedGainPercent_;
+    float gainDb = cachedGainDb_;
     if (isAutoGainMode()) {
-        gainPercent = static_cast<int16_t>((gainPercent * 95) / 100); // 95%
+        {
+            float deltaDb = 20.0f * log10f(0.95f);
+            gainDb = static_cast<int16_t>(roundf(static_cast<float>(gainDb) + deltaDb));
+        }
     }
 
     for (uint16_t r = 0; r < bounds.height; ++r) {
@@ -1894,7 +1902,7 @@ void UICompSpectrumVis::renderWaterfall() {
         fft_bin_index = constrain(fft_bin_index, min_bin_for_wf, max_bin_for_wf);
 
         q15_t rawMagnitudeQ15 = magnitudeData[fft_bin_index];
-        wabuf[r][bounds.width - 1] = q15ToUint8(rawMagnitudeQ15, gainPercent);
+        wabuf[r][bounds.width - 1] = q15ToUint8(rawMagnitudeQ15, gainDb);
     }
 
     sprite_->scroll(-1, 0);
@@ -1954,9 +1962,12 @@ void UICompSpectrumVis::renderCwOrRttyTuningAidWaterfall() {
     const int max_bin_for_tuning = std::min(static_cast<int>(actualFftSize - 1), static_cast<int>(std::round(currentTuningAidMaxFreqHz_ / currentBinWidthHz)));
     const int num_bins_in_tuning_range = std::max(1, max_bin_for_tuning - min_bin_for_tuning + 1);
 
-    int16_t gainPercent = cachedGainPercent_;
+    float gainDb = cachedGainDb_;
     if (isAutoGainMode()) {
-        gainPercent = static_cast<int16_t>((gainPercent * 95) / 100);
+        {
+            float deltaDb = 20.0f * log10f(0.95f);
+            gainDb = static_cast<int16_t>(roundf(static_cast<float>(gainDb) + deltaDb));
+        }
     }
 
     constexpr uint16_t WF_GRADIENT = 100;
@@ -1966,7 +1977,7 @@ void UICompSpectrumVis::renderCwOrRttyTuningAidWaterfall() {
 
         float magnitude_f = q15InterpolateFloat(magnitudeData, exact_bin_index, min_bin_for_tuning, max_bin_for_tuning);
         q15_t magnitude_q15 = static_cast<q15_t>(std::round(magnitude_f));
-        uint8_t finalValue = q15ToUint8(magnitude_q15, gainPercent);
+        uint8_t finalValue = q15ToUint8(magnitude_q15, gainDb);
         wabuf[0][c] = finalValue;
 
         uint16_t color = valueToWaterfallColor(WF_GRADIENT * finalValue, 0.0f, 255.0f * WF_GRADIENT, WATERFALL_COLOR_INDEX);
@@ -2013,9 +2024,12 @@ void UICompSpectrumVis::renderSnrCurve() {
     const uint16_t num_bins = std::max(1, max_bin - min_bin + 1);
 
     float maxMagnitude = 0.0f;
-    int16_t gainPercent = cachedGainPercent_;
+    int16_t gainDb = cachedGainDb_;
     if (isAutoGainMode()) {
-        gainPercent = static_cast<int16_t>((gainPercent * 95) / 100);
+        {
+            float deltaDb = 20.0f * log10f(0.95f);
+            gainDb = static_cast<int16_t>(roundf(static_cast<float>(gainDb) + deltaDb));
+        }
     }
 
     int16_t prevX = -1;
@@ -2026,7 +2040,7 @@ void UICompSpectrumVis::renderSnrCurve() {
 
         float magnitude_f = q15InterpolateFloat(magnitudeData, exact_bin_index, min_bin, max_bin);
         q15_t magnitude_q15 = static_cast<q15_t>(std::round(magnitude_f));
-        uint16_t snrPixel = q15ToPixelHeight(magnitude_q15, gainPercent, graphH);
+        uint16_t snrPixel = q15ToPixelHeight(magnitude_q15, gainDb, graphH);
         float snrValue = static_cast<float>(snrPixel);
         maxMagnitude = std::max(maxMagnitude, snrValue);
 

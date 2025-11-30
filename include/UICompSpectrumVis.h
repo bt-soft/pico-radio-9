@@ -137,19 +137,7 @@ class UICompSpectrumVis : public UIComponent {
     // /**
     //  * @brief Beállítja, hogy a keret rajzolása szükséges-e
     //  * @param drawn true ha a keretet rajzolni kell, false ha nem
-    //  */
-    // inline void setBorderDrawn() { needBorderDrawn = true; }
-
-    /**
-     * @brief Frissíti a maximális megjelenítési frekvenciát
-     * @param maxDisplayFrequencyHz Az FFT mintavételezési frekvenciája
-     */
-    inline void setMaxDisplayFrequencyHz(uint16_t maxDisplayFrequencyHz) {
-        maxDisplayFrequencyHz_ = maxDisplayFrequencyHz;
-        frequencyLabelsDrawn_ = true;
-        DEBUG("SpectrumVisualizationComponent::setMaxDisplayFrequencyHz Max display frequency set to %d Hz\n", maxDisplayFrequencyHz_);
-    }
-
+    // BandwidthGainConfig definíció a .cpp fájlban (globális scope) szerepel, hogy elkerüljük a többszörös definíciót.
     /**
      * @brief Kényszeríti a frekvencia feliratok újrarajzolását
      */
@@ -179,9 +167,9 @@ class UICompSpectrumVis : public UIComponent {
     void setCurrentDisplayMode(DisplayMode newdisplayMode);
 
     /**
-     * @brief Előre kiszámolt sávszélesség alapú erősítés százalékban.
+     * @brief Előre kiszámolt sávszélesség alapú erősítés (dB-ben) cache-elése.
      */
-    void computeCachedGainPercent();
+    void computeCachedGain();
 
   private:
     RadioMode radioMode_;
@@ -273,8 +261,8 @@ class UICompSpectrumVis : public UIComponent {
      */
     inline uint32_t getScaleFactorForMode(uint32_t amScale, uint32_t fmScale) const { return (radioMode_ == RadioMode::AM) ? amScale : fmScale; }
 
-    // Cache-elt erősítés százalék (bázis érték, AGC korrekció nélkül)
-    int16_t cachedGainPercent_ = 0;
+    // Cache-elt erősítés dB-ben (bázis érték, AGC korrekció nélkül)
+    float cachedGainDb_ = 0.0f;
     /**
      * @brief Spectrum bar függvények
      */
