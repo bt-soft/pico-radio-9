@@ -273,7 +273,7 @@ void UICompSpectrumVis::updateBarBasedGain(float currentBarMaxValue) {
         }
         barAgcLastUpdateTime_ = millis();
 
-        UISPECTRUM_DEBUG("UICompSpectrumVis [Bar AGC]: currentBarMaxValue=%.1f barAgcGainFactor_=%.3f\n", currentBarMaxValue, barAgcGainFactor_);
+        UISPECTRUM_DEBUG("UICompSpectrumVis [Bar AGC]: jelenlegiBarMax=%.1f barAgcGainFactor=%.3f\n", currentBarMaxValue, barAgcGainFactor_);
     }
 }
 
@@ -288,6 +288,15 @@ void UICompSpectrumVis::updateMagnitudeBasedGain(float currentMagnitudeMaxValue)
         return;
     }
 
+    // During debugging allow zero values into the history so we can observe
+    // where display estimates originate. Change back to a small positive
+    // guard (e.g. 1.0f) after diagnosis to avoid history pollution.
+    constexpr float MAG_AGC_MIN_HISTORY_VALUE = 0.0f; // in display-pixel units
+    if (currentMagnitudeMaxValue <= MAG_AGC_MIN_HISTORY_VALUE) {
+        UISPECTRUM_DEBUG("UICompSpectrumVis [Magnitude AGC]: érték=%.2f (engedélyezve debug miatt)\n", currentMagnitudeMaxValue);
+        // continue - we deliberately allow 0.0 to be pushed during diagnosis
+    }
+
     // Magnitude maximum hozzáadása a history bufferhez
     magnitudeAgcHistory_[magnitudeAgcHistoryIndex_] = currentMagnitudeMaxValue;
     magnitudeAgcHistoryIndex_ = (magnitudeAgcHistoryIndex_ + 1) % AGC_HISTORY_SIZE;
@@ -300,7 +309,7 @@ void UICompSpectrumVis::updateMagnitudeBasedGain(float currentMagnitudeMaxValue)
         }
         magnitudeAgcLastUpdateTime_ = millis();
 
-        UISPECTRUM_DEBUG("UICompSpectrumVis [Magnitude AGC]: currentMagnitudeMaxValue=%.1f magnitudeAgcGainFactor_=%.3f\n", currentMagnitudeMaxValue,
+        UISPECTRUM_DEBUG("UICompSpectrumVis [Magnitude AGC]: jelenlegiMagnitudeMax=%.1f magnitudeAgcGainFactor=%.3f\n", currentMagnitudeMaxValue,
                          magnitudeAgcGainFactor_);
     }
 }
@@ -469,7 +478,7 @@ void UICompSpectrumVis::draw() {
     // AGC logolás 1mp-ként, de csak ha be van kapcsolva az auto agc
     static uint32_t lastAgcLogTime = 0;
     if (isAutoGainMode() && Utils::timeHasPassed(lastAgcLogTime, 1000)) {
-        UISPECTRUM_DEBUG("UICompSpectrumVis [Auto AGC] mode=%d barGain=%.3f magGain=%.3f\n", (int)currentMode_, barAgcGainFactor_, magnitudeAgcGainFactor_);
+        UISPECTRUM_DEBUG("UICompSpectrumVis [Auto AGC] mód=%d barGain=%.3f magGain=%.3f\n", (int)currentMode_, barAgcGainFactor_, magnitudeAgcGainFactor_);
         lastAgcLogTime = currentTime;
     }
 #endif
@@ -1612,6 +1621,7 @@ void UICompSpectrumVis::renderSpectrumBar(bool isLowRes) {
     // Sprite kirakása
     // Update magnitude AGC using estimated display pixel peak from envelope
     float estimatedDisplayPeak = (envelopeLastSmoothedValue_ / 100.0f) * (static_cast<float>(graphH) * GRAPH_TARGET_HEIGHT_UTILIZATION);
+    UISPECTRUM_DEBUG("UICompSpectrumVis [AGC Debug][Envelope]: envelopeUtolsó=%.2f becsültCsúcs=%.2f\n", envelopeLastSmoothedValue_, estimatedDisplayPeak);
     updateMagnitudeBasedGain(estimatedDisplayPeak);
 
     sprite_->pushSprite(bounds.x, bounds.y);
@@ -1810,6 +1820,10 @@ void UICompSpectrumVis::renderEnvelope() {
     // 2. Új oszlop számítása a wabuf jobb szélére
     // Minden sort feldolgozunk a teljes felbontásért
 
+    // Envelope diagnostics counter (increments once per rendered envelope frame)
+    static uint16_t envelopeDbgCounter = 0;
+    envelopeDbgCounter++;
+
     // Kiszámoljuk az aktuális envelope RMS-t a megjelenítési tartományban
     float envRms = computeMagnitudeRmsMember(magnitudeData, min_bin_for_env, max_bin_for_env);
     constexpr float ENV_RMS_SMOOTH_ALPHA = 0.05f;
@@ -1819,9 +1833,9 @@ void UICompSpectrumVis::renderEnvelope() {
 
     for (uint8_t r = 0; r < bounds.height; ++r) {
         // 'r' (0 to bounds.height-1) leképezése FFT bin indexre a szűkített tartományon belül
-        uint8_t fft_bin_index =
-            min_bin_for_env + static_cast<uint8_t>(std::round(static_cast<float>(r) / std::max(1, (bounds.height - 1)) * (num_bins_in_env_range - 1)));
-        fft_bin_index = constrain(fft_bin_index, min_bin_for_env, max_bin_for_env);
+        uint16_t fft_bin_index = static_cast<uint16_t>(
+            min_bin_for_env + static_cast<int>(std::round(static_cast<float>(r) / std::max(1, (bounds.height - 1)) * (num_bins_in_env_range - 1))));
+        fft_bin_index = static_cast<uint16_t>(constrain(static_cast<int>(fft_bin_index), static_cast<int>(min_bin_for_env), static_cast<int>(max_bin_for_env)));
 
         // Q15 értékből direkt uint8_t konverzió (Q15 szemantika)
         q15_t rawMagnitudeQ15 = magnitudeData[fft_bin_index];
@@ -1834,6 +1848,30 @@ void UICompSpectrumVis::renderEnvelope() {
         float smooth = 0.35f; // stronger smoothing for envelope
         uint8_t finalVal = static_cast<uint8_t>(roundf(smooth * prevVal + (1.0f - smooth) * rawVal));
         wabuf[r][bounds.width - 1] = finalVal;
+
+        // Low-rate diagnostics: log center row mapping every 10 envelope frames
+        if ((r == static_cast<uint8_t>(bounds.height / 2)) && (envelopeDbgCounter % 10 == 0)) {
+            UISPECTRUM_DEBUG("UICompSpectrumVis [Envelope DIAG]: r=%u fft_bin=%u rawQ15=%d rawVal=%u prevVal=%u finalVal=%u gainDb=%d\n", (unsigned)r,
+                             (unsigned)fft_bin_index, (int)rawMagnitudeQ15, (unsigned)rawVal, (unsigned)prevVal, (unsigned)finalVal, static_cast<int>(gainDb));
+        }
+    }
+
+    // Per-frame diagnostic summary for envelope: print some raw FFT bins (safe indices)
+    if ((envelopeDbgCounter % 10) == 0) {
+        uint16_t b0 = min_bin_for_env;
+        uint16_t b4 = max_bin_for_env;
+        uint16_t mid = (b0 + b4) / 2;
+        uint16_t b1 = (b0 + mid) / 2;
+        uint16_t b2 = mid;
+        uint16_t b3 = (mid + b4) / 2;
+        auto safeVal = [&](uint16_t idx) -> int {
+            if (idx < actualFftSize)
+                return static_cast<int>(magnitudeData[idx]);
+            return 0;
+        };
+        UISPECTRUM_DEBUG("UICompSpectrumVis [Envelope INFO]: bins=%u..%u gainDb=%d bounds=%ux%u samples:[%d,%d,%d,%d,%d]\n", (unsigned)b0, (unsigned)b4,
+                         static_cast<int>(gainDb), (unsigned)bounds.width, (unsigned)bounds.height, safeVal(b0), safeVal(b1), safeVal(b2), safeVal(b3),
+                         safeVal(b4));
     }
 
     // 3. Sprite törlése és burkológörbe kirajzolása
@@ -1865,6 +1903,9 @@ void UICompSpectrumVis::renderEnvelope() {
         }
 
         envelopeLastSmoothedValue_ = ENVELOPE_SMOOTH_FACTOR * envelopeLastSmoothedValue_ + (1.0f - ENVELOPE_SMOOTH_FACTOR) * current_col_max_amplitude;
+
+        UISPECTRUM_DEBUG("UICompSpectrumVis [Envelope DBG]: oszlop=%u oszlop_max=%.2f envelopeSimított=%.2f\n", (unsigned)c, current_col_max_amplitude,
+                         envelopeLastSmoothedValue_);
 
         constexpr float ENVELOPE_CHANGE_THRESHOLD = 2.0f; // Minimális változás az átrajzoláshoz
         if (abs(current_col_max_amplitude - envelopeLastSmoothedValue_) < ENVELOPE_CHANGE_THRESHOLD) {
@@ -1983,6 +2024,7 @@ void UICompSpectrumVis::renderWaterfall() {
 
     // Update magnitude AGC using the interpolated wabuf max value mapped to display pixels
     float estimatedDisplayPeak = (static_cast<float>(maxWabufVal) / 255.0f) * (static_cast<float>(graphH) * GRAPH_TARGET_HEIGHT_UTILIZATION);
+    UISPECTRUM_DEBUG("UICompSpectrumVis [AGC Debug][Waterfall]: maxWabufVal=%u becsültCsúcs=%.2f\n", maxWabufVal, estimatedDisplayPeak);
     updateMagnitudeBasedGain(estimatedDisplayPeak);
 
     sprite_->pushSprite(bounds.x, bounds.y);
@@ -2047,6 +2089,7 @@ void UICompSpectrumVis::renderCwOrRttyTuningAidWaterfall() {
 
     // Update magnitude AGC using estimated display peak from tuning aid waterfall
     float estimatedDisplayPeak = (static_cast<float>(maxWabufVal) / 255.0f) * (static_cast<float>(graphH) * GRAPH_TARGET_HEIGHT_UTILIZATION);
+    UISPECTRUM_DEBUG("UICompSpectrumVis [AGC Debug][TuningAid]: maxWabufVal=%u becsültCsúcs=%.2f\n", maxWabufVal, estimatedDisplayPeak);
     updateMagnitudeBasedGain(estimatedDisplayPeak);
 
     uint16_t min_freq_displayed = currentTuningAidMinFreqHz_;
@@ -2120,6 +2163,7 @@ void UICompSpectrumVis::renderSnrCurve() {
         prevY = y;
     }
 
+    UISPECTRUM_DEBUG("UICompSpectrumVis [AGC Debug][SnrCurve]: maxMagnitude=%.2f\n", maxMagnitude);
     updateMagnitudeBasedGain(maxMagnitude);
     sprite_->pushSprite(bounds.x, bounds.y);
     renderFrequencyRangeLabels(static_cast<uint16_t>(MIN_FREQ_HZ), static_cast<uint16_t>(MAX_FREQ_HZ));
