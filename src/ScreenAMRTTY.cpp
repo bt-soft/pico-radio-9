@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
  * -----                                                                                                               *
- * Last Modified: 2025.11.29, Saturday  02:27:27                                                                       *
+ * Last Modified: 2025.11.30, Sunday  11:21:47                                                                         *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -78,6 +78,9 @@ void ScreenAMRTTY::layoutComponents() {
     // Induláskor beállítjuk a RTTYWaterfall megjelenítési módot
     // TODO: Az RttySnrCurve induláskor lefagy, ezt még javítani kell
     ScreenRadioBase::spectrumComp->setCurrentDisplayMode(UICompSpectrumVis::DisplayMode::RTTYWaterfall);
+
+    // A spektrumkijelzőnek a HF Sávszélesség beállítása
+    ScreenRadioBase::spectrumComp->setCurrentBandwidthHz(RTTY_AF_BANDWIDTH_HZ);
 
     // MEGJEGYZÉS: Az audioController indítása az activate() metódusban történik
     // hogy képernyőváltáskor megfelelően leálljon és újrainduljon

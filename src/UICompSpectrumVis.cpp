@@ -172,11 +172,11 @@ struct BandwidthScaleConfig {
 constexpr BandwidthScaleConfig BANDWIDTH_GAIN_TABLE[] = {
     // bandwidthHz,    lowResBarGainDb, highResBarGainDb, oscilloscopeGainDb, envelopeGainDb, waterfallGainDb,
     // csak CW éls RRTY módban: tuningAidWaterfallDb, tuningAidSnrCurveDb
-    {CW_AF_BANDWIDTH_HZ, 6.0f, 5.0f, 3.0f, 4.0f, 3.0f, 4.0f, 5.0f},        // 1.5kHz: CW mód
-    {RTTY_AF_BANDWIDTH_HZ, 4.0f, 3.0f, 2.0f, 3.0f, 2.0f, 3.0f, 3.0f},      // 3kHz: RTTY mód
-    {AM_AF_BANDWIDTH_HZ, 2.0f, 1.0f, 0.0f, 1.0f, 0.0f, 1.0f, 1.0f},        // 6kHz: AM mód
-    {WEFAX_SAMPLE_RATE_HZ, 0.0f, 0.0f, 0.0f, 0.0f, -1.0f, -1.0f, -1.0f},   // 11025Hz: WEFAX mód
-    {FM_AF_BANDWIDTH_HZ, 20.0f, 25.0f, -3.0f, 15.0f, 22.0f, NOAMP, NOAMP}, // 15kHz: FM mód
+    {CW_AF_BANDWIDTH_HZ, 6.0f, 5.0f, 3.0f, 4.0f, 3.0f, 4.0f, 5.0f},            // 1.5kHz: CW mód
+    {RTTY_AF_BANDWIDTH_HZ, 4.0f, 3.0f, 2.0f, 3.0f, 2.0f, 3.0f, 3.0f},          // 3kHz: RTTY mód
+    {AM_AF_BANDWIDTH_HZ, -18.0f, -18.0f, 0.0f, -10.0f, -10.0f, 10.0f, -10.0f}, // 6kHz: AM mód
+    {WEFAX_SAMPLE_RATE_HZ, 0.0f, 0.0f, 0.0f, 0.0f, -1.0f, -1.0f, -1.0f},       // 11025Hz: WEFAX mód
+    {FM_AF_BANDWIDTH_HZ, 20.0f, 25.0f, -3.0f, 15.0f, 22.0f, NOAMP, NOAMP},     // 15kHz: FM mód
 };
 constexpr size_t BANDWIDTH_GAIN_TABLE_SIZE = ARRAY_ITEM_COUNT(BANDWIDTH_GAIN_TABLE);
 
@@ -206,7 +206,8 @@ UICompSpectrumVis::UICompSpectrumVis(int x, int y, int w, int h, RadioMode radio
       currentTuningAidType_(TuningAidType::CW_TUNING), //
       currentTuningAidMinFreqHz_(0.0f),                //
       currentTuningAidMaxFreqHz_(0.0f),                //
-      isMutedDrawn(false) {
+      isMutedDrawn(false),                             //
+      currentBandwidthHz_(0) {
 
     // Inicializáljuk a cache-elt gain értéket (dB-ben)
     cachedGainDb_ = 0;
@@ -842,16 +843,6 @@ void UICompSpectrumVis::setCurrentDisplayMode(DisplayMode newdisplayMode) {
 // NO cached percent helper: render kód közvetlenül dB-t használ
 
 void UICompSpectrumVis::computeCachedGain() {
-    // Alapértelmezett becslés: a jelenlegi rádió mód sávszélessége
-    uint32_t estimatedBandwidthHz = (radioMode_ == RadioMode::AM) ? AM_AF_BANDWIDTH_HZ : FM_AF_BANDWIDTH_HZ;
-
-    // Ha a shared data tartalmaz pontosabb információt, használjuk azt
-    if (::activeSharedDataIndex >= 0) {
-        const SharedData &sd = ::sharedData[::activeSharedDataIndex];
-        if (sd.fftSpectrumSize > 0 && sd.fftBinWidthHz > 0.0f) {
-            estimatedBandwidthHz = static_cast<uint32_t>(sd.fftSpectrumSize * sd.fftBinWidthHz / 2.0f);
-        }
-    }
 
     // Milyen üzemmódban vagyunk?
     bool forLowResBar = (currentMode_ == DisplayMode::SpectrumLowRes //
@@ -891,56 +882,17 @@ void UICompSpectrumVis::computeCachedGain() {
         return cfg.envelopeGainDb;
     };
 
-    // 1. Pontos egyezés keresése a táblázatban
+    // 1. Pontos egyezés kell a táblázatban
     for (size_t i = 0; i < BANDWIDTH_GAIN_TABLE_SIZE; ++i) {
-        if (BANDWIDTH_GAIN_TABLE[i].bandwidthHz == estimatedBandwidthHz) {
+        if (BANDWIDTH_GAIN_TABLE[i].bandwidthHz == this->currentBandwidthHz_) {
             cachedGainDb_ = getDbFromTable(BANDWIDTH_GAIN_TABLE[i]);
+            return;
         }
     }
 
-    // 2. Nincs pontos egyezés -> lineáris interpoláció a két legközelebbi érték között
-    for (size_t i = 0; i < BANDWIDTH_GAIN_TABLE_SIZE - 1; ++i) {
-        uint32_t bwLow = BANDWIDTH_GAIN_TABLE[i].bandwidthHz;
-        uint32_t bwHigh = BANDWIDTH_GAIN_TABLE[i + 1].bandwidthHz;
-
-        if (estimatedBandwidthHz > bwLow && estimatedBandwidthHz < bwHigh) {
-            // Interpoláció szükséges - most float dB mezők vannak
-            auto pickDbF = [forEnvelope, forWaterfall, forTuningAid, forSnrCurve, forLowResBar, forHighResBar,
-                            forOscilloscope](const BandwidthScaleConfig &cfg) -> float {
-                if (forEnvelope)
-                    return cfg.envelopeGainDb;
-                if (forWaterfall)
-                    return cfg.waterfallGainDb;
-                if (forTuningAid && forSnrCurve)
-                    return cfg.tuningAidSnrCurveDb;
-                if (forTuningAid)
-                    return cfg.tuningAidWaterfallDb;
-                if (forLowResBar)
-                    return cfg.lowResBarGainDb;
-                if (forHighResBar)
-                    return cfg.highResBarGainDb;
-                if (forOscilloscope)
-                    return cfg.oscilloscopeGainDb;
-                return cfg.envelopeGainDb; // fallback
-            };
-
-            float vLow = pickDbF(BANDWIDTH_GAIN_TABLE[i]);
-            float vHigh = pickDbF(BANDWIDTH_GAIN_TABLE[i + 1]);
-
-            float numerF = static_cast<float>(estimatedBandwidthHz - bwLow);
-            float denomF = static_cast<float>(bwHigh - bwLow);
-            float t = (denomF == 0.0f) ? 0.0f : numerF / denomF;
-            cachedGainDb_ = vLow * (1.0f - t) + vHigh * t;
-        }
-    }
-
-    // 3. Tartományon kívül esik
-    if (estimatedBandwidthHz <= BANDWIDTH_GAIN_TABLE[0].bandwidthHz) {
-        cachedGainDb_ = getDbFromTable(BANDWIDTH_GAIN_TABLE[0]);
-    } else {
-        size_t lastIdx = BANDWIDTH_GAIN_TABLE_SIZE - 1;
-        cachedGainDb_ = getDbFromTable(BANDWIDTH_GAIN_TABLE[lastIdx]);
-    }
+    Utils::beepError(); // Hibára figyelmeztető csippanás
+    DEBUG("UICompSpectrumVis::computeCachedGain() - Nincs pontos egyezés a sávszélesség táblázatban, interpoláció szükséges. currentBandwidthHz_=%d\n",
+          this->currentBandwidthHz_);
 }
 
 /**

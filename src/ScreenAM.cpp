@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
  * -----                                                                                                               *
- * Last Modified: 2025.11.28, Friday  06:24:09                                                                         *
+ * Last Modified: 2025.11.30, Sunday  11:21:05                                                                         *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -55,6 +55,69 @@ ScreenAM::ScreenAM() : ScreenAMRadioBase(SCREEN_NAME_AM) {
 ScreenAM::~ScreenAM() {}
 
 /**
+ * @brief UI komponensek létrehozása és képernyőn való elhelyezése
+ */
+void ScreenAM::layoutComponents() {
+
+    // Frekvencia kijelző pozicionálás
+    uint16_t FreqDisplayY = 20;
+    Rect sevenSegmentFreqBounds(0, FreqDisplayY, UICompSevenSegmentFreq::SEVEN_SEGMENT_FREQ_WIDTH, UICompSevenSegmentFreq::SEVEN_SEGMENT_FREQ_HEIGHT + 10);
+    // S-Meter komponens pozícionálása
+    Rect smeterBounds(2, FreqDisplayY + UICompSevenSegmentFreq::SEVEN_SEGMENT_FREQ_HEIGHT, SMeterConstants::SMETER_WIDTH, 70);
+    // Szülő osztály layout meghívása (állapotsor, frekvencia, S-Meter)
+    ScreenAMRadioBase::layoutComponents(sevenSegmentFreqBounds, smeterBounds);
+
+    // Függőleges gombok létrehozása
+    Mixin::createCommonVerticalButtons(); // UICommonVerticalButtons-ban definiált UIButtonsGroupManager alapú függőleges gombsor egyedi Memo kezelővel
+
+    // Alsó közös + AM specifikus vízszintes gombsor az őstől
+    ScreenRadioBase::createCommonHorizontalButtons();
+
+    // ===================================================================
+    // Spektrum vizualizáció komponens létrehozása
+    // ===================================================================
+    ScreenRadioBase::createSpectrumComponent(Rect(255, 70, 150, 80), RadioMode::AM);
+    // A spektrumkijelzőnek a HF Sávszélesség beállítása
+    ScreenRadioBase::spectrumComp->setCurrentBandwidthHz(AM_AF_BANDWIDTH_HZ);
+
+    // MEGJEGYZÉS: Az audioController indítása az activate() metódusban történik
+    // hogy képernyőváltáskor megfelelően le- és újrainduljon
+}
+
+/**
+ * @brief AM specifikus gombok hozzáadása a közös gombokhoz
+ * @param buttonConfigs A már meglévő gomb konfigurációk vektora
+ * @details Felülírja az ős metódusát, hogy hozzáadja az AM specifikus gombokat
+ */
+void ScreenAM::addSpecificHorizontalButtons(std::vector<UIHorizontalButtonBar::ButtonConfig> &buttonConfigs) {
+
+    // Szülő osztály közös gombjainak legyártása
+    ScreenAMRadioBase::addSpecificHorizontalButtons(buttonConfigs);
+
+    // Step - Frequency Step gomb hozzáadása
+    buttonConfigs.push_back(                          //
+        {                                             //
+         ScreenAMRadioBase::STEP_BUTTON,              //
+         "Step",                                      //
+         UIButton::ButtonType::Pushable,              //
+         UIButton::ButtonState::Off,                  //
+         [this](const UIButton::ButtonEvent &event) { //
+             handleStepButton(event);                 //
+         }});
+
+    // Decoder választó gomb hozzáadása
+    buttonConfigs.push_back(                          //
+        {                                             //
+         ScreenAMHorizontalButtonIDs::DECODER_BUTTON, //
+         "Decod",                                     //
+         UIButton::ButtonType::Pushable,              //
+         UIButton::ButtonState::Off,                  //
+         [this](const UIButton::ButtonEvent &event) { //
+             handleDecoderButton(event);
+         }});
+}
+
+/**
  * @brief Statikus képernyő tartalom kirajzolása - AM képernyő specifikus elemek
  * @details Csak a statikus UI elemeket rajzolja ki (nem változó tartalom):
  * - S-Meter skála vonalak és számok (AM módhoz optimalizálva)
@@ -91,7 +154,11 @@ void ScreenAM::activate() {
     ScreenRadioBase::checkAndUpdateMemoryStatus();
 
     // AM audio dekóder indítása (csak FFT, nincs dekóder)
-    ::audioController.startAudioController(DecoderId::ID_DECODER_ONLY_FFT, AM_AF_RAW_SAMPLES_SIZE, AM_AF_BANDWIDTH_HZ);
+    ::audioController.startAudioController( //
+        DecoderId::ID_DECODER_ONLY_FFT,     //
+        AM_AF_RAW_SAMPLES_SIZE,             //
+        AM_AF_BANDWIDTH_HZ                  //
+    );
     ::audioController.setAgcEnabled(false); // AGC kikapcsolása
     ::audioController.setManualGain(1.0f);  // Manuális erősítés (1.0 = nincs extra erősítés)
     //::audioController.setBlockingDmaMode(false);       // NEM Blokkoló DMA módba kapcsolunk
@@ -141,71 +208,6 @@ void ScreenAM::onDialogClosed(UIDialogBase *closedDialog) {
             horizontalButtonBar->markForRedraw(true);
         }
     }
-}
-
-// =====================================================================
-// UI komponensek layout és management
-// =====================================================================
-
-/**
- * @brief UI komponensek létrehozása és képernyőn való elhelyezése
- */
-void ScreenAM::layoutComponents() {
-
-    // Frekvencia kijelző pozicionálás
-    uint16_t FreqDisplayY = 20;
-    Rect sevenSegmentFreqBounds(0, FreqDisplayY, UICompSevenSegmentFreq::SEVEN_SEGMENT_FREQ_WIDTH, UICompSevenSegmentFreq::SEVEN_SEGMENT_FREQ_HEIGHT + 10);
-    // S-Meter komponens pozícionálása
-    Rect smeterBounds(2, FreqDisplayY + UICompSevenSegmentFreq::SEVEN_SEGMENT_FREQ_HEIGHT, SMeterConstants::SMETER_WIDTH, 70);
-    // Szülő osztály layout meghívása (állapotsor, frekvencia, S-Meter)
-    ScreenAMRadioBase::layoutComponents(sevenSegmentFreqBounds, smeterBounds);
-
-    // Függőleges gombok létrehozása
-    Mixin::createCommonVerticalButtons(); // UICommonVerticalButtons-ban definiált UIButtonsGroupManager alapú függőleges gombsor egyedi Memo kezelővel
-
-    // Alsó közös + AM specifikus vízszintes gombsor az őstől
-    ScreenRadioBase::createCommonHorizontalButtons();
-
-    // ===================================================================
-    // Spektrum vizualizáció komponens létrehozása
-    // ===================================================================
-    ScreenRadioBase::createSpectrumComponent(Rect(255, 70, 150, 80), RadioMode::AM);
-
-    // MEGJEGYZÉS: Az audioController indítása az activate() metódusban történik
-    // hogy képernyőváltáskor megfelelően le- és újrainduljon
-}
-
-/**
- * @brief AM specifikus gombok hozzáadása a közös gombokhoz
- * @param buttonConfigs A már meglévő gomb konfigurációk vektora
- * @details Felülírja az ős metódusát, hogy hozzáadja az AM specifikus gombokat
- */
-void ScreenAM::addSpecificHorizontalButtons(std::vector<UIHorizontalButtonBar::ButtonConfig> &buttonConfigs) {
-
-    // Szülő osztály közös gombjainak legyártása
-    ScreenAMRadioBase::addSpecificHorizontalButtons(buttonConfigs);
-
-    // Step - Frequency Step gomb hozzáadása
-    buttonConfigs.push_back(                          //
-        {                                             //
-         ScreenAMRadioBase::STEP_BUTTON,              //
-         "Step",                                      //
-         UIButton::ButtonType::Pushable,              //
-         UIButton::ButtonState::Off,                  //
-         [this](const UIButton::ButtonEvent &event) { //
-             handleStepButton(event);                 //
-         }});
-
-    // Decoder választó gomb hozzáadása
-    buttonConfigs.push_back(                          //
-        {                                             //
-         ScreenAMHorizontalButtonIDs::DECODER_BUTTON, //
-         "Decod",                                     //
-         UIButton::ButtonType::Pushable,              //
-         UIButton::ButtonState::Off,                  //
-         [this](const UIButton::ButtonEvent &event) { //
-             handleDecoderButton(event);
-         }});
 }
 
 // =====================================================================

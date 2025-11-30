@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                       *
  * -----                                                                                                               *
- * Last Modified: 2025.11.30, Sunday  08:37:46                                                                         *
+ * Last Modified: 2025.11.30, Sunday  11:09:09                                                                         *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -166,10 +166,7 @@ class UICompSpectrumVis : public UIComponent {
      */
     void setCurrentDisplayMode(DisplayMode newdisplayMode);
 
-    /**
-     * @brief Előre kiszámolt sávszélesség alapú erősítés (dB-ben) cache-elése.
-     */
-    void computeCachedGain();
+    inline void setCurrentBandwidthHz(uint32_t bandwidthHz) { currentBandwidthHz_ = bandwidthHz; }
 
   private:
     RadioMode radioMode_;
@@ -231,6 +228,11 @@ class UICompSpectrumVis : public UIComponent {
     std::vector<std::vector<uint8_t>> wabuf;
 
     /**
+     * @brief Jelenlegi sávszélesség (Hz)
+     */
+    uint32_t currentBandwidthHz_;
+
+    /**
      * @brief Sprite kezelő függvények
      * @param modeToPrepareForDisplayMode Az a mód, amelyhez a sprite-ot elő kell készíteni.
      */
@@ -253,16 +255,9 @@ class UICompSpectrumVis : public UIComponent {
     // Általános AGC segédfüggvény (privát, statikus) - összevonja a bar/magnitude AGC logikát
     static float calculateAgcGainGeneric(const float *history, uint8_t historySize, float currentGainFactor, float targetValue);
 
-    /**
-     * @brief Sávszélesség alapú dinamikus skálázási faktor számítás
-     * @param amScale Skálázási faktor AM módhoz (6kHz bandwidth, koncentráltabb energia → kisebb skála)
-     * @param fmScale Skálázási faktor FM módhoz (15kHz bandwidth, szétoszló energia → nagyobb skála)
-     * @return A megfelelő skálázási faktor a jelenlegi rádió mód alapján
-     */
-    inline uint32_t getScaleFactorForMode(uint32_t amScale, uint32_t fmScale) const { return (radioMode_ == RadioMode::AM) ? amScale : fmScale; }
-
     // Cache-elt erősítés dB-ben (bázis érték, AGC korrekció nélkül)
     float cachedGainDb_ = 0.0f;
+
     /**
      * @brief Spectrum bar függvények
      */
@@ -327,4 +322,9 @@ class UICompSpectrumVis : public UIComponent {
      * @brief Core1 FFT paraméterek (frekvencia/méret) beállítása
      */
     void setFftParametersForDisplayMode();
+
+    /**
+     * @brief Előre kiszámolt sávszélesség alapú erősítés (dB-ben) cache-elése.
+     */
+    void computeCachedGain();
 };

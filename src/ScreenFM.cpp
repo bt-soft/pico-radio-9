@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
  * -----                                                                                                               *
- * Last Modified: 2025.11.29, Saturday  09:17:20                                                                       *
+ * Last Modified: 2025.11.30, Sunday  11:22:22                                                                         *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -151,6 +151,8 @@ void ScreenFM::layoutComponents() {
     // Spektrum vizualizáció komponens létrehozása
     // ===================================================================
     ScreenRadioBase::createSpectrumComponent(Rect(255, 40, 150, 80), RadioMode::FM);
+    // A spektrumkijelzőnek a HF Sávszélesség beállítása
+    ScreenRadioBase::spectrumComp->setCurrentBandwidthHz(FM_AF_BANDWIDTH_HZ);
 
     // ===================================================================
     // Gombsorok létrehozása - Event-driven architektúra
@@ -180,7 +182,11 @@ void ScreenFM::activate() {
     ScreenRadioBase::checkAndUpdateMemoryStatus();
 
     // FM audio dekóder indítása (csak FFT, nincs dekóder)
-    ::audioController.startAudioController(DecoderId::ID_DECODER_ONLY_FFT, FM_AF_RAW_SAMPLES_SIZE, FM_AF_BANDWIDTH_HZ);
+    ::audioController.startAudioController( //
+        DecoderId::ID_DECODER_ONLY_FFT,     //
+        FM_AF_RAW_SAMPLES_SIZE,             //
+        FM_AF_BANDWIDTH_HZ                  //
+    );
     ::audioController.setAgcEnabled(false);            // AGC kikapcsolása
     ::audioController.setManualGain(1.0f);             // Manuális erősítés (1.0 = nincs extra erősítés)
     ::audioController.setNoiseReductionEnabled(false); // Zajszűrés bekapcsolva (tisztább spektrum)

@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
  * -----                                                                                                               *
- * Last Modified: 2025.11.29, Saturday  01:09:31                                                                       *
+ * Last Modified: 2025.11.30, Sunday  11:19:58                                                                         *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -87,6 +87,9 @@ void ScreenAMCW::layoutComponents() {
     // Induláskor beállítjuk a CWWaterfall megjelenítési módot
     // TODO: Az CwSnrCurve induláskor lefagy, ezt még javítani kell
     ScreenRadioBase::spectrumComp->setCurrentDisplayMode(UICompSpectrumVis::DisplayMode::CWWaterfall);
+
+    // A spektrumkijelzőnek a HF Sávszélesség beállítása
+    ScreenRadioBase::spectrumComp->setCurrentBandwidthHz(CW_AF_BANDWIDTH_HZ);
 
     // MEGJEGYZÉS: Az audioController indítása az activate() metódusban történik
     // hogy képernyőváltáskor megfelelően leálljon és újrainduljon

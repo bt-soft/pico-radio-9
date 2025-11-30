@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
  * -----                                                                                                               *
- * Last Modified: 2025.11.30, Sunday  06:39:19                                                                         *
+ * Last Modified: 2025.11.30, Sunday  10:59:30                                                                         *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -169,10 +169,9 @@ void AudioProcessorC1::reconfigureAudioSampling(uint16_t sampleCount, uint16_t s
 
 #ifdef __ADPROC_DEBUG
         // Kiírjuk a FFT-hez kapcsolódó paramétereket
-        uint32_t afBandwidth = bandwidthHz; // hangfrekvenciás sávszélesség
-        uint16_t bins = (sampleCount / 2);  // bin-ek száma
-        ADPROC_DEBUG("AudioProc-c1 Arduino FFT paraméterek: afBandwidth=%u Hz, finalRate=%u Hz, sampleCount=%u, bins=%u, binWidth=%.2f Hz\n", //
-                     afBandwidth, finalRate, (unsigned)sampleCount, (unsigned)bins, binWidth);
+        uint16_t bins = (sampleCount / 2);                                                                                            // bin-ek száma
+        ADPROC_DEBUG("AudioProc-c1 FFT paraméterek: afBandwidth=%u Hz, finalRate=%u Hz, sampleCount=%u, bins=%u, binWidth=%.2f Hz\n", //
+                     this->currentBandwidthHz, finalRate, (unsigned)sampleCount, (unsigned)bins, binWidth);
 #endif
 
         // Eltároljuk a kiszámított bin szélességet az példányban, hogy a feldolgozás a SharedData-ba írhassa
