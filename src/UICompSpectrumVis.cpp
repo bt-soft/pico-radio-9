@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
  * -----                                                                                                               *
- * Last Modified: 2025.11.29, Saturday  04:45:59                                                                       *
+ * Last Modified: 2025.11.30, Sunday  05:39:35                                                                         *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -22,6 +22,7 @@
  * ----------	---	-------------------------------------------------------------------------------------------------  *
  */
 
+#include <algorithm>
 #include <cmath>
 #include <cstring>
 #include <vector>
@@ -47,6 +48,10 @@
 
 // A képernyő ennyi százalékát töltse ki a grafikon a rendelkezésre álló magasságból
 #define UI_TARGET_HEIGHT_UTILIZATION 0.85f // 85%-os magasságú maximális magasság
+
+// Oszcilloszkóp zajküszöb (raw sample egységekben). Ha a blokk OSI_UTILIZATION_PERCENT %-os percentilis értéke
+// ennél kisebb, feltételezzük, hogy nincs hasznos jel és csak a középvonalat rajzoljuk.
+#define OSCILLOSCOPE_NOISE_THRESHOLD 60
 
 // Magnitude-alapú AGC célértékek (nyers FFT magnitude tartomány)
 #define MAGNITUDE_AGC_TARGET_VALUE 8000.0f // Célérték magnitude módokhoz
@@ -146,21 +151,21 @@ constexpr q15_t NOISE_THRESHOLD_Q15 = 0; // Q15 zajküszöb (0 = kikapcsolva)
  */
 struct BandwidthScaleConfig {
     uint32_t bandwidthHz;           // Dekóder sávszélesség (Hz)
-    uint32_t lowResBarScaleQ16;     // LowRes Spektrum bar (Q16: 256 = 0.004x)
-    uint32_t highResBarScaleQ16;    // HighRes Spektrum bar (Q16: 1280 = 0.02x)
-    uint32_t oscilloscopeScaleQ16;  // Oszcilloszkóp (Q16: 229376 = 3.5x, raw sample)
-    uint32_t envelopeScaleQ16;      // Envelope spectrum scale faktor (Q16)
-    uint32_t waterfallScaleQ16;     // Waterfall scale faktor (Q16)
-    uint32_t tuningAidWaterfallQ16; // CW/RTTY Tuning Aid Waterfall (Q16)
-    uint32_t tuningAidSnrCurveQ16;  // CW/RTTY SNR Curve scale faktor (Q16)
+    uint32_t lowResBarScaleQ16;     // LowRes Spektrum bar
+    uint32_t highResBarScaleQ16;    // HighRes Spektrum bar
+    uint32_t oscilloscopeScaleQ16;  // Oszcilloszkóp
+    uint32_t envelopeScaleQ16;      // Envelope spectrum scale faktor
+    uint32_t waterfallScaleQ16;     // Waterfall scale faktor
+    uint32_t tuningAidWaterfallQ16; // CW/RTTY Tuning Aid Waterfall
+    uint32_t tuningAidSnrCurveQ16;  // CW/RTTY SNR Curve scale faktor
 };
 
 // Előre definiált scale táblázat (sávszélesség szerint növekvő sorrendben!)
-const uint32_t SC_LOWRES_BAR = 256;   // Alapértelmezett lowRes spektrum bar scale (0.004x)
-const uint32_t SC_HIGHRES_BAR = 1280; // Alapértelmezett highRes spektrum bar scale (0.02x)
-const uint32_t SC_OSCI = 229376;      // Alapértelmezett oszcilloszkóp scale (3.5x)
-const uint32_t SC_ENVELOPE = 512;     // Alapértelmezett envelope scale (0.008x)
-const uint32_t SC_WATERFALL = 768;    // Alapértelmezett waterfall scale (0.012x)
+const uint32_t SC_LOWRES_BAR = 256;   // Alapértelmezett lowRes spektrum bar scale
+const uint32_t SC_HIGHRES_BAR = 1280; // Alapértelmezett highRes spektrum bar scale
+const uint32_t SC_OSCI = 512;         // Alapértelmezett oszcilloszkóp scale
+const uint32_t SC_ENVELOPE = 512;     // Alapértelmezett envelope scale
+const uint32_t SC_WATERFALL = 768;    // Alapértelmezett waterfall scale
 constexpr BandwidthScaleConfig BANDWIDTH_SCALE_TABLE[] = {
     // bandwidth, lowResBar, highResBar, oscilloscope, envelope, waterfall, tuningAidWf, tuningAidSnr
     {CW_AF_BANDWIDTH_HZ, SC_LOWRES_BAR, SC_HIGHRES_BAR, SC_OSCI, SC_ENVELOPE, SC_WATERFALL, 3072, 100},    // CW (1500 Hz) - SNR curve csökkentve
@@ -836,6 +841,89 @@ void UICompSpectrumVis::setModeIndicatorVisible(bool visible) {
 }
 
 /**
+ * @brief Sávszélesség-arányos adaptív scale faktor számítás
+ *
+ * @param currentBandwidthHz Az aktuális dekóder sávszélesség Hz-ben
+ * @return A számított scale faktor Q16 formátumban
+ */
+uint32_t UICompSpectrumVis::getScaleForBandwidth(uint32_t estimatedBandwidthHz) const {
+
+    // MIlyen üzemmódban vagyunk?
+    bool forLowResBar = (currentMode_ == DisplayMode::SpectrumLowRes //
+                         || currentMode_ == DisplayMode::Off);
+    bool forHighResBar = (currentMode_ == DisplayMode::SpectrumHighRes);
+    bool forOscilloscope = (currentMode_ == DisplayMode::Oscilloscope);
+    bool forEnvelope = (currentMode_ == DisplayMode::Envelope      //
+                        || currentMode_ == DisplayMode::CwSnrCurve //
+                        || currentMode_ == DisplayMode::RttySnrCurve);
+    bool forWaterfall = (currentMode_ == DisplayMode::Waterfall      //
+                         || currentMode_ == DisplayMode::CWWaterfall //
+                         || currentMode_ == DisplayMode::RTTYWaterfall);
+    bool forTuningAid = (currentMode_ == DisplayMode::CWWaterfall      //
+                         || currentMode_ == DisplayMode::RTTYWaterfall //
+                         || currentMode_ == DisplayMode::CwSnrCurve    //
+                         || currentMode_ == DisplayMode::RttySnrCurve);
+    bool forSnrCurve = (currentMode_ == DisplayMode::CwSnrCurve //
+                        || currentMode_ == DisplayMode::RttySnrCurve);
+
+    // Lambda a megfelelő scale mező kiválasztásához
+    auto getScaleFromTableLambda = [forEnvelope, forWaterfall, forTuningAid, forSnrCurve, forLowResBar, forHighResBar,
+                                    forOscilloscope](const BandwidthScaleConfig &cfg) -> uint32_t {
+        if (forEnvelope)
+            return cfg.envelopeScaleQ16;
+        if (forWaterfall)
+            return cfg.waterfallScaleQ16;
+        if (forTuningAid && forSnrCurve)
+            return cfg.tuningAidSnrCurveQ16;
+        if (forTuningAid)
+            return cfg.tuningAidWaterfallQ16;
+        if (forLowResBar)
+            return cfg.lowResBarScaleQ16;
+        if (forHighResBar)
+            return cfg.highResBarScaleQ16;
+        if (forOscilloscope)
+            return cfg.oscilloscopeScaleQ16;
+        return cfg.envelopeScaleQ16; // fallback
+    };
+
+    // 1. Pontos egyezés keresése a táblázatban
+    for (size_t i = 0; i < BANDWIDTH_SCALE_TABLE_SIZE; ++i) {
+        if (BANDWIDTH_SCALE_TABLE[i].bandwidthHz == estimatedBandwidthHz) {
+            return getScaleFromTableLambda(BANDWIDTH_SCALE_TABLE[i]);
+        }
+    }
+
+    // 2. Nincs pontos egyezés -> lineáris interpoláció a két legközelebbi érték között
+    for (size_t i = 0; i < BANDWIDTH_SCALE_TABLE_SIZE - 1; ++i) {
+        uint32_t bwLow = BANDWIDTH_SCALE_TABLE[i].bandwidthHz;
+        uint32_t bwHigh = BANDWIDTH_SCALE_TABLE[i + 1].bandwidthHz;
+
+        if (estimatedBandwidthHz > bwLow && estimatedBandwidthHz < bwHigh) {
+            // Interpoláció szükséges
+            uint32_t scaleLow = getScaleFromTableLambda(BANDWIDTH_SCALE_TABLE[i]);
+            uint32_t scaleHigh = getScaleFromTableLambda(BANDWIDTH_SCALE_TABLE[i + 1]);
+
+            // Lineáris interpoláció: scale = scaleLow + ratio × (scaleHigh - scaleLow)
+            float ratio = (float)(estimatedBandwidthHz - bwLow) / (float)(bwHigh - bwLow);
+            uint32_t interpolated = scaleLow + (uint32_t)(ratio * (int32_t)(scaleHigh - scaleLow));
+
+            return interpolated;
+        }
+    }
+
+    // 3. Tartományon kívül esik
+    if (estimatedBandwidthHz <= BANDWIDTH_SCALE_TABLE[0].bandwidthHz) {
+        // Kisebb mint a legkisebb -> legkisebb érték használata (legnagyobb erősítés)
+        return getScaleFromTableLambda(BANDWIDTH_SCALE_TABLE[0]);
+
+    } else {
+        // Nagyobb mint a legnagyobb -> legnagyobb érték használata (legkisebb erősítés)
+        size_t lastIdx = BANDWIDTH_SCALE_TABLE_SIZE - 1;
+        return getScaleFromTableLambda(BANDWIDTH_SCALE_TABLE[lastIdx]);
+    }
+}
+
+/**
  * @brief Ellenőrzi, hogy egy megjelenítési mód elérhető-e az aktuális rádió módban
  */
 bool UICompSpectrumVis::isModeAvailable(DisplayMode mode) const {
@@ -976,7 +1064,7 @@ void UICompSpectrumVis::renderSpectrumBar(bool isLowRes) {
 
         // Q16 skálázási konstans (LowRes) - sávszélesség-adaptív
         uint32_t estimatedBandwidthHz = static_cast<uint32_t>(actualFftSize * currentBinWidthHz / 2.0f);
-        uint32_t scaleFactorQ16 = getScaleForBandwidth(estimatedBandwidthHz, false, false, false, false, true); // forLowResBar=true
+        uint32_t scaleFactorQ16 = getScaleForBandwidth(estimatedBandwidthHz);
         if (isAutoGainMode()) {
             // 5.5x finomhangolás = 5.5 * 65536 = 360448
             scaleFactorQ16 = (scaleFactorQ16 * 360448) >> 16;
@@ -1083,7 +1171,7 @@ void UICompSpectrumVis::renderSpectrumBar(bool isLowRes) {
 
         // Q16 skálázási konstans (HighRes) - sávszélesség-adaptív
         uint32_t estimatedBandwidthHz = static_cast<uint32_t>(actualFftSize * currentBinWidthHz / 2.0f);
-        uint32_t scaleFactorQ16 = getScaleForBandwidth(estimatedBandwidthHz, false, false, false, false, false, true); // forHighResBar=true
+        uint32_t scaleFactorQ16 = getScaleForBandwidth(estimatedBandwidthHz); // forHighResBar=true
 
         // HighRes: kétfázisos számítás (Q15 optimalizált - direkt pixel konverzió)
         std::vector<uint16_t> computedCols(bounds.width, 0);
@@ -1166,7 +1254,7 @@ void UICompSpectrumVis::renderSpectrumBar(bool isLowRes) {
  */
 void UICompSpectrumVis::renderOscilloscope() {
 
-    uint8_t graphH = getGraphHeight();
+    uint16_t graphH = getGraphHeight();
     if (!spriteCreated_ || bounds.width == 0 || graphH <= 0) {
         if (!spriteCreated_) {
             UISPECTRUM_DEBUG("UICompSpectrumVis::renderOscilloscope - Sprite nincs létrehozva\n");
@@ -1191,37 +1279,26 @@ void UICompSpectrumVis::renderOscilloscope() {
     sprite_->fillSprite(TFT_BLACK);
 
     uint16_t prev_x = -1, prev_y = -1;
+    // Determine a bandwidth estimate to fetch the appropriate scale (Q16)
+    uint32_t estimatedBandwidthHz = (radioMode_ == RadioMode::AM) ? AM_AF_BANDWIDTH_HZ : FM_AF_BANDWIDTH_HZ;
+    uint32_t oscScaleQ16 = getScaleForBandwidth(estimatedBandwidthHz);
+    // Convert Q16 scale to float multiplier
+    float oscScaleFloat = static_cast<float>(oscScaleQ16) / 65536.0f;
+
     for (uint16_t i = 0; i < sampleCount; i++) {
 
         int16_t raw_sample = osciData[i];
 
-        // Integer Q16 alapú skálázás - oszcilloszkópnál fix érték (nincs FFT)
-        // scaled_q16 = raw_sample * oscilloscopeScaleQ16
-        // Referencia: 6000 Hz (AM) sávszélesség
-        uint32_t oscilloscopeScaleQ16 = getScaleForBandwidth(6000, false, false, false, false, false, false, true); // forOscilloscope=true
-        int32_t scaled_q16 = (int32_t)raw_sample * (int32_t)oscilloscopeScaleQ16;                                   // Q16 representation
+        // Normalize raw sample from Q15 to float (-1.0 .. +1.0)
+        float sampleQ15 = static_cast<float>(raw_sample) / 32768.0f;
+        // Apply the bandwidth-adaptive scale
+        float gain_adjusted_deviation = sampleQ15 * oscScaleFloat;
+        // Map to pixel deflection (centered) using full-range Q15 mapping
+        float scaled_y_deflection = gain_adjusted_deviation * (static_cast<float>(graphH) / 2.0f - 1.0f);
 
-        // Leképezés pixelekre: pixel = scaled_q16 * (graphH/2 - 1) / (2048 * 65536)
-        int32_t half_span = static_cast<int32_t>(graphH) / 2 - 1;
-        if (half_span < 0)
-            half_span = 0;
-        const int32_t denom = 2048 * 65536; // normalize raw_sample (assumes 12-bit range) and Q16 scaling
-        int32_t pixel_deflection = 0;
-        if (denom != 0) {
-            pixel_deflection = (scaled_q16 * half_span + (denom / 2)) / denom; // rounded
-        }
-
-        int32_t y_pos_i = static_cast<int32_t>(graphH) / 2 - pixel_deflection;
-        uint16_t y_pos = static_cast<uint16_t>(constrain(y_pos_i, 0, static_cast<int>(graphH) - 1));
-
-        uint16_t x_pos = 0;
-        if (sampleCount <= 1) {
-            x_pos = 0;
-        } else {
-            // mintavételi index → x pixel leképezés integer kerekítéssel
-            int32_t num = (int32_t)i * (int32_t)(bounds.width - 1) + (int32_t)((sampleCount - 1) / 2);
-            x_pos = static_cast<uint16_t>(num / (int32_t)(sampleCount - 1));
-        }
+        uint16_t y_pos = graphH / 2 - static_cast<int>(round(scaled_y_deflection));
+        y_pos = constrain(y_pos, 0, graphH - 1);
+        uint16_t x_pos = (sampleCount == 1) ? 0 : (int)round((float)i / (sampleCount - 1) * (bounds.width - 1));
 
         if (prev_x != -1 && i > 0) {
             sprite_->drawLine(prev_x, prev_y, x_pos, y_pos, TFT_GREEN);
@@ -1279,14 +1356,14 @@ void UICompSpectrumVis::renderEnvelope() {
     // Q16 skálázási konstans (Q15 optimalizált) - sávszélesség-adaptív
     // Keskenebb sáv (AM 6kHz): kisebb skála, szélesebb sáv (FM 15kHz): nagyobb skála
     uint32_t estimatedBandwidthHz = static_cast<uint32_t>(actualFftSize * currentBinWidthHz / 2.0f);
-    uint32_t scaleFactorQ16 = getScaleForBandwidth(estimatedBandwidthHz, false, true); // forEnvelope=true
+    uint32_t scaleFactorQ16 = getScaleForBandwidth(estimatedBandwidthHz);
 
     // AGC: scale_q16 módosítása (AGC esetén csökkentés)
     if (isAutoGainMode()) {
         scaleFactorQ16 = (scaleFactorQ16 * 45875) >> 16; // 0.7x = 45875/65536
     }
 
-    // 2. Új adatok betöltése (Q15 OPTIMALIZÁLT - nincs float konverzió!)
+    // 2. Új adatok betöltése
     constexpr q15_t ENVELOPE_MIN_DISPLAY_Q15 = 380; // Q15 minimum threshold
 
     // Minden sort feldolgozunk a teljes felbontásért
@@ -1437,7 +1514,7 @@ void UICompSpectrumVis::renderWaterfall() {
     // Q16 skálázási konstans (Q15 optimalizált) - sávszélesség-adaptív
     // Keskenyebb sáv (AM 6kHz): kisebb skála, szélesebb sáv (FM 15kHz): nagyobb skála
     uint32_t estimatedBandwidthHz = static_cast<uint32_t>(actualFftSize * currentBinWidthHz / 2.0f);
-    uint32_t scaleFactorQ16 = getScaleForBandwidth(estimatedBandwidthHz, false, false, true); // forWaterfall=true
+    uint32_t scaleFactorQ16 = getScaleForBandwidth(estimatedBandwidthHz);
 
     // AGC: scale_q16 módosítása (AGC esetén kisebb csökkentés)
     if (isAutoGainMode()) {
@@ -1611,92 +1688,6 @@ void UICompSpectrumVis::updateTuningAidParameters() {
 }
 
 /**
- * @brief Sávszélesség-arányos adaptív scale faktor számítás (MINDEN megjelenítési módhoz)
- *
- * @param currentBandwidthHz Az aktuális dekóder sávszélesség Hz-ben
- * @param forTuningAid true = Tuning Aid waterfall scale
- * @param forEnvelope true = Envelope spectrum scale
- * @param forWaterfall true = Normal waterfall scale
- * @param forSnrCurve true = SNR curve scale (csak ha forTuningAid=true)
- * @param forLowResBar true = LowRes Spektrum bar scale
- * @param forHighResBar true = HighRes Spektrum bar scale
- * @param forOscilloscope true = Oszcilloszkóp scale
- * @return A számított scale faktor Q16 formátumban
- */
-uint32_t UICompSpectrumVis::getScaleForBandwidth(uint32_t currentBandwidthHz, bool forTuningAid, bool forEnvelope, bool forWaterfall, bool forSnrCurve,
-                                                 bool forLowResBar, bool forHighResBar, bool forOscilloscope) const {
-
-    // Biztonsági ellenőrzés
-    if (currentBandwidthHz == 0) {
-        // Fallback: AM referencia érték (6000 Hz sor)
-        if (forEnvelope)
-            return 512;
-        if (forWaterfall)
-            return 768;
-        if (forTuningAid && forSnrCurve)
-            return 768;
-        if (forTuningAid)
-            return 768;
-        return 768;
-    }
-
-    // Lambda a megfelelő scale mező kiválasztásához
-    auto getScale = [forTuningAid, forEnvelope, forWaterfall, forSnrCurve, forLowResBar, forHighResBar,
-                     forOscilloscope](const BandwidthScaleConfig &cfg) -> uint32_t {
-        if (forEnvelope)
-            return cfg.envelopeScaleQ16;
-        if (forWaterfall)
-            return cfg.waterfallScaleQ16;
-        if (forTuningAid && forSnrCurve)
-            return cfg.tuningAidSnrCurveQ16;
-        if (forTuningAid)
-            return cfg.tuningAidWaterfallQ16;
-        if (forLowResBar)
-            return cfg.lowResBarScaleQ16;
-        if (forHighResBar)
-            return cfg.highResBarScaleQ16;
-        if (forOscilloscope)
-            return cfg.oscilloscopeScaleQ16;
-        return cfg.envelopeScaleQ16; // fallback
-    };
-
-    // 1. Pontos egyezés keresése a táblázatban
-    for (size_t i = 0; i < BANDWIDTH_SCALE_TABLE_SIZE; ++i) {
-        if (BANDWIDTH_SCALE_TABLE[i].bandwidthHz == currentBandwidthHz) {
-            return getScale(BANDWIDTH_SCALE_TABLE[i]);
-        }
-    }
-
-    // 2. Nincs pontos egyezés -> lineáris interpoláció a két legközelebbi érték között
-    for (size_t i = 0; i < BANDWIDTH_SCALE_TABLE_SIZE - 1; ++i) {
-        uint32_t bwLow = BANDWIDTH_SCALE_TABLE[i].bandwidthHz;
-        uint32_t bwHigh = BANDWIDTH_SCALE_TABLE[i + 1].bandwidthHz;
-
-        if (currentBandwidthHz > bwLow && currentBandwidthHz < bwHigh) {
-            // Interpoláció szükséges
-            uint32_t scaleLow = getScale(BANDWIDTH_SCALE_TABLE[i]);
-            uint32_t scaleHigh = getScale(BANDWIDTH_SCALE_TABLE[i + 1]);
-
-            // Lineáris interpoláció: scale = scaleLow + ratio × (scaleHigh - scaleLow)
-            float ratio = (float)(currentBandwidthHz - bwLow) / (float)(bwHigh - bwLow);
-            uint32_t interpolated = scaleLow + (uint32_t)(ratio * (int32_t)(scaleHigh - scaleLow));
-
-            return interpolated;
-        }
-    }
-
-    // 3. Tartományon kívül esik
-    if (currentBandwidthHz <= BANDWIDTH_SCALE_TABLE[0].bandwidthHz) {
-        // Kisebb mint a legkisebb -> legkisebb érték használata (legnagyobb erősítés)
-        return getScale(BANDWIDTH_SCALE_TABLE[0]);
-    } else {
-        // Nagyobb mint a legnagyobb -> legnagyobb érték használata (legkisebb erősítés)
-        size_t lastIdx = BANDWIDTH_SCALE_TABLE_SIZE - 1;
-        return getScale(BANDWIDTH_SCALE_TABLE[lastIdx]);
-    }
-}
-
-/**
  * @brief Hangolási segéd renderelése (CW/RTTY waterfall)
  */
 void UICompSpectrumVis::renderCwOrRttyTuningAidWaterfall() {
@@ -1740,7 +1731,7 @@ void UICompSpectrumVis::renderCwOrRttyTuningAidWaterfall() {
     uint32_t estimatedBandwidthHz = (uint32_t)(actualFftSize * currentBinWidthHz / 2.0f);
 
     // Adaptív scale faktor sávszélesség alapján (táblázat + interpoláció)
-    uint32_t scaleFactorQ16 = getScaleForBandwidth(estimatedBandwidthHz, true, false, false, false); // forTuningAid=true (waterfall)
+    uint32_t scaleFactorQ16 = getScaleForBandwidth(estimatedBandwidthHz);
 
     // AGC esetén kis csökkentés (konzisztens a fő waterfall-lal)
     if (isAutoGainMode()) {
@@ -1895,7 +1886,7 @@ void UICompSpectrumVis::renderSnrCurve() {
     uint32_t estimatedBandwidthHz = (uint32_t)(actualFftSize * currentBinWidthHz / 2.0f);
 
     // Adaptív scale faktor sávszélesség alapján (táblázat + interpoláció)
-    uint32_t scaleFactorQ16 = getScaleForBandwidth(estimatedBandwidthHz, true, false, false, true); // forTuningAid=true, forSnrCurve=true
+    uint32_t scaleFactorQ16 = getScaleForBandwidth(estimatedBandwidthHz);
 
     // AGC esetén kis csökkentés
     if (isAutoGainMode()) {

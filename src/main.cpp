@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
  * -----                                                                                                               *
- * Last Modified: 2025.11.29, Saturday  06:26:37                                                                       *
+ * Last Modified: 2025.11.30, Sunday  05:04:01                                                                         *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -268,7 +268,13 @@ void setup() {
     // Splash screen megjelenítése progress bar-ral
     splash->show(true, SPLASH_SCREEN_PROGRESS_BAR_STEPS); // SI4735 init és infók megjelenítése
 
-    // --- Lépés 1: I2C inicializálás
+    // --- Lépés 1: AudioController inicializálása
+    splash->updateProgress(splashProgressCnt++, SPLASH_SCREEN_PROGRESS_BAR_STEPS, "AudioController initializing...");
+    audioController.stopAudioController(); // Alaphelyzetbe állítás
+    audioController.init();                // DC szint mérése az AD bemeneten (Core1)
+    delay(100);
+
+    // --- Lépés 2: I2C inicializálás
     splash->updateProgress(splashProgressCnt++, SPLASH_SCREEN_PROGRESS_BAR_STEPS, "Initializing SI4735 I2C...");
     // FIGYELEM!!! Az si473x (Nem a default I2C lábakon [4,5] van, hanem az PIN_SI4735_I2C_SDA és az PIN_SI4735_I2C_SCL lábakon !!!)
     Wire.setSDA(PIN_SI4735_I2C_SDA); // I2C for SI4735 SDA
@@ -276,7 +282,7 @@ void setup() {
     Wire.begin();
     delay(300);
 
-    // --- Lépés 2: SI4735Manager inicializálása itt
+    // --- Lépés 3: SI4735Manager inicializálása itt
     splash->updateProgress(splashProgressCnt++, SPLASH_SCREEN_PROGRESS_BAR_STEPS, "Initializing SI4735Manager...");
     if (pSi4735Manager == nullptr) {
         pSi4735Manager = new Si4735Manager();
@@ -286,7 +292,7 @@ void setup() {
     // KRITIKUS: Band tábla dinamikus adatainak EGYSZERI inicializálása RÖGTÖN a Si4735Manager létrehozása után!
     pSi4735Manager->initializeBandTableData(true); // forceReinit = true az első inicializálásnál
 
-    // --- Lépés 3: SI4735 lekérdezése
+    // --- Lépés 4: SI4735 lekérdezése
     splash->updateProgress(splashProgressCnt++, SPLASH_SCREEN_PROGRESS_BAR_STEPS, "Detecting SI4735...");
     int16_t si4735Addr = pSi4735Manager->getDeviceI2CAddress();
     if (si4735Addr == 0) {
@@ -301,28 +307,18 @@ void setup() {
             ;
     }
 
-    // --- Lépés 4: SI4735 konfigurálás
+    // --- Lépés 5: SI4735 konfigurálás
     splash->updateProgress(splashProgressCnt++, SPLASH_SCREEN_PROGRESS_BAR_STEPS, "Configuring SI4735...");
     pSi4735Manager->setDeviceI2CAddress(si4735Addr == 0x11 ? 0 : 1); // Sets the I2C Bus Address, erre is szükség van...
     splash->drawSI4735Info(pSi4735Manager->getSi4735());
     delay(300);
 
-    // --- Lépés 5: Frekvencia beállítások
+    // --- Lépés 6: Frekvencia beállítások
     splash->updateProgress(splashProgressCnt++, SPLASH_SCREEN_PROGRESS_BAR_STEPS, "Setting up radio...");
     pSi4735Manager->init(true);
     delay(100);
 
-    // --- Lépés 6: AudioController inicializálása
-    splash->updateProgress(splashProgressCnt++, SPLASH_SCREEN_PROGRESS_BAR_STEPS, "AudioController initializing...");
-    pSi4735Manager->getSi4735().setVolume(0);                      // Hangerő leállítása a zaj elkerülése érdekében
-    pSi4735Manager->getSi4735().setHardwareAudioMute(true);        // Hardver némítás bekapcsolása az audio inicializálás előtt
-    audioController.stopAudioController();                         // Alaphelyzetbe állítás
-    audioController.init();                                        // DC szint mérése az AD bemeneten (Core1)
-    pSi4735Manager->getSi4735().setHardwareAudioMute(false);       // Hardver némítás kikapcsolása az audio inicializálás után
-    pSi4735Manager->getSi4735().setVolume(config.data.currVolume); // Hangerő visszaállítása a konfigurációban mentett értékre
-    delay(100);
-
-    // --- Lépés 7: Kezdő képernyőtípus beállítása
+    // --- Lépés 7: Kezdő képernyő beállítása
     splash->updateProgress(splashProgressCnt++, SPLASH_SCREEN_PROGRESS_BAR_STEPS, "Preparing display...");
     const char *startScreenName = pSi4735Manager->getCurrentBandType() == FM_BAND_TYPE ? SCREEN_NAME_FM : SCREEN_NAME_AM;
     screenManager = new ScreenManager();

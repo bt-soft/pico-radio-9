@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                       *
  * -----                                                                                                               *
- * Last Modified: 2025.11.29, Saturday  10:23:12                                                                       *
+ * Last Modified: 2025.11.30, Sunday  05:18:32                                                                         *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -274,21 +274,13 @@ class UICompSpectrumVis : public UIComponent {
      * Táblázat alapú keresés lineáris interpolációval a két legközelebbi érték között.
      * Keskenyebb sávszélesség = nagyobb erősítés (kevesebb bin = kevesebb energia → nagyobb scale kell)
      *
-     * @param currentBandwidthHz Az aktuális dekóder sávszélesség Hz-ben (pl. binWidthHz × fftSize / 2)
-     * @param forTuningAid true = Tuning Aid waterfall scale (ha forSnrCurve=false)
-     * @param forEnvelope true = Envelope spectrum scale
-     * @param forWaterfall true = Normal waterfall scale
-     * @param forSnrCurve true = SNR curve scale (csak ha forTuningAid=true)
-     * @param forLowResBar true = LowRes Spektrum bar scale
-     * @param forHighResBar true = HighRes Spektrum bar scale
-     * @param forOscilloscope true = Oszcilloszkóp scale
      * @return A számított scale faktor Q16 formátumban
      */
-    uint32_t getScaleForBandwidth(uint32_t currentBandwidthHz, bool forTuningAid = false, bool forEnvelope = false, bool forWaterfall = false,
-                                  bool forSnrCurve = false, bool forLowResBar = false, bool forHighResBar = false,
-                                  bool forOscilloscope = false) const; /**
-                                                                        * @brief Spectrum bar függvények
-                                                                        */
+    uint32_t getScaleForBandwidth(uint32_t estimatedBandwidthHz) const;
+
+    /**
+     * @brief Spectrum bar függvények
+     */
     uint8_t getBandVal(int fft_bin_index, int min_bin_low_res, int num_bins_low_res_range, int total_bands);
 
     /**
