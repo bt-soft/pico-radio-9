@@ -296,10 +296,7 @@ void DecoderRTTY_C1::processToneBlock(const int16_t *samples, size_t count) {
                 int32_t magnitude = (max_val + (min_val >> 1)) << 1; // 2x skálázás
 
                 // Clamp Q15 tartományba
-                if (magnitude > 32767)
-                    magnitude = 32767;
-                if (magnitude < -32768)
-                    magnitude = -32768;
+                magnitude = constrain(magnitude, -32768, 32767);
                 bin.magnitude = (q15_t)magnitude;
             }
             // NOTE: defer debug printing of magnitudes until after both mark and space Goertzel runs
@@ -324,10 +321,7 @@ void DecoderRTTY_C1::processToneBlock(const int16_t *samples, size_t count) {
                 int32_t magnitude = (max_val + (min_val >> 1)) << 1; // 2x skálázás
 
                 // Clamp Q15 tartományba
-                if (magnitude > 32767)
-                    magnitude = 32767;
-                if (magnitude < -32768)
-                    magnitude = -32768;
+                magnitude = constrain(magnitude, -32768, 32767);
                 bin.magnitude = (q15_t)magnitude;
             }
 

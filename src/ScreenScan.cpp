@@ -309,7 +309,8 @@ void ScreenScan::handleOwnLoop() {
  */
 bool ScreenScan::handleTouch(const TouchEvent &event) {
     // Spektrum terület érintésének ellenőrzése (prioritás!)
-    if (event.pressed && event.x >= SCAN_AREA_X && event.x < SCAN_AREA_X + SCAN_AREA_WIDTH && event.y >= SCAN_AREA_Y && event.y < SCAN_AREA_Y + SCAN_AREA_HEIGHT) {
+    if (event.pressed && event.x >= SCAN_AREA_X && event.x < SCAN_AREA_X + SCAN_AREA_WIDTH && event.y >= SCAN_AREA_Y &&
+        event.y < SCAN_AREA_Y + SCAN_AREA_HEIGHT) {
 
         // Relatív pozíció számítás a spektrum területen belül
         uint16_t relativePixelX = event.x - SCAN_AREA_X;
@@ -1112,10 +1113,7 @@ void ScreenScan::getSignalQuality(int16_t &rssiY, uint8_t &snr) {
     rssiY = SCAN_AREA_Y + SCAN_AREA_HEIGHT - (avgRssi * signalScale * 2);
 
     // RSSI korlátozás
-    if (rssiY < SCAN_AREA_Y + 10)
-        rssiY = SCAN_AREA_Y + 10;
-    if (rssiY > SCAN_AREA_Y + SCAN_AREA_HEIGHT - 10)
-        rssiY = SCAN_AREA_Y + SCAN_AREA_HEIGHT - 10; // SNR átlag
+    rssiY = constrain(rssiY, SCAN_AREA_Y + 10, SCAN_AREA_Y + SCAN_AREA_HEIGHT - 10); // SNR átlag
     snr = snrSum / countScanSignal;
 }
 
@@ -1272,7 +1270,8 @@ void ScreenScan::handleZoom(float newZoomLevel) {
     if (canReuseData) {
 
         // BIZTONSÁGOS MEGKÖZELÍTÉS: In-place adatmozgatás batch-enként
-        // Először létrehozunk egy "mapping" tömböt, ami megmondja, melyik régi index melyik új indexre kerül        // Határozunk fel egy kis buffer-t (csak 10 elem)
+        // Először létrehozunk egy "mapping" tömböt, ami megmondja, melyik régi index melyik új indexre kerül        // Határozunk fel egy kis buffer-t (csak 10
+        // elem)
         const int BUFFER_SIZE = 10;
         uint8_t bufferRSSI[BUFFER_SIZE];
         uint8_t bufferSNR[BUFFER_SIZE];
@@ -1309,7 +1308,8 @@ void ScreenScan::handleZoom(float newZoomLevel) {
                             bufferRSSI[bufferIndex] = scanValueRSSI[oldPos];
                             bufferSNR[bufferIndex] = scanValueSNR[oldPos];
                             bufferMark[bufferIndex] = scanMark[oldPos];
-                            bufferValid[bufferIndex] = scanDataValid[oldPos]; // Érvényességi adat másolása                            // Csak első néhány elemhez logolunk optimalizálás céljából
+                            bufferValid[bufferIndex] = scanDataValid[oldPos]; // Érvényességi adat másolása                            // Csak első néhány
+                                                                              // elemhez logolunk optimalizálás céljából
                             if (t < 5) {
                             }
                         } else { // Túl nagy a frekvencia eltérés - szellem adó elkerülése

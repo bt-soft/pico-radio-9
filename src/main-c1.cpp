@@ -438,10 +438,7 @@ void processFifoCommands() {
         case RP2040CommandCode::CMD_AUDIOPROC_SET_SPECTRUM_AVERAGING_COUNT: {
             uint32_t n = rp2040.fifo.pop();
             // Biztonsági korlátozás: ha túl nagy érték jön, korlátozzuk (pl. 1..32)
-            if (n == 0)
-                n = 1;
-            if (n > 64)
-                n = 64;
+            n = constrain(n, 1, 64);
             audioProcC1.setSpectrumAveragingCount(static_cast<uint8_t>(n));
             rp2040.fifo.push(RP2040ResponseCode::RESP_ACK);
             break;

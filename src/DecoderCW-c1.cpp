@@ -159,10 +159,7 @@ q15_t DecoderCW_C1::processGoertzelBlock(const int16_t *samples, size_t count, q
     int32_t magnitude = max_val + (min_val >> 1); // max + 0.5*min
 
     // Clamp Q15 tartományba
-    if (magnitude > 32767)
-        magnitude = 32767;
-    if (magnitude < -32768)
-        magnitude = -32768;
+    magnitude = constrain(magnitude, -32768, 32767);
 
     return (q15_t)magnitude;
 }

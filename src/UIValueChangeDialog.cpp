@@ -42,10 +42,11 @@
  * @param cs Színséma
  * @note Ez a konstruktor integer típusú értékekhez készült, amely egész számokat kezel.
  */
-UIValueChangeDialog::UIValueChangeDialog(UIScreen *parentScreen, const char *title, const char *message, int *valuePtr, int minValue, int maxValue, int stepValue, ValueChangeCallback callback,
-                                         DialogCallback userDialogCb, const Rect &bounds, const ColorScheme &cs)
-    : UIMessageDialog(parentScreen, title, message, UIMessageDialog::ButtonsType::OkCancel, bounds, cs, true /*okClosesDialog*/), _valueType(ValueType::Integer), _intPtr(valuePtr), _minInt(minValue), _maxInt(maxValue),
-      _stepInt(stepValue), _valueCallback(callback), _userDialogCallback(userDialogCb) { // Eredeti érték mentése
+UIValueChangeDialog::UIValueChangeDialog(UIScreen *parentScreen, const char *title, const char *message, int *valuePtr, int minValue, int maxValue,
+                                         int stepValue, ValueChangeCallback callback, DialogCallback userDialogCb, const Rect &bounds, const ColorScheme &cs)
+    : UIMessageDialog(parentScreen, title, message, UIMessageDialog::ButtonsType::OkCancel, bounds, cs, true /*okClosesDialog*/),
+      _valueType(ValueType::Integer), _intPtr(valuePtr), _minInt(minValue), _maxInt(maxValue), _stepInt(stepValue), _valueCallback(callback),
+      _userDialogCallback(userDialogCb) { // Eredeti érték mentése
     if (_intPtr) {
         _originalIntValue = *_intPtr;
     }
@@ -83,10 +84,11 @@ UIValueChangeDialog::UIValueChangeDialog(UIScreen *parentScreen, const char *tit
  * @param cs Színséma
  * @note Ez a konstruktor float típusú értékekhez készült, amely lebegőpontos számokat kezel.
  */
-UIValueChangeDialog::UIValueChangeDialog(UIScreen *parentScreen, const char *title, const char *message, float *valuePtr, float minValue, float maxValue, float stepValue, ValueChangeCallback callback,
-                                         DialogCallback userDialogCb, const Rect &bounds, const ColorScheme &cs)
-    : UIMessageDialog(parentScreen, title, message, UIMessageDialog::ButtonsType::OkCancel, bounds, cs, true /*okClosesDialog*/), _valueType(ValueType::Float), _floatPtr(valuePtr), _minFloat(minValue),
-      _maxFloat(maxValue), _stepFloat(stepValue), _valueCallback(callback), _userDialogCallback(userDialogCb) { // Eredeti érték mentése
+UIValueChangeDialog::UIValueChangeDialog(UIScreen *parentScreen, const char *title, const char *message, float *valuePtr, float minValue, float maxValue,
+                                         float stepValue, ValueChangeCallback callback, DialogCallback userDialogCb, const Rect &bounds, const ColorScheme &cs)
+    : UIMessageDialog(parentScreen, title, message, UIMessageDialog::ButtonsType::OkCancel, bounds, cs, true /*okClosesDialog*/), _valueType(ValueType::Float),
+      _floatPtr(valuePtr), _minFloat(minValue), _maxFloat(maxValue), _stepFloat(stepValue), _valueCallback(callback),
+      _userDialogCallback(userDialogCb) { // Eredeti érték mentése
     if (_floatPtr) {
         _originalFloatValue = *_floatPtr;
     }
@@ -121,10 +123,10 @@ UIValueChangeDialog::UIValueChangeDialog(UIScreen *parentScreen, const char *tit
  * @param cs Színséma
  * @note Ez a konstruktor boolean típusú értékekhez készült, amely TRUE/FALSE értékeket kezel.
  */
-UIValueChangeDialog::UIValueChangeDialog(UIScreen *parentScreen, const char *title, const char *message, bool *valuePtr, ValueChangeCallback callback, DialogCallback userDialogCb, const Rect &bounds,
-                                         const ColorScheme &cs)
-    : UIMessageDialog(parentScreen, title, message, UIMessageDialog::ButtonsType::OkCancel, bounds, cs, true /*okClosesDialog*/), _valueType(ValueType::Boolean), _boolPtr(valuePtr), _valueCallback(callback),
-      _userDialogCallback(userDialogCb) { // Eredeti érték mentése
+UIValueChangeDialog::UIValueChangeDialog(UIScreen *parentScreen, const char *title, const char *message, bool *valuePtr, ValueChangeCallback callback,
+                                         DialogCallback userDialogCb, const Rect &bounds, const ColorScheme &cs)
+    : UIMessageDialog(parentScreen, title, message, UIMessageDialog::ButtonsType::OkCancel, bounds, cs, true /*okClosesDialog*/),
+      _valueType(ValueType::Boolean), _boolPtr(valuePtr), _valueCallback(callback), _userDialogCallback(userDialogCb) { // Eredeti érték mentése
     if (_boolPtr) {
         _originalBoolValue = *_boolPtr;
     }
@@ -162,10 +164,11 @@ UIValueChangeDialog::UIValueChangeDialog(UIScreen *parentScreen, const char *tit
  * @param cs Színséma
  * @note Ez a konstruktor uint8_t típusú értékekhez készült, amely 0-255 közötti értékeket kezel.
  */
-UIValueChangeDialog::UIValueChangeDialog(UIScreen *parentScreen, const char *title, const char *message, uint8_t *valuePtr, uint8_t minValue, uint8_t maxValue, uint8_t stepValue, ValueChangeCallback callback,
-                                         DialogCallback userDialogCb, const Rect &bounds, const ColorScheme &cs)
-    : UIMessageDialog(parentScreen, title, message, UIMessageDialog::ButtonsType::OkCancel, bounds, cs, true /*okClosesDialog*/), _valueType(ValueType::UInt8), _uint8Ptr(valuePtr), _minUint8(minValue),
-      _maxUint8(maxValue), _stepUint8(stepValue), _valueCallback(callback), _userDialogCallback(userDialogCb) {
+UIValueChangeDialog::UIValueChangeDialog(UIScreen *parentScreen, const char *title, const char *message, uint8_t *valuePtr, uint8_t minValue, uint8_t maxValue,
+                                         uint8_t stepValue, ValueChangeCallback callback, DialogCallback userDialogCb, const Rect &bounds,
+                                         const ColorScheme &cs)
+    : UIMessageDialog(parentScreen, title, message, UIMessageDialog::ButtonsType::OkCancel, bounds, cs, true /*okClosesDialog*/), _valueType(ValueType::UInt8),
+      _uint8Ptr(valuePtr), _minUint8(minValue), _maxUint8(maxValue), _stepUint8(stepValue), _valueCallback(callback), _userDialogCallback(userDialogCb) {
     if (_uint8Ptr) {
         _originalUint8Value = *_uint8Ptr;
     }
@@ -204,47 +207,51 @@ void UIValueChangeDialog::createDialogContent() {
     // Itt csak az érték-specifikus gombokat kell létrehozni.    // Érték módosító gombok (csak integer és float esetén)
     if (_valueType == ValueType::Integer || _valueType == ValueType::Float || _valueType == ValueType::UInt8) {
         // Csökkentő gomb (-)
-        _decreaseButton = std::make_shared<UIButton>(BUTTON_DECREASE_ID, Rect(0, 0, SMALL_BUTTON_WIDTH, BUTTON_HEIGHT), "-", UIButton::ButtonType::Pushable, [this](const UIButton::ButtonEvent &event) {
-            if (event.state == UIButton::EventButtonState::Clicked) {
-                decrementValue();
-                // A decrementValue már hívja a validateAndClampValue-t és a notifyValueChange-t.
-                // Az érték terület újrarajzolása itt továbbra is szükséges.
-                redrawValueArea();
-            }
-        });
+        _decreaseButton = std::make_shared<UIButton>(BUTTON_DECREASE_ID, Rect(0, 0, SMALL_BUTTON_WIDTH, BUTTON_HEIGHT), "-", UIButton::ButtonType::Pushable,
+                                                     [this](const UIButton::ButtonEvent &event) {
+                                                         if (event.state == UIButton::EventButtonState::Clicked) {
+                                                             decrementValue();
+                                                             // A decrementValue már hívja a validateAndClampValue-t és a notifyValueChange-t.
+                                                             // Az érték terület újrarajzolása itt továbbra is szükséges.
+                                                             redrawValueArea();
+                                                         }
+                                                     });
         _decreaseButton->setUseMiniFont(true);
         addChild(_decreaseButton);
 
         // Növelő gomb (+)
-        _increaseButton = std::make_shared<UIButton>(BUTTON_INCREASE_ID, Rect(0, 0, SMALL_BUTTON_WIDTH, BUTTON_HEIGHT), "+", UIButton::ButtonType::Pushable, [this](const UIButton::ButtonEvent &event) {
-            if (event.state == UIButton::EventButtonState::Clicked) {
-                incrementValue();
-                // Az incrementValue már hívja a validateAndClampValue-t és a notifyValueChange-t.
-                redrawValueArea();
-            }
-        });
+        _increaseButton = std::make_shared<UIButton>(BUTTON_INCREASE_ID, Rect(0, 0, SMALL_BUTTON_WIDTH, BUTTON_HEIGHT), "+", UIButton::ButtonType::Pushable,
+                                                     [this](const UIButton::ButtonEvent &event) {
+                                                         if (event.state == UIButton::EventButtonState::Clicked) {
+                                                             incrementValue();
+                                                             // Az incrementValue már hívja a validateAndClampValue-t és a notifyValueChange-t.
+                                                             redrawValueArea();
+                                                         }
+                                                     });
         _increaseButton->setUseMiniFont(true);
         addChild(_increaseButton);
 
     } else {
         // Boolean esetén FALSE/TRUE gombok létrehozása
-        _decreaseButton = std::make_shared<UIButton>(BUTTON_DECREASE_ID, Rect(0, 0, SMALL_BUTTON_WIDTH + 10, BUTTON_HEIGHT), "FALSE", UIButton::ButtonType::Pushable, [this](const UIButton::ButtonEvent &event) {
-            if (event.state == UIButton::EventButtonState::Clicked) {
-                decrementValue(); // FALSE-ra állítás a decrementValue() függvényen keresztül
-                // A decrementValue már hívja a notifyValueChange-t.
-                redrawValueTextOnly();
-            }
-        });
+        _decreaseButton = std::make_shared<UIButton>(BUTTON_DECREASE_ID, Rect(0, 0, SMALL_BUTTON_WIDTH + 10, BUTTON_HEIGHT), "FALSE",
+                                                     UIButton::ButtonType::Pushable, [this](const UIButton::ButtonEvent &event) {
+                                                         if (event.state == UIButton::EventButtonState::Clicked) {
+                                                             decrementValue(); // FALSE-ra állítás a decrementValue() függvényen keresztül
+                                                             // A decrementValue már hívja a notifyValueChange-t.
+                                                             redrawValueTextOnly();
+                                                         }
+                                                     });
         _decreaseButton->setUseMiniFont(true);
         addChild(_decreaseButton);
 
-        _increaseButton = std::make_shared<UIButton>(BUTTON_INCREASE_ID, Rect(0, 0, SMALL_BUTTON_WIDTH + 10, BUTTON_HEIGHT), "TRUE", UIButton::ButtonType::Pushable, [this](const UIButton::ButtonEvent &event) {
-            if (event.state == UIButton::EventButtonState::Clicked) {
-                incrementValue(); // TRUE-ra állítás a incrementValue() függvényen keresztül
-                // Az incrementValue már hívja a notifyValueChange-t.
-                redrawValueTextOnly();
-            }
-        });
+        _increaseButton = std::make_shared<UIButton>(BUTTON_INCREASE_ID, Rect(0, 0, SMALL_BUTTON_WIDTH + 10, BUTTON_HEIGHT), "TRUE",
+                                                     UIButton::ButtonType::Pushable, [this](const UIButton::ButtonEvent &event) {
+                                                         if (event.state == UIButton::EventButtonState::Clicked) {
+                                                             incrementValue(); // TRUE-ra állítás a incrementValue() függvényen keresztül
+                                                             // Az incrementValue már hívja a notifyValueChange-t.
+                                                             redrawValueTextOnly();
+                                                         }
+                                                     });
         _increaseButton->setUseMiniFont(true);
         addChild(_increaseButton);
     }
@@ -291,8 +298,9 @@ void UIValueChangeDialog::layoutDialogContent() {
         const int16_t totalWidth = 2 * boolButtonWidth + 2 * valueButtonSpacing + valueBoxWidth;
         const int16_t startX2 = centerX - totalWidth / 2;
 
-        _decreaseButton->setBounds(Rect(startX2, valueAreaY, boolButtonWidth, BUTTON_HEIGHT));                                                            // FALSE
-        _increaseButton->setBounds(Rect(startX2 + boolButtonWidth + 2 * valueButtonSpacing + valueBoxWidth, valueAreaY, boolButtonWidth, BUTTON_HEIGHT)); // TRUE
+        _decreaseButton->setBounds(Rect(startX2, valueAreaY, boolButtonWidth, BUTTON_HEIGHT)); // FALSE
+        _increaseButton->setBounds(
+            Rect(startX2 + boolButtonWidth + 2 * valueButtonSpacing + valueBoxWidth, valueAreaY, boolButtonWidth, BUTTON_HEIGHT)); // TRUE
     }
 }
 
@@ -520,18 +528,12 @@ void UIValueChangeDialog::validateAndClampValue() {
     switch (_valueType) {
         case ValueType::Integer:
             if (_intPtr) {
-                if (*_intPtr < _minInt)
-                    *_intPtr = _minInt;
-                if (*_intPtr > _maxInt)
-                    *_intPtr = _maxInt;
+                *_intPtr = constrain(*_intPtr, _minInt, _maxInt);
             }
             break;
         case ValueType::Float:
             if (_floatPtr) {
-                if (*_floatPtr < _minFloat)
-                    *_floatPtr = _minFloat;
-                if (*_floatPtr > _maxFloat)
-                    *_floatPtr = _maxFloat;
+                *_floatPtr = constrain(*_floatPtr, _minFloat, _maxFloat);
             }
             break;
         case ValueType::Boolean:
@@ -539,10 +541,7 @@ void UIValueChangeDialog::validateAndClampValue() {
             break;
         case ValueType::UInt8:
             if (_uint8Ptr) {
-                if (*_uint8Ptr < _minUint8)
-                    *_uint8Ptr = _minUint8;
-                if (*_uint8Ptr > _maxUint8)
-                    *_uint8Ptr = _maxUint8;
+                *_uint8Ptr = constrain(*_uint8Ptr, _minUint8, _maxUint8);
             }
             break;
     }

@@ -30,7 +30,8 @@
  * @param bounds A komponens területe (pozíció és méret).
  * @param colors Opcionális színpaletta.
  */
-UICompSMeter::UICompSMeter(const Rect &bounds, const ColorScheme &colors) : UIComponent(bounds, colors), prev_spoint_bars(SMeterConstants::INITIAL_PREV_SPOINT), prev_rssi_for_text(0xFF), prev_snr_for_text(0xFF) {
+UICompSMeter::UICompSMeter(const Rect &bounds, const ColorScheme &colors)
+    : UIComponent(bounds, colors), prev_spoint_bars(SMeterConstants::INITIAL_PREV_SPOINT), prev_rssi_for_text(0xFF), prev_snr_for_text(0xFF) {
     // Inicializáljuk a textLayout struct-ot
     textLayout = {0, 0, 0, 0, 0, 0, 0, 0, false};
 }
@@ -58,10 +59,7 @@ uint8_t UICompSMeter::rssiConverter(uint8_t rssi, bool isFMMode) {
             }
 
             // Biztosítjuk, hogy az érték a megengedett tartományban maradjon
-            if (spoint_calc < 0)
-                spoint_calc = 0;
-            if (spoint_calc > METER_BAR_MAX_PIXEL_VALUE)
-                spoint_calc = METER_BAR_MAX_PIXEL_VALUE;
+            spoint_calc = constrain(spoint_calc, 0, METER_BAR_MAX_PIXEL_VALUE);
 
             return static_cast<uint8_t>(spoint_calc);
         }
@@ -202,7 +200,8 @@ void UICompSMeter::drawSmeterScale() {
     }
     // S9+dB skála vonalak és számok (+10, +20, ..., +60)
     for (int i = 1; i <= PLUS_SCALE_COUNT; i++) {
-        ::tft.fillRect(bounds.x + PLUS_SCALE_START_X + (i * PLUS_SCALE_SPACING), bounds.y + PLUS_SCALE_Y, PLUS_SCALE_TICK_WIDTH, PLUS_SCALE_TICK_HEIGHT, TFT_RED);
+        ::tft.fillRect(bounds.x + PLUS_SCALE_START_X + (i * PLUS_SCALE_SPACING), bounds.y + PLUS_SCALE_Y, PLUS_SCALE_TICK_WIDTH, PLUS_SCALE_TICK_HEIGHT,
+                       TFT_RED);
         if (i % 2 == 0) {                                                             // Csak minden másodiknál írjuk ki a "+számot" (pl. +20, +40, +60)
             int textX = bounds.x + PLUS_SCALE_START_X + (i * PLUS_SCALE_SPACING) - 8; // Központosítás
             int textY = bounds.y + PLUS_SCALE_NUMBER_Y;

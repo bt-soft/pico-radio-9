@@ -31,7 +31,8 @@
  * @details Inicializálja az animációs színeket és a frekvencia kijelző komponenst
  */
 ScreenScreenSaver::ScreenScreenSaver()
-    : ScreenFrequDisplayBase(SCREEN_NAME_SCREENSAVER), activationTime(0), lastAnimationUpdateTime(0), animationBorderX(0), animationBorderY(0), currentFrequencyValue(0), posSaver(0), lastFullUpdateSaverTime(0) {
+    : ScreenFrequDisplayBase(SCREEN_NAME_SCREENSAVER), activationTime(0), lastAnimationUpdateTime(0), animationBorderX(0), animationBorderY(0),
+      currentFrequencyValue(0), posSaver(0), lastFullUpdateSaverTime(0) {
 
     // Animációs vonal színeinek előszámítása
     for (uint8_t i = 0; i < ScreenSaverConstants::SAVER_ANIMATION_LINE_LENGTH; i++) {
@@ -42,7 +43,8 @@ ScreenScreenSaver::ScreenScreenSaver()
     // FreqDisplay inicializálása
     // A kezdeti határok helyőrzők, frissítésre kerülnek az updateFrequencyAndBatteryDisplay-ben
     using namespace ScreenSaverConstants;
-    Rect initialFreqBounds(0, 0, UICompSevenSegmentFreq::SEVEN_SEGMENT_FREQ_WIDTH, UICompSevenSegmentFreq::SEVEN_SEGMENT_FREQ_HEIGHT); // Kezdeti frekvencia kijelző határok
+    Rect initialFreqBounds(0, 0, UICompSevenSegmentFreq::SEVEN_SEGMENT_FREQ_WIDTH,
+                           UICompSevenSegmentFreq::SEVEN_SEGMENT_FREQ_HEIGHT); // Kezdeti frekvencia kijelző határok
     ScreenFrequDisplayBase::createSevenSegmentFreq(initialFreqBounds);
 }
 
@@ -64,8 +66,9 @@ void ScreenScreenSaver::activate() {
     currentFrequencyValue = ::pSi4735Manager->getSi4735().getCurrentFrequency();
 
     // Az egyes pozíciók meghatározása az aktuális mód alapján
-    currentBorderWidth = getCurrentBorderWidth();                                                                              // Animált keret véletlenszerű pozíciójának meghatározása
-    currentAccuXOffset = currentBorderWidth - (ScreenSaverConstants::BATTERY_RECT_FULL_W + ScreenSaverConstants::ELEMENT_GAP); // Akkumulátor X pozíció a keret bal szélétől
+    currentBorderWidth = getCurrentBorderWidth(); // Animált keret véletlenszerű pozíciójának meghatározása
+    currentAccuXOffset =
+        currentBorderWidth - (ScreenSaverConstants::BATTERY_RECT_FULL_W + ScreenSaverConstants::ELEMENT_GAP); // Akkumulátor X pozíció a keret bal szélétől
 
     // Frekvencia és akkumulátor kezdeti elhelyezése
     updateFrequencyAndBatteryDisplay();
@@ -145,7 +148,8 @@ void ScreenScreenSaver::updateFrequencyAndBatteryDisplay() {
     uint16_t freqDisplayX = animationBorderX + INTERNAL_MARGIN;
     uint16_t freqDisplayY = animationBorderY + SEVEN_SEGMENT_FREQ_Y_OFFSET; // Aktuális frekvencia beállítása és FreqDisplay frissítése
     if (sevenSegmentFreq) {
-        sevenSegmentFreq->setBounds(Rect(freqDisplayX, freqDisplayY, UICompSevenSegmentFreq::SEVEN_SEGMENT_FREQ_WIDTH, UICompSevenSegmentFreq::SEVEN_SEGMENT_FREQ_HEIGHT));
+        sevenSegmentFreq->setBounds(
+            Rect(freqDisplayX, freqDisplayY, UICompSevenSegmentFreq::SEVEN_SEGMENT_FREQ_WIDTH, UICompSevenSegmentFreq::SEVEN_SEGMENT_FREQ_HEIGHT));
         sevenSegmentFreq->setFrequency(currentFrequencyValue);
         sevenSegmentFreq->markForRedraw(); // FreqDisplay újrarajzolásának biztosítása
     }
@@ -177,14 +181,10 @@ void ScreenScreenSaver::drawAnimatedBorder() {
     int16_t rectBottom = animationBorderY + ANIMATION_BORDER_HEIGHT;
 
     // Keret képernyőn maradásának biztosítása (csak ha valamiért túlnyúlna)
-    if (rectLeft < 0)
-        rectLeft = 0;
-    if (rectRight >= screenW)
-        rectRight = screenW - 1;
-    if (rectTop < 0)
-        rectTop = 0;
-    if (rectBottom >= screenH)
-        rectBottom = screenH - 1;
+    rectLeft = constrain(rectLeft, 0, screenW - 1);
+    rectRight = constrain(rectRight, 0, screenW - 1);
+    rectTop = constrain(rectTop, 0, screenH - 1);
+    rectBottom = constrain(rectBottom, 0, screenH - 1);
 
     int16_t rectWidth = rectRight - rectLeft;
     int16_t rectHeight = rectBottom - rectTop;
@@ -261,7 +261,8 @@ void ScreenScreenSaver::drawBatteryInfo() {
     // Akkumulátor szimbólum rajzolása
     tft.fillRect(batteryX, batteryY, BATTERY_RECT_W, BATTERY_RECT_H, TFT_BLACK); // Terület törlése
     tft.drawRect(batteryX, batteryY, BATTERY_RECT_W, BATTERY_RECT_H, colorBatt);
-    tft.drawRect(batteryX + BATTERY_RECT_W, batteryY + (BATTERY_RECT_H - BATTERY_NUB_H) / 2, BATTERY_NUB_W, BATTERY_NUB_H, colorBatt); // Töltöttségi százalék szöveg kiírása az akkumulátor belsejében
+    tft.drawRect(batteryX + BATTERY_RECT_W, batteryY + (BATTERY_RECT_H - BATTERY_NUB_H) / 2, BATTERY_NUB_W, BATTERY_NUB_H,
+                 colorBatt); // Töltöttségi százalék szöveg kiírása az akkumulátor belsejében
     tft.setFreeFont();
     tft.setTextSize(1);
     tft.setTextColor(colorBatt, TFT_BLACK); // Fekete háttér az akkumulátor belsejében
