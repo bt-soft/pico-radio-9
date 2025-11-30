@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                       *
  * -----                                                                                                               *
- * Last Modified: 2025.11.30, Sunday  08:25:11                                                                         *
+ * Last Modified: 2025.11.30, Sunday  08:37:46                                                                         *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -225,10 +225,14 @@ class UICompSpectrumVis : public UIComponent {
     bool spriteCreated_;
     int indicatorFontHeight_;
 
-    // Peak detection buffer (24 bands max)
-    static constexpr int MAX_SPECTRUM_BANDS = LOW_RES_BANDS;
-    int Rpeak_[MAX_SPECTRUM_BANDS];
-    uint8_t bar_height_[MAX_SPECTRUM_BANDS]; // Bar magasságok csillapításhoz
+    // Peak buffer a LowRes módhoz
+    int Rpeak_[LOW_RES_BANDS];
+    uint8_t bar_height_[LOW_RES_BANDS]; // Bar magasságok csillapításhoz
+
+    // HighRes simítási puffer a képkockák közötti villogás csökkentésére
+    std::vector<float> highresSmoothedCols;
+    // HighRes időbeli (temporal) simítás mértéke (0.0 = nincs simítás, 1.0 = lefagyasztás)
+    static constexpr float HIGHRES_SMOOTH_ALPHA = 0.7f;
 
     // CW/RTTY hangolási segéd változók
     TuningAidType currentTuningAidType_;
@@ -237,11 +241,6 @@ class UICompSpectrumVis : public UIComponent {
 
     // Envelope és Waterfall buffer - egyszerűsített 2D vektor
     std::vector<std::vector<uint8_t>> wabuf;
-    // HighRes simítási puffer a képkockák közötti villogás csökkentésére
-    std::vector<float> highresSmoothedCols;
-
-    // HighRes időbeli (temporal) simítás mértéke (0.0 = nincs simítás, 1.0 = lefagyasztás)
-    static constexpr float HIGHRES_SMOOTH_ALPHA = 0.7f;
 
     /**
      * @brief Sprite kezelő függvények
