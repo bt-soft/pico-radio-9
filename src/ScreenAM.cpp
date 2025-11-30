@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
  * -----                                                                                                               *
- * Last Modified: 2025.11.30, Sunday  11:21:05                                                                         *
+ * Last Modified: 2025.11.30, Sunday  11:29:38                                                                         *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -76,9 +76,7 @@ void ScreenAM::layoutComponents() {
     // ===================================================================
     // Spektrum vizualizáció komponens létrehozása
     // ===================================================================
-    ScreenRadioBase::createSpectrumComponent(Rect(255, 70, 150, 80), RadioMode::AM);
-    // A spektrumkijelzőnek a HF Sávszélesség beállítása
-    ScreenRadioBase::spectrumComp->setCurrentBandwidthHz(AM_AF_BANDWIDTH_HZ);
+    ScreenRadioBase::createSpectrumComponent(Rect(255, 70, 150, 80), RadioMode::AM, AM_AF_BANDWIDTH_HZ);
 
     // MEGJEGYZÉS: Az audioController indítása az activate() metódusban történik
     // hogy képernyőváltáskor megfelelően le- és újrainduljon

@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                       *
  * -----                                                                                                               *
- * Last Modified: 2025.11.30, Sunday  11:09:09                                                                         *
+ * Last Modified: 2025.11.30, Sunday  11:38:17                                                                         *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -83,13 +83,11 @@ class UICompSpectrumVis : public UIComponent {
 
     /**
      * @brief Konstruktor
-     * @param x X pozíció
-     * @param y Y pozíció
-     * @param w Szélesség
-     * @param h Magasság
+     * @param  rect Téglalap határok
      * @param radioMode Rádió mód (AM/FM)
+     * @param bandwidthHz Aktuális sávszélesség Hz-ben
      */
-    UICompSpectrumVis(int x, int y, int w, int h, RadioMode radioMode);
+    UICompSpectrumVis(const Rect &rect, RadioMode radioMode, uint32_t bandwidthHz);
 
     /**
      * @brief Destruktor
@@ -165,8 +163,6 @@ class UICompSpectrumVis : public UIComponent {
      * @param newdisplayMode A beállítandó megjelenítési mód
      */
     void setCurrentDisplayMode(DisplayMode newdisplayMode);
-
-    inline void setCurrentBandwidthHz(uint32_t bandwidthHz) { currentBandwidthHz_ = bandwidthHz; }
 
   private:
     RadioMode radioMode_;

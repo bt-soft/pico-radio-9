@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                       *
  * -----                                                                                                               *
- * Last Modified: 2025.11.16, Sunday  09:51:19                                                                         *
+ * Last Modified: 2025.11.30, Sunday  11:37:57                                                                         *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -223,9 +223,10 @@ class ScreenRadioBase : public ScreenFrequDisplayBase {
      * @brief Létrehozza a spektrum vizualizáció komponenst
      * @param spectrumBounds A spektrum komponens határai
      * @param radioMode Rádió mód (AM/FM)
+     * @param bandwidthHz HF sávszélesség Hz-ben
      */
-    inline void createSpectrumComponent(const Rect &spectrumBounds, RadioMode radioMode) {
-        spectrumComp = std::make_shared<UICompSpectrumVis>(spectrumBounds.x, spectrumBounds.y, spectrumBounds.width, spectrumBounds.height, radioMode);
+    inline void createSpectrumComponent(const Rect &spectrumBounds, RadioMode radioMode, uint32_t bandwidthHz) {
+        spectrumComp = std::make_shared<UICompSpectrumVis>(spectrumBounds, radioMode, bandwidthHz);
         spectrumComp->loadModeFromConfig(); // AM/FM mód betöltése config-ból
         addChild(spectrumComp);
     }

@@ -182,10 +182,14 @@ constexpr size_t BANDWIDTH_GAIN_TABLE_SIZE = ARRAY_ITEM_COUNT(BANDWIDTH_GAIN_TAB
 
 /**
  * @brief Konstruktor
+ * @param  rect Téglalap határok
+ * @param radioMode Rádió mód (AM/FM)
+ * @param bandwidthHz Aktuális sávszélesség Hz-ben
  */
-UICompSpectrumVis::UICompSpectrumVis(int x, int y, int w, int h, RadioMode radioMode)
-    : UIComponent(Rect(x, y, w, h)),                   //
+UICompSpectrumVis::UICompSpectrumVis(const Rect &rect, RadioMode radioMode, uint32_t bandwidthHz)
+    : UIComponent(rect),                               //
       radioMode_(radioMode),                           //
+      currentBandwidthHz_(bandwidthHz),                //
       currentMode_(DisplayMode::Off),                  //
       lastRenderedMode_(DisplayMode::Off),             //
       modeIndicatorVisible_(false),                    //
@@ -206,8 +210,8 @@ UICompSpectrumVis::UICompSpectrumVis(int x, int y, int w, int h, RadioMode radio
       currentTuningAidType_(TuningAidType::CW_TUNING), //
       currentTuningAidMinFreqHz_(0.0f),                //
       currentTuningAidMaxFreqHz_(0.0f),                //
-      isMutedDrawn(false),                             //
-      currentBandwidthHz_(0) {
+      isMutedDrawn(false)                              //
+{
 
     // Inicializáljuk a cache-elt gain értéket (dB-ben)
     cachedGainDb_ = 0;

@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
  * -----                                                                                                               *
- * Last Modified: 2025.11.30, Sunday  11:22:22                                                                         *
+ * Last Modified: 2025.11.30, Sunday  11:29:22                                                                         *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -150,9 +150,7 @@ void ScreenFM::layoutComponents() {
     // ===================================================================
     // Spektrum vizualizáció komponens létrehozása
     // ===================================================================
-    ScreenRadioBase::createSpectrumComponent(Rect(255, 40, 150, 80), RadioMode::FM);
-    // A spektrumkijelzőnek a HF Sávszélesség beállítása
-    ScreenRadioBase::spectrumComp->setCurrentBandwidthHz(FM_AF_BANDWIDTH_HZ);
+    ScreenRadioBase::createSpectrumComponent(Rect(255, 40, 150, 80), RadioMode::FM, FM_AF_BANDWIDTH_HZ);
 
     // ===================================================================
     // Gombsorok létrehozása - Event-driven architektúra

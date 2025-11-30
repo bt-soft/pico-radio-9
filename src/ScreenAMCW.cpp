@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
  * -----                                                                                                               *
- * Last Modified: 2025.11.30, Sunday  11:19:58                                                                         *
+ * Last Modified: 2025.11.30, Sunday  11:30:05                                                                         *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -82,17 +82,11 @@ void ScreenAMCW::layoutComponents() {
     // ===================================================================
     // Spektrum vizualizáció komponens létrehozása
     // ===================================================================
-    ScreenRadioBase::createSpectrumComponent(Rect(255, 40, 150, 80), RadioMode::AM);
+    ScreenRadioBase::createSpectrumComponent(Rect(255, 40, 150, 80), RadioMode::AM, CW_AF_BANDWIDTH_HZ);
 
     // Induláskor beállítjuk a CWWaterfall megjelenítési módot
     // TODO: Az CwSnrCurve induláskor lefagy, ezt még javítani kell
     ScreenRadioBase::spectrumComp->setCurrentDisplayMode(UICompSpectrumVis::DisplayMode::CWWaterfall);
-
-    // A spektrumkijelzőnek a HF Sávszélesség beállítása
-    ScreenRadioBase::spectrumComp->setCurrentBandwidthHz(CW_AF_BANDWIDTH_HZ);
-
-    // MEGJEGYZÉS: Az audioController indítása az activate() metódusban történik
-    // hogy képernyőváltáskor megfelelően leálljon és újrainduljon
 
     // TextBox hozzáadása (a S-Meter alatt)
     constexpr uint16_t TEXTBOX_HEIGHT = 130;
