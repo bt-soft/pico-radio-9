@@ -1640,6 +1640,9 @@ void UICompSpectrumVis::renderOscilloscope() {
     // Sprite törlése - csak akkor, ha van új adat
     sprite_->fillSprite(TFT_BLACK);
 
+    // Középvonal rajzolása
+    sprite_->drawFastHLine(0, graphH / 2, bounds.width, TFT_DARKGREY);
+
     uint16_t prev_x = -1, prev_y = -1;
     // Sávszélesség becslése az oszcilloszkóphoz szükséges skála lekéréséhez
     float gainDb = cachedGainDb_;
@@ -1668,11 +1671,9 @@ void UICompSpectrumVis::renderOscilloscope() {
     oscRmsSmoothed_ = static_cast<float>(UICompSpectrumVis::OSC_RMS_SMOOTH_ALPHA * oscRmsSmoothed_ +
                                          (1.0f - UICompSpectrumVis::OSC_RMS_SMOOTH_ALPHA) * static_cast<float>(rms));
 
-    const int32_t half_h = static_cast<int32_t>(graphH) / 2 - 1;
-
-    // Lágyszárnyú csillapítás alacsony energiájú pufferekhez: számoljuk a soft-knee erősítési tényezőt
-    float minGainWhenSilent = 0.12f; // minimális lineáris erősítés nagyon csendes esetben (12%)
-    float kneeExp = 2.0f;            // kitevő a knee alakításához (nagyobb = meredekebb)
+    // Lágy csillapítás alacsony energiájú pufferekhez: kiszámoljuk a soft-knee erősítési tényezőt
+    constexpr float minGainWhenSilent = 0.12f; // minimális lineáris erősítés nagyon csendes esetben (12%)
+    constexpr float kneeExp = 2.0f;            // kitevő a knee alakításához (nagyobb = meredekebb)
     float rms_ratio = (UICompSpectrumVis::OSC_RMS_SILENCE_THRESHOLD <= 0.0f) ? 1.0f : (oscRmsSmoothed_ / UICompSpectrumVis::OSC_RMS_SILENCE_THRESHOLD);
     if (rms_ratio < 0.0f)
         rms_ratio = 0.0f;
@@ -1685,10 +1686,7 @@ void UICompSpectrumVis::renderOscilloscope() {
         softGainFactor = minGainWhenSilent + powf(rms_ratio, kneeExp) * (1.0f - minGainWhenSilent);
     }
 
-    // Finom középvonal rajzolása referencia gyanánt (nagyon halvány), de nem helyettesíti a hullámformát
-    int y_center = static_cast<int>(graphH) / 2;
-    sprite_->drawFastHLine(0, y_center, bounds.width, TFT_DARKGREY);
-
+    const int32_t half_h = static_cast<int32_t>(graphH) / 2 - 1;
     for (uint16_t i = 0; i < sampleCount; i++) {
         int16_t raw = osciRawData[i];
 
