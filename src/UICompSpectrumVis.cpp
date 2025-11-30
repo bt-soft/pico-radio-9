@@ -176,7 +176,7 @@ constexpr BandwidthScaleConfig BANDWIDTH_GAIN_TABLE[] = {
     {RTTY_AF_BANDWIDTH_HZ, 4.0f, 3.0f, 2.0f, 3.0f, 2.0f, 3.0f, 3.0f},          // 3kHz: RTTY mód
     {AM_AF_BANDWIDTH_HZ, -18.0f, -18.0f, 0.0f, -10.0f, -10.0f, 10.0f, -10.0f}, // 6kHz: AM mód
     {WEFAX_SAMPLE_RATE_HZ, 0.0f, 0.0f, 0.0f, 0.0f, -1.0f, -1.0f, -1.0f},       // 11025Hz: WEFAX mód
-    {FM_AF_BANDWIDTH_HZ, 20.0f, 25.0f, -3.0f, 15.0f, 22.0f, NOAMP, NOAMP},     // 15kHz: FM mód
+    {FM_AF_BANDWIDTH_HZ, 20.0f, 25.0f, -3.0f, 20.0f, 22.0f, NOAMP, NOAMP},     // 15kHz: FM mód
 };
 constexpr size_t BANDWIDTH_GAIN_TABLE_SIZE = ARRAY_ITEM_COUNT(BANDWIDTH_GAIN_TABLE);
 
@@ -1358,6 +1358,13 @@ void UICompSpectrumVis::renderSpectrumBar(bool isLowRes) {
     // Maximális magnitude érték keresése a megjelenítési tartományban
     const uint8_t MAX_BAR_HEIGHT = static_cast<uint8_t>(graphH * UI_TARGET_HEIGHT_UTILIZATION);
 
+    // Compute short-term RMS of magnitude in displayed bin range to detect silence/noise
+    float magRms = computeMagnitudeRmsMember(magnitudeData, min_bin_idx, max_bin_idx);
+    constexpr float MAG_RMS_SMOOTH_ALPHA = 0.08f;
+    constexpr float MAG_RMS_SILENCE_THRESHOLD = 400.0f; // tuned for Q15 magnitudes
+    constexpr float MAG_MIN_GAIN = 0.12f;
+    float mag_softGain = updateRmsAndGetSoftGain(magRms, MAG_RMS_SMOOTH_ALPHA, MAG_RMS_SILENCE_THRESHOLD, MAG_MIN_GAIN);
+
     if (isLowRes) {
 
         // ===== LOW RESOLUTION MODE =====
@@ -1430,7 +1437,9 @@ void UICompSpectrumVis::renderSpectrumBar(bool isLowRes) {
         uint16_t computedHeights[LOW_RES_BANDS] = {0};
         for (uint8_t band_idx = 0; band_idx < bands_to_display; band_idx++) {
             // Direkt int16 -> pixel magasság (integer aritmetika, bit-shift)
-            uint16_t height = q15ToPixelHeight(band_magnitudes_q15[band_idx], gainDb, MAX_BAR_HEIGHT);
+            // Apply soft gain factor derived from short-term RMS to suppress noise
+            q15_t adjusted_q15 = static_cast<q15_t>(static_cast<int>(band_magnitudes_q15[band_idx] * mag_softGain));
+            uint16_t height = q15ToPixelHeight(adjusted_q15, gainDb, MAX_BAR_HEIGHT);
 
             // Minimum 1 pixel, ha van jel
             if (height == 0 && band_magnitudes_q15[band_idx] != 0) {
@@ -1546,6 +1555,8 @@ void UICompSpectrumVis::renderSpectrumBar(bool isLowRes) {
 
             // Q15 értékből direkt pixel konverzió (Q15 szemantika)
             q15_t magnitude_q15 = magnitudeData[fft_bin_index];
+            // Apply soft gain noise gating for individual bins
+            magnitude_q15 = static_cast<q15_t>(static_cast<int>(magnitude_q15 * mag_softGain));
 
             // Envelope megjelenítési küszöb (q15 érték)
             constexpr q15_t ENVELOPE_MIN_DISPLAY_Q15 = 380;
@@ -1711,6 +1722,42 @@ void UICompSpectrumVis::renderOscilloscope() {
 }
 
 /**
+ * @brief RMS számítása a magnitude adatok adott bin tartományára (Q15 szemantika)
+ * @param data Pointer a Q15 magnitude adatokra
+ * @param startBin Kezdő FFT bin index
+ * @param endBin Záró FFT bin index
+ * @return RMS érték lebegőpontos formátumban
+ */
+float UICompSpectrumVis::computeMagnitudeRmsMember(const q15_t *data, int startBin, int endBin) const {
+    if (!data || endBin < startBin)
+        return 0.0f;
+    double sum_sq = 0.0;
+    int count = 0;
+    for (int i = startBin; i <= endBin; ++i) {
+        double v = static_cast<double>(data[i]);
+        sum_sq += v * v;
+        ++count;
+    }
+    if (count == 0)
+        return 0.0f;
+    return static_cast<float>(std::sqrt(sum_sq / count));
+}
+
+/**
+ * @brief Member implementation: update internal smoothed RMS and return a soft gain (0..1)
+ */
+float UICompSpectrumVis::updateRmsAndGetSoftGain(float newRms, float smoothAlpha, float silenceThreshold, float minGain) {
+    // Update member smoothed RMS
+    magRmsSmoothed_ = smoothAlpha * magRmsSmoothed_ + (1.0f - smoothAlpha) * newRms;
+    float ratio = (silenceThreshold <= 0.0f) ? 1.0f : (magRmsSmoothed_ / silenceThreshold);
+    ratio = constrain(ratio, 0.0f, 1.0f);
+    if (ratio >= 1.0f)
+        return 1.0f;
+    constexpr float kneeExp = 2.0f;
+    return minGain + powf(ratio, kneeExp) * (1.0f - minGain);
+}
+
+/**
  * @brief Envelope renderelése
  */
 void UICompSpectrumVis::renderEnvelope() {
@@ -1758,6 +1805,14 @@ void UICompSpectrumVis::renderEnvelope() {
 
     // 2. Új oszlop számítása a wabuf jobb szélére
     // Minden sort feldolgozunk a teljes felbontásért
+
+    // Kiszámoljuk az aktuális envelope RMS-t a megjelenítési tartományban
+    float envRms = computeMagnitudeRmsMember(magnitudeData, min_bin_for_env, max_bin_for_env);
+    constexpr float ENV_RMS_SMOOTH_ALPHA = 0.05f;
+    constexpr float ENV_RMS_SILENCE_THRESHOLD = 380.0f; // envelope Q15 mapping
+    constexpr float ENV_MIN_GAIN = 0.08f;
+    float env_softGain = updateRmsAndGetSoftGain(envRms, ENV_RMS_SMOOTH_ALPHA, ENV_RMS_SILENCE_THRESHOLD, ENV_MIN_GAIN);
+
     for (uint8_t r = 0; r < bounds.height; ++r) {
         // 'r' (0 to bounds.height-1) leképezése FFT bin indexre a szűkített tartományon belül
         uint8_t fft_bin_index =
@@ -1766,7 +1821,15 @@ void UICompSpectrumVis::renderEnvelope() {
 
         // Q15 értékből direkt uint8_t konverzió (Q15 szemantika)
         q15_t rawMagnitudeQ15 = magnitudeData[fft_bin_index];
-        wabuf[r][bounds.width - 1] = q15ToUint8(rawMagnitudeQ15, gainDb);
+        // Apply soft gain to suppress noise and avoid sparse spikes
+        rawMagnitudeQ15 = static_cast<q15_t>(static_cast<int>(rawMagnitudeQ15 * env_softGain));
+        // Convert and apply an additional local smoothing to wabuf insertion
+        uint8_t rawVal = q15ToUint8(rawMagnitudeQ15, gainDb);
+        // Smooth with previous rightmost column value to reduce single-frame spikes
+        uint8_t prevVal = wabuf[r][bounds.width - 2];
+        float smooth = 0.35f; // stronger smoothing for envelope
+        uint8_t finalVal = static_cast<uint8_t>(roundf(smooth * prevVal + (1.0f - smooth) * rawVal));
+        wabuf[r][bounds.width - 1] = finalVal;
     }
 
     // 3. Sprite törlése és burkológörbe kirajzolása

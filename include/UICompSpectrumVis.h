@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                       *
  * -----                                                                                                               *
- * Last Modified: 2025.11.30, Sunday  11:57:29                                                                         *
+ * Last Modified: 2025.11.30, Sunday  12:28:04                                                                         *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -256,6 +256,23 @@ class UICompSpectrumVis : public UIComponent {
 
     // Oszcilloszkóp zaj/silence detektáláshoz
     float oscRmsSmoothed_ = 0.0f; // Simított RMS érték
+    // Közös RMS simítás spektrum/envelope/waterfall célokra
+    float magRmsSmoothed_ = 0.0f;
+
+    /**
+     * @brief Kiszámolja a rövidtávú RMS-et a magnitude (q15) tömb adott bin tartományán
+     */
+    float computeMagnitudeRmsMember(const q15_t *data, int startBin, int endBin) const;
+
+    /**
+     * @brief Frissíti a belső simított RMS értéket és visszaad egy soft-gain (0..1) faktort
+     * @param newRms A legutóbbi RMS érték (nem simított)
+     * @param smoothAlpha Simítási faktor (0..1)
+     * @param silenceThreshold Küszöb a soft-gainhez
+     * @param minGain Minimális lineáris gain csendes állapotban
+     * @return Soft gain faktorként alkalmazandó (0..1)
+     */
+    float updateRmsAndGetSoftGain(float newRms, float smoothAlpha, float silenceThreshold, float minGain);
 
     /**
      * @brief Spectrum bar függvények
