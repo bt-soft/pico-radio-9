@@ -1422,7 +1422,7 @@ void UICompSpectrumVis::renderSpectrumBar(bool isLowRes) {
         if (isAutoGainMode()) {
             // AGC korrekció: korábbi logika 5.5x amplitude boost-ot kívánt (percent-ben);
             // dB-ben ez hozzáadást jelent: 20*log10(5.5) ≈ 14.807 dB
-            float extraDb = 20.0f * log10f(5.5f);
+            float extraDb = LINEAR_TO_DECIBELL(5.5f);
             gainDb = static_cast<int16_t>(roundf(static_cast<float>(gainDb) + extraDb));
         }
 
@@ -1752,7 +1752,7 @@ void UICompSpectrumVis::renderEnvelope() {
     // Százalékos skálázási konstans (Q15 optimalizált) - sávszélesség-adaptív
     float gainDb = cachedGainDb_;
     if (isAutoGainMode()) {
-        float extraDb = 20.0f * log10f(0.7f);
+        float extraDb = LINEAR_TO_DECIBELL(0.7f);
         gainDb = static_cast<int16_t>(roundf(static_cast<float>(gainDb) + extraDb));
     }
 
@@ -1874,7 +1874,7 @@ void UICompSpectrumVis::renderWaterfall() {
     float gainDb = cachedGainDb_;
     if (isAutoGainMode()) {
         {
-            float deltaDb = 20.0f * log10f(0.95f);
+            float deltaDb = LINEAR_TO_DECIBELL(0.95f);
             gainDb = static_cast<int16_t>(roundf(static_cast<float>(gainDb) + deltaDb));
         }
     }
@@ -1948,7 +1948,7 @@ void UICompSpectrumVis::renderCwOrRttyTuningAidWaterfall() {
     float gainDb = cachedGainDb_;
     if (isAutoGainMode()) {
         {
-            float deltaDb = 20.0f * log10f(0.95f);
+            float deltaDb = LINEAR_TO_DECIBELL(0.95f);
             gainDb = static_cast<int16_t>(roundf(static_cast<float>(gainDb) + deltaDb));
         }
     }
@@ -2010,7 +2010,7 @@ void UICompSpectrumVis::renderSnrCurve() {
     int16_t gainDb = cachedGainDb_;
     if (isAutoGainMode()) {
         {
-            float deltaDb = 20.0f * log10f(0.95f);
+            float deltaDb = LINEAR_TO_DECIBELL(0.95f);
             gainDb = static_cast<int16_t>(roundf(static_cast<float>(gainDb) + deltaDb));
         }
     }

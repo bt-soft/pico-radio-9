@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
  * -----                                                                                                               *
- * Last Modified: 2025.11.29, Saturday  06:24:12                                                                       *
+ * Last Modified: 2025.11.30, Sunday  12:16:19                                                                         *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -103,3 +103,5 @@
 
 #define MIN_AUDIO_FREQUENCY_HZ 300   // Minimum audio frekvencia (Hz)
 #define MAX_AUDIO_FREQUENCY_HZ 15000 // Maximum audio frekvencia (Hz)
+
+#define LINEAR_TO_DECIBELL(x) (20.0f * log10f(x)) // Lineáris érték dB-be konvertálása

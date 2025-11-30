@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
  * -----                                                                                                               *
- * Last Modified: 2025.11.30, Sunday  10:59:30                                                                         *
+ * Last Modified: 2025.11.30, Sunday  12:16:24                                                                         *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -569,7 +569,7 @@ bool AudioProcessorC1::processAndFillSharedData(SharedData &sharedData) {
     //         float snr_db = 0.0f;
     //         if (medianAbs > 0.0f) {
     //             float ratio = ((float)maxAbs) / medianAbs;
-    //             snr_db = 20.0f * log10f(ratio);
+    //             snr_db = LINEAR_TO_DECIBELL(ratio);
     //         }
 
     //         ADPROC_DEBUG("AudioProc-c1 METRICS: rms=%.1f, maxAbs=%ld, medianAbs=%.1f, estSNR(dB)=%.2f\n", rms, (long)maxAbs, medianAbs, snr_db);
