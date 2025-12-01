@@ -1858,6 +1858,7 @@ void UICompSpectrumVis::renderWaterfall() {
  * @brief Hangolási segéd renderelése (CW/RTTY waterfall)
  */
 void UICompSpectrumVis::renderCwOrRttyTuningAidWaterfall() {
+
     uint16_t graphH = getGraphHeight();
     if (!flags_.spriteCreated || bounds.width == 0 || graphH <= 0 || wabuf_.empty()) {
         return;
@@ -1926,7 +1927,7 @@ void UICompSpectrumVis::renderCwOrRttyTuningAidWaterfall() {
         updateMagnitudeBasedGain(estimatedPeak);
     }
 
-    // Draw tuning aid lines (CW piros vonal, RTTY mark=piros, space=sárga)
+    // Draw tuning aid lines (CW zöld vonal, RTTY mark=zöld, space=sárga)
     float freq_range = currentTuningAidMaxFreqHz_ - currentTuningAidMinFreqHz_;
     if (freq_range > 0) {
         if (currentTuningAidType_ == TuningAidType::CW_TUNING) {
@@ -1957,7 +1958,7 @@ void UICompSpectrumVis::renderCwOrRttyTuningAidWaterfall() {
         sprite_->setFreeFont();
         sprite_->setTextSize(1);
 
-        const int padding = 3; // 3px padding minden irányban
+        constexpr int8_t PADDING = 3; // 3px padding minden irányban
 
         if (currentTuningAidType_ == TuningAidType::CW_TUNING) {
             uint16_t cw_freq = config.data.cwToneFrequencyHz;
@@ -1969,13 +1970,13 @@ void UICompSpectrumVis::renderCwOrRttyTuningAidWaterfall() {
                 // Szöveg méret kiszámítása
                 int16_t text_w = sprite_->textWidth(buf);
                 int16_t text_h = sprite_->fontHeight();
-                int16_t box_x = x_pos - text_w / 2 - padding;
-                int16_t box_y = graphH - text_h - padding * 2;
-                int16_t box_w = text_w + padding * 2;
-                int16_t box_h = text_h + padding * 2;
+                int16_t box_x = x_pos - text_w / 2 - PADDING;
+                int16_t box_y = graphH - text_h - PADDING * 2;
+                int16_t box_w = text_w + PADDING * 2;
+                int16_t box_h = text_h + PADDING * 2;
 
                 sprite_->fillRect(box_x, box_y, box_w, box_h, TFT_BLACK); // Fekete háttér
-                sprite_->drawString(buf, x_pos, box_y + padding);         // Szöveg a téglalapba
+                sprite_->drawString(buf, x_pos, box_y + PADDING);         // Szöveg a téglalapba
             }
         } else if (currentTuningAidType_ == TuningAidType::RTTY_TUNING) {
             uint16_t mark_freq = config.data.rttyMarkFrequencyHz;
@@ -1988,13 +1989,13 @@ void UICompSpectrumVis::renderCwOrRttyTuningAidWaterfall() {
 
                 int16_t text_w = sprite_->textWidth(buf);
                 int16_t text_h = sprite_->fontHeight();
-                int16_t box_x = x_pos - text_w / 2 - padding;
-                int16_t box_y = graphH - text_h - padding * 2;
-                int16_t box_w = text_w + padding * 2;
-                int16_t box_h = text_h + padding * 2;
+                int16_t box_x = x_pos - text_w / 2 - PADDING;
+                int16_t box_y = graphH - text_h - PADDING * 2;
+                int16_t box_w = text_w + PADDING * 2;
+                int16_t box_h = text_h + PADDING * 2;
 
                 sprite_->fillRect(box_x, box_y, box_w, box_h, TFT_BLACK);
-                sprite_->drawString(buf, x_pos, box_y + padding);
+                sprite_->drawString(buf, x_pos, box_y + PADDING);
             }
             if (space_freq >= currentTuningAidMinFreqHz_ && space_freq <= currentTuningAidMaxFreqHz_) {
                 int x_pos = round(((space_freq - currentTuningAidMinFreqHz_) / freq_range) * (bounds.width - 1));
@@ -2003,13 +2004,13 @@ void UICompSpectrumVis::renderCwOrRttyTuningAidWaterfall() {
 
                 int16_t text_w = sprite_->textWidth(buf);
                 int16_t text_h = sprite_->fontHeight();
-                int16_t box_x = x_pos - text_w / 2 - padding;
-                int16_t box_y = graphH - text_h - padding * 2;
-                int16_t box_w = text_w + padding * 2;
-                int16_t box_h = text_h + padding * 2;
+                int16_t box_x = x_pos - text_w / 2 - PADDING;
+                int16_t box_y = graphH - text_h - PADDING * 2;
+                int16_t box_w = text_w + PADDING * 2;
+                int16_t box_h = text_h + PADDING * 2;
 
                 sprite_->fillRect(box_x, box_y, box_w, box_h, TFT_BLACK);
-                sprite_->drawString(buf, x_pos, box_y + padding);
+                sprite_->drawString(buf, x_pos, box_y + PADDING);
             }
         }
     }
@@ -2018,9 +2019,11 @@ void UICompSpectrumVis::renderCwOrRttyTuningAidWaterfall() {
     sprite_->pushSprite(bounds.x, bounds.y);
 
     renderFrequencyRangeLabels(currentTuningAidMinFreqHz_, currentTuningAidMaxFreqHz_);
-} /**
-   * @brief SNR Curve renderelése - frekvencia/SNR burkológörbe
-   */
+}
+
+/**
+ * @brief SNR Curve renderelése - frekvencia/SNR burkológörbe
+ */
 void UICompSpectrumVis::renderSnrCurve() {
     uint16_t graphH = getGraphHeight();
     if (!flags_.spriteCreated || bounds.width == 0 || graphH <= 0) {
@@ -2105,7 +2108,7 @@ void UICompSpectrumVis::renderSnrCurve() {
         sprite_->setFreeFont();
         sprite_->setTextSize(1);
 
-        const int padding = 3; // 3px padding minden irányban
+        constexpr int8_t PADDING = 3; // 3px padding minden irányban
 
         if (currentTuningAidType_ == TuningAidType::CW_TUNING) {
             uint16_t cw_freq = config.data.cwToneFrequencyHz;
@@ -2117,13 +2120,13 @@ void UICompSpectrumVis::renderSnrCurve() {
                 // Szöveg méret kiszámítása
                 int16_t text_w = sprite_->textWidth(buf);
                 int16_t text_h = sprite_->fontHeight();
-                int16_t box_x = x_pos - text_w / 2 - padding;
-                int16_t box_y = graphH - text_h - padding * 2;
-                int16_t box_w = text_w + padding * 2;
-                int16_t box_h = text_h + padding * 2;
+                int16_t box_x = x_pos - text_w / 2 - PADDING;
+                int16_t box_y = graphH - text_h - PADDING * 2;
+                int16_t box_w = text_w + PADDING * 2;
+                int16_t box_h = text_h + PADDING * 2;
 
                 sprite_->fillRect(box_x, box_y, box_w, box_h, TFT_BLACK); // Fekete háttér
-                sprite_->drawString(buf, x_pos, box_y + padding);         // Szöveg a téglalapba
+                sprite_->drawString(buf, x_pos, box_y + PADDING);         // Szöveg a téglalapba
             }
         } else if (currentTuningAidType_ == TuningAidType::RTTY_TUNING) {
             uint16_t mark_freq = config.data.rttyMarkFrequencyHz;
@@ -2136,14 +2139,15 @@ void UICompSpectrumVis::renderSnrCurve() {
 
                 int16_t text_w = sprite_->textWidth(buf);
                 int16_t text_h = sprite_->fontHeight();
-                int16_t box_x = x_pos - text_w / 2 - padding;
-                int16_t box_y = graphH - text_h - padding * 2;
-                int16_t box_w = text_w + padding * 2;
-                int16_t box_h = text_h + padding * 2;
+                int16_t box_x = x_pos - text_w / 2 - PADDING;
+                int16_t box_y = graphH - text_h - PADDING * 2;
+                int16_t box_w = text_w + PADDING * 2;
+                int16_t box_h = text_h + PADDING * 2;
 
                 sprite_->fillRect(box_x, box_y, box_w, box_h, TFT_BLACK);
-                sprite_->drawString(buf, x_pos, box_y + padding);
+                sprite_->drawString(buf, x_pos, box_y + PADDING);
             }
+
             if (space_freq >= min_freq && space_freq <= max_freq) {
                 int x_pos = round(((space_freq - min_freq) / freq_range) * (bounds.width - 1));
                 char buf[16];
@@ -2151,13 +2155,13 @@ void UICompSpectrumVis::renderSnrCurve() {
 
                 int16_t text_w = sprite_->textWidth(buf);
                 int16_t text_h = sprite_->fontHeight();
-                int16_t box_x = x_pos - text_w / 2 - padding;
-                int16_t box_y = graphH - text_h - padding * 2;
-                int16_t box_w = text_w + padding * 2;
-                int16_t box_h = text_h + padding * 2;
+                int16_t box_x = x_pos - text_w / 2 - PADDING;
+                int16_t box_y = graphH - text_h - PADDING * 2;
+                int16_t box_w = text_w + PADDING * 2;
+                int16_t box_h = text_h + PADDING * 2;
 
                 sprite_->fillRect(box_x, box_y, box_w, box_h, TFT_BLACK);
-                sprite_->drawString(buf, x_pos, box_y + padding);
+                sprite_->drawString(buf, x_pos, box_y + PADDING);
             }
         }
     }
