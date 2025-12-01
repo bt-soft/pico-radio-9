@@ -997,8 +997,8 @@ void UICompSpectrumVis::renderOffMode() {
     tft.setFreeFont();
     tft.setTextSize(3);         // Még nagyobb betűméret
     tft.setTextDatum(MC_DATUM); // Középre igazítás (függőlegesen és vízszintesen középre)
-    int textX = bounds.x + bounds.width / 2;
-    int textY = bounds.y + (bounds.height - 1) / 2; // Pontos középre igazítás, figyelembe véve az alsó border-t
+    int16_t textX = bounds.x + bounds.width / 2;
+    int16_t textY = bounds.y + (bounds.height - 1) / 2; // Pontos középre igazítás, figyelembe véve az alsó border-t
     tft.drawString("OFF", textX, textY);
 }
 
@@ -1007,11 +1007,11 @@ void UICompSpectrumVis::renderOffMode() {
  */
 uint16_t UICompSpectrumVis::valueToWaterfallColor(float val, float min_val, float max_val, byte colorProfileIndex) {
     const uint16_t *colors = (colorProfileIndex == 0) ? FftDisplayConstants::waterFallColors_0 : FftDisplayConstants::waterFallColors_1;
-    byte color_size = 16;
+    constexpr uint8_t color_size = 16;
 
     val = constrain(val, min_val, max_val);
 
-    int index = (int)((val - min_val) * (color_size - 1) / (max_val - min_val));
+    uint8_t index = (uint8_t)((val - min_val) * (color_size - 1) / (max_val - min_val));
     index = constrain(index, 0, color_size - 1);
 
     return colors[index];
@@ -1094,9 +1094,7 @@ uint8_t UICompSpectrumVis::getBandVal(int fft_bin_index, int min_bin_low_res, in
         return 0; // Vagy egy érvénytelen sáv index, ha szükséges
     }
     // Kiszámítjuk a relatív indexet a megadott tartományon belül
-    int relative_bin_index = fft_bin_index - min_bin_low_res;
-    if (relative_bin_index < 0)
-        return 0; // Elvileg nem fordulhat elő, ha fft_bin_index >= min_bin_low_res
+    uint16_t relative_bin_index = fft_bin_index - min_bin_low_res;
 
     // Leképezzük a relatív bin indexet (0-tól num_bins_low_res_range-1-ig) a total_bands sávokra
     return constrain(relative_bin_index * total_bands / num_bins_low_res_range, 0, total_bands - 1);
@@ -1229,7 +1227,7 @@ void UICompSpectrumVis::renderModeIndicator() {
     if (!flags_.modeIndicatorVisible)
         return;
 
-    int indicatorH = getIndicatorHeight();
+    uint8_t indicatorH = getIndicatorHeight();
     if (indicatorH < 8)
         return;
 
@@ -1253,7 +1251,7 @@ void UICompSpectrumVis::renderModeIndicator() {
     }
 
     // A mód indikátor területének törlése a szöveg rajzolása előtt - KERET ALATT
-    int indicatorY = bounds.y + bounds.height; // Közvetlenül a keret alatt kezdődik
+    int16_t indicatorY = bounds.y + bounds.height; // Közvetlenül a keret alatt kezdődik
     tft.fillRect(bounds.x - 4, indicatorY, bounds.width + 8, 10, TFT_BLACK);
 
     // Szöveg kirajzolása a komponens alján + indikátor terület közepén
@@ -1292,15 +1290,15 @@ void UICompSpectrumVis::renderFrequencyRangeLabels(uint16_t minDisplayFrequencyH
         // Max frekvencia a spektrum felett középen - csak a címke mögötti kis területet töröljük,
         // hogy ne töröljük a teljes felső keretet.
         String topLabel = Utils::formatFrequencyString(maxDisplayFrequencyHz);
-        tft.setTextDatum(TC_DATUM);    // Felső-középre igazítás
-        const int approxCharWidth = 6; // jó közelítés a setTextSize(1) esetén
-        int textWidth = topLabel.length() * approxCharWidth;
+        tft.setTextDatum(TC_DATUM);            // Felső-középre igazítás
+        constexpr uint8_t approxCharWidth = 6; // jó közelítés a setTextSize(1) esetén
+        int16_t textWidth = topLabel.length() * approxCharWidth;
 
         // Kis margó a szöveg körül
-        int bgMargin = 4;
-        int centerX = bounds.x + bounds.width / 2;
-        int rectX = centerX - (textWidth / 2) - bgMargin;
-        int rectW = textWidth + bgMargin * 2;
+        constexpr uint8_t bgMargin = 4;
+        int16_t centerX = bounds.x + bounds.width / 2;
+        int16_t rectX = centerX - (textWidth / 2) - bgMargin;
+        int16_t rectW = textWidth + bgMargin * 2;
 
         // Clamp a téglalapot a komponens területére
         if (rectX < bounds.x) {
@@ -1311,7 +1309,7 @@ void UICompSpectrumVis::renderFrequencyRangeLabels(uint16_t minDisplayFrequencyH
         }
 
         // Emeljük a címkét 2 pixellel magasabbra a kérés szerint.
-        int rectY = bounds.y - 16; // háttér téglalap kezdete kicsit fentebb
+        int16_t rectY = bounds.y - 16; // háttér téglalap kezdete kicsit fentebb
 
         // Clamp rectY hogy ne lépjen ki túl messze a komponens fölé
         if (rectY < bounds.y - 20) {
@@ -1392,7 +1390,7 @@ void UICompSpectrumVis::renderTuningAidFrequencyLabels(float min_freq, float max
         }
 
         // X pozíció számítása a frekvencia alapján
-        int x_pos = round(((freq - min_freq) / freq_range) * (bounds.width - 1));
+        int16_t x_pos = round(((freq - min_freq) / freq_range) * (bounds.width - 1));
 
         // Formázott szöveg készítése (prefix opcionális: "M:" vagy "S:")
         char buf[16];
@@ -1714,8 +1712,8 @@ float UICompSpectrumVis::computeMagnitudeRmsMember(const q15_t *data, int startB
     if (!data || endBin < startBin)
         return 0.0f;
     double sum_sq = 0.0;
-    int count = 0;
-    for (int i = startBin; i <= endBin; ++i) {
+    uint16_t count = 0;
+    for (uint16_t i = startBin; i <= endBin; ++i) {
         double v = static_cast<double>(data[i]);
         sum_sq += v * v;
         ++count;
@@ -1810,7 +1808,7 @@ void UICompSpectrumVis::renderEnvelope() {
 
     for (uint8_t c = 0; c < bounds.width; ++c) {
         int32_t sum_val_in_col = 0;
-        int16_t count_val_in_col = 0;
+        uint8_t count_val_in_col = 0;
         for (uint8_t r = 0; r < bounds.height; ++r) {
             if (wabuf_[r * bounds.width + c] > 0) {
                 sum_val_in_col += wabuf_[r * bounds.width + c];
@@ -1829,12 +1827,12 @@ void UICompSpectrumVis::renderEnvelope() {
             if (displayValue > 150.0f)
                 displayValue = 150.0f + (displayValue - 150.0f) * 0.1f;
 
-            int y_offset_pixels = round((displayValue / 100.0f) * (graphH * GRAPH_TARGET_HEIGHT_UTILIZATION));
-            y_offset_pixels = std::min(y_offset_pixels, static_cast<int>(graphH) - 4);
+            uint16_t y_offset_pixels = round((displayValue / 100.0f) * (graphH * GRAPH_TARGET_HEIGHT_UTILIZATION));
+            y_offset_pixels = std::min(y_offset_pixels, static_cast<uint16_t>(graphH - 4));
 
             if (y_offset_pixels > 1) {
-                int yUpper = constrain(yCenter_on_sprite - y_offset_pixels / 2, 2, graphH - 3);
-                int yLower = constrain(yCenter_on_sprite + y_offset_pixels / 2, 2, graphH - 3);
+                uint16_t yUpper = constrain(yCenter_on_sprite - y_offset_pixels / 2, 2, graphH - 3);
+                uint16_t yLower = constrain(yCenter_on_sprite + y_offset_pixels / 2, 2, graphH - 3);
                 if (yUpper <= yLower) {
                     sprite_->drawFastVLine(c, yUpper, yLower - yUpper + 1, TFT_WHITE);
                     if (y_offset_pixels > 4) {
@@ -1867,9 +1865,9 @@ void UICompSpectrumVis::renderWaterfall() {
 
     // Waterfall scroll - optimaliz optimalizalva korkoros bufferrel (nincs szukseg move-ra)
 
-    const int min_bin_for_wf = std::max(2, static_cast<int>(std::round(MIN_AUDIO_FREQUENCY_HZ / currentBinWidthHz)));
-    const int max_bin_for_wf = std::min(static_cast<int>(actualFftSize - 1), static_cast<int>(std::round(maxDisplayFrequencyHz_ / currentBinWidthHz)));
-    const int num_bins_in_wf_range = std::max(1, max_bin_for_wf - min_bin_for_wf + 1);
+    const uint16_t min_bin_for_wf = std::max(2, static_cast<int>(std::round(MIN_AUDIO_FREQUENCY_HZ / currentBinWidthHz)));
+    const uint16_t max_bin_for_wf = std::min(static_cast<int>(actualFftSize - 1), static_cast<int>(std::round(maxDisplayFrequencyHz_ / currentBinWidthHz)));
+    const uint16_t num_bins_in_wf_range = std::max(1, max_bin_for_wf - min_bin_for_wf + 1);
 
     // --- Gain Calculation ---
     int32_t gain_scaled; // Gain * 255 (32-bit nativ muveletek!)
@@ -1889,7 +1887,7 @@ void UICompSpectrumVis::renderWaterfall() {
 
     uint8_t maxwabuf_Val = 0;
     for (uint16_t r = 0; r < bounds.height; ++r) {
-        int fft_bin_index =
+        uint16_t fft_bin_index =
             min_bin_for_wf + static_cast<int>(std::round(static_cast<float>(r) * (num_bins_in_wf_range - 1) / std::max(1, (bounds.height - 1))));
         fft_bin_index = constrain(fft_bin_index, min_bin_for_wf, max_bin_for_wf);
         uint8_t val = q15ToUint8(magnitudeData[fft_bin_index], gain_scaled);
@@ -1901,8 +1899,8 @@ void UICompSpectrumVis::renderWaterfall() {
     sprite_->scroll(-1, 0);
     for (uint16_t y = 0; y < graphH; ++y) {
         float r_wabuf_float = (static_cast<float>(graphH - 1 - y) * (bounds.height - 1)) / std::max(1, graphH - 1);
-        int r_lower = floor(r_wabuf_float);
-        int r_upper = ceil(r_wabuf_float);
+        uint16_t r_lower = floor(r_wabuf_float);
+        uint16_t r_upper = ceil(r_wabuf_float);
         r_lower = constrain(r_lower, 0, bounds.height - 1);
         r_upper = constrain(r_upper, 0, bounds.height - 1);
 
@@ -1944,9 +1942,9 @@ void UICompSpectrumVis::renderCwOrRttyTuningAidWaterfall() {
 
     sprite_->scroll(0, 1);
 
-    const int min_bin = std::max(2, static_cast<int>(std::round(currentTuningAidMinFreqHz_ / currentBinWidthHz)));
-    const int max_bin = std::min(static_cast<int>(actualFftSize - 1), static_cast<int>(std::round(currentTuningAidMaxFreqHz_ / currentBinWidthHz)));
-    const int num_bins = std::max(1, max_bin - min_bin + 1);
+    const uint16_t min_bin = std::max(2, static_cast<int>(std::round(currentTuningAidMinFreqHz_ / currentBinWidthHz)));
+    const uint16_t max_bin = std::min(static_cast<int>(actualFftSize - 1), static_cast<int>(std::round(currentTuningAidMaxFreqHz_ / currentBinWidthHz)));
+    const uint16_t num_bins = std::max(1, max_bin - min_bin + 1);
 
     // --- Gain Calculation ---
     // Tuning aid waterfall fix: átmenetileg állítsuk be a CW/RTTY sávszélességet,
@@ -2003,7 +2001,7 @@ void UICompSpectrumVis::renderCwOrRttyTuningAidWaterfall() {
         if (currentTuningAidType_ == TuningAidType::CW_TUNING) {
             uint16_t cw_freq = config.data.cwToneFrequencyHz;
             if (cw_freq >= currentTuningAidMinFreqHz_ && cw_freq <= currentTuningAidMaxFreqHz_) {
-                int x_pos = round(((cw_freq - currentTuningAidMinFreqHz_) / freq_range) * (bounds.width - 1));
+                int16_t x_pos = round(((cw_freq - currentTuningAidMinFreqHz_) / freq_range) * (bounds.width - 1));
                 sprite_->drawFastVLine(x_pos, 0, graphH, TFT_GREEN);
             }
         } else if (currentTuningAidType_ == TuningAidType::RTTY_TUNING) {
@@ -2011,11 +2009,11 @@ void UICompSpectrumVis::renderCwOrRttyTuningAidWaterfall() {
             uint16_t space_freq = mark_freq - config.data.rttyShiftFrequencyHz;
 
             if (mark_freq >= currentTuningAidMinFreqHz_ && mark_freq <= currentTuningAidMaxFreqHz_) {
-                int x_pos = round(((mark_freq - currentTuningAidMinFreqHz_) / freq_range) * (bounds.width - 1));
+                int16_t x_pos = round(((mark_freq - currentTuningAidMinFreqHz_) / freq_range) * (bounds.width - 1));
                 sprite_->drawFastVLine(x_pos, 0, graphH, TFT_GREEN);
             }
             if (space_freq >= currentTuningAidMinFreqHz_ && space_freq <= currentTuningAidMaxFreqHz_) {
-                int x_pos = round(((space_freq - currentTuningAidMinFreqHz_) / freq_range) * (bounds.width - 1));
+                int16_t x_pos = round(((space_freq - currentTuningAidMinFreqHz_) / freq_range) * (bounds.width - 1));
                 sprite_->drawFastVLine(x_pos, 0, graphH, TFT_YELLOW);
             }
         }
@@ -2056,27 +2054,77 @@ void UICompSpectrumVis::renderSnrCurve() {
     const uint16_t max_bin = std::min(static_cast<int>(actualFftSize - 1), static_cast<int>(std::round(max_freq / currentBinWidthHz)));
     const uint16_t num_bins = std::max(1, max_bin - min_bin + 1);
 
-    // --- Gain Calculation ---
-    float final_gain_lin = cachedGainLinear_; // Cache-elt lineáris gain (powf eliminálva!)
-    if (isAutoGainMode()) {
-        final_gain_lin *= magnitudeAgcGainFactor_;
-    } else {
-        int8_t gainCfg = this->radioMode_ == RadioMode::AM ? config.data.audioFftGainConfigAm : config.data.audioFftGainConfigFm;
-        final_gain_lin *= powf(10.0f, static_cast<float>(gainCfg) / 20.0f);
-    }
-    // --- End of Gain Calculation ---
+    // --- SNR Curve speciális renderelés: nincs fix gain, dinamikus skálázás ---
+    // Először megkeressük a nyers magnitude minimum és maximum értékeket
+    q15_t rawMin = 32767;
+    q15_t rawMax = 0;
+    std::vector<q15_t> rawValues(bounds.width, 0);
 
-    float maxMagnitude = 0.0f;
-    int16_t prevX = -1, prevY = -1;
     for (uint16_t x = 0; x < bounds.width; x++) {
         float ratio = (bounds.width <= 1) ? 0.0f : static_cast<float>(x) / (bounds.width - 1);
         float exact_bin = min_bin + ratio * (num_bins - 1);
-
         q15_t mag_q15 = static_cast<q15_t>(std::round(q15InterpolateFloat(magnitudeData, exact_bin, min_bin, max_bin)));
-        uint16_t pixelHeight = q15ToPixelHeight(mag_q15, (int32_t)(final_gain_lin * 255.0f), graphH);
-        maxMagnitude = std::max(maxMagnitude, static_cast<float>(pixelHeight));
+        rawValues[x] = q15Abs(mag_q15);
 
-        uint16_t y = graphH - constrain(pixelHeight, 0, graphH - 1);
+        if (rawValues[x] < rawMin)
+            rawMin = rawValues[x];
+        if (rawValues[x] > rawMax)
+            rawMax = rawValues[x];
+    }
+
+    // Mozgóátlag simítás a kiugrások csökkentésére (3 pontos átlag)
+    constexpr uint8_t SMOOTH_WINDOW = 3;
+    std::vector<q15_t> smoothedValues(bounds.width, 0);
+    for (uint16_t x = 0; x < bounds.width; x++) {
+        int32_t sum = 0;
+        uint8_t count = 0;
+        for (int16_t dx = -SMOOTH_WINDOW; dx <= SMOOTH_WINDOW; dx++) {
+            int16_t nx = x + dx;
+            if (nx >= 0 && nx < bounds.width) {
+                sum += rawValues[nx];
+                count++;
+            }
+        }
+        smoothedValues[x] = (count > 0) ? (sum / count) : rawValues[x];
+    }
+
+    // Újra számoljuk a min/max értékeket a SIMÍTOTT adatokból
+    q15_t smoothedMin = 32767;
+    q15_t smoothedMax = 0;
+    for (uint16_t x = 0; x < bounds.width; x++) {
+        if (smoothedValues[x] < smoothedMin)
+            smoothedMin = smoothedValues[x];
+        if (smoothedValues[x] > smoothedMax)
+            smoothedMax = smoothedValues[x];
+    }
+
+    // Dinamikus skálázás: a legkisebb érték (smoothedMin) a grafikon aljára kerül
+    // A legnagyobb érték (smoothedMax) a grafikon tetejére skálázódik
+    float range = static_cast<float>(smoothedMax - smoothedMin);
+    if (range < 1.0f)
+        range = 1.0f; // Nullaosztás elkerülése
+
+    // Teljes grafikon magasságot használjuk, kis margóval a tetejénél
+    const uint16_t maxHeight = graphH - 2; // 2 pixel margó a tetején
+    std::vector<uint16_t> computedHeights(bounds.width, 0);
+
+    for (uint16_t x = 0; x < bounds.width; x++) {
+        // Normalizálás: a smoothedMin lesz 0, a smoothedMax lesz 1
+        float normalized = static_cast<float>(smoothedValues[x] - smoothedMin) / range;
+        computedHeights[x] = static_cast<uint16_t>(normalized * maxHeight);
+    }
+
+    // Nincs szükség további skálázásra, már az optimális tartományban vagyunk
+    float finalScale = 1.0f;
+
+    // Második pass: skálázott görbe rajzolása
+    int16_t prevX = -1, prevY = -1;
+    for (uint16_t x = 0; x < bounds.width; x++) {
+        uint16_t scaledHeight = static_cast<uint16_t>(computedHeights[x] * finalScale);
+        scaledHeight = constrain(scaledHeight, 0, maxHeight);
+
+        // y koordináta: graphH - 1 az alja, 1 a teteje (2 pixel margóval)
+        uint16_t y = (graphH - 1) - scaledHeight;
 
         if (prevX != -1) {
             sprite_->drawLine(prevX, prevY, x, y, TFT_CYAN);
@@ -2086,13 +2134,20 @@ void UICompSpectrumVis::renderSnrCurve() {
         prevY = y;
     }
 
+    // AGC frissítés (ha auto gain mód)
+    if (isAutoGainMode()) {
+        // SNR curve esetén a nyers maximum értéket használjuk AGC célra
+        float maxMagnitudeForAgc = static_cast<float>(rawMax);
+        updateMagnitudeBasedGain(maxMagnitudeForAgc);
+    }
+
     // Draw tuning aid lines
     float freq_range = max_freq - min_freq;
     if (freq_range > 0) {
         if (currentTuningAidType_ == TuningAidType::CW_TUNING) {
             uint16_t cw_freq = config.data.cwToneFrequencyHz;
             if (cw_freq >= min_freq && cw_freq <= max_freq) {
-                int x_pos = round(((cw_freq - min_freq) / freq_range) * (bounds.width - 1));
+                int16_t x_pos = round(((cw_freq - min_freq) / freq_range) * (bounds.width - 1));
                 sprite_->drawFastVLine(x_pos, 0, graphH, TFT_GREEN);
             }
         } else if (currentTuningAidType_ == TuningAidType::RTTY_TUNING) {
@@ -2100,11 +2155,11 @@ void UICompSpectrumVis::renderSnrCurve() {
             uint16_t space_freq = mark_freq - config.data.rttyShiftFrequencyHz;
 
             if (mark_freq >= min_freq && mark_freq <= max_freq) {
-                int x_pos = round(((mark_freq - min_freq) / freq_range) * (bounds.width - 1));
+                int16_t x_pos = round(((mark_freq - min_freq) / freq_range) * (bounds.width - 1));
                 sprite_->drawFastVLine(x_pos, 0, graphH, TFT_GREEN);
             }
             if (space_freq >= min_freq && space_freq <= max_freq) {
-                int x_pos = round(((space_freq - min_freq) / freq_range) * (bounds.width - 1));
+                int16_t x_pos = round(((space_freq - min_freq) / freq_range) * (bounds.width - 1));
                 sprite_->drawFastVLine(x_pos, 0, graphH, TFT_YELLOW);
             }
         }
@@ -2122,7 +2177,7 @@ void UICompSpectrumVis::renderSnrCurve() {
         if (currentTuningAidType_ == TuningAidType::CW_TUNING) {
             uint16_t cw_freq = config.data.cwToneFrequencyHz;
             if (cw_freq >= min_freq && cw_freq <= max_freq) {
-                int x_pos = round(((cw_freq - min_freq) / freq_range) * (bounds.width - 1));
+                int16_t x_pos = round(((cw_freq - min_freq) / freq_range) * (bounds.width - 1));
                 char buf[16];
                 snprintf(buf, sizeof(buf), "%u", cw_freq);
 
@@ -2142,7 +2197,7 @@ void UICompSpectrumVis::renderSnrCurve() {
             uint16_t space_freq = mark_freq - config.data.rttyShiftFrequencyHz;
 
             if (mark_freq >= min_freq && mark_freq <= max_freq) {
-                int x_pos = round(((mark_freq - min_freq) / freq_range) * (bounds.width - 1));
+                int16_t x_pos = round(((mark_freq - min_freq) / freq_range) * (bounds.width - 1));
                 char buf[16];
                 snprintf(buf, sizeof(buf), "M:%u", mark_freq);
 
@@ -2158,7 +2213,7 @@ void UICompSpectrumVis::renderSnrCurve() {
             }
 
             if (space_freq >= min_freq && space_freq <= max_freq) {
-                int x_pos = round(((space_freq - min_freq) / freq_range) * (bounds.width - 1));
+                int16_t x_pos = round(((space_freq - min_freq) / freq_range) * (bounds.width - 1));
                 char buf[16];
                 snprintf(buf, sizeof(buf), "S:%u", space_freq);
 
@@ -2175,8 +2230,11 @@ void UICompSpectrumVis::renderSnrCurve() {
         }
     }
 
+    // AGC frissítés (ha auto gain mód)
     if (isAutoGainMode()) {
-        updateMagnitudeBasedGain(maxMagnitude);
+        // SNR curve esetén a nyers maximum értéket használjuk AGC célra
+        float maxMagnitudeForAgc = static_cast<float>(rawMax);
+        updateMagnitudeBasedGain(maxMagnitudeForAgc);
     }
 
     sprite_->pushSprite(bounds.x, bounds.y);

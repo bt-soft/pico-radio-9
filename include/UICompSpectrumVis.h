@@ -214,11 +214,11 @@ class UICompSpectrumVis : public UIComponent {
 
     // Sprite handling
     TFT_eSprite *sprite_;
-    int indicatorFontHeight_;
+    uint8_t indicatorFontHeight_;
 
     // Peak buffer a LowRes módhoz
-    int Rpeak_[LOW_RES_BANDS];
-    uint8_t bar_height_[LOW_RES_BANDS]; // Bar magasságok csillapításhoz
+    uint8_t Rpeak_[LOW_RES_BANDS];
+    uint8_t bar_height_[LOW_RES_BANDS]; // Bar magasságok csillapodáshoz
 
     // HighRes simítási puffer a képkockák közötti villogás csökkentésére
     std::vector<float> highresSmoothedCols;
