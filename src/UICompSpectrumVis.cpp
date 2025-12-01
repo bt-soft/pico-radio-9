@@ -175,11 +175,11 @@ struct BandwidthScaleConfig {
 constexpr BandwidthScaleConfig BANDWIDTH_GAIN_TABLE[] = {
     // bandwidthHz,    lowResBarGainDb, highResBarGainDb, oscilloscopeGainDb, envelopeGainDb, waterfallGainDb,
     // csak CW és RRTY módban: tuningAidWaterfallDb, tuningAidSnrCurveDb
-    {CW_AF_BANDWIDTH_HZ, 6.0f, 5.0f, -3.0f, 18.0f, 3.0f, 26.0f, 18.0f},        // 1.5kHz: CW mód
-    {RTTY_AF_BANDWIDTH_HZ, 4.0f, 3.0f, 2.0f, 3.0f, 2.0f, 3.0f, 8.0f},          // 3kHz: RTTY mód
-    {AM_AF_BANDWIDTH_HZ, -18.0f, -18.0f, 0.0f, -10.0f, -10.0f, 10.0f, -10.0f}, // 6kHz: AM mód
-    {WEFAX_SAMPLE_RATE_HZ, NOAMP, NOAMP, NOAMP, NOAMP, NOAMP, NOAMP, NOAMP},   // 11025Hz: WEFAX mód
-    {FM_AF_BANDWIDTH_HZ, 10.0f, 10.0f, -3.0f, 18.0f, 18.0f, NOAMP, NOAMP},     // 15kHz: FM mód
+    {CW_AF_BANDWIDTH_HZ, 6.0f, 5.0f, -3.0f, 18.0f, 3.0f, 26.0f, 18.0f},       // 1.5kHz: CW mód
+    {RTTY_AF_BANDWIDTH_HZ, 4.0f, 3.0f, 2.0f, 3.0f, 2.0f, 3.0f, 8.0f},         // 3kHz: RTTY mód
+    {AM_AF_BANDWIDTH_HZ, -10.0f, -10.0f, 0.0f, 5.0f, 10.0f, 10.0f, 0.0f}, // 6kHz: AM mód
+    {WEFAX_SAMPLE_RATE_HZ, NOAMP, NOAMP, NOAMP, NOAMP, NOAMP, NOAMP, NOAMP},  // 11025Hz: WEFAX mód
+    {FM_AF_BANDWIDTH_HZ, 10.0f, 10.0f, -3.0f, 18.0f, 18.0f, NOAMP, NOAMP},    // 15kHz: FM mód
 };
 constexpr size_t BANDWIDTH_GAIN_TABLE_SIZE = ARRAY_ITEM_COUNT(BANDWIDTH_GAIN_TABLE);
 
