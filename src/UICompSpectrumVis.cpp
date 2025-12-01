@@ -175,11 +175,11 @@ struct BandwidthScaleConfig {
 constexpr BandwidthScaleConfig BANDWIDTH_GAIN_TABLE[] = {
     // bandwidthHz,    lowResBarGainDb, highResBarGainDb, oscilloscopeGainDb, envelopeGainDb, waterfallGainDb,
     // csak CW és RRTY módban: tuningAidWaterfallDb, tuningAidSnrCurveDb
-    {CW_AF_BANDWIDTH_HZ, 6.0f, 5.0f, -3.0f, 18.0f, 3.0f, 26.0f, 18.0f},       // 1.5kHz: CW mód
-    {RTTY_AF_BANDWIDTH_HZ, 4.0f, 3.0f, 2.0f, 3.0f, 2.0f, 3.0f, 8.0f},         // 3kHz: RTTY mód
-    {AM_AF_BANDWIDTH_HZ, -10.0f, -10.0f, 0.0f, 5.0f, 10.0f, 10.0f, 0.0f}, // 6kHz: AM mód
-    {WEFAX_SAMPLE_RATE_HZ, NOAMP, NOAMP, NOAMP, NOAMP, NOAMP, NOAMP, NOAMP},  // 11025Hz: WEFAX mód
-    {FM_AF_BANDWIDTH_HZ, 10.0f, 10.0f, -3.0f, 18.0f, 18.0f, NOAMP, NOAMP},    // 15kHz: FM mód
+    {CW_AF_BANDWIDTH_HZ, 6.0f, 5.0f, -3.0f, 18.0f, 3.0f, 26.0f, 18.0f},      // 1.5kHz: CW mód
+    {RTTY_AF_BANDWIDTH_HZ, 4.0f, 3.0f, 2.0f, 3.0f, 2.0f, 3.0f, 8.0f},        // 3kHz: RTTY mód
+    {AM_AF_BANDWIDTH_HZ, -10.0f, -10.0f, 0.0f, 5.0f, 10.0f, 26.0f, 0.0f},    // 6kHz: AM mód
+    {WEFAX_SAMPLE_RATE_HZ, NOAMP, NOAMP, NOAMP, NOAMP, NOAMP, NOAMP, NOAMP}, // 11025Hz: WEFAX mód
+    {FM_AF_BANDWIDTH_HZ, 10.0f, 10.0f, -3.0f, 18.0f, 18.0f, NOAMP, NOAMP},   // 15kHz: FM mód
 };
 constexpr size_t BANDWIDTH_GAIN_TABLE_SIZE = ARRAY_ITEM_COUNT(BANDWIDTH_GAIN_TABLE);
 
@@ -1878,7 +1878,11 @@ void UICompSpectrumVis::renderCwOrRttyTuningAidWaterfall() {
     const int num_bins = std::max(1, max_bin - min_bin + 1);
 
     // --- Gain Calculation ---
-    float final_gain_lin = cachedGainLinear_; // Cache-elt lineáris gain (powf eliminálva!)
+    // Tuning aid waterfall fix: hardkódolt alap gain CW/RTTY módokhoz
+    // (currentBandwidthHz_ nem mindig CW/RTTY sávszélesség, lehet AM/FM is!)
+    float base_gain_db = (currentTuningAidType_ == TuningAidType::CW_TUNING) ? 26.0f : 3.0f;
+    float final_gain_lin = powf(10.0f, base_gain_db / 20.0f);
+
     if (isAutoGainMode()) {
         final_gain_lin *= magnitudeAgcGainFactor_;
     } else {
