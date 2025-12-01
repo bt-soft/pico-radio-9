@@ -1950,12 +1950,14 @@ void UICompSpectrumVis::renderCwOrRttyTuningAidWaterfall() {
         }
     }
 
-    // Frekvencia címkék a hangolási vonalakon (sprite-ra, vonal aljára, 2px padding)
+    // Frekvencia címkék a hangolási vonalakon (sprite-ra, vonal aljára, padding minden irányban)
     if (freq_range > 0) {
-        sprite_->setTextDatum(BC_DATUM);             // Alul középre igazítva
+        sprite_->setTextDatum(TC_DATUM);             // Felül középre igazítva a méretszámításhoz
         sprite_->setTextColor(TFT_WHITE, TFT_BLACK); // Fehér szöveg, fekete háttér
         sprite_->setFreeFont();
         sprite_->setTextSize(1);
+
+        const int padding = 3; // 3px padding minden irányban
 
         if (currentTuningAidType_ == TuningAidType::CW_TUNING) {
             uint16_t cw_freq = config.data.cwToneFrequencyHz;
@@ -1963,7 +1965,17 @@ void UICompSpectrumVis::renderCwOrRttyTuningAidWaterfall() {
                 int x_pos = round(((cw_freq - currentTuningAidMinFreqHz_) / freq_range) * (bounds.width - 1));
                 char buf[16];
                 snprintf(buf, sizeof(buf), "%u", cw_freq);
-                sprite_->drawString(buf, x_pos, graphH - 3); // Vonal aljára + 2px padding
+
+                // Szöveg méret kiszámítása
+                int16_t text_w = sprite_->textWidth(buf);
+                int16_t text_h = sprite_->fontHeight();
+                int16_t box_x = x_pos - text_w / 2 - padding;
+                int16_t box_y = graphH - text_h - padding * 2;
+                int16_t box_w = text_w + padding * 2;
+                int16_t box_h = text_h + padding * 2;
+
+                sprite_->fillRect(box_x, box_y, box_w, box_h, TFT_BLACK); // Fekete háttér
+                sprite_->drawString(buf, x_pos, box_y + padding);         // Szöveg a téglalapba
             }
         } else if (currentTuningAidType_ == TuningAidType::RTTY_TUNING) {
             uint16_t mark_freq = config.data.rttyMarkFrequencyHz;
@@ -1973,13 +1985,31 @@ void UICompSpectrumVis::renderCwOrRttyTuningAidWaterfall() {
                 int x_pos = round(((mark_freq - currentTuningAidMinFreqHz_) / freq_range) * (bounds.width - 1));
                 char buf[16];
                 snprintf(buf, sizeof(buf), "M:%u", mark_freq);
-                sprite_->drawString(buf, x_pos, graphH - 3); // Vonal aljára + 2px padding
+
+                int16_t text_w = sprite_->textWidth(buf);
+                int16_t text_h = sprite_->fontHeight();
+                int16_t box_x = x_pos - text_w / 2 - padding;
+                int16_t box_y = graphH - text_h - padding * 2;
+                int16_t box_w = text_w + padding * 2;
+                int16_t box_h = text_h + padding * 2;
+
+                sprite_->fillRect(box_x, box_y, box_w, box_h, TFT_BLACK);
+                sprite_->drawString(buf, x_pos, box_y + padding);
             }
             if (space_freq >= currentTuningAidMinFreqHz_ && space_freq <= currentTuningAidMaxFreqHz_) {
                 int x_pos = round(((space_freq - currentTuningAidMinFreqHz_) / freq_range) * (bounds.width - 1));
                 char buf[16];
                 snprintf(buf, sizeof(buf), "S:%u", space_freq);
-                sprite_->drawString(buf, x_pos, graphH - 3); // Vonal aljára + 2px padding
+
+                int16_t text_w = sprite_->textWidth(buf);
+                int16_t text_h = sprite_->fontHeight();
+                int16_t box_x = x_pos - text_w / 2 - padding;
+                int16_t box_y = graphH - text_h - padding * 2;
+                int16_t box_w = text_w + padding * 2;
+                int16_t box_h = text_h + padding * 2;
+
+                sprite_->fillRect(box_x, box_y, box_w, box_h, TFT_BLACK);
+                sprite_->drawString(buf, x_pos, box_y + padding);
             }
         }
     }
@@ -2068,12 +2098,14 @@ void UICompSpectrumVis::renderSnrCurve() {
         }
     }
 
-    // Frekvencia címkék a hangolási vonalakon (sprite-ra, vonal aljára, 2px padding)
+    // Frekvencia címkék a hangolási vonalakon (sprite-ra, vonal aljára, padding minden irányban)
     if (freq_range > 0) {
-        sprite_->setTextDatum(BC_DATUM);             // Alul középre igazítva
+        sprite_->setTextDatum(TC_DATUM);             // Felül középre igazítva a méretszámításhoz
         sprite_->setTextColor(TFT_WHITE, TFT_BLACK); // Fehér szöveg, fekete háttér
         sprite_->setFreeFont();
         sprite_->setTextSize(1);
+
+        const int padding = 3; // 3px padding minden irányban
 
         if (currentTuningAidType_ == TuningAidType::CW_TUNING) {
             uint16_t cw_freq = config.data.cwToneFrequencyHz;
@@ -2081,7 +2113,17 @@ void UICompSpectrumVis::renderSnrCurve() {
                 int x_pos = round(((cw_freq - min_freq) / freq_range) * (bounds.width - 1));
                 char buf[16];
                 snprintf(buf, sizeof(buf), "%u", cw_freq);
-                sprite_->drawString(buf, x_pos, graphH - 3); // Vonal aljára + 2px padding
+
+                // Szöveg méret kiszámítása
+                int16_t text_w = sprite_->textWidth(buf);
+                int16_t text_h = sprite_->fontHeight();
+                int16_t box_x = x_pos - text_w / 2 - padding;
+                int16_t box_y = graphH - text_h - padding * 2;
+                int16_t box_w = text_w + padding * 2;
+                int16_t box_h = text_h + padding * 2;
+
+                sprite_->fillRect(box_x, box_y, box_w, box_h, TFT_BLACK); // Fekete háttér
+                sprite_->drawString(buf, x_pos, box_y + padding);         // Szöveg a téglalapba
             }
         } else if (currentTuningAidType_ == TuningAidType::RTTY_TUNING) {
             uint16_t mark_freq = config.data.rttyMarkFrequencyHz;
@@ -2091,13 +2133,31 @@ void UICompSpectrumVis::renderSnrCurve() {
                 int x_pos = round(((mark_freq - min_freq) / freq_range) * (bounds.width - 1));
                 char buf[16];
                 snprintf(buf, sizeof(buf), "M:%u", mark_freq);
-                sprite_->drawString(buf, x_pos, graphH - 3); // Vonal aljára + 2px padding
+
+                int16_t text_w = sprite_->textWidth(buf);
+                int16_t text_h = sprite_->fontHeight();
+                int16_t box_x = x_pos - text_w / 2 - padding;
+                int16_t box_y = graphH - text_h - padding * 2;
+                int16_t box_w = text_w + padding * 2;
+                int16_t box_h = text_h + padding * 2;
+
+                sprite_->fillRect(box_x, box_y, box_w, box_h, TFT_BLACK);
+                sprite_->drawString(buf, x_pos, box_y + padding);
             }
             if (space_freq >= min_freq && space_freq <= max_freq) {
                 int x_pos = round(((space_freq - min_freq) / freq_range) * (bounds.width - 1));
                 char buf[16];
                 snprintf(buf, sizeof(buf), "S:%u", space_freq);
-                sprite_->drawString(buf, x_pos, graphH - 3); // Vonal aljára + 2px padding
+
+                int16_t text_w = sprite_->textWidth(buf);
+                int16_t text_h = sprite_->fontHeight();
+                int16_t box_x = x_pos - text_w / 2 - padding;
+                int16_t box_y = graphH - text_h - padding * 2;
+                int16_t box_w = text_w + padding * 2;
+                int16_t box_h = text_h + padding * 2;
+
+                sprite_->fillRect(box_x, box_y, box_w, box_h, TFT_BLACK);
+                sprite_->drawString(buf, x_pos, box_y + padding);
             }
         }
     }
