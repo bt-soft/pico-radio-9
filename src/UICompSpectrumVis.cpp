@@ -37,7 +37,7 @@
 #define TEST_DO_NOT_PROCESS_MUTED_STATE
 
 // UICompSpectrumVis működés debug engedélyezése de csak DEBUG módban
-//#define __UISPECTRUM_DEBUG
+// #define __UISPECTRUM_DEBUG
 #if defined(__DEBUG) && defined(__UISPECTRUM_DEBUG)
 #define UISPECTRUM_DEBUG(fmt, ...) DEBUG(fmt __VA_OPT__(, ) __VA_ARGS__)
 #else
@@ -160,11 +160,11 @@ struct BandwidthScaleConfig {
 #define NOAMP 0.0f // Nincs erősítés
 constexpr BandwidthScaleConfig BANDWIDTH_GAIN_TABLE[] = {
     // bandwidthHz,    lowResBarGainDb, highResBarGainDb, oscilloscopeGainDb, envelopeGainDb, waterfallGainDb,
-    // csak CW éls RRTY módban: tuningAidWaterfallDb, tuningAidSnrCurveDb
-    {CW_AF_BANDWIDTH_HZ, 6.0f, 5.0f, 3.0f, 4.0f, 3.0f, 4.0f, 5.0f},            // 1.5kHz: CW mód
-    {RTTY_AF_BANDWIDTH_HZ, 4.0f, 3.0f, 2.0f, 3.0f, 2.0f, 3.0f, 3.0f},          // 3kHz: RTTY mód
+    // csak CW és RRTY módban: tuningAidWaterfallDb, tuningAidSnrCurveDb
+    {CW_AF_BANDWIDTH_HZ, 6.0f, 5.0f, -3.0f, 18.0f, 3.0f, 26.0f, 18.0f},          // 1.5kHz: CW mód
+    {RTTY_AF_BANDWIDTH_HZ, 4.0f, 3.0f, 2.0f, 3.0f, 2.0f, 3.0f, 8.0f},          // 3kHz: RTTY mód
     {AM_AF_BANDWIDTH_HZ, -18.0f, -18.0f, 0.0f, -10.0f, -10.0f, 10.0f, -10.0f}, // 6kHz: AM mód
-    {WEFAX_SAMPLE_RATE_HZ, 0.0f, 0.0f, 0.0f, 0.0f, -1.0f, -1.0f, -1.0f},       // 11025Hz: WEFAX mód
+    {WEFAX_SAMPLE_RATE_HZ, NOAMP, NOAMP, NOAMP, NOAMP, NOAMP, NOAMP, NOAMP},   // 11025Hz: WEFAX mód
     {FM_AF_BANDWIDTH_HZ, 20.0f, 25.0f, -3.0f, 18.0f, 22.0f, NOAMP, NOAMP},     // 15kHz: FM mód
 };
 constexpr size_t BANDWIDTH_GAIN_TABLE_SIZE = ARRAY_ITEM_COUNT(BANDWIDTH_GAIN_TABLE);
@@ -500,7 +500,6 @@ void UICompSpectrumVis::handleModeIndicator() {
     }
 }
 
-
 /**
  * @brief UIComponent draw implementáció
  */
@@ -548,33 +547,33 @@ void UICompSpectrumVis::draw() {
 
     // Renderelés módjának megfelelően
     switch (currentMode_) {
-    case DisplayMode::SpectrumLowRes:
-        renderSpectrumBar(true);
-        break;
-    case DisplayMode::SpectrumHighRes:
-        renderSpectrumBar(false);
-        break;
-    case DisplayMode::Oscilloscope:
-        renderOscilloscope();
-        break;
-    case DisplayMode::Envelope:
-        renderEnvelope();
-        break;
-    case DisplayMode::Waterfall:
-        renderWaterfall();
-        break;
-    case DisplayMode::CWWaterfall:
-    case DisplayMode::RTTYWaterfall:
-        renderCwOrRttyTuningAidWaterfall();
-        break;
+        case DisplayMode::SpectrumLowRes:
+            renderSpectrumBar(true);
+            break;
+        case DisplayMode::SpectrumHighRes:
+            renderSpectrumBar(false);
+            break;
+        case DisplayMode::Oscilloscope:
+            renderOscilloscope();
+            break;
+        case DisplayMode::Envelope:
+            renderEnvelope();
+            break;
+        case DisplayMode::Waterfall:
+            renderWaterfall();
+            break;
+        case DisplayMode::CWWaterfall:
+        case DisplayMode::RTTYWaterfall:
+            renderCwOrRttyTuningAidWaterfall();
+            break;
 
-    case DisplayMode::CwSnrCurve:
-    case DisplayMode::RttySnrCurve:
-        renderSnrCurve();
-        break;
-    case DisplayMode::Off:
-        renderOffMode();
-        break;
+        case DisplayMode::CwSnrCurve:
+        case DisplayMode::RttySnrCurve:
+            renderSnrCurve();
+            break;
+        case DisplayMode::Off:
+            renderOffMode();
+            break;
     }
 
     // Mode indicator kezelése
@@ -877,16 +876,19 @@ void UICompSpectrumVis::computeCachedGain() {
                         || currentMode_ == DisplayMode::RttySnrCurve);
 
     // Lambda a megfelelő scale mező kiválasztásához (dB érték visszaadása)
+    // FONTOS: A tuning aid feltételeket ELŐRE kell venni, mert forEnvelope és forWaterfall is true lehet tuning aid módokban!
     auto getDbFromTable = [forEnvelope, forWaterfall, forTuningAid, forSnrCurve, forLowResBar, forHighResBar,
                            forOscilloscope](const BandwidthScaleConfig &cfg) -> float {
-        if (forEnvelope)
-            return cfg.envelopeGainDb;
-        if (forWaterfall)
-            return cfg.waterfallGainDb;
+        // Tuning aid módok ELŐSZÖR (ezek specifikusabbak)
         if (forTuningAid && forSnrCurve)
             return cfg.tuningAidSnrCurveDb;
         if (forTuningAid)
             return cfg.tuningAidWaterfallDb;
+        // Általános módok UTÁNA
+        if (forEnvelope)
+            return cfg.envelopeGainDb;
+        if (forWaterfall)
+            return cfg.waterfallGainDb;
         if (forLowResBar)
             return cfg.lowResBarGainDb;
         if (forHighResBar)
@@ -1382,14 +1384,15 @@ void UICompSpectrumVis::renderSpectrumBar(bool isLowRes) {
 
         uint8_t bar_width = (bounds.width - (std::max(0, bands_to_display - 1) * BAR_GAP_PIXELS)) / bands_to_display;
         bar_width = std::max((uint8_t)1, bar_width);
-        
+
         uint8_t bar_total_width = bar_width + BAR_GAP_PIXELS;
         int16_t x_offset = (bounds.width - ((bands_to_display * bar_width) + (std::max(0, bands_to_display - 1) * BAR_GAP_PIXELS))) / 2;
 
         static uint8_t peak_fall_counter = 0;
         if (++peak_fall_counter % 3 == 0) {
             for (uint8_t band_idx = 0; band_idx < bands_to_display; band_idx++) {
-                if (Rpeak_[band_idx] >= 1) Rpeak_[band_idx]--;
+                if (Rpeak_[band_idx] >= 1)
+                    Rpeak_[band_idx]--;
             }
         }
 
@@ -1407,13 +1410,15 @@ void UICompSpectrumVis::renderSpectrumBar(bool isLowRes) {
         for (uint8_t band_idx = 0; band_idx < bands_to_display; band_idx++) {
             q15_t adjusted_q15 = static_cast<q15_t>(band_magnitudes_q15[band_idx] * mag_softGain);
             uint16_t height = q15ToPixelHeight(adjusted_q15, final_gain_lin, MAX_BAR_HEIGHT);
-            if (height == 0 && band_magnitudes_q15[band_idx] != 0) height = 1;
+            if (height == 0 && band_magnitudes_q15[band_idx] != 0)
+                height = 1;
             computedHeights[band_idx] = height;
         }
 
         uint16_t maxComputed = 0;
         for (uint8_t i = 0; i < bands_to_display; ++i) {
-            if (computedHeights[i] > maxComputed) maxComputed = computedHeights[i];
+            if (computedHeights[i] > maxComputed)
+                maxComputed = computedHeights[i];
         }
         maxBarHeightThisFrame = static_cast<float>(maxComputed);
 
@@ -1434,7 +1439,8 @@ void UICompSpectrumVis::renderSpectrumBar(bool isLowRes) {
 
             uint16_t scaledHeight = static_cast<uint16_t>(computedHeights[band_idx] * finalScale);
             uint8_t dsize = static_cast<uint8_t>(constrain(scaledHeight, 0, MAX_BAR_HEIGHT));
-            if (dsize == 0 && computedHeights[band_idx] > 0) dsize = 1;
+            if (dsize == 0 && computedHeights[band_idx] > 0)
+                dsize = 1;
 
             if (band_idx < LOW_RES_BANDS) {
                 if (dsize >= bar_height_[band_idx]) {
@@ -1447,7 +1453,7 @@ void UICompSpectrumVis::renderSpectrumBar(bool isLowRes) {
             if (bar_height_[band_idx] > Rpeak_[band_idx]) {
                 Rpeak_[band_idx] = bar_height_[band_idx];
             } else if (peak_release_counter == 0) {
-                Rpeak_[band_idx] = std::max(0, Rpeak_[band_idx] -1);
+                Rpeak_[band_idx] = std::max(0, Rpeak_[band_idx] - 1);
             }
 
             if (bar_height_[band_idx] > 0) {
@@ -1474,7 +1480,8 @@ void UICompSpectrumVis::renderSpectrumBar(bool isLowRes) {
 
             q15_t magnitude_q15 = magnitudeData[fft_bin_index];
             magnitude_q15 = static_cast<q15_t>(magnitude_q15 * mag_softGain);
-            if (magnitude_q15 < 380) magnitude_q15 = 0;
+            if (magnitude_q15 < 380)
+                magnitude_q15 = 0;
 
             uint16_t height = q15ToPixelHeight(magnitude_q15, final_gain_lin, MAX_BAR_HEIGHT);
             float newSm = HIGHRES_SMOOTH_ALPHA * highresSmoothedCols[x] + (1.0f - HIGHRES_SMOOTH_ALPHA) * height;
@@ -1484,7 +1491,7 @@ void UICompSpectrumVis::renderSpectrumBar(bool isLowRes) {
 
         uint16_t maxComputed = *std::max_element(computedCols.begin(), computedCols.end());
         maxBarHeightThisFrame = static_cast<float>(maxComputed);
-        
+
         float finalScale = 1.0f;
         if (maxComputed > 0) {
             finalScale = (static_cast<float>(graphH) * GRAPH_TARGET_HEIGHT_UTILIZATION) / maxComputed;
@@ -1493,8 +1500,9 @@ void UICompSpectrumVis::renderSpectrumBar(bool isLowRes) {
 
         for (uint8_t x = 0; x < bounds.width; ++x) {
             uint16_t scaledHeight = static_cast<uint16_t>(computedCols[x] * finalScale);
-            scaledHeight = constrain(scaledHeight, 0, graphH -1);
-            if (scaledHeight == 0 && computedCols[x] > 0) scaledHeight = 1;
+            scaledHeight = constrain(scaledHeight, 0, graphH - 1);
+            if (scaledHeight == 0 && computedCols[x] > 0)
+                scaledHeight = 1;
 
             sprite_->drawFastVLine(x, 0, graphH, TFT_BLACK);
             if (scaledHeight > 0) {
@@ -1533,7 +1541,8 @@ void UICompSpectrumVis::renderOscilloscope() {
     double sum_sq = 0.0;
     for (uint16_t j = 0; j < sampleCount; ++j) {
         int16_t v_abs = abs(osciRawData[j]);
-        if (v_abs > max_abs) max_abs = v_abs;
+        if (v_abs > max_abs)
+            max_abs = v_abs;
         sum_sq += static_cast<double>(osciRawData[j]) * osciRawData[j];
     }
 
@@ -1545,12 +1554,13 @@ void UICompSpectrumVis::renderOscilloscope() {
     float softGainFactor = (rms_ratio < 1.0f) ? (0.12f + powf(rms_ratio, 2.0f) * (1.0f - 0.12f)) : 1.0f;
 
     const int32_t half_h = graphH / 2 - 1;
-    
+
     // --- Gain Calculation ---
     float final_gain_lin = powf(10.0f, cachedGainDb_ / 20.0f);
     if (isAutoGainMode()) {
         uint16_t maxPixelHeight = q15ToPixelHeight(max_abs, final_gain_lin, graphH / 4);
-        if (maxPixelHeight == 0 && max_abs > 0) maxPixelHeight = 1;
+        if (maxPixelHeight == 0 && max_abs > 0)
+            maxPixelHeight = 1;
         updateMagnitudeBasedGain(static_cast<float>(maxPixelHeight));
         final_gain_lin *= magnitudeAgcGainFactor_;
     } else {
@@ -1562,9 +1572,8 @@ void UICompSpectrumVis::renderOscilloscope() {
     uint16_t prev_x = 0;
     int16_t prev_y = 0;
     for (uint16_t i = 0; i < sampleCount; i++) {
-        float pxf = isAutoGainMode() ? 
-            (static_cast<float>(osciRawData[i]) / 32767.0f) * half_h * final_gain_lin :
-            (static_cast<float>(osciRawData[i]) / max_abs) * half_h * final_gain_lin;
+        float pxf = isAutoGainMode() ? (static_cast<float>(osciRawData[i]) / 32767.0f) * half_h * final_gain_lin
+                                     : (static_cast<float>(osciRawData[i]) / max_abs) * half_h * final_gain_lin;
 
         int16_t y_pos = (graphH / 2) - static_cast<int32_t>(pxf + (pxf >= 0 ? 0.5f : -0.5f));
         y_pos = constrain(y_pos, 0, graphH - 1);
@@ -1637,7 +1646,8 @@ void UICompSpectrumVis::renderEnvelope() {
     }
 
     const uint16_t min_bin_for_env = std::max(10, static_cast<int>(std::round(MIN_AUDIO_FREQUENCY_HZ / currentBinWidthHz)));
-    const uint16_t max_bin_for_env = std::min(static_cast<int>(actualFftSize - 1), static_cast<int>(std::round(maxDisplayFrequencyHz_ * 0.2f / currentBinWidthHz)));
+    const uint16_t max_bin_for_env =
+        std::min(static_cast<int>(actualFftSize - 1), static_cast<int>(std::round(maxDisplayFrequencyHz_ * 0.2f / currentBinWidthHz)));
     const uint16_t num_bins_in_env_range = std::max(1, max_bin_for_env - min_bin_for_env + 1);
 
     // --- Gain Calculation ---
@@ -1662,12 +1672,13 @@ void UICompSpectrumVis::renderEnvelope() {
     float env_softGain = updateRmsAndGetSoftGain(envRms, 0.05f, 380.0f, 0.08f);
 
     for (uint8_t r = 0; r < bounds.height; ++r) {
-        uint16_t fft_bin_index = min_bin_for_env + static_cast<int>(std::round(static_cast<float>(r) * (num_bins_in_env_range - 1) / std::max(1, (bounds.height - 1))));
+        uint16_t fft_bin_index =
+            min_bin_for_env + static_cast<int>(std::round(static_cast<float>(r) * (num_bins_in_env_range - 1) / std::max(1, (bounds.height - 1))));
         fft_bin_index = constrain(fft_bin_index, min_bin_for_env, max_bin_for_env);
-        
+
         q15_t rawMagnitudeQ15 = static_cast<q15_t>(magnitudeData[fft_bin_index] * env_softGain);
         uint8_t rawVal = q15ToUint8(rawMagnitudeQ15, final_gain_lin);
-        
+
         uint8_t prevVal = wabuf[r][bounds.width - 2];
         wabuf[r][bounds.width - 1] = static_cast<uint8_t>(roundf(0.35f * prevVal + (1.0f - 0.35f) * rawVal));
     }
@@ -1694,8 +1705,9 @@ void UICompSpectrumVis::renderEnvelope() {
 
         if (current_col_max_amplitude > 0.5f) {
             float displayValue = envelopeLastSmoothedValue_;
-            if (displayValue > 150.0f) displayValue = 150.0f + (displayValue - 150.0f) * 0.1f;
-            
+            if (displayValue > 150.0f)
+                displayValue = 150.0f + (displayValue - 150.0f) * 0.1f;
+
             int y_offset_pixels = round((displayValue / 100.0f) * (graphH * GRAPH_TARGET_HEIGHT_UTILIZATION));
             y_offset_pixels = std::min(y_offset_pixels, static_cast<int>(graphH) - 4);
 
@@ -1752,11 +1764,13 @@ void UICompSpectrumVis::renderWaterfall() {
 
     uint8_t maxWabufVal = 0;
     for (uint16_t r = 0; r < bounds.height; ++r) {
-        int fft_bin_index = min_bin_for_wf + static_cast<int>(std::round(static_cast<float>(r) * (num_bins_in_wf_range - 1) / std::max(1, (bounds.height - 1))));
+        int fft_bin_index =
+            min_bin_for_wf + static_cast<int>(std::round(static_cast<float>(r) * (num_bins_in_wf_range - 1) / std::max(1, (bounds.height - 1))));
         fft_bin_index = constrain(fft_bin_index, min_bin_for_wf, max_bin_for_wf);
         uint8_t val = q15ToUint8(magnitudeData[fft_bin_index], final_gain_lin);
         wabuf[r][bounds.width - 1] = val;
-        if (val > maxWabufVal) maxWabufVal = val;
+        if (val > maxWabufVal)
+            maxWabufVal = val;
     }
 
     sprite_->scroll(-1, 0);
@@ -1766,10 +1780,10 @@ void UICompSpectrumVis::renderWaterfall() {
         int r_upper = ceil(r_wabuf_float);
         r_lower = constrain(r_lower, 0, bounds.height - 1);
         r_upper = constrain(r_upper, 0, bounds.height - 1);
-        
+
         float frac = r_wabuf_float - r_lower;
-        float val_interp = wabuf[r_lower][bounds.width-1] * (1.0f - frac) + wabuf[r_upper][bounds.width-1] * frac;
-        
+        float val_interp = wabuf[r_lower][bounds.width - 1] * (1.0f - frac) + wabuf[r_upper][bounds.width - 1] * frac;
+
         uint16_t color = valueToWaterfallColor(100 * val_interp, 0.0f, 255.0f * 100, WATERFALL_COLOR_INDEX);
         sprite_->drawPixel(bounds.width - 1, y, color);
     }
@@ -1822,11 +1836,12 @@ void UICompSpectrumVis::renderCwOrRttyTuningAidWaterfall() {
     for (uint16_t c = 0; c < bounds.width; ++c) {
         float ratio = (bounds.width <= 1) ? 0.0f : static_cast<float>(c) / (bounds.width - 1);
         float exact_bin = min_bin + ratio * (num_bins - 1);
-        
+
         q15_t mag_q15 = static_cast<q15_t>(std::round(q15InterpolateFloat(magnitudeData, exact_bin, min_bin, max_bin)));
         uint8_t val = q15ToUint8(mag_q15, final_gain_lin);
         wabuf[0][c] = val;
-        if (val > maxWabufVal) maxWabufVal = val;
+        if (val > maxWabufVal)
+            maxWabufVal = val;
 
         uint16_t color = valueToWaterfallColor(100 * val, 0.0f, 255.0f * 100, WATERFALL_COLOR_INDEX);
         sprite_->drawPixel(c, 0, color);
@@ -1886,7 +1901,7 @@ void UICompSpectrumVis::renderSnrCurve() {
         uint16_t pixelHeight = q15ToPixelHeight(mag_q15, final_gain_lin, graphH);
         maxMagnitude = std::max(maxMagnitude, static_cast<float>(pixelHeight));
 
-        uint16_t y = graphH - constrain(pixelHeight, 0, graphH -1);
+        uint16_t y = graphH - constrain(pixelHeight, 0, graphH - 1);
 
         if (prevX != -1) {
             sprite_->drawLine(prevX, prevY, x, y, TFT_CYAN);
@@ -1894,6 +1909,30 @@ void UICompSpectrumVis::renderSnrCurve() {
         sprite_->drawPixel(x, y, TFT_WHITE);
         prevX = x;
         prevY = y;
+    }
+
+    // Draw tuning aid lines
+    float freq_range = max_freq - min_freq;
+    if (freq_range > 0) {
+        if (currentTuningAidType_ == TuningAidType::CW_TUNING) {
+            uint16_t cw_freq = config.data.cwToneFrequencyHz;
+            if (cw_freq >= min_freq && cw_freq <= max_freq) {
+                int x_pos = round(((cw_freq - min_freq) / freq_range) * (bounds.width - 1));
+                sprite_->drawFastVLine(x_pos, 0, graphH, TFT_RED);
+            }
+        } else if (currentTuningAidType_ == TuningAidType::RTTY_TUNING) {
+            uint16_t mark_freq = config.data.rttyMarkFrequencyHz;
+            uint16_t space_freq = mark_freq - config.data.rttyShiftFrequencyHz;
+
+            if (mark_freq >= min_freq && mark_freq <= max_freq) {
+                int x_pos = round(((mark_freq - min_freq) / freq_range) * (bounds.width - 1));
+                sprite_->drawFastVLine(x_pos, 0, graphH, TFT_RED);
+            }
+            if (space_freq >= min_freq && space_freq <= max_freq) {
+                int x_pos = round(((space_freq - min_freq) / freq_range) * (bounds.width - 1));
+                sprite_->drawFastVLine(x_pos, 0, graphH, TFT_YELLOW);
+            }
+        }
     }
 
     if (isAutoGainMode()) {

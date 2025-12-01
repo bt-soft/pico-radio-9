@@ -179,7 +179,7 @@ void ScreenAMCW::activate() {
     ::audioController.setSmoothingPoints(0);           // Zajszűrés simítási pontok száma = 5 (erősebb zajszűrés, nincs frekvencia felbontási igény)
 
     // CW Dekóder specifikus beállítások
-    ::audioController.setDecoderUseAdaptiveThreshold(false); // Adaptív AGC küszöb használata a CW dekóderben
+    ::audioController.setDecoderUseAdaptiveThreshold(false); // Fix küszöb labor teszteléshez
     //::audioController.setDecoderBandpassEnabled(true);       // A CW dekódefnek nincs bandpass filtere
 }
 

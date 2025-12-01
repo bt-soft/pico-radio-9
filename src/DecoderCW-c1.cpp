@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
  * -----                                                                                                               *
- * Last Modified: 2025.11.29, Saturday  01:00:04                                                                       *
+ * Last Modified: 2025.12.01, Monday  04:05:46                                                                         *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -32,7 +32,7 @@
 extern DecodedData decodedData;
 
 // CW működés debug engedélyezése (csak ha __DEBUG definiálva van)
-#define __CW_DEBUG
+// #define __CW_DEBUG
 #if defined(__DEBUG) && defined(__CW_DEBUG)
 #define CW_DEBUG(fmt, ...) DEBUG(fmt __VA_OPT__(, ) __VA_ARGS__)
 #else
@@ -198,7 +198,7 @@ bool DecoderCW_C1::detectTone(const int16_t *samples, size_t count) {
         // Seed AGC első értelmes mérésnél
         if (!agcInitialized_) {
             // Ha a magnitúdó túl kicsi, még nem inicializálunk
-            if (magnitude > 100) { // Q15: 100 ≈ 0.003
+            if (magnitude > 3000) { // Q15: 3000 ≈ 0.09 (noise szint felett)
                 agcLevel_q15 = magnitude;
                 agcInitialized_ = true;
             }
@@ -234,9 +234,9 @@ bool DecoderCW_C1::detectTone(const int16_t *samples, size_t count) {
     // Tónus detekció küszöb alapján (Q15)
     bool rawToneState = (magnitude > threshold_q15);
 
-    // Debounce / hysteresis: require 2 consecutive blocks above/below to change state
-    // Debounce / hiszterézis: a státuszváltáshoz két egymás utáni blokk szükséges a küszöb felett/alatt
-    const uint8_t REQUIRED_CONSECUTIVE = 2;
+    // Debounce / hysteresis: require 1 block above/below to change state
+    // A 2-es érték túl szigorú volt ingadozó jeleknél, az 1 elég a noise szűréshez
+    const uint8_t REQUIRED_CONSECUTIVE = 1;
     if (rawToneState) {
         consecutiveAboveCount_ = std::min<int>(REQUIRED_CONSECUTIVE, consecutiveAboveCount_ + 1);
         consecutiveBelowCount_ = 0;

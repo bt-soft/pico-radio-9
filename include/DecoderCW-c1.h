@@ -81,9 +81,9 @@ class DecoderCW_C1 : public IDecoder {
 
     // AGC runtime paraméterek (Q15 fixpoint)
     // Kezdeti AGC értékek a gyakoribb mért magnitúdókhoz igazítva
-    q15_t agcLevel_q15 = 492;          // AGC szint (mozgó átlag) Q15: 15.0f × 32768 / 1000 ≈ 492
+    q15_t agcLevel_q15 = 8192;         // AGC szint (mozgó átlag) Q15: 250.0f × 32768 / 1000 ≈ 8192 (jobb kezdőérték)
     q15_t agcAlpha_q15 = 655;          // AGC szűrési állandó (lassabb követés) Q15: 0.02f × 32768 ≈ 655
-    q15_t minThreshold_q15 = 1311;     // Minimális threshold_q15 érték Q15: 40.0f × 32768 / 1000 ≈ 1311
+    q15_t minThreshold_q15 = 4915;     // Minimális threshold_q15 érték Q15: 150.0f × 32768 / 1000 ≈ 4915 (jobb noise szűrés)
     const float THRESH_FACTOR = 0.80f; // Jelszint küszöbfaktor - nagyobb érték konzervatívabb detektálást eredményez
 
     // Jelzi, hogy az AGC egyszer már inicializálva lett valódi mérésből
