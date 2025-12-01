@@ -175,9 +175,9 @@ struct BandwidthScaleConfig {
 constexpr BandwidthScaleConfig BANDWIDTH_GAIN_TABLE[] = {
     // bandwidthHz,    lowResBarGainDb, highResBarGainDb, oscilloscopeGainDb, envelopeGainDb, waterfallGainDb,
     // csak CW és RRTY módban: tuningAidWaterfallDb, tuningAidSnrCurveDb
-    {CW_AF_BANDWIDTH_HZ, 6.0f, 5.0f, -3.0f, 18.0f, 3.0f, 26.0f, 18.0f},      // 1.5kHz: CW mód
+    {CW_AF_BANDWIDTH_HZ, 6.0f, 5.0f, -3.0f, 18.0f, 3.0f, 10.0f, 18.0f},      // 1.5kHz: CW mód (26dB túl nagy volt)
     {RTTY_AF_BANDWIDTH_HZ, 4.0f, 3.0f, 2.0f, 3.0f, 2.0f, 3.0f, 8.0f},        // 3kHz: RTTY mód
-    {AM_AF_BANDWIDTH_HZ, -10.0f, -10.0f, 0.0f, 5.0f, 10.0f, 26.0f, 0.0f},    // 6kHz: AM mód
+    {AM_AF_BANDWIDTH_HZ, -10.0f, -10.0f, 0.0f, 5.0f, 10.0f, 10.0f, 0.0f},    // 6kHz: AM mód (26dB→10dB)
     {WEFAX_SAMPLE_RATE_HZ, NOAMP, NOAMP, NOAMP, NOAMP, NOAMP, NOAMP, NOAMP}, // 11025Hz: WEFAX mód
     {FM_AF_BANDWIDTH_HZ, 10.0f, 10.0f, -3.0f, 18.0f, 18.0f, NOAMP, NOAMP},   // 15kHz: FM mód
 };
@@ -1878,10 +1878,14 @@ void UICompSpectrumVis::renderCwOrRttyTuningAidWaterfall() {
     const int num_bins = std::max(1, max_bin - min_bin + 1);
 
     // --- Gain Calculation ---
-    // Tuning aid waterfall fix: hardkódolt alap gain CW/RTTY módokhoz
-    // (currentBandwidthHz_ nem mindig CW/RTTY sávszélesség, lehet AM/FM is!)
-    float base_gain_db = (currentTuningAidType_ == TuningAidType::CW_TUNING) ? 26.0f : 3.0f;
-    float final_gain_lin = powf(10.0f, base_gain_db / 20.0f);
+    // Tuning aid waterfall fix: átmenetileg állítsuk be a CW/RTTY sávszélességet,
+    // hogy a computeCachedGain() a HELYES táblázat sort válassza!
+    uint32_t saved_bandwidth = currentBandwidthHz_;
+    currentBandwidthHz_ = (currentTuningAidType_ == TuningAidType::CW_TUNING) ? CW_AF_BANDWIDTH_HZ : RTTY_AF_BANDWIDTH_HZ;
+    computeCachedGain();                   // Ez most a CW/RTTY táblázat sort használja (26dB vagy 3dB)
+    currentBandwidthHz_ = saved_bandwidth; // Állítsuk vissza az eredeti értéket
+
+    float final_gain_lin = cachedGainLinear_; // Most már HELYES cache-elt gain van!
 
     if (isAutoGainMode()) {
         final_gain_lin *= magnitudeAgcGainFactor_;
@@ -1889,9 +1893,13 @@ void UICompSpectrumVis::renderCwOrRttyTuningAidWaterfall() {
         int8_t gainCfg = this->radioMode_ == RadioMode::AM ? config.data.audioFftGainConfigAm : config.data.audioFftGainConfigFm;
         final_gain_lin *= powf(10.0f, static_cast<float>(gainCfg) / 20.0f);
     }
+    DEBUG("CW/RTTY Tuning Aid: cachedGainDb_=%.1f, final_gain_lin=%.3f, gainCfg=%d\n", cachedGainDb_, final_gain_lin,
+          (this->radioMode_ == RadioMode::AM ? config.data.audioFftGainConfigAm : config.data.audioFftGainConfigFm));
     // --- End of Gain Calculation ---
 
     uint8_t maxwabuf_Val = 0;
+    static uint32_t debug_counter = 0;
+
     for (uint16_t c = 0; c < bounds.width; ++c) {
         float ratio = (bounds.width <= 1) ? 0.0f : static_cast<float>(c) / (bounds.width - 1);
         float exact_bin = min_bin + ratio * (num_bins - 1);
@@ -1902,21 +1910,87 @@ void UICompSpectrumVis::renderCwOrRttyTuningAidWaterfall() {
         if (val > maxwabuf_Val)
             maxwabuf_Val = val;
 
+        // Debug első 3 pixel minden 30. frame-ben
+        if (debug_counter % 30 == 0 && c < 3) {
+            DEBUG("  Pixel[%d]: mag_q15=%d, val=%d\n", c, mag_q15, val);
+        }
+
         uint16_t color = valueToWaterfallColor(100 * val, 0.0f, 255.0f * 100, WATERFALL_COLOR_INDEX);
         sprite_->drawPixel(c, 0, color);
     }
+    debug_counter++;
+    DEBUG("CW/RTTY Tuning Aid: maxwabuf_Val=%d\n", maxwabuf_Val);
 
     if (isAutoGainMode()) {
         float estimatedPeak = (static_cast<float>(maxwabuf_Val) / 255.0f) * (graphH * GRAPH_TARGET_HEIGHT_UTILIZATION);
         updateMagnitudeBasedGain(estimatedPeak);
     }
 
-    renderFrequencyRangeLabels(currentTuningAidMinFreqHz_, currentTuningAidMaxFreqHz_);
-}
+    // Draw tuning aid lines (CW piros vonal, RTTY mark=piros, space=sárga)
+    float freq_range = currentTuningAidMaxFreqHz_ - currentTuningAidMinFreqHz_;
+    if (freq_range > 0) {
+        if (currentTuningAidType_ == TuningAidType::CW_TUNING) {
+            uint16_t cw_freq = config.data.cwToneFrequencyHz;
+            if (cw_freq >= currentTuningAidMinFreqHz_ && cw_freq <= currentTuningAidMaxFreqHz_) {
+                int x_pos = round(((cw_freq - currentTuningAidMinFreqHz_) / freq_range) * (bounds.width - 1));
+                sprite_->drawFastVLine(x_pos, 0, graphH, TFT_RED);
+            }
+        } else if (currentTuningAidType_ == TuningAidType::RTTY_TUNING) {
+            uint16_t mark_freq = config.data.rttyMarkFrequencyHz;
+            uint16_t space_freq = mark_freq - config.data.rttyShiftFrequencyHz;
 
-/**
- * @brief SNR Curve renderelése - frekvencia/SNR burkológörbe
- */
+            if (mark_freq >= currentTuningAidMinFreqHz_ && mark_freq <= currentTuningAidMaxFreqHz_) {
+                int x_pos = round(((mark_freq - currentTuningAidMinFreqHz_) / freq_range) * (bounds.width - 1));
+                sprite_->drawFastVLine(x_pos, 0, graphH, TFT_RED);
+            }
+            if (space_freq >= currentTuningAidMinFreqHz_ && space_freq <= currentTuningAidMaxFreqHz_) {
+                int x_pos = round(((space_freq - currentTuningAidMinFreqHz_) / freq_range) * (bounds.width - 1));
+                sprite_->drawFastVLine(x_pos, 0, graphH, TFT_YELLOW);
+            }
+        }
+    }
+
+    // Sprite megjelenítése a képernyőn!
+    sprite_->pushSprite(bounds.x, bounds.y);
+
+    // Frekvencia címkék a hangolási vonalakon (TFT-re közvetlenül, vonal tetejére)
+    if (freq_range > 0) {
+        tft.setTextDatum(TC_DATUM);             // Felül középre igazítva
+        tft.setTextColor(TFT_WHITE, TFT_BLACK); // Fehér szöveg, fekete háttér (töröl)
+        tft.setFreeFont();
+        tft.setTextSize(1);
+
+        if (currentTuningAidType_ == TuningAidType::CW_TUNING) {
+            uint16_t cw_freq = config.data.cwToneFrequencyHz;
+            if (cw_freq >= currentTuningAidMinFreqHz_ && cw_freq <= currentTuningAidMaxFreqHz_) {
+                int x_pos = round(((cw_freq - currentTuningAidMinFreqHz_) / freq_range) * (bounds.width - 1));
+                char buf[16];
+                snprintf(buf, sizeof(buf), "%u", cw_freq);
+                tft.drawString(buf, bounds.x + x_pos, bounds.y + 2); // Vonal tetejére
+            }
+        } else if (currentTuningAidType_ == TuningAidType::RTTY_TUNING) {
+            uint16_t mark_freq = config.data.rttyMarkFrequencyHz;
+            uint16_t space_freq = mark_freq - config.data.rttyShiftFrequencyHz;
+
+            if (mark_freq >= currentTuningAidMinFreqHz_ && mark_freq <= currentTuningAidMaxFreqHz_) {
+                int x_pos = round(((mark_freq - currentTuningAidMinFreqHz_) / freq_range) * (bounds.width - 1));
+                char buf[16];
+                snprintf(buf, sizeof(buf), "M:%u", mark_freq);
+                tft.drawString(buf, bounds.x + x_pos, bounds.y + 2); // Vonal tetejére
+            }
+            if (space_freq >= currentTuningAidMinFreqHz_ && space_freq <= currentTuningAidMaxFreqHz_) {
+                int x_pos = round(((space_freq - currentTuningAidMinFreqHz_) / freq_range) * (bounds.width - 1));
+                char buf[16];
+                snprintf(buf, sizeof(buf), "S:%u", space_freq);
+                tft.drawString(buf, bounds.x + x_pos, bounds.y + 2); // Vonal tetejére
+            }
+        }
+    }
+
+    renderFrequencyRangeLabels(currentTuningAidMinFreqHz_, currentTuningAidMaxFreqHz_);
+} /**
+   * @brief SNR Curve renderelése - frekvencia/SNR burkológörbe
+   */
 void UICompSpectrumVis::renderSnrCurve() {
     uint16_t graphH = getGraphHeight();
     if (!flags_.spriteCreated || bounds.width == 0 || graphH <= 0) {
