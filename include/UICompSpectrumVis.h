@@ -141,7 +141,7 @@ class UICompSpectrumVis : public UIComponent {
      */
     inline void refreshFrequencyLabels() {
         // Töröljük a felirat területet és engedélyezzük az újrarajzolást
-        frequencyLabelsDrawn_ = true;
+        flags_.frequencyLabelsDrawn = true;
     }
 
     /**
@@ -168,10 +168,17 @@ class UICompSpectrumVis : public UIComponent {
     RadioMode radioMode_;
     DisplayMode currentMode_;
     DisplayMode lastRenderedMode_;
-    bool modeIndicatorVisible_;
-    bool modeIndicatorDrawn_;   // Flag to avoid redrawing the indicator unnecessarily
-    bool frequencyLabelsDrawn_; // Flag to avoid redrawing frequency labels unnecessarily
-    bool needBorderDrawn;       // Flag to indicate if the border needs to be redrawn
+
+    // Bitfield flag-ek (memória optimalizálás: 8 bool → 1 byte)
+    struct {
+        uint8_t modeIndicatorVisible : 1;
+        uint8_t modeIndicatorDrawn : 1;
+        uint8_t frequencyLabelsDrawn : 1;
+        uint8_t needBorderDrawn : 1;
+        uint8_t spriteCreated : 1;
+        uint8_t isMutedDrawn : 1;
+        uint8_t _unused : 2; // Rezervált jövőbeli használatra
+    } flags_;
     uint32_t modeIndicatorHideTime_;
     uint32_t lastTouchTime_;
     uint32_t lastFrameTime_; // FPS limitáláshoz
@@ -193,6 +200,8 @@ class UICompSpectrumVis : public UIComponent {
     uint8_t barAgcHistoryIndex_ = 0;              // Circular buffer index
     float barAgcGainFactor_ = 0.02f;              // Bar-alapú gain faktor
     uint32_t barAgcLastUpdateTime_ = 0;           // Utolsó frissítés időpontja
+    float barAgcRunningSum_ = 0.0f;               // Futó összeg (O(1) AGC számításhoz)
+    uint8_t barAgcValidCount_ = 0;                // Érvényes minták száma a history bufferben
 
     // ===== MAGNITUDE-ALAPÚ AGC (Jel-alapú módok: Envelope, Waterfall, Oszcilloszkóp) =====
     // Nyers FFT magnitude maximum-ot méri
@@ -200,10 +209,11 @@ class UICompSpectrumVis : public UIComponent {
     uint8_t magnitudeAgcHistoryIndex_ = 0;              // Circular buffer index
     float magnitudeAgcGainFactor_ = 0.02f;              // Magnitude-alapú gain faktor
     uint32_t magnitudeAgcLastUpdateTime_ = 0;           // Utolsó frissítés időpontja
+    float magnitudeAgcRunningSum_ = 0.0f;               // Futó összeg (O(1) AGC számításhoz)
+    uint8_t magnitudeAgcValidCount_ = 0;                // Érvényes minták száma a history bufferben
 
     // Sprite handling
     TFT_eSprite *sprite_;
-    bool spriteCreated_;
     int indicatorFontHeight_;
 
     // Peak buffer a LowRes módhoz
@@ -220,8 +230,9 @@ class UICompSpectrumVis : public UIComponent {
     uint16_t currentTuningAidMinFreqHz_;
     uint16_t currentTuningAidMaxFreqHz_;
 
-    // Envelope és Waterfall buffer - egyszerűsített 2D vektor
-    std::vector<std::vector<uint8_t>> wabuf;
+    // Envelope és Waterfall buffer - körkörös 1D buffer (optimalizált)
+    std::vector<uint8_t> wabuf_; // 1D buffer (width * height)
+    uint16_t wabufWriteCol_ = 0; // Körkörös írási pozíció (oszlop index)
 
     /**
      * @brief Jelenlegi sávszélesség (Hz)
@@ -253,6 +264,8 @@ class UICompSpectrumVis : public UIComponent {
 
     // Cache-elt grafikun és mód (CW/RTTY/FM/AM, stb) típustól függő erősítés dB-ben (bázis érték, AGC korrekció nélkül)
     float cachedGainDb_ = 0.0f;
+    float cachedGainLinear_ = 1.0f;   // Lineáris gain (előre konvertálva dB-ből, powf kiküszöbölésére)
+    int64_t cachedGainQ15Scaled_ = 0; // Q23 fixpontos gain (gyors uint8/pixel konverziokhoz, int64 nagy gain ertekekhez)
 
     // Zajszűrő/silence detektáláshoz simított RMS értékek
     float oscRmsSmoothed_ = 0.0f; // Oszcilloszkóp zaj/silence detektáláshoz
@@ -321,7 +334,6 @@ class UICompSpectrumVis : public UIComponent {
     // AGC gain számítás (külön bar és magnitude verzió)
     float calculateBarAgcGain(const float *history, uint8_t historySize, float currentGainFactor) const;
     float calculateMagnitudeAgcGain(const float *history, uint8_t historySize, float currentGainFactor) const;
-    float isMutedDrawn;
 
     /**
      * @brief Config konverziós függvények

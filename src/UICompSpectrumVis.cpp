@@ -89,51 +89,66 @@ constexpr uint8_t SPECTRUM_FPS = 25;                              // FPS limitá
 
 static inline int32_t q15Abs(q15_t v) { return (v < 0) ? -(int32_t)v : (int32_t)v; }
 
-// Q15 -> uint8 (0..255) using a pre-calculated linear gain factor
-static inline uint8_t q15ToUint8(q15_t v, float gain_lin) {
+// Q15 -> uint8 (0..255) - OPTIMALIZÁLT fixpontos verzió (Q23 scaled gain használatával)
+static inline uint8_t q15ToUint8(q15_t v, int64_t gain_q23_scaled) {
     int32_t abs_val = q15Abs(v); // 0..32767
     if (abs_val == 0)
         return 0;
 
-    // Map abs_val to 0..255 range applying linear gain
-    float scaled_f = (static_cast<float>(abs_val) * gain_lin) / 32767.0f * 255.0f;
-    int32_t scaled = static_cast<int32_t>(scaled_f + 0.5f);
-    if (scaled <= 0)
-        return 0;
-    if (scaled >= 255)
-        return 255;
-    return static_cast<uint8_t>(scaled);
+    // Fixpontos szamitas: (abs_val * gain_q23) >> (23 + 15)
+    // Q15 * Q23 = Q38, majd >> 38 hogy 0..255 legyen
+    // Optimalizacio: eloszor >> 15 (Q15 normalizalas), majd >> 23 (Q23 skala)
+    // gain_q23_scaled elore kiszamitva: gain_lin * 255 * 8388608 (int64 nagy gain ertekekhez!)
+    int64_t temp = ((int64_t)abs_val * gain_q23_scaled) >> (23 + 15); // Q15 * Q23 >> 38 = Q0 (0..255)
+    int32_t result = (int32_t)temp;
+    return (uint8_t)constrain(result, 0, 255);
 }
 
-// Q15 -> pixel height (0..max_height) using a pre-calculated linear gain factor
-static inline uint16_t q15ToPixelHeight(q15_t v, float gain_lin, uint16_t max_height) {
+// BACKWARD COMPATIBILITY: float gain verzio (atiranyit a fixpontos verziora)
+static inline uint8_t q15ToUint8_float(q15_t v, float gain_lin) {
+    int64_t gain_q23 = (int64_t)(gain_lin * 255.0f * 8388608.0f); // Q23 = gain * 255 * (Q15 << 8)
+    return q15ToUint8(v, gain_q23);
+}
+
+// Q15 -> pixel height (0..max_height) - OPTIMALIZALT fixpontos verzio
+static inline uint16_t q15ToPixelHeight(q15_t v, int64_t gain_q23_scaled, uint16_t max_height) {
     int32_t abs_val = q15Abs(v); // 0..32767
     if (abs_val == 0)
         return 0;
 
-    float scaled_f = (static_cast<float>(abs_val) * gain_lin) / 32767.0f * static_cast<float>(max_height);
-    int32_t scaled = static_cast<int32_t>(scaled_f + 0.5f);
-
-    if (scaled <= 0)
-        return 0;
-    if (scaled > max_height)
-        return max_height;
-    return static_cast<uint16_t>(scaled);
+    // Fixpontos: (abs_val * gain_q23 * max_height) >> (23 + 15)
+    // Q15 * Q23 = Q38, majd szorozzuk max_height-tal es >> 38
+    int64_t temp = ((int64_t)abs_val * gain_q23_scaled * max_height) >> (23 + 15);
+    int32_t result = (int32_t)temp;
+    return (uint16_t)constrain(result, 0, (int32_t)max_height);
 }
 
-// Interpoláció Q15 tömbből: visszaad float-ot (rajzoláshoz). A belső q15->float konverzió itt történik.
-static inline float q15InterpolateFloat(const q15_t *data, float exactIndex, int minIdx, int maxIdx) {
-    int idx_low = static_cast<int>(std::floor(exactIndex));
+// BACKWARD COMPATIBILITY: float gain verzio
+static inline uint16_t q15ToPixelHeight_float(q15_t v, float gain_lin, uint16_t max_height) {
+    int64_t gain_q23 = (int64_t)(gain_lin * 255.0f * 8388608.0f);
+    return q15ToPixelHeight(v, gain_q23, max_height);
+}
+
+// OPTIMALIZÁLT fixpontos interpoláció Q15 tömbből (Q15 eredmény)
+static inline q15_t q15Interpolate(const q15_t *data, float exactIndex, int minIdx, int maxIdx) {
+    int idx_low = (int)exactIndex;
     int idx_high = idx_low + 1;
     idx_low = constrain(idx_low, minIdx, maxIdx);
     idx_high = constrain(idx_high, minIdx, maxIdx);
-    if (idx_low == idx_high)
-        return static_cast<float>(data[idx_low]);
 
-    float frac = exactIndex - idx_low;
-    float low = static_cast<float>(data[idx_low]);
-    float high = static_cast<float>(data[idx_high]);
-    return low * (1.0f - frac) + high * frac;
+    if (idx_low == idx_high)
+        return data[idx_low];
+
+    // Fixpontos lineáris interpoláció (16 bit frakció)
+    uint16_t frac16 = (uint16_t)((exactIndex - idx_low) * 65536.0f);
+    int32_t low = data[idx_low];
+    int32_t high = data[idx_high];
+    return (q15_t)((low * (65536 - frac16) + high * frac16) >> 16);
+}
+
+// BACKWARD COMPATIBILITY: float visszatérési értékkel (megtartva a régi interfészt)
+static inline float q15InterpolateFloat(const q15_t *data, float exactIndex, int minIdx, int maxIdx) {
+    return (float)q15Interpolate(data, exactIndex, minIdx, maxIdx);
 }
 
 /**
@@ -161,11 +176,11 @@ struct BandwidthScaleConfig {
 constexpr BandwidthScaleConfig BANDWIDTH_GAIN_TABLE[] = {
     // bandwidthHz,    lowResBarGainDb, highResBarGainDb, oscilloscopeGainDb, envelopeGainDb, waterfallGainDb,
     // csak CW és RRTY módban: tuningAidWaterfallDb, tuningAidSnrCurveDb
-    {CW_AF_BANDWIDTH_HZ, 6.0f, 5.0f, -3.0f, 18.0f, 3.0f, 26.0f, 18.0f},          // 1.5kHz: CW mód
+    {CW_AF_BANDWIDTH_HZ, 6.0f, 5.0f, -3.0f, 18.0f, 3.0f, 26.0f, 18.0f},        // 1.5kHz: CW mód
     {RTTY_AF_BANDWIDTH_HZ, 4.0f, 3.0f, 2.0f, 3.0f, 2.0f, 3.0f, 8.0f},          // 3kHz: RTTY mód
     {AM_AF_BANDWIDTH_HZ, -18.0f, -18.0f, 0.0f, -10.0f, -10.0f, 10.0f, -10.0f}, // 6kHz: AM mód
     {WEFAX_SAMPLE_RATE_HZ, NOAMP, NOAMP, NOAMP, NOAMP, NOAMP, NOAMP, NOAMP},   // 11025Hz: WEFAX mód
-    {FM_AF_BANDWIDTH_HZ, 20.0f, 25.0f, -3.0f, 18.0f, 22.0f, NOAMP, NOAMP},     // 15kHz: FM mód
+    {FM_AF_BANDWIDTH_HZ, 20.0f, 25.0f, -3.0f, 40.0f, 40.0f, NOAMP, NOAMP},     // 15kHz: FM mód
 };
 constexpr size_t BANDWIDTH_GAIN_TABLE_SIZE = ARRAY_ITEM_COUNT(BANDWIDTH_GAIN_TABLE);
 
@@ -185,29 +200,38 @@ UICompSpectrumVis::UICompSpectrumVis(const Rect &rect, RadioMode radioMode, uint
       currentBandwidthHz_(bandwidthHz),                //
       currentMode_(DisplayMode::Off),                  //
       lastRenderedMode_(DisplayMode::Off),             //
-      modeIndicatorVisible_(false),                    //
-      modeIndicatorDrawn_(false),                      //
-      frequencyLabelsDrawn_(false),                    //
-      needBorderDrawn(true),                           //
       modeIndicatorHideTime_(0),                       //
       lastTouchTime_(0),                               //
       lastFrameTime_(0),                               //
       envelopeLastSmoothedValue_(0.0f),                //
       barAgcGainFactor_(1.0f),                         //
       barAgcLastUpdateTime_(0),                        //
+      barAgcRunningSum_(0.0f),                         //
+      barAgcValidCount_(0),                            //
       magnitudeAgcGainFactor_(1.0f),                   //
       magnitudeAgcLastUpdateTime_(0),                  //
+      magnitudeAgcRunningSum_(0.0f),                   //
+      magnitudeAgcValidCount_(0),                      //
       sprite_(nullptr),                                //
-      spriteCreated_(false),                           //
       indicatorFontHeight_(0),                         //
       currentTuningAidType_(TuningAidType::CW_TUNING), //
       currentTuningAidMinFreqHz_(0.0f),                //
       currentTuningAidMaxFreqHz_(0.0f),                //
-      isMutedDrawn(false)                              //
+      wabufWriteCol_(0)                                //
 {
+    // Flag-ek inicializálása (bitfield)
+    flags_.modeIndicatorVisible = false;
+    flags_.modeIndicatorDrawn = false;
+    flags_.frequencyLabelsDrawn = false;
+    flags_.needBorderDrawn = true;
+    flags_.spriteCreated = false;
+    flags_.isMutedDrawn = false;
+    flags_._unused = 0;
 
-    // Inicializáljuk a cache-elt gain értéket (dB-ben)
+    // Inicializáljuk a cache-elt gain értékeket
     cachedGainDb_ = 0;
+    cachedGainLinear_ = 1.0f;
+    cachedGainQ15Scaled_ = 8388608; // 1.0 * 8388608
 
     maxDisplayFrequencyHz_ = radioMode_ == RadioMode::AM ? UICompSpectrumVis::MAX_DISPLAY_FREQUENCY_AM : UICompSpectrumVis::MAX_DISPLAY_FREQUENCY_FM;
 
@@ -219,9 +243,9 @@ UICompSpectrumVis::UICompSpectrumVis(const Rect &rect, RadioMode radioMode, uint
     memset(barAgcHistory_, 0, sizeof(barAgcHistory_));
     memset(magnitudeAgcHistory_, 0, sizeof(magnitudeAgcHistory_));
 
-    // Waterfall buffer inicializálása
+    // Waterfall körkörös buffer inicializálása (1D vektor)
     if (bounds.height > 0 && bounds.width > 0) {
-        wabuf.resize(bounds.height, std::vector<uint8_t>(bounds.width, 0));
+        wabuf_.resize(bounds.width * bounds.height, 0);
     }
 
     // Sprite inicializálása
@@ -246,26 +270,45 @@ UICompSpectrumVis::~UICompSpectrumVis() {
 }
 
 /**
- * @brief Bar-alapú AGC frissítése (Spektrum módok: LowRes, HighRes)
+ * @brief Bar-alapú AGC frissítése (Spektrum módok: LowRes, HighRes) - OPTIMALIZÁLT O(1)
  * @param currentBarMaxValue Jelenlegi frame legnagyobb bar magassága
  */
 void UICompSpectrumVis::updateBarBasedGain(float currentBarMaxValue) {
 
-    // Ha némított állapotban vagyunk, az AGC ne működjön!
+    // Ha némített állapotban vagyunk, az AGC ne működjön!
     if (rtv::muteStat) {
         return;
     }
 
-    // Bar maximum hozzáadása a history bufferhez
+    // Eltávolítjuk a legrégibb értéket a futó összegből
+    float oldValue = barAgcHistory_[barAgcHistoryIndex_];
+    if (oldValue > AGC_MIN_SIGNAL_THRESHOLD) {
+        barAgcRunningSum_ -= oldValue;
+        if (barAgcValidCount_ > 0)
+            barAgcValidCount_--;
+    }
+
+    // Hozzáadjuk az új értéket
     barAgcHistory_[barAgcHistoryIndex_] = currentBarMaxValue;
+    if (currentBarMaxValue > AGC_MIN_SIGNAL_THRESHOLD) {
+        barAgcRunningSum_ += currentBarMaxValue;
+        barAgcValidCount_++;
+    }
+
     barAgcHistoryIndex_ = (barAgcHistoryIndex_ + 1) % AGC_HISTORY_SIZE;
 
     // Időalapú gain frissítés
     if (Utils::timeHasPassed(barAgcLastUpdateTime_, AGC_UPDATE_INTERVAL_MS)) {
-        float newGain = calculateBarAgcGain(barAgcHistory_, AGC_HISTORY_SIZE, barAgcGainFactor_);
-        if (newGain > 0.0f) {
-            barAgcGainFactor_ = newGain;
+        // Gyors átlag számítás a futó összegből (O(1) komplexitás!)
+        float averageMax = (barAgcValidCount_ > 0) ? (barAgcRunningSum_ / barAgcValidCount_) : 0.0f;
+
+        if (averageMax > AGC_MIN_SIGNAL_THRESHOLD) {
+            float targetHeight = static_cast<float>(getGraphHeight()) * GRAPH_TARGET_HEIGHT_UTILIZATION;
+            float idealGain = targetHeight / averageMax;
+            float newGain = AGC_SMOOTH_FACTOR * idealGain + (1.0f - AGC_SMOOTH_FACTOR) * barAgcGainFactor_;
+            barAgcGainFactor_ = constrain(newGain, AGC_GENERIC_MIN_GAIN_VALUE, AGC_GENERIC_MAX_GAIN_VALUE);
         }
+
         barAgcLastUpdateTime_ = millis();
         // Értékek cache-elése a konszolidált AGC naplózáshoz
         lastBarAgcMaxForLog_ = currentBarMaxValue;
@@ -448,9 +491,9 @@ UICompSpectrumVis::DisplayMode UICompSpectrumVis::configValueToDisplayMode(uint8
  */
 void UICompSpectrumVis::onDialogDismissed() {
     // Dialog épp eltűnt - újra kell rajzolni a keretet és a frekvencia feliratokat is
-    needBorderDrawn = true;           // Rajzoljuk újra a keretet
-    frequencyLabelsDrawn_ = true;     // Frissítsük a frekvencia feliratokat is
-    UIComponent::onDialogDismissed(); // Hívjuk meg az ősosztály implementációját (markForRedraw)
+    flags_.needBorderDrawn = true;      // Rajzoljuk újra a keretet
+    flags_.frequencyLabelsDrawn = true; // Frissítsük a frekvencia feliratokat is
+    UIComponent::onDialogDismissed();   // Hívjuk meg az ősosztály implementációját (markForRedraw)
 }
 
 /**
@@ -460,17 +503,17 @@ void UICompSpectrumVis::onDialogDismissed() {
 bool UICompSpectrumVis::handleMuteState() {
 #if not defined TEST_DO_NOT_PROCESS_MUTED_STATE
     if (rtv::muteStat) {
-        if (!isMutedDrawn) {
+        if (!flags_.isMutedDrawn) {
             drawFrame();
             drawMutedMessage();
-            isMutedDrawn = true;
+            flags_.isMutedDrawn = true;
         }
         return true; // Halt further rendering
     }
 
-    if (isMutedDrawn) {
-        isMutedDrawn = false;
-        needBorderDrawn = true; // Redraw frame after unmuting
+    if (flags_.isMutedDrawn) {
+        flags_.isMutedDrawn = false;
+        flags_.needBorderDrawn = true; // Redraw frame after unmuting
     }
 #endif
     return false; // Continue rendering
@@ -481,22 +524,22 @@ bool UICompSpectrumVis::handleMuteState() {
  */
 void UICompSpectrumVis::handleModeIndicator() {
     // Show indicator if it's supposed to be visible and hasn't been drawn yet
-    if (modeIndicatorVisible_ && !modeIndicatorDrawn_) {
+    if (flags_.modeIndicatorVisible && !flags_.modeIndicatorDrawn) {
         renderModeIndicator();
-        modeIndicatorDrawn_ = true;
+        flags_.modeIndicatorDrawn = true;
     }
 
     // Hide indicator after timeout
-    if (modeIndicatorVisible_ && millis() > modeIndicatorHideTime_) {
-        modeIndicatorVisible_ = false;
-        modeIndicatorDrawn_ = false;
+    if (flags_.modeIndicatorVisible && millis() > modeIndicatorHideTime_) {
+        flags_.modeIndicatorVisible = false;
+        flags_.modeIndicatorDrawn = false;
 
         // Clear the area where the indicator was
         int indicatorY = bounds.y + bounds.height;
         tft.fillRect(bounds.x - 3, indicatorY, bounds.width + 6, 12, TFT_BLACK);
 
         // Allow frequency labels to be redrawn
-        frequencyLabelsDrawn_ = true;
+        flags_.frequencyLabelsDrawn = true;
     }
 }
 
@@ -534,9 +577,9 @@ void UICompSpectrumVis::draw() {
         return; // Stop rendering if muted
     }
 
-    if (needBorderDrawn) {
+    if (flags_.needBorderDrawn) {
         drawFrame();
-        needBorderDrawn = false;
+        flags_.needBorderDrawn = false;
     }
 
     // Biztonsági ellenőrzés: FM módban CW/RTTY és az SNR hangolássegéd módok nem engedélyezettek
@@ -632,9 +675,9 @@ void UICompSpectrumVis::manageSpriteForMode(DisplayMode modeToPrepareForDisplayM
 
     UISPECTRUM_DEBUG("UICompSpectrumVis::manageSpriteForMode() - modeToPrepareFor=%d\n", static_cast<int>(modeToPrepareForDisplayMode));
 
-    if (spriteCreated_) { // Ha létezik sprite egy korábbi módból
+    if (flags_.spriteCreated) { // Ha létezik sprite egy korábbi módból
         sprite_->deleteSprite();
-        spriteCreated_ = false;
+        flags_.spriteCreated = false;
     }
 
     // Sprite használata MINDEN módhoz (kivéve Off)
@@ -642,8 +685,8 @@ void UICompSpectrumVis::manageSpriteForMode(DisplayMode modeToPrepareForDisplayM
         uint16_t graphH = getGraphHeight();
         if (bounds.width > 0 && graphH > 0) {
             sprite_->setColorDepth(16); // RGB565
-            spriteCreated_ = sprite_->createSprite(bounds.width, graphH);
-            if (spriteCreated_) {
+            flags_.spriteCreated = (sprite_->createSprite(bounds.width, graphH) != nullptr);
+            if (flags_.spriteCreated) {
                 sprite_->fillSprite(TFT_BLACK); // Kezdeti törlés
                 UISPECTRUM_DEBUG("UICompSpectrumVis: Sprite létrehozva, méret: %dx%d, bounds.width=%d\n", sprite_->width(), sprite_->height(), bounds.width);
             } else {
@@ -668,17 +711,15 @@ void UICompSpectrumVis::manageSpriteForMode(DisplayMode modeToPrepareForDisplayM
         tft.fillRect(bounds.x, bounds.y + bounds.height + 1, bounds.width, 10, TFT_BLACK);
 
         // Sprite is törlése ha létezett
-        if (spriteCreated_) {
+        if (flags_.spriteCreated) {
             sprite_->fillSprite(TFT_BLACK);
         }
 
         // Envelope reset mód váltáskor
         if (modeToPrepareForDisplayMode == DisplayMode::Envelope) {
             envelopeLastSmoothedValue_ = 0.0f; // Simított érték nullázása
-            // Wabuf buffer teljes törlése hogy tiszta vonallal kezdődjön az envelope
-            for (auto &row : wabuf) {
-                std::fill(row.begin(), row.end(), 0);
-            }
+            // wabuf_ buffer teljes törlése hogy tiszta vonallal kezdődjön az envelope
+            std::fill(wabuf_.begin(), wabuf_.end(), 0); // 1D buffer t�rl�s
         }
     }
 }
@@ -693,7 +734,7 @@ uint16_t UICompSpectrumVis::getGraphHeight() const {
 /**
  * @brief Indicator magasságának számítása
  */
-uint8_t UICompSpectrumVis::getIndicatorHeight() const { return modeIndicatorVisible_ ? 10 : 0; }
+uint8_t UICompSpectrumVis::getIndicatorHeight() const { return flags_.modeIndicatorVisible ? 10 : 0; }
 
 /**
  * @brief Hatékony magasság számítása (grafikon + indicator)
@@ -740,7 +781,7 @@ void UICompSpectrumVis::setFftParametersForDisplayMode() {
         // Tuning aid mód: mindig a tuning aid által számolt tartományt használjuk
         maxDisplayFrequencyHz_ = currentTuningAidMaxFreqHz_;
         // (A min frekvencia a rajzolásnál, bin index számításnál lesz figyelembe véve)
-        frequencyLabelsDrawn_ = true;
+        flags_.frequencyLabelsDrawn = true;
     } else if (sdToUse != nullptr) {
         // Egyéb módokban a SharedData alapján
         uint16_t minHz = sdToUse->displayMinFreqHz ? sdToUse->displayMinFreqHz : MIN_AUDIO_FREQUENCY_HZ;
@@ -749,7 +790,7 @@ void UICompSpectrumVis::setFftParametersForDisplayMode() {
             maxHz = minHz + 100;
         }
         maxDisplayFrequencyHz_ = maxHz;
-        frequencyLabelsDrawn_ = true;
+        flags_.frequencyLabelsDrawn = true;
     }
 }
 
@@ -788,9 +829,9 @@ void UICompSpectrumVis::cycleThroughModes() {
  */
 void UICompSpectrumVis::startShowModeIndicator() {
     // Mode indicator megjelenítése 20 másodpercig
-    modeIndicatorVisible_ = true;
-    modeIndicatorDrawn_ = false; // A flag visszaállítása, hogy az indikátor azonnal megjelenhessen
-    needBorderDrawn = true;      // Kényszerítjük a keret újrarajzolását
+    flags_.modeIndicatorVisible = true;
+    flags_.modeIndicatorDrawn = false; // A flag visszaállítása, hogy az indikátor azonnal megjelenhessen
+    flags_.needBorderDrawn = true;     // Kényszerítjük a keret újrarajzolását
 
     // Indikátor eltüntetésének időzítése
     modeIndicatorHideTime_ = millis() + FftDisplayConstants::MODE_INDICATOR_VISIBLE_TIMEOUT_MS; // 20 másodpercig látható
@@ -902,6 +943,11 @@ void UICompSpectrumVis::computeCachedGain() {
     for (size_t i = 0; i < BANDWIDTH_GAIN_TABLE_SIZE; ++i) {
         if (BANDWIDTH_GAIN_TABLE[i].bandwidthHz == this->currentBandwidthHz_) {
             cachedGainDb_ = getDbFromTable(BANDWIDTH_GAIN_TABLE[i]);
+            // OPTIMALIZÁLÁS: Azonnal számoljuk ki a lineáris formát is (powf eliminálása a render loop-ból!)
+            cachedGainLinear_ = powf(10.0f, cachedGainDb_ / 20.0f);
+            // Q23 fixpontos gain: gain_lin * 255 * (1<<23) = gain_lin * 2139095040
+            // Ez biztosítja, hogy q15ToUint8() helyesen működjön: (q15_val * gain_q23) >> 38 = 0..255
+            cachedGainQ15Scaled_ = (int64_t)(cachedGainLinear_ * 255.0f * 8388608.0f);
             return;
         }
     }
@@ -915,8 +961,8 @@ void UICompSpectrumVis::computeCachedGain() {
  * @brief Módkijelző láthatóságának beállítása
  */
 void UICompSpectrumVis::setModeIndicatorVisible(bool visible) {
-    modeIndicatorVisible_ = visible;
-    modeIndicatorDrawn_ = false; // A rajzolási flag visszaállítása, ha megváltozik a láthatóság
+    flags_.modeIndicatorVisible = visible;
+    flags_.modeIndicatorDrawn = false; // A rajzolási flag visszaállítása, ha megváltozik a láthatóság
     if (visible) {
         modeIndicatorHideTime_ = millis() + 20000; // 20 másodperc
     }
@@ -1031,9 +1077,7 @@ void UICompSpectrumVis::setTuningAidType(TuningAidType type) {
         // Ha változott a frekvencia tartomány, invalidáljuk a buffert (csak waterfall módokhoz)
         if ((typeChanged || oldMinFreq != currentTuningAidMinFreqHz_ || oldMaxFreq != currentTuningAidMaxFreqHz_) &&
             (currentMode_ == DisplayMode::CWWaterfall || currentMode_ == DisplayMode::RTTYWaterfall)) {
-            for (auto &row : wabuf) {
-                std::fill(row.begin(), row.end(), 0);
-            }
+            std::fill(wabuf_.begin(), wabuf_.end(), 0); // 1D buffer t�rl�s
         }
     }
 }
@@ -1118,7 +1162,7 @@ bool UICompSpectrumVis::getCore1OscilloscopeData(const int16_t **outData, uint16
 void UICompSpectrumVis::drawMutedMessage() {
 
     // Ha már kirajzoltuk, nem csinálunk semmit
-    if (isMutedDrawn) {
+    if (flags_.isMutedDrawn) {
         return;
     }
 
@@ -1131,7 +1175,7 @@ void UICompSpectrumVis::drawMutedMessage() {
     tft.setTextDatum(MC_DATUM); // Középre igazítás
     tft.drawString("-- Muted --", x, y);
 
-    isMutedDrawn = true;
+    flags_.isMutedDrawn = true;
 }
 
 /**
@@ -1183,7 +1227,7 @@ const char *UICompSpectrumVis::decodeModeToStr() {
  * @brief Mode indicator renderelése
  */
 void UICompSpectrumVis::renderModeIndicator() {
-    if (!modeIndicatorVisible_)
+    if (!flags_.modeIndicatorVisible)
         return;
 
     int indicatorH = getIndicatorHeight();
@@ -1226,7 +1270,7 @@ void UICompSpectrumVis::renderModeIndicator() {
  */
 void UICompSpectrumVis::renderFrequencyRangeLabels(uint16_t minDisplayFrequencyHz, uint16_t maxDisplayFrequencyHz) {
 
-    if (!frequencyLabelsDrawn_) {
+    if (!flags_.frequencyLabelsDrawn) {
         return;
     }
 
@@ -1316,7 +1360,7 @@ void UICompSpectrumVis::renderFrequencyRangeLabels(uint16_t minDisplayFrequencyH
         }
     }
 
-    frequencyLabelsDrawn_ = false;
+    flags_.frequencyLabelsDrawn = false;
 }
 
 /**
@@ -1345,7 +1389,7 @@ void UICompSpectrumVis::renderSpectrumBar(bool isLowRes) {
 
     float maxBarHeightThisFrame = 0.0f; // AGC-hez
     uint8_t graphH = getGraphHeight();
-    if (!spriteCreated_ || bounds.width == 0 || graphH <= 0) {
+    if (!flags_.spriteCreated || bounds.width == 0 || graphH <= 0) {
         return;
     }
 
@@ -1365,7 +1409,7 @@ void UICompSpectrumVis::renderSpectrumBar(bool isLowRes) {
     float mag_softGain = updateRmsAndGetSoftGain(magRms, 0.08f, 400.0f, 0.12f);
 
     // --- Gain Calculation ---
-    float final_gain_lin = powf(10.0f, cachedGainDb_ / 20.0f);
+    float final_gain_lin = cachedGainLinear_; // Cache-elt line�ris gain (powf elimin�lva!)
     if (isAutoGainMode()) {
         final_gain_lin *= barAgcGainFactor_;
     } else {
@@ -1409,7 +1453,7 @@ void UICompSpectrumVis::renderSpectrumBar(bool isLowRes) {
         uint16_t computedHeights[LOW_RES_BANDS] = {0};
         for (uint8_t band_idx = 0; band_idx < bands_to_display; band_idx++) {
             q15_t adjusted_q15 = static_cast<q15_t>(band_magnitudes_q15[band_idx] * mag_softGain);
-            uint16_t height = q15ToPixelHeight(adjusted_q15, final_gain_lin, MAX_BAR_HEIGHT);
+            uint16_t height = q15ToPixelHeight(adjusted_q15, (int32_t)(final_gain_lin * 8388608.0f), MAX_BAR_HEIGHT);
             if (height == 0 && band_magnitudes_q15[band_idx] != 0)
                 height = 1;
             computedHeights[band_idx] = height;
@@ -1483,7 +1527,7 @@ void UICompSpectrumVis::renderSpectrumBar(bool isLowRes) {
             if (magnitude_q15 < 380)
                 magnitude_q15 = 0;
 
-            uint16_t height = q15ToPixelHeight(magnitude_q15, final_gain_lin, MAX_BAR_HEIGHT);
+            uint16_t height = q15ToPixelHeight(magnitude_q15, (int32_t)(final_gain_lin * 8388608.0f), MAX_BAR_HEIGHT);
             float newSm = HIGHRES_SMOOTH_ALPHA * highresSmoothedCols[x] + (1.0f - HIGHRES_SMOOTH_ALPHA) * height;
             highresSmoothedCols[x] = newSm;
             computedCols[x] = static_cast<uint16_t>(newSm + 0.5f);
@@ -1523,7 +1567,7 @@ void UICompSpectrumVis::renderSpectrumBar(bool isLowRes) {
  */
 void UICompSpectrumVis::renderOscilloscope() {
     uint16_t graphH = getGraphHeight();
-    if (!spriteCreated_ || bounds.width == 0 || graphH <= 0) {
+    if (!flags_.spriteCreated || bounds.width == 0 || graphH <= 0) {
         return;
     }
 
@@ -1556,9 +1600,9 @@ void UICompSpectrumVis::renderOscilloscope() {
     const int32_t half_h = graphH / 2 - 1;
 
     // --- Gain Calculation ---
-    float final_gain_lin = powf(10.0f, cachedGainDb_ / 20.0f);
+    float final_gain_lin = cachedGainLinear_; // Cache-elt line�ris gain (powf elimin�lva!)
     if (isAutoGainMode()) {
-        uint16_t maxPixelHeight = q15ToPixelHeight(max_abs, final_gain_lin, graphH / 4);
+        uint16_t maxPixelHeight = q15ToPixelHeight(max_abs, (int32_t)(final_gain_lin * 8388608.0f), graphH / 4);
         if (maxPixelHeight == 0 && max_abs > 0)
             maxPixelHeight = 1;
         updateMagnitudeBasedGain(static_cast<float>(maxPixelHeight));
@@ -1629,7 +1673,7 @@ float UICompSpectrumVis::updateRmsAndGetSoftGain(float newRms, float smoothAlpha
  */
 void UICompSpectrumVis::renderEnvelope() {
     uint16_t graphH = getGraphHeight();
-    if (!spriteCreated_ || bounds.width == 0 || graphH <= 0 || wabuf.empty() || wabuf[0].empty()) {
+    if (!flags_.spriteCreated || bounds.width == 0 || graphH <= 0 || wabuf_.empty()) {
         return;
     }
 
@@ -1641,9 +1685,7 @@ void UICompSpectrumVis::renderEnvelope() {
         return;
     }
 
-    for (auto &row : wabuf) {
-        std::move(row.begin() + 1, row.end(), row.begin());
-    }
+    // Waterfall scroll - optimaliz�lva k�rk�r�s bufferrel (nincs sz�ks�g move-ra)
 
     const uint16_t min_bin_for_env = std::max(10, static_cast<int>(std::round(MIN_AUDIO_FREQUENCY_HZ / currentBinWidthHz)));
     const uint16_t max_bin_for_env =
@@ -1651,7 +1693,7 @@ void UICompSpectrumVis::renderEnvelope() {
     const uint16_t num_bins_in_env_range = std::max(1, max_bin_for_env - min_bin_for_env + 1);
 
     // --- Gain Calculation ---
-    float final_gain_lin = powf(10.0f, cachedGainDb_ / 20.0f);
+    int64_t gain_q23; // Q23 fixpontos gain (optimalizalva: cache hasznalat manual modban, int64 nagy gain ertekekhez)
     if (isAutoGainMode()) {
         q15_t maxMagnitudeQ15 = 0;
         for (uint16_t i = min_bin_for_env; i <= max_bin_for_env; i++) {
@@ -1659,12 +1701,18 @@ void UICompSpectrumVis::renderEnvelope() {
                 maxMagnitudeQ15 = q15Abs(magnitudeData[i]);
             }
         }
-        uint16_t maxPixelHeight = q15ToPixelHeight(maxMagnitudeQ15, final_gain_lin, getGraphHeight());
+        uint16_t maxPixelHeight = q15ToPixelHeight(maxMagnitudeQ15, cachedGainQ15Scaled_, getGraphHeight());
         updateMagnitudeBasedGain(static_cast<float>(maxPixelHeight));
-        final_gain_lin *= magnitudeAgcGainFactor_;
+        float final_gain_lin = cachedGainLinear_ * magnitudeAgcGainFactor_;
+        gain_q23 = (int64_t)(final_gain_lin * 255.0f * 8388608.0f);
     } else {
         int8_t gainCfg = this->radioMode_ == RadioMode::AM ? config.data.audioFftGainConfigAm : config.data.audioFftGainConfigFm;
-        final_gain_lin *= powf(10.0f, static_cast<float>(gainCfg) / 20.0f);
+        if (gainCfg == 0) {
+            gain_q23 = cachedGainQ15Scaled_; // Cache hasznalat (powf es float szorzas eliminalva!)
+        } else {
+            float final_gain_lin = cachedGainLinear_ * powf(10.0f, static_cast<float>(gainCfg) / 20.0f);
+            gain_q23 = (int64_t)(final_gain_lin * 255.0f * 8388608.0f);
+        }
     }
     // --- End of Gain Calculation ---
 
@@ -1677,13 +1725,15 @@ void UICompSpectrumVis::renderEnvelope() {
         fft_bin_index = constrain(fft_bin_index, min_bin_for_env, max_bin_for_env);
 
         q15_t rawMagnitudeQ15 = static_cast<q15_t>(magnitudeData[fft_bin_index] * env_softGain);
-        uint8_t rawVal = q15ToUint8(rawMagnitudeQ15, final_gain_lin);
+        uint8_t rawVal = q15ToUint8(rawMagnitudeQ15, gain_q23);
 
-        uint8_t prevVal = wabuf[r][bounds.width - 2];
-        wabuf[r][bounds.width - 1] = static_cast<uint8_t>(roundf(0.35f * prevVal + (1.0f - 0.35f) * rawVal));
+        uint8_t prevVal = wabuf_[r * bounds.width + (bounds.width - 2)];
+        wabuf_[r * bounds.width + (bounds.width - 1)] = static_cast<uint8_t>(roundf(0.35f * prevVal + (1.0f - 0.35f) * rawVal));
     }
 
-    sprite_->fillSprite(TFT_BLACK);
+    // Sprite scroll balra (envelope görbét balra tolja)
+    sprite_->scroll(-1, 0);
+
     uint8_t yCenter_on_sprite = graphH / 2;
     sprite_->drawFastHLine(0, yCenter_on_sprite, bounds.width, TFT_WHITE);
 
@@ -1691,8 +1741,8 @@ void UICompSpectrumVis::renderEnvelope() {
         int32_t sum_val_in_col = 0;
         int16_t count_val_in_col = 0;
         for (uint8_t r = 0; r < bounds.height; ++r) {
-            if (wabuf[r][c] > 0) {
-                sum_val_in_col += wabuf[r][c];
+            if (wabuf_[r * bounds.width + c] > 0) {
+                sum_val_in_col += wabuf_[r * bounds.width + c];
                 count_val_in_col++;
             }
         }
@@ -1732,7 +1782,7 @@ void UICompSpectrumVis::renderEnvelope() {
  */
 void UICompSpectrumVis::renderWaterfall() {
     uint16_t graphH = getGraphHeight();
-    if (!spriteCreated_ || bounds.width == 0 || graphH <= 0 || wabuf.empty() || wabuf[0].empty()) {
+    if (!flags_.spriteCreated || bounds.width == 0 || graphH <= 0 || wabuf_.empty()) {
         return;
     }
 
@@ -1744,33 +1794,37 @@ void UICompSpectrumVis::renderWaterfall() {
         return;
     }
 
-    for (auto &row : wabuf) {
-        std::move(row.begin() + 1, row.end(), row.begin());
-    }
+    // Waterfall scroll - optimaliz optimalizalva korkoros bufferrel (nincs szukseg move-ra)
 
     const int min_bin_for_wf = std::max(2, static_cast<int>(std::round(MIN_AUDIO_FREQUENCY_HZ / currentBinWidthHz)));
     const int max_bin_for_wf = std::min(static_cast<int>(actualFftSize - 1), static_cast<int>(std::round(maxDisplayFrequencyHz_ / currentBinWidthHz)));
     const int num_bins_in_wf_range = std::max(1, max_bin_for_wf - min_bin_for_wf + 1);
 
     // --- Gain Calculation ---
-    float final_gain_lin = powf(10.0f, cachedGainDb_ / 20.0f);
+    int64_t gain_q23; // Q23 fixpontos gain (optimalizalva: cache hasznalat manual modban, int64 nagy gain ertekekhez)
     if (isAutoGainMode()) {
-        final_gain_lin *= magnitudeAgcGainFactor_;
+        float final_gain_lin = cachedGainLinear_ * magnitudeAgcGainFactor_;
+        gain_q23 = (int64_t)(final_gain_lin * 255.0f * 8388608.0f);
     } else {
         int8_t gainCfg = this->radioMode_ == RadioMode::AM ? config.data.audioFftGainConfigAm : config.data.audioFftGainConfigFm;
-        final_gain_lin *= powf(10.0f, static_cast<float>(gainCfg) / 20.0f);
+        if (gainCfg == 0) {
+            gain_q23 = cachedGainQ15Scaled_; // Cache hasznalat (powf es float szorzas eliminalva!)
+        } else {
+            float final_gain_lin = cachedGainLinear_ * powf(10.0f, static_cast<float>(gainCfg) / 20.0f);
+            gain_q23 = (int64_t)(final_gain_lin * 255.0f * 8388608.0f);
+        }
     }
     // --- End of Gain Calculation ---
 
-    uint8_t maxWabufVal = 0;
+    uint8_t maxwabuf_Val = 0;
     for (uint16_t r = 0; r < bounds.height; ++r) {
         int fft_bin_index =
             min_bin_for_wf + static_cast<int>(std::round(static_cast<float>(r) * (num_bins_in_wf_range - 1) / std::max(1, (bounds.height - 1))));
         fft_bin_index = constrain(fft_bin_index, min_bin_for_wf, max_bin_for_wf);
-        uint8_t val = q15ToUint8(magnitudeData[fft_bin_index], final_gain_lin);
-        wabuf[r][bounds.width - 1] = val;
-        if (val > maxWabufVal)
-            maxWabufVal = val;
+        uint8_t val = q15ToUint8(magnitudeData[fft_bin_index], gain_q23);
+        wabuf_[r * bounds.width + (bounds.width - 1)] = val;
+        if (val > maxwabuf_Val)
+            maxwabuf_Val = val;
     }
 
     sprite_->scroll(-1, 0);
@@ -1782,19 +1836,19 @@ void UICompSpectrumVis::renderWaterfall() {
         r_upper = constrain(r_upper, 0, bounds.height - 1);
 
         float frac = r_wabuf_float - r_lower;
-        float val_interp = wabuf[r_lower][bounds.width - 1] * (1.0f - frac) + wabuf[r_upper][bounds.width - 1] * frac;
+        float val_interp = wabuf_[r_lower * bounds.width + (bounds.width - 1)] * (1.0f - frac) + wabuf_[r_upper * bounds.width + (bounds.width - 1)] * frac;
 
         uint16_t color = valueToWaterfallColor(100 * val_interp, 0.0f, 255.0f * 100, WATERFALL_COLOR_INDEX);
         sprite_->drawPixel(bounds.width - 1, y, color);
     }
 
     if (isAutoGainMode()) {
-        float estimatedPeak = (static_cast<float>(maxWabufVal) / 255.0f) * (graphH * GRAPH_TARGET_HEIGHT_UTILIZATION);
+        float estimatedPeak = (static_cast<float>(maxwabuf_Val) / 255.0f) * (graphH * GRAPH_TARGET_HEIGHT_UTILIZATION);
         updateMagnitudeBasedGain(estimatedPeak);
     }
 
     sprite_->pushSprite(bounds.x, bounds.y);
-    if (!modeIndicatorVisible_) {
+    if (!flags_.modeIndicatorVisible) {
         renderFrequencyRangeLabels(MIN_AUDIO_FREQUENCY_HZ, maxDisplayFrequencyHz_);
     }
 }
@@ -1804,7 +1858,7 @@ void UICompSpectrumVis::renderWaterfall() {
  */
 void UICompSpectrumVis::renderCwOrRttyTuningAidWaterfall() {
     uint16_t graphH = getGraphHeight();
-    if (!spriteCreated_ || bounds.width == 0 || graphH <= 0 || wabuf.empty() || wabuf[0].empty()) {
+    if (!flags_.spriteCreated || bounds.width == 0 || graphH <= 0 || wabuf_.empty()) {
         return;
     }
 
@@ -1823,7 +1877,7 @@ void UICompSpectrumVis::renderCwOrRttyTuningAidWaterfall() {
     const int num_bins = std::max(1, max_bin - min_bin + 1);
 
     // --- Gain Calculation ---
-    float final_gain_lin = powf(10.0f, cachedGainDb_ / 20.0f);
+    float final_gain_lin = cachedGainLinear_; // Cache-elt lineáris gain (powf eliminálva!)
     if (isAutoGainMode()) {
         final_gain_lin *= magnitudeAgcGainFactor_;
     } else {
@@ -1832,23 +1886,23 @@ void UICompSpectrumVis::renderCwOrRttyTuningAidWaterfall() {
     }
     // --- End of Gain Calculation ---
 
-    uint8_t maxWabufVal = 0;
+    uint8_t maxwabuf_Val = 0;
     for (uint16_t c = 0; c < bounds.width; ++c) {
         float ratio = (bounds.width <= 1) ? 0.0f : static_cast<float>(c) / (bounds.width - 1);
         float exact_bin = min_bin + ratio * (num_bins - 1);
 
         q15_t mag_q15 = static_cast<q15_t>(std::round(q15InterpolateFloat(magnitudeData, exact_bin, min_bin, max_bin)));
-        uint8_t val = q15ToUint8(mag_q15, final_gain_lin);
-        wabuf[0][c] = val;
-        if (val > maxWabufVal)
-            maxWabufVal = val;
+        uint8_t val = q15ToUint8(mag_q15, (int32_t)(final_gain_lin * 8388608.0f));
+        wabuf_[0 * bounds.width + c] = val;
+        if (val > maxwabuf_Val)
+            maxwabuf_Val = val;
 
         uint16_t color = valueToWaterfallColor(100 * val, 0.0f, 255.0f * 100, WATERFALL_COLOR_INDEX);
         sprite_->drawPixel(c, 0, color);
     }
 
     if (isAutoGainMode()) {
-        float estimatedPeak = (static_cast<float>(maxWabufVal) / 255.0f) * (graphH * GRAPH_TARGET_HEIGHT_UTILIZATION);
+        float estimatedPeak = (static_cast<float>(maxwabuf_Val) / 255.0f) * (graphH * GRAPH_TARGET_HEIGHT_UTILIZATION);
         updateMagnitudeBasedGain(estimatedPeak);
     }
 
@@ -1860,7 +1914,7 @@ void UICompSpectrumVis::renderCwOrRttyTuningAidWaterfall() {
  */
 void UICompSpectrumVis::renderSnrCurve() {
     uint16_t graphH = getGraphHeight();
-    if (!spriteCreated_ || bounds.width == 0 || graphH <= 0) {
+    if (!flags_.spriteCreated || bounds.width == 0 || graphH <= 0) {
         return;
     }
 
@@ -1882,7 +1936,7 @@ void UICompSpectrumVis::renderSnrCurve() {
     const uint16_t num_bins = std::max(1, max_bin - min_bin + 1);
 
     // --- Gain Calculation ---
-    float final_gain_lin = powf(10.0f, cachedGainDb_ / 20.0f);
+    float final_gain_lin = cachedGainLinear_; // Cache-elt lineáris gain (powf eliminálva!)
     if (isAutoGainMode()) {
         final_gain_lin *= magnitudeAgcGainFactor_;
     } else {
@@ -1898,7 +1952,7 @@ void UICompSpectrumVis::renderSnrCurve() {
         float exact_bin = min_bin + ratio * (num_bins - 1);
 
         q15_t mag_q15 = static_cast<q15_t>(std::round(q15InterpolateFloat(magnitudeData, exact_bin, min_bin, max_bin)));
-        uint16_t pixelHeight = q15ToPixelHeight(mag_q15, final_gain_lin, graphH);
+        uint16_t pixelHeight = q15ToPixelHeight(mag_q15, (int32_t)(final_gain_lin * 8388608.0f), graphH);
         maxMagnitude = std::max(maxMagnitude, static_cast<float>(pixelHeight));
 
         uint16_t y = graphH - constrain(pixelHeight, 0, graphH - 1);
