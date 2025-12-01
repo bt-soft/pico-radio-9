@@ -264,8 +264,8 @@ class UICompSpectrumVis : public UIComponent {
 
     // Cache-elt grafikun és mód (CW/RTTY/FM/AM, stb) típustól függő erősítés dB-ben (bázis érték, AGC korrekció nélkül)
     float cachedGainDb_ = 0.0f;
-    float cachedGainLinear_ = 1.0f;   // Lineáris gain (előre konvertálva dB-ből, powf kiküszöbölésére)
-    int64_t cachedGainQ15Scaled_ = 0; // Q23 fixpontos gain (gyors uint8/pixel konverziokhoz, int64 nagy gain ertekekhez)
+    float cachedGainLinear_ = 1.0f; // Lineáris gain (előre konvertálva dB-ből, powf kiküszöbölésére)
+    int32_t cachedGainScaled_ = 0;  // Gain * 255 (max ~25k, 32-bit nativ muveletek)
 
     // Zajszűrő/silence detektáláshoz simított RMS értékek
     float oscRmsSmoothed_ = 0.0f; // Oszcilloszkóp zaj/silence detektáláshoz

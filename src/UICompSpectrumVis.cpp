@@ -90,43 +90,42 @@ constexpr uint8_t SPECTRUM_FPS = 25;                              // FPS limitá
 static inline int32_t q15Abs(q15_t v) { return (v < 0) ? -(int32_t)v : (int32_t)v; }
 
 // Q15 -> uint8 (0..255) - OPTIMALIZÁLT fixpontos verzió (Q23 scaled gain használatával)
-static inline uint8_t q15ToUint8(q15_t v, int64_t gain_q23_scaled) {
+static inline uint8_t q15ToUint8(q15_t v, int32_t gain_scaled) {
     int32_t abs_val = q15Abs(v); // 0..32767
     if (abs_val == 0)
         return 0;
 
-    // Fixpontos szamitas: (abs_val * gain_q23) >> (23 + 15)
-    // Q15 * Q23 = Q38, majd >> 38 hogy 0..255 legyen
-    // Optimalizacio: eloszor >> 15 (Q15 normalizalas), majd >> 23 (Q23 skala)
-    // gain_q23_scaled elore kiszamitva: gain_lin * 255 * 8388608 (int64 nagy gain ertekekhez!)
-    int64_t temp = ((int64_t)abs_val * gain_q23_scaled) >> (23 + 15); // Q15 * Q23 >> 38 = Q0 (0..255)
-    int32_t result = (int32_t)temp;
+    // Egyszerusitett fixpont szamitas (32-bit nativ!):
+    // gain_scaled = gain_lin * 255 (max ~25k)
+    // result = (q15_val * gain_scaled) >> 15 = 0..255
+    int32_t result = (abs_val * gain_scaled) >> 15;
     return (uint8_t)constrain(result, 0, 255);
 }
 
 // BACKWARD COMPATIBILITY: float gain verzio (atiranyit a fixpontos verziora)
 static inline uint8_t q15ToUint8_float(q15_t v, float gain_lin) {
-    int64_t gain_q23 = (int64_t)(gain_lin * 255.0f * 8388608.0f); // Q23 = gain * 255 * (Q15 << 8)
-    return q15ToUint8(v, gain_q23);
+    int32_t gain_scaled = (int32_t)(gain_lin * 255.0f);
+    return q15ToUint8(v, gain_scaled);
 }
 
 // Q15 -> pixel height (0..max_height) - OPTIMALIZALT fixpontos verzio
-static inline uint16_t q15ToPixelHeight(q15_t v, int64_t gain_q23_scaled, uint16_t max_height) {
+static inline uint16_t q15ToPixelHeight(q15_t v, int32_t gain_scaled, uint16_t max_height) {
     int32_t abs_val = q15Abs(v); // 0..32767
     if (abs_val == 0)
         return 0;
 
-    // Fixpontos: (abs_val * gain_q23 * max_height) >> (23 + 15)
-    // Q15 * Q23 = Q38, majd szorozzuk max_height-tal es >> 38
-    int64_t temp = ((int64_t)abs_val * gain_q23_scaled * max_height) >> (23 + 15);
-    int32_t result = (int32_t)temp;
+    // Egyszerusitett fixpont (32-bit nativ!):
+    // gain_scaled = gain_lin * 255
+    // result = (q15_val * gain_scaled * max_height) >> 15 / 255
+    int32_t temp = (abs_val * gain_scaled) >> 15; // 0..255
+    int32_t result = (temp * max_height) >> 8;    // skalalas max_height-ra
     return (uint16_t)constrain(result, 0, (int32_t)max_height);
 }
 
 // BACKWARD COMPATIBILITY: float gain verzio
 static inline uint16_t q15ToPixelHeight_float(q15_t v, float gain_lin, uint16_t max_height) {
-    int64_t gain_q23 = (int64_t)(gain_lin * 255.0f * 8388608.0f);
-    return q15ToPixelHeight(v, gain_q23, max_height);
+    int32_t gain_scaled = (int32_t)(gain_lin * 255.0f);
+    return q15ToPixelHeight(v, gain_scaled, max_height);
 }
 
 // OPTIMALIZÁLT fixpontos interpoláció Q15 tömbből (Q15 eredmény)
@@ -180,7 +179,7 @@ constexpr BandwidthScaleConfig BANDWIDTH_GAIN_TABLE[] = {
     {RTTY_AF_BANDWIDTH_HZ, 4.0f, 3.0f, 2.0f, 3.0f, 2.0f, 3.0f, 8.0f},          // 3kHz: RTTY mód
     {AM_AF_BANDWIDTH_HZ, -18.0f, -18.0f, 0.0f, -10.0f, -10.0f, 10.0f, -10.0f}, // 6kHz: AM mód
     {WEFAX_SAMPLE_RATE_HZ, NOAMP, NOAMP, NOAMP, NOAMP, NOAMP, NOAMP, NOAMP},   // 11025Hz: WEFAX mód
-    {FM_AF_BANDWIDTH_HZ, 20.0f, 25.0f, -3.0f, 40.0f, 40.0f, NOAMP, NOAMP},     // 15kHz: FM mód
+    {FM_AF_BANDWIDTH_HZ, 10.0f, 10.0f, -3.0f, 18.0f, 18.0f, NOAMP, NOAMP},     // 15kHz: FM mód
 };
 constexpr size_t BANDWIDTH_GAIN_TABLE_SIZE = ARRAY_ITEM_COUNT(BANDWIDTH_GAIN_TABLE);
 
@@ -231,7 +230,7 @@ UICompSpectrumVis::UICompSpectrumVis(const Rect &rect, RadioMode radioMode, uint
     // Inicializáljuk a cache-elt gain értékeket
     cachedGainDb_ = 0;
     cachedGainLinear_ = 1.0f;
-    cachedGainQ15Scaled_ = 8388608; // 1.0 * 8388608
+    cachedGainScaled_ = 255; // 1.0 * 255
 
     maxDisplayFrequencyHz_ = radioMode_ == RadioMode::AM ? UICompSpectrumVis::MAX_DISPLAY_FREQUENCY_AM : UICompSpectrumVis::MAX_DISPLAY_FREQUENCY_FM;
 
@@ -945,9 +944,9 @@ void UICompSpectrumVis::computeCachedGain() {
             cachedGainDb_ = getDbFromTable(BANDWIDTH_GAIN_TABLE[i]);
             // OPTIMALIZÁLÁS: Azonnal számoljuk ki a lineáris formát is (powf eliminálása a render loop-ból!)
             cachedGainLinear_ = powf(10.0f, cachedGainDb_ / 20.0f);
-            // Q23 fixpontos gain: gain_lin * 255 * (1<<23) = gain_lin * 2139095040
-            // Ez biztosítja, hogy q15ToUint8() helyesen működjön: (q15_val * gain_q23) >> 38 = 0..255
-            cachedGainQ15Scaled_ = (int64_t)(cachedGainLinear_ * 255.0f * 8388608.0f);
+            // Egyszerusitett fixpont: gain * 255 (32-bit nativ muveletek!)
+            // q15ToUint8: (q15_val * gain_scaled) >> 15 = 0..255
+            cachedGainScaled_ = (int32_t)(cachedGainLinear_ * 255.0f);
             return;
         }
     }
@@ -1453,7 +1452,8 @@ void UICompSpectrumVis::renderSpectrumBar(bool isLowRes) {
         uint16_t computedHeights[LOW_RES_BANDS] = {0};
         for (uint8_t band_idx = 0; band_idx < bands_to_display; band_idx++) {
             q15_t adjusted_q15 = static_cast<q15_t>(band_magnitudes_q15[band_idx] * mag_softGain);
-            uint16_t height = q15ToPixelHeight(adjusted_q15, (int32_t)(final_gain_lin * 8388608.0f), MAX_BAR_HEIGHT);
+            int32_t gain_scaled = (int32_t)(final_gain_lin * 255.0f);
+            uint16_t height = q15ToPixelHeight(adjusted_q15, gain_scaled, MAX_BAR_HEIGHT);
             if (height == 0 && band_magnitudes_q15[band_idx] != 0)
                 height = 1;
             computedHeights[band_idx] = height;
@@ -1527,7 +1527,8 @@ void UICompSpectrumVis::renderSpectrumBar(bool isLowRes) {
             if (magnitude_q15 < 380)
                 magnitude_q15 = 0;
 
-            uint16_t height = q15ToPixelHeight(magnitude_q15, (int32_t)(final_gain_lin * 8388608.0f), MAX_BAR_HEIGHT);
+            int32_t gain_scaled = (int32_t)(final_gain_lin * 255.0f);
+            uint16_t height = q15ToPixelHeight(magnitude_q15, gain_scaled, MAX_BAR_HEIGHT);
             float newSm = HIGHRES_SMOOTH_ALPHA * highresSmoothedCols[x] + (1.0f - HIGHRES_SMOOTH_ALPHA) * height;
             highresSmoothedCols[x] = newSm;
             computedCols[x] = static_cast<uint16_t>(newSm + 0.5f);
@@ -1602,7 +1603,7 @@ void UICompSpectrumVis::renderOscilloscope() {
     // --- Gain Calculation ---
     float final_gain_lin = cachedGainLinear_; // Cache-elt line�ris gain (powf elimin�lva!)
     if (isAutoGainMode()) {
-        uint16_t maxPixelHeight = q15ToPixelHeight(max_abs, (int32_t)(final_gain_lin * 8388608.0f), graphH / 4);
+        uint16_t maxPixelHeight = q15ToPixelHeight(max_abs, (int32_t)(final_gain_lin * 255.0f), graphH / 4);
         if (maxPixelHeight == 0 && max_abs > 0)
             maxPixelHeight = 1;
         updateMagnitudeBasedGain(static_cast<float>(maxPixelHeight));
@@ -1693,7 +1694,7 @@ void UICompSpectrumVis::renderEnvelope() {
     const uint16_t num_bins_in_env_range = std::max(1, max_bin_for_env - min_bin_for_env + 1);
 
     // --- Gain Calculation ---
-    int64_t gain_q23; // Q23 fixpontos gain (optimalizalva: cache hasznalat manual modban, int64 nagy gain ertekekhez)
+    int32_t gain_scaled; // Gain * 255 (32-bit nativ muveletek!)
     if (isAutoGainMode()) {
         q15_t maxMagnitudeQ15 = 0;
         for (uint16_t i = min_bin_for_env; i <= max_bin_for_env; i++) {
@@ -1701,17 +1702,17 @@ void UICompSpectrumVis::renderEnvelope() {
                 maxMagnitudeQ15 = q15Abs(magnitudeData[i]);
             }
         }
-        uint16_t maxPixelHeight = q15ToPixelHeight(maxMagnitudeQ15, cachedGainQ15Scaled_, getGraphHeight());
+        uint16_t maxPixelHeight = q15ToPixelHeight(maxMagnitudeQ15, cachedGainScaled_, getGraphHeight());
         updateMagnitudeBasedGain(static_cast<float>(maxPixelHeight));
         float final_gain_lin = cachedGainLinear_ * magnitudeAgcGainFactor_;
-        gain_q23 = (int64_t)(final_gain_lin * 255.0f * 8388608.0f);
+        gain_scaled = (int32_t)(final_gain_lin * 255.0f);
     } else {
         int8_t gainCfg = this->radioMode_ == RadioMode::AM ? config.data.audioFftGainConfigAm : config.data.audioFftGainConfigFm;
         if (gainCfg == 0) {
-            gain_q23 = cachedGainQ15Scaled_; // Cache hasznalat (powf es float szorzas eliminalva!)
+            gain_scaled = cachedGainScaled_; // Cache hasznalat (powf es float szorzas eliminalva!)
         } else {
             float final_gain_lin = cachedGainLinear_ * powf(10.0f, static_cast<float>(gainCfg) / 20.0f);
-            gain_q23 = (int64_t)(final_gain_lin * 255.0f * 8388608.0f);
+            gain_scaled = (int32_t)(final_gain_lin * 255.0f);
         }
     }
     // --- End of Gain Calculation ---
@@ -1725,7 +1726,7 @@ void UICompSpectrumVis::renderEnvelope() {
         fft_bin_index = constrain(fft_bin_index, min_bin_for_env, max_bin_for_env);
 
         q15_t rawMagnitudeQ15 = static_cast<q15_t>(magnitudeData[fft_bin_index] * env_softGain);
-        uint8_t rawVal = q15ToUint8(rawMagnitudeQ15, gain_q23);
+        uint8_t rawVal = q15ToUint8(rawMagnitudeQ15, gain_scaled);
 
         uint8_t prevVal = wabuf_[r * bounds.width + (bounds.width - 2)];
         wabuf_[r * bounds.width + (bounds.width - 1)] = static_cast<uint8_t>(roundf(0.35f * prevVal + (1.0f - 0.35f) * rawVal));
@@ -1801,17 +1802,17 @@ void UICompSpectrumVis::renderWaterfall() {
     const int num_bins_in_wf_range = std::max(1, max_bin_for_wf - min_bin_for_wf + 1);
 
     // --- Gain Calculation ---
-    int64_t gain_q23; // Q23 fixpontos gain (optimalizalva: cache hasznalat manual modban, int64 nagy gain ertekekhez)
+    int32_t gain_scaled; // Gain * 255 (32-bit nativ muveletek!)
     if (isAutoGainMode()) {
         float final_gain_lin = cachedGainLinear_ * magnitudeAgcGainFactor_;
-        gain_q23 = (int64_t)(final_gain_lin * 255.0f * 8388608.0f);
+        gain_scaled = (int32_t)(final_gain_lin * 255.0f);
     } else {
         int8_t gainCfg = this->radioMode_ == RadioMode::AM ? config.data.audioFftGainConfigAm : config.data.audioFftGainConfigFm;
         if (gainCfg == 0) {
-            gain_q23 = cachedGainQ15Scaled_; // Cache hasznalat (powf es float szorzas eliminalva!)
+            gain_scaled = cachedGainScaled_; // Cache hasznalat (powf es float szorzas eliminalva!)
         } else {
             float final_gain_lin = cachedGainLinear_ * powf(10.0f, static_cast<float>(gainCfg) / 20.0f);
-            gain_q23 = (int64_t)(final_gain_lin * 255.0f * 8388608.0f);
+            gain_scaled = (int32_t)(final_gain_lin * 255.0f);
         }
     }
     // --- End of Gain Calculation ---
@@ -1821,7 +1822,7 @@ void UICompSpectrumVis::renderWaterfall() {
         int fft_bin_index =
             min_bin_for_wf + static_cast<int>(std::round(static_cast<float>(r) * (num_bins_in_wf_range - 1) / std::max(1, (bounds.height - 1))));
         fft_bin_index = constrain(fft_bin_index, min_bin_for_wf, max_bin_for_wf);
-        uint8_t val = q15ToUint8(magnitudeData[fft_bin_index], gain_q23);
+        uint8_t val = q15ToUint8(magnitudeData[fft_bin_index], gain_scaled);
         wabuf_[r * bounds.width + (bounds.width - 1)] = val;
         if (val > maxwabuf_Val)
             maxwabuf_Val = val;
@@ -1892,7 +1893,7 @@ void UICompSpectrumVis::renderCwOrRttyTuningAidWaterfall() {
         float exact_bin = min_bin + ratio * (num_bins - 1);
 
         q15_t mag_q15 = static_cast<q15_t>(std::round(q15InterpolateFloat(magnitudeData, exact_bin, min_bin, max_bin)));
-        uint8_t val = q15ToUint8(mag_q15, (int32_t)(final_gain_lin * 8388608.0f));
+        uint8_t val = q15ToUint8(mag_q15, (int32_t)(final_gain_lin * 255.0f));
         wabuf_[0 * bounds.width + c] = val;
         if (val > maxwabuf_Val)
             maxwabuf_Val = val;
@@ -1952,7 +1953,7 @@ void UICompSpectrumVis::renderSnrCurve() {
         float exact_bin = min_bin + ratio * (num_bins - 1);
 
         q15_t mag_q15 = static_cast<q15_t>(std::round(q15InterpolateFloat(magnitudeData, exact_bin, min_bin, max_bin)));
-        uint16_t pixelHeight = q15ToPixelHeight(mag_q15, (int32_t)(final_gain_lin * 8388608.0f), graphH);
+        uint16_t pixelHeight = q15ToPixelHeight(mag_q15, (int32_t)(final_gain_lin * 255.0f), graphH);
         maxMagnitude = std::max(maxMagnitude, static_cast<float>(pixelHeight));
 
         uint16_t y = graphH - constrain(pixelHeight, 0, graphH - 1);
