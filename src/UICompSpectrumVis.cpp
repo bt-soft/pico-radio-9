@@ -1312,13 +1312,12 @@ void UICompSpectrumVis::renderFrequencyRangeLabels(uint16_t minDisplayFrequencyH
 
         // Emeljük a címkét 2 pixellel magasabbra a kérés szerint.
         int rectY = bounds.y - 16; // háttér téglalap kezdete kicsit fentebb
-        int rectH = 14;            // magasság csökkentve, hogy ne érjen a felső keretbe
 
         // Clamp rectY hogy ne lépjen ki túl messze a komponens fölé
         if (rectY < bounds.y - 20) {
             rectY = bounds.y - 20;
         }
-        tft.fillRect(rectX, rectY, rectW, rectH, TFT_BLACK);
+        tft.fillRect(rectX, rectY, rectW, 14, TFT_BLACK);
 
         tft.drawString(topLabel, centerX, bounds.y - 12); // eredeti -10 helyett -12
 
@@ -1360,6 +1359,77 @@ void UICompSpectrumVis::renderFrequencyRangeLabels(uint16_t minDisplayFrequencyH
     }
 
     flags_.frequencyLabelsDrawn = false;
+}
+
+/**
+ * @brief Közös helper függvény: CW/RTTY frekvencia címkék rajzolása fekete háttérrel
+ *
+ * Optimalizáció: Ez a függvény kivonja a közös label rajzolási logikát,
+ * amelyet a renderCwOrRttyTuningAidWaterfall() és renderSnrCurve() egyaránt használ.
+ *
+ * @param min_freq Minimális frekvencia (Hz) a grafikon tartományában
+ * @param max_freq Maximális frekvencia (Hz) a grafikon tartományában
+ * @param graphH Grafikon magassága pixelben
+ */
+void UICompSpectrumVis::renderTuningAidFrequencyLabels(float min_freq, float max_freq, uint16_t graphH) {
+    float freq_range = max_freq - min_freq;
+    if (freq_range <= 0) {
+        return; // Érvénytelen frekvencia tartomány
+    }
+
+    // Sprite text beállítások (egyszer, nem minden label-re külön)
+    sprite_->setTextDatum(TC_DATUM);             // Felül középre igazítva a méretszámításhoz
+    sprite_->setTextColor(TFT_WHITE, TFT_BLACK); // Fehér szöveg, fekete háttér
+    sprite_->setFreeFont();
+    sprite_->setTextSize(1);
+
+    constexpr int8_t PADDING = 3; // 3px padding minden irányban (felül, alul, bal, jobb)
+
+    // Lambda helper: egy frekvencia címke kirajzolása fekete háttérrel
+    auto drawLabelWithBackground = [&](uint16_t freq, const char *prefix = nullptr) {
+        if (freq < min_freq || freq > max_freq) {
+            return; // Címke kívül esik a tartományon
+        }
+
+        // X pozíció számítása a frekvencia alapján
+        int x_pos = round(((freq - min_freq) / freq_range) * (bounds.width - 1));
+
+        // Formázott szöveg készítése (prefix opcionális: "M:" vagy "S:")
+        char buf[16];
+        if (prefix) {
+            snprintf(buf, sizeof(buf), "%s%u", prefix, freq);
+        } else {
+            snprintf(buf, sizeof(buf), "%u", freq);
+        }
+
+        // Szöveg méret kiszámítása (sprite API)
+        int16_t text_w = sprite_->textWidth(buf);
+        int16_t text_h = sprite_->fontHeight();
+
+        // Fekete háttér téglalap koordinátái (szöveg körül padding-gel)
+        int16_t box_x = x_pos - text_w / 2 - PADDING;
+        int16_t box_y = graphH - text_h - PADDING * 2;
+        int16_t box_w = text_w + PADDING * 2;
+        int16_t box_h = text_h + PADDING * 2;
+
+        // Rajzolás: 1) fekete háttér, 2) fehér szöveg
+        sprite_->fillRect(box_x, box_y, box_w, box_h, TFT_BLACK);
+        sprite_->drawString(buf, x_pos, box_y + PADDING);
+    };
+
+    // CW mód: egyetlen frekvencia címke (pl. "800")
+    if (currentTuningAidType_ == TuningAidType::CW_TUNING) {
+        uint16_t cw_freq = config.data.cwToneFrequencyHz;
+        drawLabelWithBackground(cw_freq);
+    } else if (currentTuningAidType_ == TuningAidType::RTTY_TUNING) {
+        // RTTY mód: két frekvencia címke (mark="M:2125", space="S:1955")
+
+        uint16_t mark_freq = config.data.rttyMarkFrequencyHz;
+        uint16_t space_freq = mark_freq - config.data.rttyShiftFrequencyHz;
+
+        drawLabelWithBackground(mark_freq, "M:");  // Mark frekvencia "M:" prefix-szel
+        drawLabelWithBackground(space_freq, "S:"); // Space frekvencia "S:" prefix-szel
+    }
 }
 
 /**
@@ -1951,69 +2021,8 @@ void UICompSpectrumVis::renderCwOrRttyTuningAidWaterfall() {
         }
     }
 
-    // Frekvencia címkék a hangolási vonalakon (sprite-ra, vonal aljára, padding minden irányban)
-    if (freq_range > 0) {
-        sprite_->setTextDatum(TC_DATUM);             // Felül középre igazítva a méretszámításhoz
-        sprite_->setTextColor(TFT_WHITE, TFT_BLACK); // Fehér szöveg, fekete háttér
-        sprite_->setFreeFont();
-        sprite_->setTextSize(1);
-
-        constexpr int8_t PADDING = 3; // 3px padding minden irányban
-
-        if (currentTuningAidType_ == TuningAidType::CW_TUNING) {
-            uint16_t cw_freq = config.data.cwToneFrequencyHz;
-            if (cw_freq >= currentTuningAidMinFreqHz_ && cw_freq <= currentTuningAidMaxFreqHz_) {
-                int x_pos = round(((cw_freq - currentTuningAidMinFreqHz_) / freq_range) * (bounds.width - 1));
-                char buf[16];
-                snprintf(buf, sizeof(buf), "%u", cw_freq);
-
-                // Szöveg méret kiszámítása
-                int16_t text_w = sprite_->textWidth(buf);
-                int16_t text_h = sprite_->fontHeight();
-                int16_t box_x = x_pos - text_w / 2 - PADDING;
-                int16_t box_y = graphH - text_h - PADDING * 2;
-                int16_t box_w = text_w + PADDING * 2;
-                int16_t box_h = text_h + PADDING * 2;
-
-                sprite_->fillRect(box_x, box_y, box_w, box_h, TFT_BLACK); // Fekete háttér
-                sprite_->drawString(buf, x_pos, box_y + PADDING);         // Szöveg a téglalapba
-            }
-        } else if (currentTuningAidType_ == TuningAidType::RTTY_TUNING) {
-            uint16_t mark_freq = config.data.rttyMarkFrequencyHz;
-            uint16_t space_freq = mark_freq - config.data.rttyShiftFrequencyHz;
-
-            if (mark_freq >= currentTuningAidMinFreqHz_ && mark_freq <= currentTuningAidMaxFreqHz_) {
-                int x_pos = round(((mark_freq - currentTuningAidMinFreqHz_) / freq_range) * (bounds.width - 1));
-                char buf[16];
-                snprintf(buf, sizeof(buf), "M:%u", mark_freq);
-
-                int16_t text_w = sprite_->textWidth(buf);
-                int16_t text_h = sprite_->fontHeight();
-                int16_t box_x = x_pos - text_w / 2 - PADDING;
-                int16_t box_y = graphH - text_h - PADDING * 2;
-                int16_t box_w = text_w + PADDING * 2;
-                int16_t box_h = text_h + PADDING * 2;
-
-                sprite_->fillRect(box_x, box_y, box_w, box_h, TFT_BLACK);
-                sprite_->drawString(buf, x_pos, box_y + PADDING);
-            }
-            if (space_freq >= currentTuningAidMinFreqHz_ && space_freq <= currentTuningAidMaxFreqHz_) {
-                int x_pos = round(((space_freq - currentTuningAidMinFreqHz_) / freq_range) * (bounds.width - 1));
-                char buf[16];
-                snprintf(buf, sizeof(buf), "S:%u", space_freq);
-
-                int16_t text_w = sprite_->textWidth(buf);
-                int16_t text_h = sprite_->fontHeight();
-                int16_t box_x = x_pos - text_w / 2 - PADDING;
-                int16_t box_y = graphH - text_h - PADDING * 2;
-                int16_t box_w = text_w + PADDING * 2;
-                int16_t box_h = text_h + PADDING * 2;
-
-                sprite_->fillRect(box_x, box_y, box_w, box_h, TFT_BLACK);
-                sprite_->drawString(buf, x_pos, box_y + PADDING);
-            }
-        }
-    }
+    // Frekvencia címkék rajzolása (közös helper függvény)
+    renderTuningAidFrequencyLabels(currentTuningAidMinFreqHz_, currentTuningAidMaxFreqHz_, graphH);
 
     // Sprite megjelenítése a képernyőn!
     sprite_->pushSprite(bounds.x, bounds.y);

@@ -298,6 +298,14 @@ class UICompSpectrumVis : public UIComponent {
     void renderCwOrRttyTuningAidWaterfall();
 
     /**
+     * @brief Közös helper: frekvencia címkék rajzolása fekete háttérrel (CW/RTTY tuning aid módokhoz)
+     * @param min_freq Minimális frekvencia (Hz)
+     * @param max_freq Maximális frekvencia (Hz)
+     * @param graphH Grafikon magassága (pixel)
+     */
+    void renderTuningAidFrequencyLabels(float min_freq, float max_freq, uint16_t graphH);
+
+    /**
      * @brief Segéd függvények
      */
     uint16_t valueToWaterfallColor(float val, float min_val, float max_val, byte colorProfileIndex);
