@@ -1950,15 +1950,12 @@ void UICompSpectrumVis::renderCwOrRttyTuningAidWaterfall() {
         }
     }
 
-    // Sprite megjelenítése a képernyőn!
-    sprite_->pushSprite(bounds.x, bounds.y);
-
-    // Frekvencia címkék a hangolási vonalakon (TFT-re közvetlenül, vonal tetejére)
+    // Frekvencia címkék a hangolási vonalakon (sprite-ra, vonal aljára, 2px padding)
     if (freq_range > 0) {
-        tft.setTextDatum(TC_DATUM);             // Felül középre igazítva
-        tft.setTextColor(TFT_WHITE, TFT_BLACK); // Fehér szöveg, fekete háttér (töröl)
-        tft.setFreeFont();
-        tft.setTextSize(1);
+        sprite_->setTextDatum(BC_DATUM);             // Alul középre igazítva
+        sprite_->setTextColor(TFT_WHITE, TFT_BLACK); // Fehér szöveg, fekete háttér
+        sprite_->setFreeFont();
+        sprite_->setTextSize(1);
 
         if (currentTuningAidType_ == TuningAidType::CW_TUNING) {
             uint16_t cw_freq = config.data.cwToneFrequencyHz;
@@ -1966,7 +1963,7 @@ void UICompSpectrumVis::renderCwOrRttyTuningAidWaterfall() {
                 int x_pos = round(((cw_freq - currentTuningAidMinFreqHz_) / freq_range) * (bounds.width - 1));
                 char buf[16];
                 snprintf(buf, sizeof(buf), "%u", cw_freq);
-                tft.drawString(buf, bounds.x + x_pos, bounds.y + 2); // Vonal tetejére
+                sprite_->drawString(buf, x_pos, graphH - 3); // Vonal aljára + 2px padding
             }
         } else if (currentTuningAidType_ == TuningAidType::RTTY_TUNING) {
             uint16_t mark_freq = config.data.rttyMarkFrequencyHz;
@@ -1976,16 +1973,19 @@ void UICompSpectrumVis::renderCwOrRttyTuningAidWaterfall() {
                 int x_pos = round(((mark_freq - currentTuningAidMinFreqHz_) / freq_range) * (bounds.width - 1));
                 char buf[16];
                 snprintf(buf, sizeof(buf), "M:%u", mark_freq);
-                tft.drawString(buf, bounds.x + x_pos, bounds.y + 2); // Vonal tetejére
+                sprite_->drawString(buf, x_pos, graphH - 3); // Vonal aljára + 2px padding
             }
             if (space_freq >= currentTuningAidMinFreqHz_ && space_freq <= currentTuningAidMaxFreqHz_) {
                 int x_pos = round(((space_freq - currentTuningAidMinFreqHz_) / freq_range) * (bounds.width - 1));
                 char buf[16];
                 snprintf(buf, sizeof(buf), "S:%u", space_freq);
-                tft.drawString(buf, bounds.x + x_pos, bounds.y + 2); // Vonal tetejére
+                sprite_->drawString(buf, x_pos, graphH - 3); // Vonal aljára + 2px padding
             }
         }
     }
+
+    // Sprite megjelenítése a képernyőn!
+    sprite_->pushSprite(bounds.x, bounds.y);
 
     renderFrequencyRangeLabels(currentTuningAidMinFreqHz_, currentTuningAidMaxFreqHz_);
 } /**
@@ -2064,6 +2064,40 @@ void UICompSpectrumVis::renderSnrCurve() {
             if (space_freq >= min_freq && space_freq <= max_freq) {
                 int x_pos = round(((space_freq - min_freq) / freq_range) * (bounds.width - 1));
                 sprite_->drawFastVLine(x_pos, 0, graphH, TFT_YELLOW);
+            }
+        }
+    }
+
+    // Frekvencia címkék a hangolási vonalakon (sprite-ra, vonal aljára, 2px padding)
+    if (freq_range > 0) {
+        sprite_->setTextDatum(BC_DATUM);             // Alul középre igazítva
+        sprite_->setTextColor(TFT_WHITE, TFT_BLACK); // Fehér szöveg, fekete háttér
+        sprite_->setFreeFont();
+        sprite_->setTextSize(1);
+
+        if (currentTuningAidType_ == TuningAidType::CW_TUNING) {
+            uint16_t cw_freq = config.data.cwToneFrequencyHz;
+            if (cw_freq >= min_freq && cw_freq <= max_freq) {
+                int x_pos = round(((cw_freq - min_freq) / freq_range) * (bounds.width - 1));
+                char buf[16];
+                snprintf(buf, sizeof(buf), "%u", cw_freq);
+                sprite_->drawString(buf, x_pos, graphH - 3); // Vonal aljára + 2px padding
+            }
+        } else if (currentTuningAidType_ == TuningAidType::RTTY_TUNING) {
+            uint16_t mark_freq = config.data.rttyMarkFrequencyHz;
+            uint16_t space_freq = mark_freq - config.data.rttyShiftFrequencyHz;
+
+            if (mark_freq >= min_freq && mark_freq <= max_freq) {
+                int x_pos = round(((mark_freq - min_freq) / freq_range) * (bounds.width - 1));
+                char buf[16];
+                snprintf(buf, sizeof(buf), "M:%u", mark_freq);
+                sprite_->drawString(buf, x_pos, graphH - 3); // Vonal aljára + 2px padding
+            }
+            if (space_freq >= min_freq && space_freq <= max_freq) {
+                int x_pos = round(((space_freq - min_freq) / freq_range) * (bounds.width - 1));
+                char buf[16];
+                snprintf(buf, sizeof(buf), "S:%u", space_freq);
+                sprite_->drawString(buf, x_pos, graphH - 3); // Vonal aljára + 2px padding
             }
         }
     }
