@@ -1933,7 +1933,7 @@ void UICompSpectrumVis::renderCwOrRttyTuningAidWaterfall() {
             uint16_t cw_freq = config.data.cwToneFrequencyHz;
             if (cw_freq >= currentTuningAidMinFreqHz_ && cw_freq <= currentTuningAidMaxFreqHz_) {
                 int x_pos = round(((cw_freq - currentTuningAidMinFreqHz_) / freq_range) * (bounds.width - 1));
-                sprite_->drawFastVLine(x_pos, 0, graphH, TFT_RED);
+                sprite_->drawFastVLine(x_pos, 0, graphH, TFT_GREEN);
             }
         } else if (currentTuningAidType_ == TuningAidType::RTTY_TUNING) {
             uint16_t mark_freq = config.data.rttyMarkFrequencyHz;
@@ -1941,7 +1941,7 @@ void UICompSpectrumVis::renderCwOrRttyTuningAidWaterfall() {
 
             if (mark_freq >= currentTuningAidMinFreqHz_ && mark_freq <= currentTuningAidMaxFreqHz_) {
                 int x_pos = round(((mark_freq - currentTuningAidMinFreqHz_) / freq_range) * (bounds.width - 1));
-                sprite_->drawFastVLine(x_pos, 0, graphH, TFT_RED);
+                sprite_->drawFastVLine(x_pos, 0, graphH, TFT_GREEN);
             }
             if (space_freq >= currentTuningAidMinFreqHz_ && space_freq <= currentTuningAidMaxFreqHz_) {
                 int x_pos = round(((space_freq - currentTuningAidMinFreqHz_) / freq_range) * (bounds.width - 1));
@@ -2081,7 +2081,7 @@ void UICompSpectrumVis::renderSnrCurve() {
             uint16_t cw_freq = config.data.cwToneFrequencyHz;
             if (cw_freq >= min_freq && cw_freq <= max_freq) {
                 int x_pos = round(((cw_freq - min_freq) / freq_range) * (bounds.width - 1));
-                sprite_->drawFastVLine(x_pos, 0, graphH, TFT_RED);
+                sprite_->drawFastVLine(x_pos, 0, graphH, TFT_GREEN);
             }
         } else if (currentTuningAidType_ == TuningAidType::RTTY_TUNING) {
             uint16_t mark_freq = config.data.rttyMarkFrequencyHz;
@@ -2089,7 +2089,7 @@ void UICompSpectrumVis::renderSnrCurve() {
 
             if (mark_freq >= min_freq && mark_freq <= max_freq) {
                 int x_pos = round(((mark_freq - min_freq) / freq_range) * (bounds.width - 1));
-                sprite_->drawFastVLine(x_pos, 0, graphH, TFT_RED);
+                sprite_->drawFastVLine(x_pos, 0, graphH, TFT_GREEN);
             }
             if (space_freq >= min_freq && space_freq <= max_freq) {
                 int x_pos = round(((space_freq - min_freq) / freq_range) * (bounds.width - 1));
