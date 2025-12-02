@@ -37,7 +37,7 @@
 #define TEST_DO_NOT_PROCESS_MUTED_STATE
 
 // UICompSpectrumVis működés debug engedélyezése de csak DEBUG módban
-// #define __UISPECTRUM_DEBUG
+#define __UISPECTRUM_DEBUG
 #if defined(__DEBUG) && defined(__UISPECTRUM_DEBUG)
 #define UISPECTRUM_DEBUG(fmt, ...) DEBUG(fmt __VA_OPT__(, ) __VA_ARGS__)
 #else
@@ -47,6 +47,43 @@
 // A grafikon megjelenítési kitöltése
 // Itt egyszerre határozzuk meg a vizuális kitöltést és az AGC célját.
 static constexpr float GRAPH_TARGET_HEIGHT_UTILIZATION = 0.85f; // grafikon kitöltés / AGC cél (85%)
+
+/**
+ * @brief Sávszélesség-specifikus scale faktor konfiguráció (MINDEN megjelenítési módhoz)
+ *
+ * Keskenyebb sávszélesség = kevesebb FFT bin = kisebb összenergia → nagyobb erősítés szükséges
+ * Szélesebb sávszélesség = több FFT bin = nagyobb összenergia → kisebb erősítés elegendő
+ *
+ * MINDEN scale faktor (envelope, waterfall, tuning aid, spectrum bar, oszcilloszkóp)
+ * egységesen a táblázatból származik.
+ */
+struct BandwidthScaleConfig {
+    uint32_t bandwidthHz;       // Dekóder sávszélesség (Hz)
+    float lowResBarGainDb;      // dB a low-res bar megjelenítéshez (float támogatja a tizedesjegyeket)
+    float highResBarGainDb;     // dB a high-res bar megjelenítéshez
+    float oscilloscopeGainDb;   // dB az oszcilloszkóphoz
+    float envelopeGainDb;       // dB a burkológörbéhez
+    float waterfallGainDb;      // dB a vízeséshez
+    float tuningAidWaterfallDb; // dB tuning aid waterfall
+    float tuningAidSnrCurveDb;  // dB tuning aid SNR curve
+};
+
+// Előre definiált gain táblázat (sávszélesség szerint növekvő sorrendben!)
+#define NOAMP 0.0f // Nincs erősítés
+constexpr BandwidthScaleConfig BANDWIDTH_GAIN_TABLE[] = {
+    // bandwidthHz,    lowResBarGainDb, highResBarGainDb, oscilloscopeGainDb, envelopeGainDb, waterfallGainDb,
+    // csak CW és RRTY módban: tuningAidWaterfallDb, tuningAidSnrCurveDb
+    {CW_AF_BANDWIDTH_HZ, 6.0f, 5.0f, -3.0f, 18.0f, 3.0f, 10.0f, 18.0f},      // 1.5kHz: CW mód
+    {RTTY_AF_BANDWIDTH_HZ, 4.0f, 3.0f, 2.0f, 3.0f, 2.0f, 3.0f, 8.0f},        // 3kHz: RTTY mód
+    {AM_AF_BANDWIDTH_HZ, -10.0f, -10.0f, -10.0f, 5.0f, 10.0f, 0.0f, -60.0f}, // 6kHz: AM mód (SNR curve kikapcsolva)
+    {WEFAX_SAMPLE_RATE_HZ, NOAMP, NOAMP, NOAMP, NOAMP, NOAMP, NOAMP, NOAMP}, // 11025Hz: WEFAX mód
+    {FM_AF_BANDWIDTH_HZ, 10.0f, 10.0f, -3.0f, 18.0f, 18.0f, NOAMP, NOAMP},   // 15kHz: FM mód
+};
+constexpr size_t BANDWIDTH_GAIN_TABLE_SIZE = ARRAY_ITEM_COUNT(BANDWIDTH_GAIN_TABLE);
+
+//--- AGC konstansok ---
+constexpr float AGC_GENERIC_MIN_GAIN_VALUE = 0.0001f;
+constexpr float AGC_GENERIC_MAX_GAIN_VALUE = 80.0f;
 
 // Színprofilok
 namespace FftDisplayConstants {
@@ -149,43 +186,6 @@ static inline q15_t q15Interpolate(const q15_t *data, float exactIndex, int minI
 static inline float q15InterpolateFloat(const q15_t *data, float exactIndex, int minIdx, int maxIdx) {
     return (float)q15Interpolate(data, exactIndex, minIdx, maxIdx);
 }
-
-/**
- * @brief Sávszélesség-specifikus scale faktor konfiguráció (MINDEN megjelenítési módhoz)
- *
- * Keskenyebb sávszélesség = kevesebb FFT bin = kisebb összenergia → nagyobb erősítés szükséges
- * Szélesebb sávszélesség = több FFT bin = nagyobb összenergia → kisebb erősítés elegendő
- *
- * MINDEN scale faktor (envelope, waterfall, tuning aid, spectrum bar, oszcilloszkóp)
- * egységesen a táblázatból származik.
- */
-struct BandwidthScaleConfig {
-    uint32_t bandwidthHz;       // Dekóder sávszélesség (Hz)
-    float lowResBarGainDb;      // dB a low-res bar megjelenítéshez (float támogatja a tizedesjegyeket)
-    float highResBarGainDb;     // dB a high-res bar megjelenítéshez
-    float oscilloscopeGainDb;   // dB az oszcilloszkóphoz
-    float envelopeGainDb;       // dB a burkológörbéhez
-    float waterfallGainDb;      // dB a vízeséshez
-    float tuningAidWaterfallDb; // dB tuning aid waterfall
-    float tuningAidSnrCurveDb;  // dB tuning aid SNR curve
-};
-
-// Előre definiált gain táblázat (sávszélesség szerint növekvő sorrendben!)
-#define NOAMP 0.0f // Nincs erősítés
-constexpr BandwidthScaleConfig BANDWIDTH_GAIN_TABLE[] = {
-    // bandwidthHz,    lowResBarGainDb, highResBarGainDb, oscilloscopeGainDb, envelopeGainDb, waterfallGainDb,
-    // csak CW és RRTY módban: tuningAidWaterfallDb, tuningAidSnrCurveDb
-    {CW_AF_BANDWIDTH_HZ, 6.0f, 5.0f, -3.0f, 18.0f, 3.0f, 10.0f, 18.0f},      // 1.5kHz: CW mód (26dB túl nagy volt)
-    {RTTY_AF_BANDWIDTH_HZ, 4.0f, 3.0f, 2.0f, 3.0f, 2.0f, 3.0f, 8.0f},        // 3kHz: RTTY mód
-    {AM_AF_BANDWIDTH_HZ, -10.0f, -10.0f, 0.0f, 5.0f, 10.0f, 10.0f, 0.0f},    // 6kHz: AM mód (26dB→10dB)
-    {WEFAX_SAMPLE_RATE_HZ, NOAMP, NOAMP, NOAMP, NOAMP, NOAMP, NOAMP, NOAMP}, // 11025Hz: WEFAX mód
-    {FM_AF_BANDWIDTH_HZ, 10.0f, 10.0f, -3.0f, 18.0f, 18.0f, NOAMP, NOAMP},   // 15kHz: FM mód
-};
-constexpr size_t BANDWIDTH_GAIN_TABLE_SIZE = ARRAY_ITEM_COUNT(BANDWIDTH_GAIN_TABLE);
-
-//--- AGC konstansok ---
-constexpr float AGC_GENERIC_MIN_GAIN_VALUE = 0.0001f;
-constexpr float AGC_GENERIC_MAX_GAIN_VALUE = 80.0f;
 
 /**
  * @brief Konstruktor
@@ -941,19 +941,28 @@ void UICompSpectrumVis::computeCachedGain() {
     // 1. Pontos egyezés kell a táblázatban
     for (size_t i = 0; i < BANDWIDTH_GAIN_TABLE_SIZE; ++i) {
         if (BANDWIDTH_GAIN_TABLE[i].bandwidthHz == this->currentBandwidthHz_) {
+
             cachedGainDb_ = getDbFromTable(BANDWIDTH_GAIN_TABLE[i]);
+
             // OPTIMALIZÁLÁS: Azonnal számoljuk ki a lineáris formát is (powf eliminálása a render loop-ból!)
             cachedGainLinear_ = powf(10.0f, cachedGainDb_ / 20.0f);
+
             // Egyszerusitett fixpont: gain * 255 (32-bit nativ muveletek!)
             // q15ToUint8: (q15_val * gain_scaled) >> 15 = 0..255
             cachedGainScaled_ = (int32_t)(cachedGainLinear_ * 255.0f);
+
+            UISPECTRUM_DEBUG(
+                "UICompSpectrumVis::computeCachedGain() - currentBandwidthHz_=%d, cachedGainDb_=%.2f, cachedGainLinear_=%.4f, cachedGainScaled_=%d\n",
+                this->currentBandwidthHz_, cachedGainDb_, cachedGainLinear_, cachedGainScaled_);
+
             return;
         }
     }
 
     Utils::beepError(); // Hibára figyelmeztető csippanás
-    DEBUG("UICompSpectrumVis::computeCachedGain() - Nincs pontos egyezés a sávszélesség táblázatban, interpoláció szükséges. currentBandwidthHz_=%d\n",
-          this->currentBandwidthHz_);
+    UISPECTRUM_DEBUG(
+        "UICompSpectrumVis::computeCachedGain() - Nincs pontos egyezés a sávszélesség táblázatban, interpoláció szükséges. currentBandwidthHz_=%d\n",
+        this->currentBandwidthHz_);
 }
 
 /**
@@ -1947,14 +1956,8 @@ void UICompSpectrumVis::renderCwOrRttyTuningAidWaterfall() {
     const uint16_t num_bins = std::max(1, max_bin - min_bin + 1);
 
     // --- Gain Calculation ---
-    // Tuning aid waterfall fix: átmenetileg állítsuk be a CW/RTTY sávszélességet,
-    // hogy a computeCachedGain() a HELYES táblázat sort válassza!
-    uint32_t saved_bandwidth = currentBandwidthHz_;
-    currentBandwidthHz_ = (currentTuningAidType_ == TuningAidType::CW_TUNING) ? CW_AF_BANDWIDTH_HZ : RTTY_AF_BANDWIDTH_HZ;
-    computeCachedGain();                   // Ez most a CW/RTTY táblázat sort használja (26dB vagy 3dB)
-    currentBandwidthHz_ = saved_bandwidth; // Állítsuk vissza az eredeti értéket
-
-    float final_gain_lin = cachedGainLinear_; // Most már HELYES cache-elt gain van!
+    // A cachedGainLinear_ már ki van számolva a setMode()-ban (egyszer!), használjuk azt!
+    float final_gain_lin = cachedGainLinear_;
 
     if (isAutoGainMode()) {
         final_gain_lin *= magnitudeAgcGainFactor_;
@@ -1962,12 +1965,9 @@ void UICompSpectrumVis::renderCwOrRttyTuningAidWaterfall() {
         int8_t gainCfg = this->radioMode_ == RadioMode::AM ? config.data.audioFftGainConfigAm : config.data.audioFftGainConfigFm;
         final_gain_lin *= powf(10.0f, static_cast<float>(gainCfg) / 20.0f);
     }
-    DEBUG("CW/RTTY Tuning Aid: cachedGainDb_=%.1f, final_gain_lin=%.3f, gainCfg=%d\n", cachedGainDb_, final_gain_lin,
-          (this->radioMode_ == RadioMode::AM ? config.data.audioFftGainConfigAm : config.data.audioFftGainConfigFm));
     // --- End of Gain Calculation ---
 
     uint8_t maxwabuf_Val = 0;
-    static uint32_t debug_counter = 0;
 
     for (uint16_t c = 0; c < bounds.width; ++c) {
         float ratio = (bounds.width <= 1) ? 0.0f : static_cast<float>(c) / (bounds.width - 1);
@@ -1979,16 +1979,9 @@ void UICompSpectrumVis::renderCwOrRttyTuningAidWaterfall() {
         if (val > maxwabuf_Val)
             maxwabuf_Val = val;
 
-        // Debug első 3 pixel minden 30. frame-ben
-        if (debug_counter % 30 == 0 && c < 3) {
-            DEBUG("  Pixel[%d]: mag_q15=%d, val=%d\n", c, mag_q15, val);
-        }
-
         uint16_t color = valueToWaterfallColor(100 * val, 0.0f, 255.0f * 100, WATERFALL_COLOR_INDEX);
         sprite_->drawPixel(c, 0, color);
     }
-    debug_counter++;
-    DEBUG("CW/RTTY Tuning Aid: maxwabuf_Val=%d\n", maxwabuf_Val);
 
     if (isAutoGainMode()) {
         float estimatedPeak = (static_cast<float>(maxwabuf_Val) / 255.0f) * (graphH * GRAPH_TARGET_HEIGHT_UTILIZATION);
@@ -2054,8 +2047,19 @@ void UICompSpectrumVis::renderSnrCurve() {
     const uint16_t max_bin = std::min(static_cast<int>(actualFftSize - 1), static_cast<int>(std::round(max_freq / currentBinWidthHz)));
     const uint16_t num_bins = std::max(1, max_bin - min_bin + 1);
 
-    // --- SNR Curve speciális renderelés: nincs fix gain, dinamikus skálázás ---
-    // Először megkeressük a nyers magnitude minimum és maximum értékeket
+    // --- Gain számítás (mint a többi módnál) ---
+    float final_gain_lin = cachedGainLinear_;
+
+    if (isAutoGainMode()) {
+        final_gain_lin *= magnitudeAgcGainFactor_;
+    } else {
+        int8_t gainCfg = this->radioMode_ == RadioMode::AM ? config.data.audioFftGainConfigAm : config.data.audioFftGainConfigFm;
+        final_gain_lin *= powf(10.0f, static_cast<float>(gainCfg) / 20.0f);
+    }
+    // --- End of Gain Calculation ---
+
+    // --- SNR Curve speciális renderelés: gain alkalmazása + dinamikus skálázás ---
+    // Először megkeressük a nyers magnitude értékeket ÉS alkalmazzuk a gain-t
     q15_t rawMin = 32767;
     q15_t rawMax = 0;
     std::vector<q15_t> rawValues(bounds.width, 0);
@@ -2064,7 +2068,11 @@ void UICompSpectrumVis::renderSnrCurve() {
         float ratio = (bounds.width <= 1) ? 0.0f : static_cast<float>(x) / (bounds.width - 1);
         float exact_bin = min_bin + ratio * (num_bins - 1);
         q15_t mag_q15 = static_cast<q15_t>(std::round(q15InterpolateFloat(magnitudeData, exact_bin, min_bin, max_bin)));
-        rawValues[x] = q15Abs(mag_q15);
+
+        // Gain alkalmazása: float szorzás, majd konverzió vissza Q15-re
+        float mag_float = static_cast<float>(q15Abs(mag_q15)) / 32768.0f;                          // Q15 → 0.0-1.0
+        float gained_mag_float = mag_float * final_gain_lin;                                       // Gain alkalmazása
+        rawValues[x] = static_cast<q15_t>(constrain(gained_mag_float * 32768.0f, 0.0f, 32767.0f)); // Vissza Q15-re
 
         if (rawValues[x] < rawMin)
             rawMin = rawValues[x];
