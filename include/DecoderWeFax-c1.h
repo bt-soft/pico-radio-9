@@ -89,7 +89,7 @@ class DecoderWeFax_C1 : public IDecoder {
     float complex_arg_diff(float prev_real, float prev_imag, float curr_real, float curr_imag);
 
     // FM demodulátor állapot
-#define IQ_FILTER_SIZE 16 // I/Q szűrő mérete (egyszerűsített mozgóátlag)
+#define IQ_FILTER_SIZE 32 // I/Q szűrő mérete (egyszerűsített mozgóátlag) - növelve a zajos pontok csökkentésére
     float phase_accumulator = 0.0f;
     float phase_increment = 0.0f;
     float deviation_ratio = 0.0f;
@@ -100,7 +100,7 @@ class DecoderWeFax_C1 : public IDecoder {
     float prevz_imag = 0.0f;
 
     // Phasing detektálás állapot
-#define PHASING_FILTER_SIZE 16 // Phasing detektálás szűrője
+#define PHASING_FILTER_SIZE 32 // Phasing detektálás szűrője - növelve a stabilabb szinkronhoz
     enum RxState { IDLE = 0, RXPHASING, RXIMAGE };
     RxState rx_state = IDLE;
     int phasing_count = 0;

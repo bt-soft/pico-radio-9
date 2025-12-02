@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
  * -----                                                                                                               *
- * Last Modified: 2025.11.22, Saturday  07:55:29                                                                       *
+ * Last Modified: 2025.12.02, Tuesday  05:37:35                                                                        *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -51,7 +51,7 @@ extern DecodedData decodedData;
 #define WEFAX_IMAGE_HEIGHT 250
 #define WEFAX_LPM 120
 #define WEFAX_CARRIER_FREQ 1900.0f // Vivőfrekvencia (1500 Hz fekete, 2300 Hz fehér)
-#define WEFAX_SHIFT 400.0f         // Deviáció (KÍSÉRLETI: csökkentve 800→400 a DC-korrigált jelhez)
+#define WEFAX_SHIFT 800.0f         // Deviáció (±400 Hz, teljes tartomány 800 Hz)
 #define TWOPI (2.0f * M_PI)
 
 #define WEAK_SIGNAL_IN_SECONDS 10.0f // Gyenge jel időkorlát (másodpercben)
@@ -92,14 +92,20 @@ bool DecoderWeFax_C1::start(const DecoderConfig &decoderConfig) {
     // Vivő fázis lépés számítása (1900 Hz vivőhöz)
     phase_increment = TWOPI * WEFAX_CARRIER_FREQ / sample_rate;
 
-    // Deviáció arány számítása
-    deviation_ratio = (sample_rate / WEFAX_SHIFT) / TWOPI;
+    // Deviáció arány számítása (phase_diff → gray value konverzióhoz)
+    // phase_diff (rad/sample) * sample_rate / (2*PI) = frekvencia (Hz)
+    // Skálázás: gray = 128 + phase_diff * deviation_ratio
+    // Fekete (1500 Hz = -400 Hz) → gray = 0, Fehér (2300 Hz = +400 Hz) → gray = 255
+    // deviation_ratio = (sample_rate / TWOPI) * (255 / WEFAX_SHIFT)
+    deviation_ratio = (sample_rate / TWOPI) * (255.0f / WEFAX_SHIFT);
 
     WEFAX_DEBUG("WeFax-C1: \n--------------------------------------------------\n");
     WEFAX_DEBUG("    WeFax Start\n");
     WEFAX_DEBUG("--------------------------------------------------\n");
     WEFAX_DEBUG(" Mintavétel: %.0f Hz (FM)\n", sample_rate);
-    WEFAX_DEBUG(" Vivő: %.0f Hz | Shift: ±%.0f Hz\n", WEFAX_CARRIER_FREQ, WEFAX_SHIFT);
+    WEFAX_DEBUG(" Vivő: %.0f Hz | Shift: ±%.0f Hz (teljes: %.0f Hz)\n", WEFAX_CARRIER_FREQ, WEFAX_SHIFT / 2.0f, WEFAX_SHIFT);
+    WEFAX_DEBUG(" Fekete: %.0f Hz | Fehér: %.0f Hz\n", WEFAX_CARRIER_FREQ - WEFAX_SHIFT / 2.0f, WEFAX_CARRIER_FREQ + WEFAX_SHIFT / 2.0f);
+    WEFAX_DEBUG(" Deviation ratio: %.2f (phase_diff → gray)\n", deviation_ratio);
     WEFAX_DEBUG("---------------------------------------------------\n");
     WEFAX_DEBUG(" Phasing szinkron keresése...\n");
     WEFAX_DEBUG(" Várakozás: fehér→fekete szinkronjelre\n");
@@ -221,13 +227,14 @@ void DecoderWeFax_C1::processSamples(const int16_t *samples, size_t count) {
     static uint8_t demod_buffer[256]; // Maximum blokk méret
     int demod_count = 0;
 
-    // Jelvesztés detektáláshoz statisztikai változók
+    // Jelv esztés detektálásához statisztikai változók
     static int signal_counter = 0;
     static int signal_gray_sum = 0;
     static int signal_gray_min = 255;
     static int signal_gray_max = 0;
     static int signal_black_count = 0;
     static int signal_white_count = 0;
+    static float last_curr_mag = 0.0f; // Debug: utolsó curr_mag érték
 
 #ifdef __WEFAX_DEBUG
     // Debug: Periodikus kiírás a feldolgozott mintákról (csak debug módban)
@@ -273,23 +280,27 @@ void DecoderWeFax_C1::processSamples(const int16_t *samples, size_t count) {
         float currz_imag = q_filtered;
 
         // CLIP ellenőrzés
-        // DC-korrigált jel, nincs normalizálás → nagyobb abszolút értékek
-        const float CLIP = 0.1f; // Gyenge jel küszöb (adjusted for non-normalized samples)
+        // DC-korrigált jel, kis amplitúdó (~±100), I/Q szűrés után még kisebb
+        const float CLIP = 0.01f; // Gyenge jel küszöb (drastikusan csökkentve)
         float curr_mag = sqrtf(currz_real * currz_real + currz_imag * currz_imag);
         float prev_mag = sqrtf(prevz_real * prevz_real + prevz_imag * prevz_imag);
 
+        last_curr_mag = curr_mag; // Debug céljára mentés
+
         int gray_value;
-        float phase_diff = 0.0f; // Deklaráció itt, hogy debug-ban használható legyen
 
         if (curr_mag <= CLIP && prev_mag <= CLIP) {
-            // Gyenge jel - alapértelmezett fehér
-            gray_value = 255;
+            // Gyenge jel - alapértelmezett KÖZÉPSZÜRKE (128)
+            gray_value = 128;
         } else {
             // Fázis differenciálás
-            phase_diff = complex_arg_diff(prevz_real, prevz_imag, currz_real, currz_imag);
+            float phase_diff = complex_arg_diff(prevz_real, prevz_imag, currz_real, currz_imag);
 
-            // Átalakítás szürkeértékre
-            float gray_float = 255.0f * (0.5f - deviation_ratio * phase_diff);
+            // Átalakítás szürkeértékre (HELYES képlet)
+            // gray = 128 + phase_diff * deviation_ratio
+            // Fekete (1500 Hz, -400 Hz) → negatív phase_diff → 128 + (-) = kis érték → sötét ✓
+            // Fehér (2300 Hz, +400 Hz) → pozitív phase_diff → 128 + (+) = nagy érték → világos ✓
+            float gray_float = 128.0f + deviation_ratio * phase_diff;
             gray_value = (int)roundf(gray_float);
 
             // Korlátozás 0-255 közé
@@ -340,6 +351,13 @@ void DecoderWeFax_C1::processSamples(const int16_t *samples, size_t count) {
             float signal_black_ratio = (float)signal_black_count / signal_counter;
             float signal_white_ratio = (float)signal_white_count / signal_counter;
             int signal_dynamic_range = signal_gray_max - signal_gray_min;
+
+            // DEBUG: minden esetben kiírjuk az első 10 másodpercben
+            static int temp_debug_counter = 0;
+            if (temp_debug_counter++ < 10) {
+                DEBUG("WeFax DEBUG: dev_ratio=%.2f, gray_avg=%d, range=%d [%d-%d], curr_mag=%.2f\n", //
+                      deviation_ratio, signal_gray_avg, signal_dynamic_range, signal_gray_min, signal_gray_max, last_curr_mag);
+            }
 
 #ifdef __WEFAX_DEBUG
             // Debug kiírás (csak debug módban)

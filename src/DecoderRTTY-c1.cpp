@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
  * -----                                                                                                               *
- * Last Modified: 2025.11.29, Saturday  01:00:47                                                                       *
+ * Last Modified: 2025.12.02, Tuesday  06:16:02                                                                        *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -368,18 +368,13 @@ void DecoderRTTY_C1::processToneBlock(const int16_t *samples, size_t count) {
  */
 bool DecoderRTTY_C1::detectTone(bool &isMark, float &confidence) {
 
-    // Compute magnitudes from Q15 Goertzel state (convert to float)
+    // A Goertzel már kiszámolta a magnitúdókat (bin.magnitude)
+    // Csak konvertálni kell float-ra (NE számoljuk újra!)
     float markPeak = 0.0f;
     float markSum = 0.0f;
     for (auto &bin : markBins) {
-        // Használjuk a bin.q1/q2 értékét mint raw mintavételi egységet (nem normalizáljuk Q15-re)
-        float q1f = (float)bin.q1;
-        float q2f = (float)bin.q2;
-        float coefff = (float)bin.coeff / Q15_MAX_AS_FLOAT; // visszaállítjuk a 2*cos(omega) lebegőpontos értékre
-        float magSq = (q1f * q1f) + (q2f * q2f) - (q1f * q2f * coefff);
-        float mag = (magSq > 0.0f) ? sqrtf(magSq) : 0.0f;
-        // Tároljuk a magnitúdót mint mintavételi egységben kerekített int-et (ahogy a minta referencia is használja)
-        bin.magnitude = (q15_t)constrain((int32_t)(mag + 0.5f), -32768, 32767);
+        // bin.magnitude már kiszámolt érték a Goertzel után (int32)
+        float mag = (float)bin.magnitude;
         markSum += mag;
         markPeak = std::max(markPeak, mag);
     }
@@ -387,12 +382,7 @@ bool DecoderRTTY_C1::detectTone(bool &isMark, float &confidence) {
     float spacePeak = 0.0f;
     float spaceSum = 0.0f;
     for (auto &bin : spaceBins) {
-        float q1f = (float)bin.q1;
-        float q2f = (float)bin.q2;
-        float coefff = (float)bin.coeff / Q15_MAX_AS_FLOAT;
-        float magSq = (q1f * q1f) + (q2f * q2f) - (q1f * q2f * coefff);
-        float mag = (magSq > 0.0f) ? sqrtf(magSq) : 0.0f;
-        bin.magnitude = (q15_t)constrain((int32_t)(mag + 0.5f), -32768, 32767);
+        float mag = (float)bin.magnitude;
         spaceSum += mag;
         spacePeak = std::max(spacePeak, mag);
     }
@@ -499,7 +489,7 @@ void DecoderRTTY_C1::updatePLL(bool currentTone, bool &bitSample, bool &bitReady
     // Él detektálás
     bool edgeDetected = (currentTone != lastToneIsMark);
 
-    if (edgeDetected && pllLockCounter > 5) {
+    if (edgeDetected) {
         // Fázis hiba: mennyire van az él eltolva a bit közepétől
         // Ha fázis = 0.5, akkor pont a bit közepén vagyunk (ideális)
         // Ha él van, akkor fázis kellene ~0 vagy ~1 legyen
@@ -511,16 +501,17 @@ void DecoderRTTY_C1::updatePLL(bool currentTone, bool &bitSample, bool &bitReady
             phaseError = pllPhase - 1.0f; // Túl későn jött
         }
 
-        // PLL loop filter
-        pllDPhase += pllBeta * phaseError;
-        pllPhase += pllAlpha * phaseError;
+        // PLL loop filter (csak ha már van némi lockolás)
+        if (pllLockCounter > 5) {
+            pllDPhase += pllBeta * phaseError;
+            pllPhase += pllAlpha * phaseError;
+        }
 
-        if (!pllLocked) {
-            pllLockCounter++;
-            if (pllLockCounter > 10) {
-                pllLocked = true;
-                RTTY_DEBUG("PLL locked!\n");
-            }
+        pllLockCounter++;
+
+        if (!pllLocked && pllLockCounter > 10) {
+            pllLocked = true;
+            DEBUG("RTTY: PLL LOCKED! (counter=%d, edges detected)\n", pllLockCounter);
         }
     }
 
@@ -533,6 +524,13 @@ void DecoderRTTY_C1::updatePLL(bool currentTone, bool &bitSample, bool &bitReady
         bitSample = currentTone;
         bitReady = true;
         pllLockCounter++;
+
+        // Debug: bit mintavételezés
+        static int bitDebugCounter = 0;
+        if (++bitDebugCounter >= 5) {
+            DEBUG("RTTY: PLL bit sample: %s (phase=%.3f, locked=%d)\n", bitSample ? "MARK" : "SPACE", pllPhase, pllLocked ? 1 : 0);
+            bitDebugCounter = 0;
+        }
     }
 
     // Frekvencia korlátozás (blokkos egységben!)
