@@ -72,12 +72,12 @@ struct BandwidthScaleConfig {
 #define NOAMP 0.0f // Nincs erősítés
 constexpr BandwidthScaleConfig BANDWIDTH_GAIN_TABLE[] = {
     // bandwidthHz,    lowResBarGainDb, highResBarGainDb, oscilloscopeGainDb, envelopeGainDb, waterfallGainDb,
-    // csak CW és RRTY módban: tuningAidWaterfallDb, tuningAidSnrCurveDb
-    {CW_AF_BANDWIDTH_HZ, 6.0f, 5.0f, -3.0f, 18.0f, 3.0f, 10.0f, 18.0f},      // 1.5kHz: CW mód
-    {RTTY_AF_BANDWIDTH_HZ, 4.0f, 3.0f, 2.0f, 3.0f, 2.0f, 3.0f, 8.0f},        // 3kHz: RTTY mód
-    {AM_AF_BANDWIDTH_HZ, -10.0f, -10.0f, -10.0f, 5.0f, 10.0f, 0.0f, -60.0f}, // 6kHz: AM mód (SNR curve kikapcsolva)
+    // tuningAidWaterfallDb, tuningAidSnrCurveDb (NOAMP = mód nem elérhető)
+    {CW_AF_BANDWIDTH_HZ, NOAMP, NOAMP, NOAMP, NOAMP, NOAMP, 10.0f, 18.0f},   // 1.5kHz: CW mód (csak tuning aid)
+    {RTTY_AF_BANDWIDTH_HZ, NOAMP, NOAMP, NOAMP, NOAMP, NOAMP, 3.0f, 8.0f},   // 3kHz: RTTY mód (csak tuning aid)
+    {AM_AF_BANDWIDTH_HZ, -10.0f, -10.0f, -10.0f, 5.0f, 10.0f, NOAMP, NOAMP}, // 6kHz: AM mód (tuning aid nem elérhető)
     {WEFAX_SAMPLE_RATE_HZ, NOAMP, NOAMP, NOAMP, NOAMP, NOAMP, NOAMP, NOAMP}, // 11025Hz: WEFAX mód
-    {FM_AF_BANDWIDTH_HZ, 10.0f, 10.0f, -3.0f, 18.0f, 18.0f, NOAMP, NOAMP},   // 15kHz: FM mód
+    {FM_AF_BANDWIDTH_HZ, 10.0f, 10.0f, -3.0f, 18.0f, 18.0f, NOAMP, NOAMP},   // 15kHz: FM mód (tuning aid nem elérhető)
 };
 constexpr size_t BANDWIDTH_GAIN_TABLE_SIZE = ARRAY_ITEM_COUNT(BANDWIDTH_GAIN_TABLE);
 
@@ -581,10 +581,17 @@ void UICompSpectrumVis::draw() {
         flags_.needBorderDrawn = false;
     }
 
-    // Biztonsági ellenőrzés: FM módban CW/RTTY és az SNR hangolássegéd módok nem engedélyezettek
-    if (radioMode_ == RadioMode::FM && (currentMode_ == DisplayMode::CWWaterfall || currentMode_ == DisplayMode::RTTYWaterfall ||
-                                        currentMode_ == DisplayMode::CwSnrCurve || currentMode_ == DisplayMode::RttySnrCurve)) {
-        setCurrentDisplayMode(DisplayMode::Waterfall); // Automatikus váltás Waterfall módra
+    // Biztonsági ellenőrzés: ha az aktuális mód nem elérhető, váltás elérhető módra
+    if (!isModeAvailable(currentMode_)) {
+        // CW/RTTY módban: váltás a megfelelő waterfall módra
+        if (currentBandwidthHz_ == CW_AF_BANDWIDTH_HZ) {
+            setCurrentDisplayMode(DisplayMode::CWWaterfall);
+        } else if (currentBandwidthHz_ == RTTY_AF_BANDWIDTH_HZ) {
+            setCurrentDisplayMode(DisplayMode::RTTYWaterfall);
+        } else {
+            // AM/FM/egyéb módban: váltás spektrum módra
+            setCurrentDisplayMode(DisplayMode::SpectrumLowRes);
+        }
     }
 
     // Renderelés módjának megfelelően
@@ -980,12 +987,32 @@ void UICompSpectrumVis::setModeIndicatorVisible(bool visible) {
  * @brief Ellenőrzi, hogy egy megjelenítési mód elérhető-e az aktuális rádió módban
  */
 bool UICompSpectrumVis::isModeAvailable(DisplayMode mode) const {
-    // FM módban CW és RTTY hangolási segéd módok nem elérhetők
-    if (radioMode_ == RadioMode::FM && (mode == DisplayMode::CWWaterfall || mode == DisplayMode::RTTYWaterfall)) {
-        return false;
+    // CW módban (1.5kHz sávszélesség): csak CW tuning aid módok
+    if (currentBandwidthHz_ == CW_AF_BANDWIDTH_HZ) {
+        // Csak CWWaterfall és CwSnrCurve elérhető
+        if (mode == DisplayMode::CWWaterfall || mode == DisplayMode::CwSnrCurve) {
+            return true;
+        }
+        return false; // Minden más mód blokkolva
     }
 
-    // Minden más mód minden rádió módban elérhető
+    // RTTY módban (3kHz sávszélesség): csak RTTY tuning aid módok
+    if (currentBandwidthHz_ == RTTY_AF_BANDWIDTH_HZ) {
+        // Csak RTTYWaterfall és RttySnrCurve elérhető
+        if (mode == DisplayMode::RTTYWaterfall || mode == DisplayMode::RttySnrCurve) {
+            return true;
+        }
+        return false; // Minden más mód blokkolva
+    }
+
+    // AM és FM módban: tuning aid módok nem elérhetők
+    if (currentBandwidthHz_ == AM_AF_BANDWIDTH_HZ || currentBandwidthHz_ == FM_AF_BANDWIDTH_HZ) {
+        if (mode == DisplayMode::CWWaterfall || mode == DisplayMode::RTTYWaterfall || mode == DisplayMode::CwSnrCurve || mode == DisplayMode::RttySnrCurve) {
+            return false;
+        }
+    }
+
+    // Minden más esetben elérhető
     return true;
 }
 
@@ -2047,92 +2074,47 @@ void UICompSpectrumVis::renderSnrCurve() {
     const uint16_t max_bin = std::min(static_cast<int>(actualFftSize - 1), static_cast<int>(std::round(max_freq / currentBinWidthHz)));
     const uint16_t num_bins = std::max(1, max_bin - min_bin + 1);
 
-    // --- Gain számítás (mint a többi módnál) ---
+    // --- Gain számítás (PONTOSAN mint a spektrum bároknál) ---
     float final_gain_lin = cachedGainLinear_;
-
     if (isAutoGainMode()) {
         final_gain_lin *= magnitudeAgcGainFactor_;
     } else {
         int8_t gainCfg = this->radioMode_ == RadioMode::AM ? config.data.audioFftGainConfigAm : config.data.audioFftGainConfigFm;
         final_gain_lin *= powf(10.0f, static_cast<float>(gainCfg) / 20.0f);
     }
+    int32_t gain_scaled = (int32_t)(final_gain_lin * 255.0f);
     // --- End of Gain Calculation ---
 
-    // --- SNR Curve speciális renderelés: gain alkalmazása + dinamikus skálázás ---
-    // Először megkeressük a nyers magnitude értékeket ÉS alkalmazzuk a gain-t
-    q15_t rawMin = 32767;
-    q15_t rawMax = 0;
-    std::vector<q15_t> rawValues(bounds.width, 0);
+    const uint16_t targetHeight = static_cast<uint16_t>(graphH * GRAPH_TARGET_HEIGHT_UTILIZATION);
+
+    // Pixel magasságok számítása minden x pozícióhoz (mint a spektrum bároknál)
+    std::vector<uint16_t> pixelHeights(bounds.width, 0);
+    uint16_t maxPixelHeight = 0;
 
     for (uint16_t x = 0; x < bounds.width; x++) {
         float ratio = (bounds.width <= 1) ? 0.0f : static_cast<float>(x) / (bounds.width - 1);
         float exact_bin = min_bin + ratio * (num_bins - 1);
         q15_t mag_q15 = static_cast<q15_t>(std::round(q15InterpolateFloat(magnitudeData, exact_bin, min_bin, max_bin)));
 
-        // Gain alkalmazása: float szorzás, majd konverzió vissza Q15-re
-        float mag_float = static_cast<float>(q15Abs(mag_q15)) / 32768.0f;                          // Q15 → 0.0-1.0
-        float gained_mag_float = mag_float * final_gain_lin;                                       // Gain alkalmazása
-        rawValues[x] = static_cast<q15_t>(constrain(gained_mag_float * 32768.0f, 0.0f, 32767.0f)); // Vissza Q15-re
+        // Pixel magasság számítása - PONTOSAN mint q15ToPixelHeight()
+        uint16_t height = q15ToPixelHeight(mag_q15, gain_scaled, targetHeight);
+        pixelHeights[x] = height;
 
-        if (rawValues[x] < rawMin)
-            rawMin = rawValues[x];
-        if (rawValues[x] > rawMax)
-            rawMax = rawValues[x];
-    }
-
-    // Mozgóátlag simítás a kiugrások csökkentésére (3 pontos átlag)
-    constexpr uint8_t SMOOTH_WINDOW = 3;
-    std::vector<q15_t> smoothedValues(bounds.width, 0);
-    for (uint16_t x = 0; x < bounds.width; x++) {
-        int32_t sum = 0;
-        uint8_t count = 0;
-        for (int16_t dx = -SMOOTH_WINDOW; dx <= SMOOTH_WINDOW; dx++) {
-            int16_t nx = x + dx;
-            if (nx >= 0 && nx < bounds.width) {
-                sum += rawValues[nx];
-                count++;
-            }
+        if (height > maxPixelHeight) {
+            maxPixelHeight = height;
         }
-        smoothedValues[x] = (count > 0) ? (sum / count) : rawValues[x];
     }
 
-    // Újra számoljuk a min/max értékeket a SIMÍTOTT adatokból
-    q15_t smoothedMin = 32767;
-    q15_t smoothedMax = 0;
-    for (uint16_t x = 0; x < bounds.width; x++) {
-        if (smoothedValues[x] < smoothedMin)
-            smoothedMin = smoothedValues[x];
-        if (smoothedValues[x] > smoothedMax)
-            smoothedMax = smoothedValues[x];
+    // AGC frissítés
+    if (isAutoGainMode()) {
+        updateMagnitudeBasedGain(static_cast<float>(maxPixelHeight));
     }
 
-    // Dinamikus skálázás: a legkisebb érték (smoothedMin) a grafikon aljára kerül
-    // A legnagyobb érték (smoothedMax) a grafikon tetejére skálázódik
-    float range = static_cast<float>(smoothedMax - smoothedMin);
-    if (range < 1.0f)
-        range = 1.0f; // Nullaosztás elkerülése
-
-    // Teljes grafikon magasságot használjuk, kis margóval a tetejénél
-    const uint16_t maxHeight = graphH - 2; // 2 pixel margó a tetején
-    std::vector<uint16_t> computedHeights(bounds.width, 0);
-
-    for (uint16_t x = 0; x < bounds.width; x++) {
-        // Normalizálás: a smoothedMin lesz 0, a smoothedMax lesz 1
-        float normalized = static_cast<float>(smoothedValues[x] - smoothedMin) / range;
-        computedHeights[x] = static_cast<uint16_t>(normalized * maxHeight);
-    }
-
-    // Nincs szükség további skálázásra, már az optimális tartományban vagyunk
-    float finalScale = 1.0f;
-
-    // Második pass: skálázott görbe rajzolása
+    // Görbe rajzolása
     int16_t prevX = -1, prevY = -1;
     for (uint16_t x = 0; x < bounds.width; x++) {
-        uint16_t scaledHeight = static_cast<uint16_t>(computedHeights[x] * finalScale);
-        scaledHeight = constrain(scaledHeight, 0, maxHeight);
-
-        // y koordináta: graphH - 1 az alja, 1 a teteje (2 pixel margóval)
-        uint16_t y = (graphH - 1) - scaledHeight;
+        uint16_t height = constrain(pixelHeights[x], 0, graphH - 1);
+        int16_t y = graphH - 1 - height; // y koordináta: graphH-1 az alja, 0 a teteje
 
         if (prevX != -1) {
             sprite_->drawLine(prevX, prevY, x, y, TFT_CYAN);
@@ -2140,13 +2122,6 @@ void UICompSpectrumVis::renderSnrCurve() {
         sprite_->drawPixel(x, y, TFT_WHITE);
         prevX = x;
         prevY = y;
-    }
-
-    // AGC frissítés (ha auto gain mód)
-    if (isAutoGainMode()) {
-        // SNR curve esetén a nyers maximum értéket használjuk AGC célra
-        float maxMagnitudeForAgc = static_cast<float>(rawMax);
-        updateMagnitudeBasedGain(maxMagnitudeForAgc);
     }
 
     // Draw tuning aid lines
@@ -2240,9 +2215,7 @@ void UICompSpectrumVis::renderSnrCurve() {
 
     // AGC frissítés (ha auto gain mód)
     if (isAutoGainMode()) {
-        // SNR curve esetén a nyers maximum értéket használjuk AGC célra
-        float maxMagnitudeForAgc = static_cast<float>(rawMax);
-        updateMagnitudeBasedGain(maxMagnitudeForAgc);
+        updateMagnitudeBasedGain(static_cast<float>(maxPixelHeight));
     }
 
     sprite_->pushSprite(bounds.x, bounds.y);
