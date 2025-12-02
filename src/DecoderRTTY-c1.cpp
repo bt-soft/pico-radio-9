@@ -9,19 +9,19 @@
 extern DecodedData decodedData;
 
 // AGC kapcsoló
-// #define ENABLE_AGC 1
+#define ENABLE_AGC 1
 
 #define BIN_SPACING_HZ 35.0f
-#define TONE_BLOCK_SIZE 64 // Kisebb blokk a gyorsabb reakcióért
-#define NOISE_ALPHA 0.15f
-#define NOISE_DECAY_ALPHA 0.5f
-#define NOISE_PEAK_RATIO 3.5f
-#define MIN_NOISE_FLOOR 25.0f
-#define MIN_DOMINANT_MAG 380.0f // Minimum magnitude a tonális jel detektálásához
+#define TONE_BLOCK_SIZE 64      // Kisebb blokk a gyorsabb reakcióért
+#define NOISE_ALPHA 0.25f       // Gyorsabb adaptáció az amplitúdó változásokhoz
+#define NOISE_DECAY_ALPHA 0.7f  // Gyorsabb decay a gyors szint változásokhoz
+#define NOISE_PEAK_RATIO 3.0f   // Enyhébb szűrés
+#define MIN_NOISE_FLOOR 15.0f   // Alacsonyabb minimum a gyenge jelekhez
+#define MIN_DOMINANT_MAG 200.0f // Alacsonyabb küszöb a gyengébb jelekhez
 
 // envelope tracking konstansok
-static constexpr float ENVELOPE_ATTACK = 0.05f; // Gyors felfutás
-static constexpr float ENVELOPE_DECAY = 0.001f; // Lassú lecsengés
+static constexpr float ENVELOPE_ATTACK = 0.1f;  // Gyorsabb felfutás az amplitúdó ugrásokhoz
+static constexpr float ENVELOPE_DECAY = 0.005f; // Gyorsabb lecsengés az amplitúdó csökkenésekhez
 
 // Baudot LTRS (Letters) table - ITA2 standard
 const char DecoderRTTY_C1::BAUDOT_LTRS_TABLE[32] = {
@@ -43,8 +43,9 @@ const char DecoderRTTY_C1::BAUDOT_FIGS_TABLE[32] = {
  * @brief RTTY dekóder konstruktor
  */
 DecoderRTTY_C1::DecoderRTTY_C1()
-    : currentState(IDLE), markFreq(0.0f), spaceFreq(0.0f), baudRate(45.45f), samplingRate(7500.0f), toneBlockAccumulated(0), lastToneIsMark(true), lastToneConfidence(0.0f), markNoiseFloor(0.0f), spaceNoiseFloor(0.0f),
-      markEnvelope(0.0f), spaceEnvelope(0.0f), pllPhase(0.0f), pllFrequency(0.0f), pllDPhase(0.0f), pllAlpha(0.0f), pllBeta(0.0f), pllLocked(false), pllLockCounter(0), bitsReceived(0), currentByte(0), figsShift(false),
+    : currentState(IDLE), markFreq(0.0f), spaceFreq(0.0f), baudRate(45.45f), samplingRate(7500.0f), toneBlockAccumulated(0), lastToneIsMark(true),
+      lastToneConfidence(0.0f), markNoiseFloor(0.0f), spaceNoiseFloor(0.0f), markEnvelope(0.0f), spaceEnvelope(0.0f), pllPhase(0.0f), pllFrequency(0.0f),
+      pllDPhase(0.0f), pllAlpha(0.0f), pllBeta(0.0f), pllLocked(false), pllLockCounter(0), bitsReceived(0), currentByte(0), figsShift(false),
       lastDominantMagnitude(0.0f), lastOppositeMagnitude(0.0f) {
     initializeToneDetector();
     resetDecoder();
@@ -77,8 +78,8 @@ bool DecoderRTTY_C1::start(const DecoderConfig &decoderConfig) {
     decodedData.rttySpaceFreq = static_cast<uint16_t>(spaceFreq);
     decodedData.rttyBaudRate = baudRate;
 
-    DEBUG("RTTY dekóder elindítva: Mark=%.1f Hz, Space=%.1f Hz, Shift=%.1f Hz, Baud=%.2f, Fs=%.0f Hz, ToneBlock=%u, BinSpacing=%.1f Hz\n", markFreq, spaceFreq, fabsf(markFreq - spaceFreq), baudRate, samplingRate,
-          TONE_BLOCK_SIZE, BIN_SPACING_HZ);
+    DEBUG("RTTY dekóder elindítva: Mark=%.1f Hz, Space=%.1f Hz, Shift=%.1f Hz, Baud=%.2f, Fs=%.0f Hz, ToneBlock=%u, BinSpacing=%.1f Hz\n", markFreq, spaceFreq,
+          fabsf(markFreq - spaceFreq), baudRate, samplingRate, TONE_BLOCK_SIZE, BIN_SPACING_HZ);
     return true;
 }
 
@@ -89,9 +90,7 @@ void DecoderRTTY_C1::stop() {
     DEBUG("RTTY dekóder leállítva.\n");
 }
 
-void DecoderRTTY_C1::processSamples(const int16_t *samples, size_t count) { 
-    processToneBlock(samples, count); 
-}
+void DecoderRTTY_C1::processSamples(const int16_t *samples, size_t count) { processToneBlock(samples, count); }
 
 void DecoderRTTY_C1::initializeToneDetector() {
     configureToneBins(markFreq, markBins);
@@ -267,13 +266,11 @@ bool DecoderRTTY_C1::detectTone(bool &isMark, float &confidence) {
     static int debugCounter = 0;
     if (++debugCounter >= 20 && toneDetected) {
 #if ENABLE_AGC
-        DEBUG("RTTY: M=%.0f/%.0f, S=%.0f/%.0f, Mc=%.0f, Sc=%.0f, gain=%.2f/%.2f, AGC=%.0f/%.0f, metric=%.3f, %s\n", 
-              markPeak, markEnvelope, spacePeak, spaceEnvelope, markClipped, spaceClipped, markGain, spaceGain,
-              markAgc, spaceAgc, metric, isMark ? "MARK" : "SPACE");
+        DEBUG("RTTY: M=%.0f/%.0f, S=%.0f/%.0f, Mc=%.0f, Sc=%.0f, gain=%.2f/%.2f, AGC=%.0f/%.0f, metric=%.3f, %s\n", markPeak, markEnvelope, spacePeak,
+              spaceEnvelope, markClipped, spaceClipped, markGain, spaceGain, markAgc, spaceAgc, metric, isMark ? "MARK" : "SPACE");
 #else
-        DEBUG("RTTY: M=%.0f/%.0f, S=%.0f/%.0f, Mc=%.0f, Sc=%.0f, metric=%.3f, %s (conf: %.2f)\n", 
-              markPeak, markEnvelope, spacePeak, spaceEnvelope, markClipped, spaceClipped, metric, 
-              isMark ? "MARK" : "SPACE", confidence);
+        DEBUG("RTTY: M=%.0f/%.0f, S=%.0f/%.0f, Mc=%.0f, Sc=%.0f, metric=%.3f, %s (conf: %.2f)\n", markPeak, markEnvelope, spacePeak, spaceEnvelope, markClipped,
+              spaceClipped, metric, isMark ? "MARK" : "SPACE", confidence);
 #endif
         debugCounter = 0;
     }

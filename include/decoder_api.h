@@ -1,4 +1,28 @@
 /*
+ * Project: [pico-radio-9] Raspberry Pi Pico Si4735 Radio                                                              *
+ * File: decoder_api.h                                                                                                 *
+ * Created Date: 2025.11.15.                                                                                           *
+ *                                                                                                                     *
+ * Author: BT-Soft                                                                                                     *
+ * GitHub: https://github.com/bt-soft                                                                                  *
+ * Blog: https://electrodiy.blog.hu/                                                                                   *
+ * -----                                                                                                               *
+ * Copyright (c) 2025 BT-Soft                                                                                          *
+ * License: MIT License                                                                                                *
+ * 	Bárki szabadon használhatja, módosíthatja, terjeszthet, beépítheti más                                             *
+ * 	projektbe (akár zártkódúba is), akár pénzt is kereshet vele                                                        *
+ * 	Egyetlen feltétel:                                                                                                 *
+ * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
+ * -----                                                                                                               *
+ * Last Modified: 2025.12.02, Tuesday  08:10:00                                                                        *
+ * Modified By: BT-Soft                                                                                                *
+ * -----                                                                                                               *
+ * HISTORY:                                                                                                            *
+ * Date      	By	Comments                                                                                           *
+ * ----------	---	-------------------------------------------------------------------------------------------------  *
+ */
+
+/*
  * Projekt: [pico-radio-9] Raspberry Pi Pico Si4735 Radio
  * Fájl: decoder_api.h
  * Létrehozva: 2025.11.15.
@@ -172,15 +196,24 @@ struct SharedData {
 #define CW_RAW_SAMPLES_SIZE 128 // CW bemeneti audio minták száma blok (jelenleg egyenlő a belső blokk mérettel)
 
 // RTTY paraméterek
-// Mintavételezési frekvencia a sávszélességből számítódik.
-// FONTOS: Az RTTY_RAW_SAMPLES_SIZE szabadon változtatható, de a dekóder belsőleg
-//         64 mintás Goertzel blokkokkal dolgozik (TONE_BLOCK_SIZE = 64)
-// Working config: 6000 Hz bandwidth → 7500 Hz sample rate (6000 * 1.25)
-// 64 sample tone block @ 7500 Hz = 8.5 ms/block
-// 1 bit @ 50 baud = 20 ms → ~2.4 tone blocks/bit (PLL updates)
-#define RTTY_AF_BANDWIDTH_HZ 6000 // RTTY audio sávszélesség (6000*1.25=7500 Hz mintavétel)
-// RTTY bemeneti audio minták száma blok
-#define RTTY_RAW_SAMPLES_SIZE 256 // 256 minta @ 7500 Hz = 34 ms/blokk
+// Mintavételezési frekvencia: RTTY_AF_BANDWIDTH_HZ × AUDIO_SAMPLING_OVERSAMPLE_FACTOR
+//                             6000 Hz × 1.25 = 7500 Hz sample rate
+//
+// Dekóder architektúra:
+// - Multi-bin Goertzel: 3 bin/frekvencia (35 Hz spacing), peak + noise floor
+// - Tone block méret: 64 minta (TONE_BLOCK_SIZE = 64) = 8.5 ms @ 7500 Hz
+// - PLL: Block-based frissítés (~2.4 tone block/bit @ 50 baud = 20 ms/bit)
+// - AGC: Envelope tracking (ATTACK=0.1, DECAY=0.005) + clipping AGC
+// - Noise floor: Adaptive tracking (ALPHA=0.25, DECAY_ALPHA=0.7)
+// - Start bit: SPACE (RTTY standard), stop bit: MARK
+//
+// Timing @ 50 baud:
+// - 1 bit = 20 ms
+// - 64 sample tone block = 8.5 ms
+// - ~2.4 tone blocks/bit → PLL 2-3× frissül bitenként (optimális)
+// - 256 sample RAW block = 34 ms ≈ 1.7 bit (jó feldolgozási blokk méret)
+#define RTTY_AF_BANDWIDTH_HZ 6000 // RTTY audio sávszélesség (→ 7500 Hz mintavétel)
+#define RTTY_RAW_SAMPLES_SIZE 256 // RAW audio blokk méret (34 ms @ 7500 Hz)
 
 // SSTV paraméterek
 // Mintavételezési frekvencia a sávszélességből számítódik.
