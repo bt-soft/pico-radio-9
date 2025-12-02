@@ -31,7 +31,7 @@
 #include "WindowApplier.h"
 
 /**
- * @brief RTTY dekóder Core1-en
+ * @brief RTTY dekóder Core1-en (working version from samples/)
  */
 class DecoderRTTY_C1 : public IDecoder {
   public:
@@ -43,11 +43,11 @@ class DecoderRTTY_C1 : public IDecoder {
     const char *getDecoderName() const override { return "RTTY"; }
     void processSamples(const int16_t *samples, size_t count) override;
 
-    // Sávszűrő engedélyezése / tiltása
-    void enableBandpass(bool enabled) override { useBandpass_ = enabled; }
+    // Sávszűrő engedélyezése / tiltása (not used in working version)
+    void enableBandpass(bool enabled) override {}
 
     // Dekóder resetelése
-    void reset() override { this->resetDecoder(); };
+    void reset() override { this->resetDecoder(); }
 
   private:
     // RTTY állapotgépe
@@ -60,51 +60,37 @@ class DecoderRTTY_C1 : public IDecoder {
     float baudRate;
     float samplingRate;
 
-    // Tone Detector - kisebb Goertzel blokkokkal (Q15 fixpoint)
+    // Tone Detector - kisebb Goertzel blokkokkal (float)
     struct GoertzelBin {
-        float targetFreq; // Megmarad float (csak referencia)
-        q15_t coeff;      // Goertzel együttható (Q15)
-        int32_t q1;       // Goertzel állapot (Q15 extended)
-        int32_t q2;       // Goertzel állapot (Q15 extended)
-        q15_t magnitude;  // Magnitúdó (Q15)
+        float targetFreq;
+        float coeff;
+        float q1;
+        float q2;
+        float magnitude;
     };
 
     static constexpr uint8_t BINS_PER_TONE = 3;
 
     std::array<GoertzelBin, BINS_PER_TONE> markBins;
     std::array<GoertzelBin, BINS_PER_TONE> spaceBins;
-    q15_t markNoiseFloor_q15;      // Zajpadló Q15
-    q15_t spaceNoiseFloor_q15;     // Zajpadló Q15
-    q15_t markEnvelope_q15;        // Envelope a mark számára (Q15)
-    q15_t spaceEnvelope_q15;       // Envelope a space számára (Q15)
-    uint16_t toneBlockAccumulated; // TONE_BLOCK_SIZE=256, ezért uint16_t kell!
+    float markNoiseFloor;
+    float spaceNoiseFloor;
+    float markEnvelope;
+    float spaceEnvelope;
+    uint8_t toneBlockAccumulated;
     bool lastToneIsMark;
+    float lastToneConfidence;
 
-    // Ha a confidence érték kicsi (pl. < 0.1), akkor a dekóder bizonytalan a döntésben.
-    // Ilyenkor el lehet dobni vagy figyelmen kívül hagyni az adott bitet/blokkot,
-    // így kevesebb hibás karakter kerül a kimenetre.
-    // -- Jelminőség kijelzése: A confidence értéket ki lehet írni a debug logba vagy a felhasználói
-    //    felületre, így látható, mennyire jó a dekódolás minősége.
-    // -- Adaptív küszöbölés: Ha a confidence tartósan alacsony, automatikusan módosítható a zajküszöb,
-    //    az AGC vagy más paraméter, hogy javítható legyen a dekódolás minőségét.
-    // -- Statisztika, hibaarány mérés: Gyűjthető a confidence értékek, és ezekből statisztikát lehet készíteni
-    //    a dekódolás megbízhatóságáról, hibaarányról.
-    // -- Soft-decision dekódolás: Ha nem csak bináris döntés a cél, hanem a confidence alapján súlyozottan történik
-    //    a dekódolás (pl. FEC, error correction), akkor a confidence értékek segítenek a hibajavításban.
-    //
-    q15_t lastToneConfidence_q15; // Az utolsó detektált tone döntés biztonsága (Q15)
-
-    // Hibás vagy bizonytalan blokkok szűrése:
     // Bit Recovery PLL
-    static constexpr float PLL_BANDWIDTH = 0.01f; // PLL sávszélesség
-    static constexpr float PLL_DAMPING = 0.707f;  // Kritikus csillapítás
+    static constexpr float PLL_BANDWIDTH = 0.01f;
+    static constexpr float PLL_DAMPING = 0.707f;
     static constexpr float PLL_LOOP_GAIN = 1.0f;
 
-    float pllPhase;     // PLL fázis (0.0 - 1.0, egy bit periódus)
-    float pllFrequency; // PLL frekvencia (baud alapú)
-    float pllDPhase;    // Fázis inkrement mintánként
-    float pllAlpha;     // PLL loop filter koeff
-    float pllBeta;      // PLL loop filter koeff
+    float pllPhase;
+    float pllFrequency;
+    float pllDPhase;
+    float pllAlpha;
+    float pllBeta;
 
     bool pllLocked;
     int pllLockCounter;
@@ -114,26 +100,15 @@ class DecoderRTTY_C1 : public IDecoder {
     uint8_t currentByte;
     bool figsShift;
 
-    // Debug/diagnosztika (Q15)
-    q15_t lastDominantMagnitude_q15;
-    q15_t lastOppositeMagnitude_q15;
+    // Debug/diagnosztika
+    float lastDominantMagnitude;
+    float lastOppositeMagnitude;
 
-    // Windowing helper for Goertzel blocks
-    WindowApplier windowApplier;
-    bool useWindow_ = false; // Windowing kikapcsolva - elrontja a Q15 Goertzel-t
-
-    // Két külön bandpass szűrő: egy mark-hoz és egy space-hez
-    BiquadBandpass markBandpassFilter_;
-    BiquadBandpass spaceBandpassFilter_;
-    bool useBandpass_ = false; // alapértelmezetten kikapcsolva
-    float bandpassMarkBWHz_;   // a start() számolja ki
-    float bandpassSpaceBWHz_;  // a start() számolja ki
-
-  private:
     static const char BAUDOT_LTRS_TABLE[32];
     static const char BAUDOT_FIGS_TABLE[32];
     char decodeBaudotCharacter(uint8_t baudotCode);
 
+    void resetDecoder();
     void initializeToneDetector();
     void configureToneBins(float centerFreq, std::array<GoertzelBin, BINS_PER_TONE> &bins);
     void resetGoertzelState();
@@ -143,5 +118,4 @@ class DecoderRTTY_C1 : public IDecoder {
     void initializePLL();
     void updatePLL(bool currentTone, bool &bitSample, bool &bitReady);
     void processBit(bool bitValue);
-    void resetDecoder();
 };

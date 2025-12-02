@@ -174,10 +174,13 @@ struct SharedData {
 // RTTY paraméterek
 // Mintavételezési frekvencia a sávszélességből számítódik.
 // FONTOS: Az RTTY_RAW_SAMPLES_SIZE szabadon változtatható, de a dekóder belsőleg
-//         64 mintás Goertzel blokkokkal dolgozik (TONE_BLOCK_SIZE = 64, ez NE változzon!)
-#define RTTY_AF_BANDWIDTH_HZ 3000 // RTTY audio sávszélesség (szabadon változtatható)
-// RTTY bemeneti audio minták száma blok (lehet több, mint a belső blokk méret)
-#define RTTY_RAW_SAMPLES_SIZE 512 // A zoom miatt ilyen magas, hogy a waterfall is kinézzen valahogyan.
+//         64 mintás Goertzel blokkokkal dolgozik (TONE_BLOCK_SIZE = 64)
+// Working config: 6000 Hz bandwidth → 7500 Hz sample rate (6000 * 1.25)
+// 64 sample tone block @ 7500 Hz = 8.5 ms/block
+// 1 bit @ 50 baud = 20 ms → ~2.4 tone blocks/bit (PLL updates)
+#define RTTY_AF_BANDWIDTH_HZ 6000 // RTTY audio sávszélesség (6000*1.25=7500 Hz mintavétel)
+// RTTY bemeneti audio minták száma blok
+#define RTTY_RAW_SAMPLES_SIZE 256 // 256 minta @ 7500 Hz = 34 ms/blokk
 
 // SSTV paraméterek
 // Mintavételezési frekvencia a sávszélességből számítódik.
