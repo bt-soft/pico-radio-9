@@ -101,6 +101,11 @@ bool DecoderCW_C1::start(const DecoderConfig &decoderConfig) {
     initGoertzel();
     resetDecoder();
 
+    // fldigi WPM limitek inicializálása (min_wpm - CWrange, max_wpm + CWrange)
+    wpm_lowerlimit_ = (minWpm_ > CWrange_) ? (minWpm_ - CWrange_) : 1;
+    wpm_upperlimit_ = maxWpm_ + CWrange_;
+    CW_DEBUG("CW-C1: WPM limits - lower=%u, upper=%u\n", wpm_lowerlimit_, wpm_upperlimit_);
+
     // Hann ablak inicializálása a Goertzel blokkokhoz
     windowApplier.build(GOERTZEL_N, WindowType::Hann, true);
 
@@ -505,6 +510,13 @@ void DecoderCW_C1::processSamples(const int16_t *rawAudioSamples, size_t count) 
             trailingEdgeTime_ = currentTime;
             unsigned long duration = trailingEdgeTime_ - leadingEdgeTime_;
 
+            // fldigi noise spike threshold: kiszűrjük a túl rövid jeleket (dot_length / 2)
+            if (noise_spike_threshold_ > 0 && duration < noise_spike_threshold_) {
+                // CW_DEBUG("CW-C1: Noise spike rejected - duration=%lu ms < threshold=%lu ms\n", duration, noise_spike_threshold_);
+                measuring_ = false;
+                continue; // Ezt a jelet eldobjuk
+            }
+
             // dit-dah pár validáció (Lawrence Glaister, VE7IT)
             // Ellenőrizzük, hogy az előző elemmel együtt érvényes párt alkotunk-e
             if (lastElement_ > 0) {
@@ -782,27 +794,62 @@ void DecoderCW_C1::calculateWpm(unsigned long letterDuration) {
  * @param dah Dah (hosszú) elem hossza ms-ben
  */
 void DecoderCW_C1::updateTracking(unsigned long dit, unsigned long dah) {
-    // Validálás: a dah ~= 3 * dit (2-4x tartományban)
-    if (dah >= 2 * dit && dah <= 4 * dit) {
-        // Exponenciális mozgóátlag - simább követés
-        if (toneMin_ < 9999) {
-            toneMin_ = (toneMin_ + dit) / 2;
-        } else {
-            toneMin_ = dit;
-        }
+    // fldigi update_tracking() - teljes validáció + tracking filter
 
-        if (toneMax_ > 0) {
-            toneMax_ = (toneMax_ + dah) / 2;
-        } else {
-            toneMax_ = dah;
-        }
-
-        reference_ = (toneMin_ + toneMax_) / 2;
-
-        // CW_DEBUG("CW-C1: Valid pair - dit=%lu ms, dah=%lu ms, ref=%lu ms\n", dit, dah, reference_);
-    } else {
-        // CW_DEBUG("CW-C1: Invalid pair ratio - dit=%lu ms, dah=%lu ms (ratio=%.2f, expected ~3.0)\n", dit, dah, (float)dah / dit);
+    // 1. Ratio validáció: dah/dit arány max 4x lehet (fldigi logic)
+    if (dah > 4 * dit || dit > 4 * dah) {
+        // CW_DEBUG("CW-C1: Invalid ratio - dit=%lu ms, dah=%lu ms (ratio=%.2f)\n", dit, dah, (float)dah / dit);
+        return;
     }
+
+    // 2. WPM számítás a two_dots alapján (dit + dah = ~2 dots)
+    float two_dots_measured = (float)(dit + dah);
+
+    // 3. Tracking filter alkalmazása (simple low-pass filter mint az fldigi trackingfilter->run())
+    if (two_dots_ == 0.0f) {
+        two_dots_ = two_dots_measured;
+    } else {
+        // Exponenciális mozgóátlag (alpha = 0.25 -> gyorsabb követés, ~4 minta átlag)
+        two_dots_ = 0.75f * two_dots_ + 0.25f * two_dots_measured;
+    }
+
+    // 4. Min/max limitek számítása az aktuális two_dots alapján
+    // WPM = 1200 / dot_length_ms, tehát dot_length_ms = 1200 / WPM
+    // two_dots = 2 * dot_length, tehát dot_length = two_dots / 2
+    float dot_length = two_dots_ / 2.0f;
+    float estimated_wpm = 1200.0f / dot_length;
+
+    // fldigi: min_dot = KWPM / 200, max_dash = 3 * KWPM / 5
+    // KWPM = dot_length (ms), tehát:
+    min_dot_length_ = (unsigned long)(dot_length / 2.0f);         // Minimum fél dot hossz
+    max_dash_length_ = (unsigned long)(dot_length * 3.0f * 1.5f); // Maximum 4.5 dot hossz
+
+    // Noise spike threshold: negyed dot hossz (engedékenyebb mint fldigi)
+    noise_spike_threshold_ = (unsigned long)(dot_length / 4.0f);
+
+    // 5. WPM limit ellenőrzés (lowerwpm/upperwpm)
+    if (estimated_wpm < wpm_lowerlimit_ || estimated_wpm > wpm_upperlimit_) {
+        // CW_DEBUG("CW-C1: WPM out of range - estimated=%.1f, range=%u-%u\n", estimated_wpm, wpm_lowerlimit_, wpm_upperlimit_);
+        return;
+    }
+
+    // 6. Érvényes mérés - frissítjük a referenciát
+    if (toneMin_ < 9999) {
+        toneMin_ = (toneMin_ + dit) / 2;
+    } else {
+        toneMin_ = dit;
+    }
+
+    if (toneMax_ > 0) {
+        toneMax_ = (toneMax_ + dah) / 2;
+    } else {
+        toneMax_ = dah;
+    }
+
+    reference_ = (toneMin_ + toneMax_) / 2;
+
+    // CW_DEBUG("CW-C1: Valid pair - dit=%lu ms, dah=%lu ms, two_dots=%.1f, est_wpm=%.1f, ref=%lu ms\n",
+    //          dit, dah, two_dots_, estimated_wpm, reference_);
 }
 
 /**
@@ -834,7 +881,13 @@ void DecoderCW_C1::resetDecoder() {
     ::decodedData.cwCurrentWpm = 0;
     ::decodedData.cwCurrentFreq = 0;
 
-    // Új türelmes váltási állapotok resetelése
+    // fldigi tracking filter változók resetése
+    two_dots_ = 0.0f;
+    min_dot_length_ = 0;
+    max_dash_length_ = 0;
+    noise_spike_threshold_ = 0;
+
+    // Új türelmes váltási állapotok resetése
     stableFreqIndex_ = 4;
     stableHoldUntilMs_ = 0;
     candidateFreqIndex_ = 4;

@@ -94,6 +94,15 @@ class DecoderCW_C1 : public IDecoder {
     float cw_upper_ = 0.5f; // Felső küszöb (normalizált)
     float cw_lower_ = 0.3f; // Alsó küszöb (normalizált)
 
+    // fldigi WPM tracking filter változók
+    float two_dots_ = 0.0f;                   // Két dot időtartam (tracking filter kimenet)
+    unsigned long min_dot_length_ = 0;        // Minimális érvényes dot hossz (ms)
+    unsigned long max_dash_length_ = 0;       // Maximális érvényes dash hossz (ms)
+    uint16_t wpm_lowerlimit_ = 5;             // WPM alsó limit (min_wpm - CWrange)
+    uint16_t wpm_upperlimit_ = 40;            // WPM felső limit (max_wpm + CWrange)
+    const uint16_t CWrange_ = 10;             // WPM tartomány (±10 WPM)
+    unsigned long noise_spike_threshold_ = 0; // Zajcsúcs küszöb (dot_length/2)
+
     // AGC runtime paraméterek (RÉGI Q15 fixpoint - kompatibilitás miatt megtartva)
     q15_t agcLevel_q15 = 8192;         // AGC szint (mozgó átlag) Q15: 250.0f × 32768 / 1000 ≈ 8192
     q15_t agcAlpha_q15 = 655;          // AGC szűrési állandó Q15: 0.02f × 32768 ≈ 655
