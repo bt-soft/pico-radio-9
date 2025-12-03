@@ -74,6 +74,8 @@ class AudioController {
     bool setSpectrumAveragingCount(uint32_t n);
     // Engedélyezi/tiltja a dekóder oldali bandpass szűrőt (ha a dekóder implementálja)
     bool setDecoderBandpassEnabled(bool enabled);
+    // Aktív dekóder lekérdezése
+    DecoderId getActiveDecoder() const { return activeDecoderCore0; }
 
   private:
     DecoderId activeDecoderCore0 = ID_DECODER_NONE;

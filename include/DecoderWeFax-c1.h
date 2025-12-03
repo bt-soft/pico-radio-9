@@ -88,8 +88,12 @@ class DecoderWeFax_C1 : public IDecoder {
 
     float complex_arg_diff(float prev_real, float prev_imag, float curr_real, float curr_imag);
 
-    // FM demodulátor állapot
-#define IQ_FILTER_SIZE 32 // I/Q szűrő mérete (egyszerűsített mozgóátlag) - növelve a zajos pontok csökkentésére
+    // fldigi-alapú korrelációs minőség ellenőrzés
+    double correlation_from_index(size_t line_length, size_t line_offset) const;
+    void correlation_calc();
+
+    // FM demodulator állapot
+#define IQ_FILTER_SIZE 8 // I/Q szűrő mérete (csökkentve a jobb fáziskövetésért)
     float phase_accumulator = 0.0f;
     float phase_increment = 0.0f;
     float deviation_ratio = 0.0f;
@@ -98,6 +102,15 @@ class DecoderWeFax_C1 : public IDecoder {
     int iq_buffer_index = 0;
     float prevz_real = 0.0f;
     float prevz_imag = 0.0f;
+
+    // DC blocker (high-pass IIR filter)
+    float dc_alpha = 0.99f;      // IIR filter coefficient (cutoff ~1 Hz @ 11025 Hz)
+    float dc_prev_input = 0.0f;  // Previous input sample
+    float dc_prev_output = 0.0f; // Previous output sample
+
+    // Gray value DC offset eltávolítása (running average)
+    float gray_dc_avg = 127.0f;   // Mozgóátlag (kezdeti érték középszürke)
+    float gray_dc_alpha = 0.995f; // IIR filter coefficient (lassú követés)
 
     // Phasing detektálás állapot
 #define PHASING_FILTER_SIZE 32 // Phasing detektálás szűrője - növelve a stabilabb szinkronhoz
@@ -125,4 +138,17 @@ class DecoderWeFax_C1 : public IDecoder {
     bool line_started = false;
     int pixel_val = 0;
     int pix_samples_nb = 0;
+
+    // fldigi line-to-line korreláció (képminőség ellenőrzés)
+#define CORR_BUFFER_SIZE 4096 // Ring buffer a korrelációhoz (~2 sor IOC288 esetén)
+    uint8_t correlation_buffer[CORR_BUFFER_SIZE] = {0};
+    size_t corr_buffer_index = 0;
+    double curr_corr_avg = 0.0;       // Aktuális mozgóátlag korreláció
+    double imag_corr_max = 0.0;       // Kép maximális korrelációja
+    int corr_calls_nb = 0;            // Korreláció hívások száma
+    unsigned long last_corr_time = 0; // Utolsó korreláció számítás ideje
+
+    // fldigi phasing fejlesztések
+    int num_phase_lines = 20; // Cél phasing sorok száma (fldigi: 20)
+    int phasing_calls_nb = 0; // Phasing hívások számlálója
 };

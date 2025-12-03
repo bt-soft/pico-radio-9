@@ -31,6 +31,9 @@
 // Globális dekódolt adat objektum, megosztva a magok között
 extern DecodedData decodedData;
 
+// Global debug reset flag
+bool g_wefax_debug_reset = false;
+
 // WEFAX működés debug engedélyezése de csak DEBUG módban
 #define __WEFAX_DEBUG
 #if defined(__DEBUG) && defined(__WEFAX_DEBUG)
@@ -97,7 +100,9 @@ bool DecoderWeFax_C1::start(const DecoderConfig &decoderConfig) {
     // Skálázás: gray = 128 + phase_diff * deviation_ratio
     // Fekete (1500 Hz = -400 Hz) → gray = 0, Fehér (2300 Hz = +400 Hz) → gray = 255
     // deviation_ratio = (sample_rate / TWOPI) * (255 / WEFAX_SHIFT)
-    deviation_ratio = (sample_rate / TWOPI) * (255.0f / WEFAX_SHIFT);
+    // KALIBRÁCIÓ: A phase_diff empirikusan ~10x nagyobb mint várható → osztva 10-zel
+    float theoretical_ratio = (sample_rate / TWOPI) * (255.0f / WEFAX_SHIFT);
+    deviation_ratio = theoretical_ratio / 10.0f; // Empirikus kalibrációs faktor
 
     WEFAX_DEBUG("WeFax-C1: \n--------------------------------------------------\n");
     WEFAX_DEBUG("    WeFax Start\n");
@@ -116,6 +121,17 @@ bool DecoderWeFax_C1::start(const DecoderConfig &decoderConfig) {
     phase_accumulator = 0.0f;
     prevz_real = 0.0f;
     prevz_imag = 0.0f;
+
+    // DC blocker reset
+    dc_prev_input = 0.0f;
+    dc_prev_output = 0.0f;
+
+    // Gray DC offset reset
+    gray_dc_avg = 127.0f;
+
+    // Debug counter reset trigger
+    extern bool g_wefax_debug_reset; // Global flag
+    g_wefax_debug_reset = true;
 
     // I/Q szűrő pufferek nullázása
     memset(i_buffer, 0, sizeof(i_buffer));
@@ -193,8 +209,22 @@ void DecoderWeFax_C1::reset() {
     curr_phase_high = 0;
     curr_phase_low = 0;
     phasing_count = 0;
+    phasing_calls_nb = 0;
     phase_high = false;
     memset(phasing_history, 0, sizeof(phasing_history));
+
+    // fldigi korreláció változók resetelése
+    corr_calls_nb = 0;
+    curr_corr_avg = 0.0;
+    imag_corr_max = 0.0;
+    corr_buffer_index = 0;
+    last_corr_time = 0;
+    memset(correlation_buffer, 0, sizeof(correlation_buffer));
+
+    // DC blocker és AGC reset
+    dc_prev_input = 0.0f;
+    dc_prev_output = 0.0f;
+    gray_dc_avg = 127.0f;
 
     // Kép-pufferek és pix számlálók alaphelyzetbe
     img_sample = 0;
@@ -234,7 +264,9 @@ void DecoderWeFax_C1::processSamples(const int16_t *samples, size_t count) {
     static int signal_gray_max = 0;
     static int signal_black_count = 0;
     static int signal_white_count = 0;
-    static float last_curr_mag = 0.0f; // Debug: utolsó curr_mag érték
+    static float last_curr_mag = 0.0f;   // Debug: utolsó curr_mag érték
+    static float last_phase_diff = 0.0f; // Debug: utolsó phase_diff érték
+    static int last_gray_raw = 127;      // Debug: utolsó gray_raw érték
 
 #ifdef __WEFAX_DEBUG
     // Debug: Periodikus kiírás a feldolgozott mintákról (csak debug módban)
@@ -247,9 +279,14 @@ void DecoderWeFax_C1::processSamples(const int16_t *samples, size_t count) {
     // FM demoduláció (I/Q demoduláció vivővel + fázis differenciálás)
     for (size_t i = 0; i < count && i < 256; i++) {
 
-        // NEM normalizálunk!
-        //  Az ADC eleve DC-korrigált így kis amplitúdójú jeleket ad (~±100)
-        float audio_sample = (float)samples[i];
+        // DC blocker IIR filter (high-pass ~1 Hz @ 11025 Hz)
+        // y[n] = alpha * (y[n-1] + x[n] - x[n-1])
+        float input = (float)samples[i];
+        float dc_blocked = dc_alpha * (dc_prev_output + input - dc_prev_input);
+        dc_prev_input = input;
+        dc_prev_output = dc_blocked;
+
+        float audio_sample = dc_blocked;
 
         // I/Q demoduláció vivővel
         float cos_val = cosf(phase_accumulator);
@@ -295,15 +332,20 @@ void DecoderWeFax_C1::processSamples(const int16_t *samples, size_t count) {
         } else {
             // Fázis differenciálás
             float phase_diff = complex_arg_diff(prevz_real, prevz_imag, currz_real, currz_imag);
+            last_phase_diff = phase_diff; // Debug mentés
 
             // Átalakítás szürkeértékre (HELYES képlet)
             // gray = 128 + phase_diff * deviation_ratio
             // Fekete (1500 Hz, -400 Hz) → negatív phase_diff → 128 + (-) = kis érték → sötét ✓
             // Fehér (2300 Hz, +400 Hz) → pozitív phase_diff → 128 + (+) = nagy érték → világos ✓
             float gray_float = 128.0f + deviation_ratio * phase_diff;
-            gray_value = (int)roundf(gray_float);
+            int gray_raw = (int)roundf(gray_float);
+            gray_raw = constrain(gray_raw, 0, 255);
+            last_gray_raw = gray_raw; // Debug mentés
 
-            // Korlátozás 0-255 közé
+            // DC offset eltávolítása a gray value-ból (running average)
+            gray_dc_avg = gray_dc_alpha * gray_dc_avg + (1.0f - gray_dc_alpha) * gray_raw;
+            gray_value = gray_raw - (int)gray_dc_avg + 127;
             gray_value = constrain(gray_value, 0, 255);
         }
 
@@ -352,11 +394,16 @@ void DecoderWeFax_C1::processSamples(const int16_t *samples, size_t count) {
             float signal_white_ratio = (float)signal_white_count / signal_counter;
             int signal_dynamic_range = signal_gray_max - signal_gray_min;
 
-            // DEBUG: minden esetben kiírjuk az első 10 másodpercben
+            // DEBUG: minden esetben kiírjuk az első 60 másodpercben
+            extern bool g_wefax_debug_reset;
             static int temp_debug_counter = 0;
-            if (temp_debug_counter++ < 10) {
-                DEBUG("WeFax DEBUG: dev_ratio=%.2f, gray_avg=%d, range=%d [%d-%d], curr_mag=%.2f\n", //
-                      deviation_ratio, signal_gray_avg, signal_dynamic_range, signal_gray_min, signal_gray_max, last_curr_mag);
+            if (g_wefax_debug_reset) {
+                temp_debug_counter = 0;
+                g_wefax_debug_reset = false;
+            }
+            if (temp_debug_counter++ < 60) {
+                Serial.printf("WeFax DEBUG: gray_avg=%d [%d-%d] | DC_avg=%.1f | phase_diff=%.4f | gray_raw=%d\n", //
+                              signal_gray_avg, signal_gray_min, signal_gray_max, gray_dc_avg, last_phase_diff, last_gray_raw);
             }
 
 #ifdef __WEFAX_DEBUG
@@ -656,42 +703,47 @@ void DecoderWeFax_C1::decode_phasing(int gray_value) {
                 decodedData.modeChanged = true;
             }
 
-            // 6 phasing sor után átváltunk IMAGE módba, DE mérés folytatódik!
-            if (phase_lines == 6) {
-                WEFAX_DEBUG("WeFax-C1: \n-------------------------------------------------\n");
+            // fldigi: több phasing sor gyűjtése jobb átlaghoz (20 sor helyett 10-15)
+            // Elegendő phasing sor után átváltunk IMAGE módba
+            if (phase_lines >= 10 && phase_lines <= num_phase_lines) {
+                phasing_calls_nb++;
 
-                // Ha már IMAGE módban voltunk → ÚJ KÉP KEZDŐDÖTT!
-                if (rx_state == RXIMAGE) {
-                    WEFAX_DEBUG(" 🔄 ÚJ KÉP KEZDŐDIK (phasing újra)\n");
-                } else {
-                    WEFAX_DEBUG(" ✓ SZINKRONIZÁLVA - KÉPFOGADÁS INDUL\n");
-                }
+                // fldigi módon: csak minden 5. phasing sornál frissítjük az LPM-et
+                if ((phasing_calls_nb % 5) == 0 || phase_lines == num_phase_lines) {
+                    WEFAX_DEBUG("WeFax-C1: \n-------------------------------------------------\n");
 
-                WEFAX_DEBUG("-------------------------------------------------\n");
+                    // Ha már IMAGE módban voltunk → ÚJ KÉP KEZDŐDÖTT!
+                    if (rx_state == RXIMAGE) {
+                        WEFAX_DEBUG(" 🔄 ÚJ KÉP KEZDŐDIK (phasing újra)\n");
+                    } else {
+                        WEFAX_DEBUG(" ✓ SZINKRONIZÁLVA - KÉPFOGADÁS INDUL\n");
+                    }
+
+                    WEFAX_DEBUG("-------------------------------------------------\n");
 #if USE_MEASURED_LPM
-                WEFAX_DEBUG(" Sebesség: %.1f LPM (mért)\n", avg_lpm);
-                WEFAX_DEBUG(" Soridő: %.1f ms (%.0f minta/sor)\n", avg_line_time_ms, samples_per_line);
+                    WEFAX_DEBUG(" Sebesség: %.1f LPM (mért)\n", avg_lpm);
+                    WEFAX_DEBUG(" Soridő: %.1f ms (%.0f minta/sor)\n", avg_line_time_ms, samples_per_line);
 #else
-                WEFAX_DEBUG(" Sebesség: %.1f LPM (detektált)", avg_lpm);
-                WEFAX_DEBUG(" Soridő: 500.0 ms FIX (%.0f minta/sor)", samples_per_line);
+                    WEFAX_DEBUG(" Sebesség: %.1f LPM (detektált)", avg_lpm);
+                    WEFAX_DEBUG(" Soridő: 500.0 ms FIX (%.0f minta/sor)", samples_per_line);
 #endif
-                WEFAX_DEBUG(" Mód: IOC%d | Képszélesség: %d pixel", current_ioc, img_width);
-                WEFAX_DEBUG(" Magasság: %d sor", WEFAX_IMAGE_HEIGHT);
-                WEFAX_DEBUG("--------------------------------------------------\n");
-                WEFAX_DEBUG(" Kép dekódolása folyamatban...\n");
-                WEFAX_DEBUG(" ℹ Finomhangolás: További szinkronoknál\n");
-                WEFAX_DEBUG("--------------------------------------------------\n\n");
+                    WEFAX_DEBUG(" Mód: IOC%d | Képszélesség: %d pixel", current_ioc, img_width);
+                    WEFAX_DEBUG(" Magasság: %d sor", WEFAX_IMAGE_HEIGHT);
+                    WEFAX_DEBUG("--------------------------------------------------\n");
+                    WEFAX_DEBUG(" Kép dekódolása folyamatban...\n");
+                    WEFAX_DEBUG(" ℹ Finomhangolás: További szinkronoknál\n");
+                    WEFAX_DEBUG("--------------------------------------------------\n\n");
 
-                rx_state = RXIMAGE;
-                img_sample = (int)(1.025f * samples_per_line);
+                    rx_state = RXIMAGE;
+                    img_sample = (int)(1.025f * samples_per_line);
 
-                float tmp_pos = fmodf((float)img_sample, samples_per_line) / samples_per_line;
-                last_col = (int)(tmp_pos * img_width);
+                    float tmp_pos = fmodf((float)img_sample, samples_per_line) / samples_per_line;
+                    last_col = (int)(tmp_pos * img_width);
 
-                // ÚJ KÉP JELZÉSE a Core0-nak (képernyő törlés + pozíció nullázás)
-                current_line_index = 0;
-                decodedData.newImageStarted = true;
-
+                    // ÚJ KÉP JELZÉSE a Core0-nak (képernyő törlés + pozíció nullázás)
+                    current_line_index = 0;
+                    decodedData.newImageStarted = true;
+                }
             } else if (phase_lines > 4 && rx_state == RXIMAGE && valid_lpm) {
                 // IMAGE módban folytatjuk a phasing mérést - finomhangoljuk az LPM-et
 #if USE_MEASURED_LPM
@@ -760,6 +812,14 @@ void DecoderWeFax_C1::decode_image(int gray_value, uint16_t *current_line_idx) {
             if (!decodedData.lineBuffer.put(newLine)) {
                 WEFAX_DEBUG("WeFax-C1: ⚠ BUFFER TELE! Sor #%d elveszett (Core0 lassú?)\n", *current_line_idx);
             }
+
+            // fldigi: line-to-line korreláció számítás minden sor végén
+            // De csak másodpercenként egyszer (CPU spórolás)
+            unsigned long now = millis();
+            if (now - last_corr_time >= 1000) { // 1 másodpercenként
+                correlation_calc();
+                last_corr_time = now;
+            }
         }
         *current_line_idx = (*current_line_idx + 1) % WEFAX_IMAGE_HEIGHT;
         memset(current_wefax_line, 255, img_width);
@@ -778,4 +838,97 @@ void DecoderWeFax_C1::decode_image(int gray_value, uint16_t *current_line_idx) {
     pixel_val += gray_value;
     pix_samples_nb++;
     img_sample++;
+
+    // fldigi: correlation buffer feltöltése (ring buffer)
+    correlation_buffer[corr_buffer_index] = (uint8_t)gray_value;
+    corr_buffer_index = (corr_buffer_index + 1) % CORR_BUFFER_SIZE;
+}
+
+// =============================================================================
+// fldigi LINE-TO-LINE KORRELÁCIÓ (KÉPMINŐSÉG ELLENŐRZÉS)
+// =============================================================================
+
+/**
+ * @brief Kiszámítja a korrelációt két sor között
+ * @param line_length Sor hossza (mintákban)
+ * @param line_offset Eltolás (mintákban) - tipikusan 1 sor hossza
+ * @return Korreláció érték (0.0-1.0)
+ *
+ * fldigi alapú line-to-line correlation számítás.
+ * Ezt használja az fldigi a kép minőségének ellenőrzésére és az APT stop detektáláshoz.
+ */
+double DecoderWeFax_C1::correlation_from_index(size_t line_length, size_t line_offset) const {
+    // Ring buffer indexelés
+    size_t line_length_plus_img_sample = line_length + img_sample;
+
+    // Átlagok számítása
+    int avg_pred = 0, avg_curr = 0;
+    for (size_t i = img_sample; i < line_length_plus_img_sample; ++i) {
+        int pix_pred = correlation_buffer[(i) % CORR_BUFFER_SIZE];
+        int pix_curr = correlation_buffer[(i + line_offset) % CORR_BUFFER_SIZE];
+        avg_pred += pix_pred;
+        avg_curr += pix_curr;
+    }
+    avg_pred /= line_length;
+    avg_curr /= line_length;
+
+    // Korreláció számítás
+    int numerator = 0, denom_pred = 0, denom_curr = 0;
+    for (size_t i = img_sample; i < line_length_plus_img_sample; ++i) {
+        int pix_pred = correlation_buffer[(i) % CORR_BUFFER_SIZE];
+        int pix_curr = correlation_buffer[(i + line_offset) % CORR_BUFFER_SIZE];
+        int delta_pred = pix_pred - avg_pred;
+        int delta_curr = pix_curr - avg_curr;
+        numerator += delta_pred * delta_curr;
+        denom_pred += delta_pred * delta_pred;
+        denom_curr += delta_curr * delta_curr;
+    }
+
+    double denominator = sqrt((double)denom_pred * (double)denom_curr);
+    if (denominator == 0.0) {
+        return 0.0;
+    } else {
+        return fabs(numerator / denominator);
+    }
+}
+
+/**
+ * @brief Periodikus korreláció számítás (fldigi módon)
+ *
+ * Ezt hívjuk meg minden sor végén a kép minőségének nyomon követéséhez.
+ * Az fldigi ezt használja APT stop detektáláshoz és minőségellenőrzéshez.
+ */
+void DecoderWeFax_C1::correlation_calc() {
+    corr_calls_nb++;
+
+    // Egy sor hossza mintákban
+    size_t corr_smpl_lin = (size_t)samples_per_line;
+    if (corr_smpl_lin == 0 || corr_smpl_lin > CORR_BUFFER_SIZE / 2) {
+        return; // Hibás érték
+    }
+
+    // Korreláció számítás az előző sorhoz képest
+    double current_corr = correlation_from_index(corr_smpl_lin, corr_smpl_lin);
+
+    // Bound checking
+    if (current_corr > 1.0) {
+        current_corr = 1.0;
+    }
+
+    // fldigi módon: exponenciális mozgóátlag (decayavg szerű)
+    static const int min_corr_rows = 5; // Minimum sorok száma az átlagoláshoz
+
+    if (corr_calls_nb < min_corr_rows) {
+        curr_corr_avg = current_corr;
+        imag_corr_max = 0.0;
+    } else {
+        // Mozgóátlag: weight = min_corr_rows / (min_corr_rows + 1)
+        curr_corr_avg = (curr_corr_avg * min_corr_rows + current_corr) / (min_corr_rows + 1);
+        imag_corr_max = (curr_corr_avg > imag_corr_max) ? curr_corr_avg : imag_corr_max;
+    }
+
+    // Debug minden 10. híváskor
+    if ((corr_calls_nb % 10) == 0) {
+        WEFAX_DEBUG("WeFax-C1: Correlation: curr=%.3f avg=%.3f max=%.3f calls=%d\n", current_corr, curr_corr_avg, imag_corr_max, corr_calls_nb);
+    }
 }

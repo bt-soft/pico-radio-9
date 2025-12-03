@@ -583,13 +583,18 @@ void UICompSpectrumVis::draw() {
 
     // Biztonsági ellenőrzés: ha az aktuális mód nem elérhető, váltás elérhető módra
     if (!isModeAvailable(currentMode_)) {
-        // CW/RTTY módban: váltás a megfelelő waterfall módra
-        if (currentBandwidthHz_ == CW_AF_BANDWIDTH_HZ) {
+        DecoderId activeDecoder = audioController.getActiveDecoder();
+
+        // CW dekóder: váltás CW waterfall módra
+        if (activeDecoder == ID_DECODER_CW) {
             setCurrentDisplayMode(DisplayMode::CWWaterfall);
-        } else if (currentBandwidthHz_ == RTTY_AF_BANDWIDTH_HZ) {
+        }
+        // RTTY dekóder: váltás RTTY waterfall módra
+        else if (activeDecoder == ID_DECODER_RTTY) {
             setCurrentDisplayMode(DisplayMode::RTTYWaterfall);
-        } else {
-            // AM/FM/egyéb módban: váltás spektrum módra
+        }
+        // AM/SSB/FM mód (nincs CW/RTTY dekóder): váltás spektrum LowRes módra
+        else {
             setCurrentDisplayMode(DisplayMode::SpectrumLowRes);
         }
     }
@@ -807,16 +812,19 @@ void UICompSpectrumVis::cycleThroughModes() {
 
     uint8_t nextMode = static_cast<uint8_t>(currentMode_) + 1;
 
-    // FM módban kihagyjuk a CW, RTTY és SNR hangolási segéd módokat
-    if (radioMode_ == RadioMode::FM) {
-        if (nextMode > static_cast<uint8_t>(DisplayMode::Waterfall)) {
-            nextMode = static_cast<uint8_t>(DisplayMode::Off);
-        }
-    } else {
-        // AM módban minden mód elérhető
+    // Körbe járunk maximum DisplayMode::RttySnrCurve-ig
+    if (nextMode > static_cast<uint8_t>(DisplayMode::RttySnrCurve)) {
+        nextMode = static_cast<uint8_t>(DisplayMode::Off);
+    }
+
+    // Keresünk egy elérhető módot (maximum 12 lépés hogy ne legyen végtelen ciklus)
+    uint8_t attempts = 0;
+    while (!isModeAvailable(static_cast<DisplayMode>(nextMode)) && attempts < 12) {
+        nextMode++;
         if (nextMode > static_cast<uint8_t>(DisplayMode::RttySnrCurve)) {
             nextMode = static_cast<uint8_t>(DisplayMode::Off);
         }
+        attempts++;
     }
 
     // Új mód beállítása
@@ -984,29 +992,30 @@ void UICompSpectrumVis::setModeIndicatorVisible(bool visible) {
 }
 
 /**
- * @brief Ellenőrzi, hogy egy megjelenítési mód elérhető-e az aktuális rádió módban
+ * @brief Ellenőrzi, hogy egy megjelenítési mód elérhető-e az aktuális dekóder alapján
  */
 bool UICompSpectrumVis::isModeAvailable(DisplayMode mode) const {
-    // CW módban (1.5kHz sávszélesség): csak CW tuning aid módok
-    if (currentBandwidthHz_ == CW_AF_BANDWIDTH_HZ) {
-        // Csak CWWaterfall és CwSnrCurve elérhető
+    // Aktív dekóder lekérése
+    DecoderId activeDecoder = audioController.getActiveDecoder();
+
+    // CW dekóder: csak CW tuning aid módok
+    if (activeDecoder == ID_DECODER_CW) {
         if (mode == DisplayMode::CWWaterfall || mode == DisplayMode::CwSnrCurve) {
             return true;
         }
         return false; // Minden más mód blokkolva
     }
 
-    // RTTY módban (3kHz sávszélesség): csak RTTY tuning aid módok
-    if (currentBandwidthHz_ == RTTY_AF_BANDWIDTH_HZ) {
-        // Csak RTTYWaterfall és RttySnrCurve elérhető
+    // RTTY dekóder: csak RTTY tuning aid módok
+    if (activeDecoder == ID_DECODER_RTTY) {
         if (mode == DisplayMode::RTTYWaterfall || mode == DisplayMode::RttySnrCurve) {
             return true;
         }
         return false; // Minden más mód blokkolva
     }
 
-    // AM és FM módban: tuning aid módok nem elérhetők
-    if (currentBandwidthHz_ == AM_AF_BANDWIDTH_HZ || currentBandwidthHz_ == FM_AF_BANDWIDTH_HZ) {
+    // AM/SSB/FM mód (nincs CW/RTTY dekóder): tuning aid módok nem elérhetők
+    if (activeDecoder != ID_DECODER_CW && activeDecoder != ID_DECODER_RTTY) {
         if (mode == DisplayMode::CWWaterfall || mode == DisplayMode::RTTYWaterfall || mode == DisplayMode::CwSnrCurve || mode == DisplayMode::RttySnrCurve) {
             return false;
         }
