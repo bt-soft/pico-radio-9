@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
  * -----                                                                                                               *
- * Last Modified: 2025.12.01, Monday  04:05:46                                                                         *
+ * Last Modified: 2025.12.03, Wednesday  06:13:48                                                                      *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -32,7 +32,7 @@
 extern DecodedData decodedData;
 
 // CW működés debug engedélyezése (csak ha __DEBUG definiálva van)
-// #define __CW_DEBUG
+#define __CW_DEBUG
 #if defined(__DEBUG) && defined(__CW_DEBUG)
 #define CW_DEBUG(fmt, ...) DEBUG(fmt __VA_OPT__(, ) __VA_ARGS__)
 #else
@@ -41,6 +41,19 @@ extern DecodedData decodedData;
 
 // Morse szimbólum tömb inicializálása
 constexpr char DecoderCW_C1::morseSymbols_[128];
+
+/**
+ * @brief fldigi decayavg() helper függvény - exponenciális mozgó átlag
+ * @param average Jelenlegi átlag érték
+ * @param input Új bemenet
+ * @param weight Súly (nagyobb = lassabb követés)
+ * @return Új átlag érték
+ */
+static inline float decayavg(float average, float input, int weight) {
+    if (weight <= 1)
+        return input;
+    return ((input - average) / static_cast<float>(weight)) + average;
+}
 
 /**
  * @brief CwDecoderC1 konstruktor - inicializálja az alapértelmezett értékeket
@@ -165,7 +178,7 @@ q15_t DecoderCW_C1::processGoertzelBlock(const int16_t *samples, size_t count, q
 }
 
 /**
- * @brief Tónus detekció Goertzel filterrel - FIXPONTOS Q15
+ * @brief Tónus detekció fldigi módszerrel - envelope tracking + adaptive threshold
  * @param samples Bemeneti minták int16_t formátumban
  * @param count Minták száma
  * @return true ha tónus detektálva
@@ -181,7 +194,6 @@ bool DecoderCW_C1::detectTone(const int16_t *samples, size_t count) {
     q15_t maxMagnitude = 0;
     int bestIndex = currentFreqIndex_;
 
-    // Ablak NEM kell fixpontos Goertzel-nél (a raw minták már int16_t-ben jönnek)
     for (size_t i = 0; i < FREQ_SCAN_STEPS; i++) {
         q15_t mag = processGoertzelBlock(samples, GOERTZEL_N, scanCoeffs_[i]);
         if (mag > maxMagnitude) {
@@ -190,97 +202,105 @@ bool DecoderCW_C1::detectTone(const int16_t *samples, size_t count) {
         }
     }
     measuredFreqIndex_ = bestIndex;
-    q15_t magnitude = maxMagnitude;
 
-    // --- AGC: threshold_q15 dinamikus optimalizálása (fixpontos Q15) ---
+    // Q15 → float konverzió (0-1000 tartomány, mint fldigi-nél)
+    float value = static_cast<float>(maxMagnitude) / Q15_SCALE * 1000.0f;
+
+    // --- fldigi envelope tracking algoritmus ---
     if (useAdaptiveThreshold_) {
+        // sig_avg követés (decay)
+        sig_avg_ = decayavg(sig_avg_, value, decay_weight_);
 
-        // Seed AGC első értelmes mérésnél
-        if (!agcInitialized_) {
-            // Ha a magnitúdó túl kicsi, még nem inicializálunk
-            if (magnitude > 3000) { // Q15: 3000 ≈ 0.09 (noise szint felett)
-                agcLevel_q15 = magnitude;
-                agcInitialized_ = true;
-            }
+        // noise_floor követés (attack ha csökken, decay ha nő)
+        if (value < sig_avg_) {
+            if (value < noise_floor_)
+                noise_floor_ = decayavg(noise_floor_, value, attack_weight_);
+            else
+                noise_floor_ = decayavg(noise_floor_, value, decay_weight_);
+        }
+
+        // agc_peak követés (attack ha nő, decay ha csökken)
+        if (value > sig_avg_) {
+            if (value > agc_peak_)
+                agc_peak_ = decayavg(agc_peak_, value, attack_weight_);
+            else
+                agc_peak_ = decayavg(agc_peak_, value, decay_weight_);
+        }
+
+        // Normalizálás agc_peak-hez
+        float norm_noise = 0.0f;
+        float norm_sig = 0.0f;
+        float norm_value = 0.0f;
+
+        if (agc_peak_ > 1e-4f) {
+            norm_noise = noise_floor_ / agc_peak_;
+            norm_sig = sig_avg_ / agc_peak_;
+            norm_value = value / agc_peak_;
+        }
+
+        // SNR metric számítás (dB-ben, 0-100 tartomány)
+        metric_ = 0.8f * metric_; // decay
+        if (noise_floor_ > 1e-4f && noise_floor_ < sig_avg_) {
+            float snr_db = 20.0f * log10f(sig_avg_ / noise_floor_);
+            metric_ += 0.2f * constrain(2.5f * snr_db, 0.0f, 100.0f);
+        }
+
+        // Adaptive threshold számítás (fldigi módszer)
+        float diff = norm_sig - norm_noise;
+        cw_upper_ = norm_sig - 0.2f * diff;
+        cw_lower_ = norm_noise + 0.7f * diff;
+
+        // Tónus detekció hysteresis-szel
+        bool rawToneState = false;
+        if (!toneDetected_ && norm_value > cw_upper_) {
+            rawToneState = true; // Felfutó él
+        } else if (toneDetected_ && norm_value < cw_lower_) {
+            rawToneState = false; // Lefutó él
         } else {
-            // Exponenciális mozgó átlag Q15-ben
-            // agcLevel = (1-alpha)*agcLevel + alpha*magnitude
-            // alpha = agcAlpha_q15 / 32768
-            // Fixpontos: agcLevel = agcLevel - (agcLevel*alpha)/32768 + (magnitude*alpha)/32768
-            int32_t delta_old = ((int32_t)agcLevel_q15 * agcAlpha_q15) >> 15;
-            int32_t delta_new = ((int32_t)magnitude * agcAlpha_q15) >> 15;
-            agcLevel_q15 = agcLevel_q15 - delta_old + delta_new;
+            rawToneState = toneDetected_; // Tartjuk az előző állapotot
         }
 
-        // Threshold számítása: threshold = agcLevel * THRESH_FACTOR
-        // THRESH_FACTOR = 0.80 → Q15: 0.80 * 32768 ≈ 26214
-        constexpr q15_t THRESH_FACTOR_Q15 = 26214; // 0.80 Q15-ben
-        int32_t thresh = ((int32_t)agcLevel_q15 * THRESH_FACTOR_Q15) >> 15;
-        threshold_q15 = (q15_t)thresh;
-
-        // Minimum threshold ellenőrzés
-        if (threshold_q15 < minThreshold_q15) {
-            threshold_q15 = minThreshold_q15;
+        // Debug kimenet (ritkítva)
+        static int __cw_dbg_cnt = 0;
+        if (++__cw_dbg_cnt >= 20) {
+            CW_DEBUG("CW: val=%.1f, sig=%.1f, noise=%.1f, peak=%.1f, upper=%.3f, lower=%.3f, SNR=%.1fdB, %s\n", value, sig_avg_, noise_floor_, agc_peak_,
+                     cw_upper_, cw_lower_, metric_, rawToneState ? "TONE" : "IDLE");
+            __cw_dbg_cnt = 0;
         }
+
+        toneDetected_ = rawToneState;
 
     } else {
-        // Fix küszöb használata
+        // Fix küszöb mód (régi Q15 módszer - kompatibilitás)
         threshold_q15 = minThreshold_q15;
-        if (agcInitialized_) {
-            agcInitialized_ = false; // ha az adaptív küszöb ki van kapcsolva, reseteljük az AGC állapotot
-        }
-    }
+        bool rawToneState = (maxMagnitude > threshold_q15);
 
-    // Tónus detekció küszöb alapján (Q15)
-    bool rawToneState = (magnitude > threshold_q15);
-
-    // Debounce / hysteresis: require 1 block above/below to change state
-    // A 2-es érték túl szigorú volt ingadozó jeleknél, az 1 elég a noise szűréshez
-    const uint8_t REQUIRED_CONSECUTIVE = 1;
-    if (rawToneState) {
-        consecutiveAboveCount_ = std::min<int>(REQUIRED_CONSECUTIVE, consecutiveAboveCount_ + 1);
-        consecutiveBelowCount_ = 0;
-    } else {
-        consecutiveBelowCount_ = std::min<int>(REQUIRED_CONSECUTIVE, consecutiveBelowCount_ + 1);
-        consecutiveAboveCount_ = 0;
-    }
-
-    bool newToneState = toneDetected_;
-    if (!toneDetected_ && consecutiveAboveCount_ >= REQUIRED_CONSECUTIVE) {
-        newToneState = true;
-    } else if (toneDetected_ && consecutiveBelowCount_ >= REQUIRED_CONSECUTIVE) {
-        newToneState = false;
-    }
-
-    // Debug: kiíratás a Goertzel magnitúdóról és a használt küszöbről (ritkítva)
-    static int __cw_dbg_cnt = 0;
-    if (++__cw_dbg_cnt >= 10) {
-        // Mért frekvencia a legjobb index alapján
-        float detectedFreq = scanFrequencies_[measuredFreqIndex_];
-        // Q15 → float debug konverzió
-        float mag_f = (float)magnitude / Q15_SCALE;
-        float agc_f = (float)agcLevel_q15 / Q15_SCALE;
-        float thr_f = (float)threshold_q15 / Q15_SCALE;
-        if (useAdaptiveThreshold_) {
-            CW_DEBUG("CW-C1: detectTone: freq=%.1f Hz, mag[Q15]=%d(%.4f), agc=ON, agcLevel[Q15]=%d(%.4f), threshold[Q15]=%d(%.4f)\n", //
-                     detectedFreq, magnitude, mag_f, agcLevel_q15, agc_f, threshold_q15, thr_f);
+        // Egyszerű debounce
+        const uint8_t REQUIRED_CONSECUTIVE = 1;
+        if (rawToneState) {
+            consecutiveAboveCount_ = std::min<int>(REQUIRED_CONSECUTIVE, consecutiveAboveCount_ + 1);
+            consecutiveBelowCount_ = 0;
         } else {
-            CW_DEBUG("CW-C1: detectTone: freq=%.1f Hz, mag[Q15]=%d(%.4f), agc=OFF\n", detectedFreq, magnitude, mag_f);
+            consecutiveBelowCount_ = std::min<int>(REQUIRED_CONSECUTIVE, consecutiveBelowCount_ + 1);
+            consecutiveAboveCount_ = 0;
         }
-        __cw_dbg_cnt = 0;
+
+        bool newToneState = toneDetected_;
+        if (!toneDetected_ && consecutiveAboveCount_ >= REQUIRED_CONSECUTIVE) {
+            newToneState = true;
+        } else if (toneDetected_ && consecutiveBelowCount_ >= REQUIRED_CONSECUTIVE) {
+            newToneState = false;
+        }
+
+        toneDetected_ = newToneState;
     }
 
-    // Ha tónus állapot változott, ellenőrizzük és frissítjük a frekvencia-követést
-    if (newToneState != toneDetected_) {
+    // Frekvencia követés frissítése állapot változáskor
+    if (toneDetected_) {
         updateFrequencyTracking();
-    }
-
-    // Ha ténylegesen JÓ tónust észlelünk (stabil felfutó él), frissítjük az utolsó jó tónus időpontját
-    if (newToneState) {
         lastGoodToneMs_ = millis();
     }
 
-    toneDetected_ = newToneState;
     return toneDetected_;
 }
 

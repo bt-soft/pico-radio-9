@@ -74,17 +74,31 @@ class DecoderCW_C1 : public IDecoder {
     q15_t goertzelCoeff_;                    // Goertzel együttható (Q15)
     q15_t threshold_q15;                     // Jelszint küszöb (Q15)
 
-    // --- AGC paraméterek ---
-    // Ha true, a dekóder adaptív küszöböt számol (agc-szerű viselkedés)
+    // --- AGC paraméterek (fldigi alapú envelope tracking) ---
+    // Ha true, a dekóder adaptív küszöböt számol (fldigi módszer)
     // Ha false, csak a `minThreshold_q15` értéket használjuk (fix küszöb)
     bool useAdaptiveThreshold_ = false;
 
-    // AGC runtime paraméterek (Q15 fixpoint)
-    // Kezdeti AGC értékek a gyakoribb mért magnitúdókhoz igazítva
-    q15_t agcLevel_q15 = 8192;         // AGC szint (mozgó átlag) Q15: 250.0f × 32768 / 1000 ≈ 8192 (jobb kezdőérték)
-    q15_t agcAlpha_q15 = 655;          // AGC szűrési állandó (lassabb követés) Q15: 0.02f × 32768 ≈ 655
-    q15_t minThreshold_q15 = 4915;     // Minimális threshold_q15 érték Q15: 150.0f × 32768 / 1000 ≈ 4915 (jobb noise szűrés)
-    const float THRESH_FACTOR = 0.80f; // Jelszint küszöbfaktor - nagyobb érték konzervatívabb detektálást eredményez
+    // fldigi envelope tracking változók (float, nem Q15!)
+    float sig_avg_ = 0.0f;     // Jel átlag (decayavg)
+    float noise_floor_ = 0.0f; // Zajpadló (decayavg)
+    float agc_peak_ = 0.0f;    // AGC csúcs (decayavg)
+    float metric_ = 0.0f;      // SNR metrika (0-100)
+
+    // fldigi attack/decay konstansok (weight paraméterek a decayavg-hez)
+    // attack: gyors követés (kisebb weight), decay: lassú követés (nagyobb weight)
+    int attack_weight_ = 200; // Alapértelmezett: medium (200, 400 slow, 100 fast)
+    int decay_weight_ = 1000; // Alapértelmezett: medium (1000, 2000 slow, 500 fast)
+
+    // Adaptive threshold értékek (fldigi módszer)
+    float cw_upper_ = 0.5f; // Felső küszöb (normalizált)
+    float cw_lower_ = 0.3f; // Alsó küszöb (normalizált)
+
+    // AGC runtime paraméterek (RÉGI Q15 fixpoint - kompatibilitás miatt megtartva)
+    q15_t agcLevel_q15 = 8192;         // AGC szint (mozgó átlag) Q15: 250.0f × 32768 / 1000 ≈ 8192
+    q15_t agcAlpha_q15 = 655;          // AGC szűrési állandó Q15: 0.02f × 32768 ≈ 655
+    q15_t minThreshold_q15 = 4915;     // Minimális threshold_q15 érték Q15: 150.0f × 32768 / 1000 ≈ 4915
+    const float THRESH_FACTOR = 0.80f; // DEPRECATED - fldigi módszer használja a cw_upper/lower-t
 
     // Jelzi, hogy az AGC egyszer már inicializálva lett valódi mérésből
     bool agcInitialized_ = false;
