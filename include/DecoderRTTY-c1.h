@@ -99,10 +99,29 @@ class DecoderRTTY_C1 : public IDecoder {
     bool pllLocked;
     int pllLockCounter;
 
+    // Bit buffer (fldigi módszer)
+    static constexpr int MAX_BIT_BUFFER_SIZE = 512; // max symbollen
+    bool bitBuffer[MAX_BIT_BUFFER_SIZE];
+    int symbolLen;        // symbollen = TONE_BLOCK_SIZE
+    int bitBufferCounter; // counter az rx() state machine-hez
+
+    // AFC (Automatic Frequency Control) - fldigi módszer
+    float freqError;                   // jelenlegi frekvencia hiba (Hz)
+    int afcEnabled;                    // AFC engedélyezve (0=ki, 1=lassabb, 2=gyorsabb)
+    static constexpr int MAXPIPE = 16; // history buffer méret
+    struct cmplx {
+        float real;
+        float imag;
+    };
+    cmplx markHistory[16];  // mark tónus complex history
+    cmplx spaceHistory[16]; // space tónus complex history
+    int historyPtr;         // history pointer
+
     // Bit összegzés és állapot
     int bitsReceived;
     uint8_t currentByte;
     bool figsShift;
+    char lastChar; // duplikált CR/LF szűréshez
 
     // Debug/diagnosztika
     float lastDominantMagnitude;
@@ -120,6 +139,13 @@ class DecoderRTTY_C1 : public IDecoder {
     bool detectTone(bool &isMark, float &confidence);
 
     void initializePLL();
-    void updatePLL(bool currentTone, bool &bitSample, bool &bitReady);
-    void processBit(bool bitValue);
+
+    // Bit buffer módszerek (fldigi)
+    bool isMarkSpaceTransition(int &correction);
+    bool isMarkAtCenter();
+    bool rxBit(bool bit); // fldigi rx() metódus
+
+    // AFC (Automatic Frequency Control)
+    void updateAFC(bool charDecoded);
+    void reconfigureFrequencies(float newMarkFreq, float newSpaceFreq);
 };
