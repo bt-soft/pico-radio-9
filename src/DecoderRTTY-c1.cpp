@@ -1,3 +1,27 @@
+/*
+ * Project: [pico-radio-9] Raspberry Pi Pico Si4735 Radio                                                              *
+ * File: DecoderRTTY-c1.cpp                                                                                            *
+ * Created Date: 2025.12.02.                                                                                           *
+ *                                                                                                                     *
+ * Author: BT-Soft                                                                                                     *
+ * GitHub: https://github.com/bt-soft                                                                                  *
+ * Blog: https://electrodiy.blog.hu/                                                                                   *
+ * -----                                                                                                               *
+ * Copyright (c) 2025 BT-Soft                                                                                          *
+ * License: MIT License                                                                                                *
+ * 	Bárki szabadon használhatja, módosíthatja, terjeszthet, beépítheti más                                             *
+ * 	projektbe (akár zártkódúba is), akár pénzt is kereshet vele                                                        *
+ * 	Egyetlen feltétel:                                                                                                 *
+ * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
+ * -----                                                                                                               *
+ * Last Modified: 2025.12.02, Tuesday  08:26:55                                                                        *
+ * Modified By: BT-Soft                                                                                                *
+ * -----                                                                                                               *
+ * HISTORY:                                                                                                            *
+ * Date      	By	Comments                                                                                           *
+ * ----------	---	-------------------------------------------------------------------------------------------------  *
+ */
+
 // Working RTTY decoder (adapted from samples/)
 // Test decoding: https://www.youtube.com/watch?v=-4UWeo-wSmA
 
@@ -8,20 +32,20 @@
 
 extern DecodedData decodedData;
 
-// AGC kapcsoló
-#define ENABLE_AGC 1
+// AGC kapcsoló - Finomhangolt paraméterekkel
+// #define ENABLE_AGC 1
 
 #define BIN_SPACING_HZ 35.0f
 #define TONE_BLOCK_SIZE 64      // Kisebb blokk a gyorsabb reakcióért
-#define NOISE_ALPHA 0.25f       // Gyorsabb adaptáció az amplitúdó változásokhoz
-#define NOISE_DECAY_ALPHA 0.7f  // Gyorsabb decay a gyors szint változásokhoz
-#define NOISE_PEAK_RATIO 3.0f   // Enyhébb szűrés
-#define MIN_NOISE_FLOOR 15.0f   // Alacsonyabb minimum a gyenge jelekhez
-#define MIN_DOMINANT_MAG 200.0f // Alacsonyabb küszöb a gyengébb jelekhez
+#define NOISE_ALPHA 0.2f        // Mérsékelt adaptáció
+#define NOISE_DECAY_ALPHA 0.6f  // Mérsékelt decay
+#define NOISE_PEAK_RATIO 3.5f   // Eredeti arány
+#define MIN_NOISE_FLOOR 20.0f   // Mérsékelt minimum
+#define MIN_DOMINANT_MAG 250.0f // Mérsékelt küszöb (218 alatt nem volt jó)
 
-// envelope tracking konstansok
-static constexpr float ENVELOPE_ATTACK = 0.1f;  // Gyorsabb felfutás az amplitúdó ugrásokhoz
-static constexpr float ENVELOPE_DECAY = 0.005f; // Gyorsabb lecsengés az amplitúdó csökkenésekhez
+// envelope tracking konstansok - alapértékek, de adaptív algoritmussal
+static constexpr float ENVELOPE_ATTACK = 0.05f; // Alap attack (adaptívan növekszik nagy ugrásnál)
+static constexpr float ENVELOPE_DECAY = 0.002f; // Lassú decay (stabilabb)
 
 // Baudot LTRS (Letters) table - ITA2 standard
 const char DecoderRTTY_C1::BAUDOT_LTRS_TABLE[32] = {
@@ -103,6 +127,11 @@ void DecoderRTTY_C1::initializeToneDetector() {
     lastToneIsMark = true;
     lastToneConfidence = 0.0f;
     resetGoertzelState();
+
+    // Initialize RMS pre-normalization state
+    inputRmsAccum = 0.0f;
+    inputRmsCount = 0;
+    inputGain = 1.0f;
 }
 
 void DecoderRTTY_C1::configureToneBins(float centerFreq, std::array<GoertzelBin, BINS_PER_TONE> &bins) {
@@ -134,9 +163,48 @@ void DecoderRTTY_C1::resetGoertzelState() {
     }
 }
 
+// Optional features
+#define ENABLE_INPUT_RMS_NORMALIZATION 1
+#define RMS_WINDOW_SAMPLES 256 // számítsd át igény szerint (256 works well)
+#define RMS_TARGET 12000.0f    // kívánt RMS szint (tuning) - emelve a jó log értékekhez
+
+// Optional soft limiter
+#define ENABLE_SOFT_LIMITER 1
+#define SOFT_LIMIT_THRESHOLD 30000.0f
+
 void DecoderRTTY_C1::processToneBlock(const int16_t *samples, size_t count) {
     for (size_t i = 0; i < count; ++i) {
         float sample = static_cast<float>(samples[i]);
+
+#if ENABLE_INPUT_RMS_NORMALIZATION
+        // Update running RMS (simple accumulator)
+        inputRmsAccum += sample * sample;
+        inputRmsCount++;
+        if (inputRmsCount >= RMS_WINDOW_SAMPLES) {
+            float mean = inputRmsAccum / static_cast<float>(inputRmsCount);
+            float rms = sqrtf(mean);
+            // Compute gain to bring RMS to target, but be gentle
+            float targetGain = (rms > 1.0f) ? (RMS_TARGET / rms) : 1.0f;
+            // Limit gain range
+            targetGain = constrain(targetGain, 0.5f, 2.0f);
+            // Smoothly update inputGain
+            inputGain = inputGain * 0.9f + targetGain * 0.1f;
+            inputRmsAccum = 0.0f;
+            inputRmsCount = 0;
+        }
+        sample *= inputGain;
+#endif
+
+#if ENABLE_SOFT_LIMITER
+        // Soft limiter: tanh-like curve to reduce spikes
+        float absS = fabsf(sample);
+        if (absS > SOFT_LIMIT_THRESHOLD) {
+            float sign = (sample >= 0.0f) ? 1.0f : -1.0f;
+            float exceeded = (absS - SOFT_LIMIT_THRESHOLD) / SOFT_LIMIT_THRESHOLD;
+            float factor = 1.0f / (1.0f + exceeded);
+            sample = sign * SOFT_LIMIT_THRESHOLD * factor;
+        }
+#endif
 
         // Goertzel számítás
         for (auto &bin : markBins) {
@@ -221,13 +289,24 @@ bool DecoderRTTY_C1::detectTone(bool &isMark, float &confidence) {
     markNoiseFloor = updateNoiseFloor(markNoiseFloor, markNoiseSample, markPeak);
     spaceNoiseFloor = updateNoiseFloor(spaceNoiseFloor, spaceNoiseSample, spacePeak);
 
-    // 3. Envelope tracking
+    // 3. Envelope tracking - adaptív alpha az amplitúdó változás alapján
     auto updateEnvelope = [](float currentEnv, float magnitude) -> float {
         if (currentEnv == 0.0f) {
             return magnitude;
         }
-        float alpha = (magnitude > currentEnv) ? ENVELOPE_ATTACK : ENVELOPE_DECAY;
-        return currentEnv * (1.0f - alpha) + magnitude * alpha;
+        // Nagyobb amplitúdó változás → gyorsabb követés
+        float diff = fabsf(magnitude - currentEnv);
+        float diffRatio = (currentEnv > 0.0f) ? (diff / currentEnv) : 1.0f;
+
+        if (magnitude > currentEnv) {
+            // Attack: gyors ha nagy a változás
+            float alpha = ENVELOPE_ATTACK * (1.0f + diffRatio * 2.0f);
+            alpha = constrain(alpha, ENVELOPE_ATTACK, 0.5f);
+            return currentEnv * (1.0f - alpha) + magnitude * alpha;
+        } else {
+            // Decay: normál sebesség
+            return currentEnv * (1.0f - ENVELOPE_DECAY) + magnitude * ENVELOPE_DECAY;
+        }
     };
 
     markEnvelope = updateEnvelope(markEnvelope, markPeak);
@@ -245,11 +324,17 @@ bool DecoderRTTY_C1::detectTone(bool &isMark, float &confidence) {
     float spaceAgc = spaceClipped;
 
 #if ENABLE_AGC
-    constexpr float AGC_TARGET = 1500.0f;
-    float markGain = (markEnvelope > 0.01f) ? (AGC_TARGET / markEnvelope) : 1.0f;
-    float spaceGain = (spaceEnvelope > 0.01f) ? (AGC_TARGET / spaceEnvelope) : 1.0f;
-    markGain = constrain(markGain, 0.5f, 10.0f);
-    spaceGain = constrain(spaceGain, 0.5f, 10.0f);
+    // Magasabb target és szűkebb gain tartomány a lágyabb normalizálásért
+    constexpr float AGC_TARGET = 3500.0f; // Optimalizált target
+    constexpr float MIN_GAIN = 0.7f;      // Ne vágjon túl sokat gyenge jelnél
+    constexpr float MAX_GAIN = 2.5f;      // Mérsékelt maximális erősítés
+
+    float markGain = (markEnvelope > 10.0f) ? (AGC_TARGET / markEnvelope) : 1.0f;
+    float spaceGain = (spaceEnvelope > 10.0f) ? (AGC_TARGET / spaceEnvelope) : 1.0f;
+
+    markGain = constrain(markGain, MIN_GAIN, MAX_GAIN);
+    spaceGain = constrain(spaceGain, MIN_GAIN, MAX_GAIN);
+
     markAgc = markClipped * markGain;
     spaceAgc = spaceClipped * spaceGain;
 #endif

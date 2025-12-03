@@ -77,6 +77,10 @@ class DecoderRTTY_C1 : public IDecoder {
     float spaceNoiseFloor;
     float markEnvelope;
     float spaceEnvelope;
+    // RMS-based pre-normalization state
+    float inputRmsAccum;
+    uint16_t inputRmsCount;
+    float inputGain;
     uint8_t toneBlockAccumulated;
     bool lastToneIsMark;
     float lastToneConfidence;

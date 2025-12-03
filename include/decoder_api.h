@@ -1,26 +1,3 @@
-/*
- * Project: [pico-radio-9] Raspberry Pi Pico Si4735 Radio                                                              *
- * File: decoder_api.h                                                                                                 *
- * Created Date: 2025.11.15.                                                                                           *
- *                                                                                                                     *
- * Author: BT-Soft                                                                                                     *
- * GitHub: https://github.com/bt-soft                                                                                  *
- * Blog: https://electrodiy.blog.hu/                                                                                   *
- * -----                                                                                                               *
- * Copyright (c) 2025 BT-Soft                                                                                          *
- * License: MIT License                                                                                                *
- * 	Bárki szabadon használhatja, módosíthatja, terjeszthet, beépítheti más                                             *
- * 	projektbe (akár zártkódúba is), akár pénzt is kereshet vele                                                        *
- * 	Egyetlen feltétel:                                                                                                 *
- * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
- * -----                                                                                                               *
- * Last Modified: 2025.12.02, Tuesday  08:10:00                                                                        *
- * Modified By: BT-Soft                                                                                                *
- * -----                                                                                                               *
- * HISTORY:                                                                                                            *
- * Date      	By	Comments                                                                                           *
- * ----------	---	-------------------------------------------------------------------------------------------------  *
- */
 
 /*
  * Projekt: [pico-radio-9] Raspberry Pi Pico Si4735 Radio
