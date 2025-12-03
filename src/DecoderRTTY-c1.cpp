@@ -378,13 +378,17 @@ void DecoderRTTY_C1::initializePLL() {
     // PLL már nem használatos (bit buffer módszer helyettesíti)
     // symbolLen = minták száma 1 bitre (TONE_BLOCK_SIZE-ban mérve)
     float samplesPerBit = samplingRate / baudRate;
-    symbolLen = static_cast<int>(samplesPerBit / TONE_BLOCK_SIZE + 0.5f); // kerekítés
-    if (symbolLen < 1)
-        symbolLen = 1;
+    float blocksPerBit = samplesPerBit / TONE_BLOCK_SIZE;
+
+    // Kerekítés a legközelebbi egészére
+    symbolLen = static_cast<int>(blocksPerBit + 0.5f);
+    if (symbolLen < 2)
+        symbolLen = 2; // minimum 2 blokk
     if (symbolLen > MAX_BIT_BUFFER_SIZE / 2)
         symbolLen = MAX_BIT_BUFFER_SIZE / 2;
 
-    DEBUG("RTTY: symbolLen=%d (%.1f samples/bit, %.1f blocks/bit)\n", symbolLen, samplesPerBit, samplesPerBit / TONE_BLOCK_SIZE);
+    DEBUG("RTTY: symbolLen=%d blocks/bit (%.2f exact, %.1f samples/bit, Fs=%.0f Hz, Baud=%.2f)\n", symbolLen, blocksPerBit, samplesPerBit, samplingRate,
+          baudRate);
 
     pllPhase = 0.0f;
     pllLocked = false;
@@ -422,8 +426,9 @@ bool DecoderRTTY_C1::isMarkSpaceTransition(int &correction) {
                 correction++;
         }
         // Ha kb. a buffer felében van az átmenet, akkor valid start bit
-        // abs(symbolLen/2 - correction) < 6 → helyes pozíció
-        if (abs(symbolLen / 2 - correction) < 6) {
+        // A tolerance legyen symbolLen-függő (kb. 1/3 része)
+        int tolerance = (symbolLen > 3) ? (symbolLen / 3) : 1;
+        if (abs(symbolLen / 2 - correction) <= tolerance) {
             return true;
         }
     }
@@ -451,6 +456,7 @@ bool DecoderRTTY_C1::rxBit(bool bit) {
             if (isMarkSpaceTransition(correction)) {
                 currentState = START_BIT;
                 bitBufferCounter = correction; // automatic timing correction!
+                DEBUG("RTTY: START_BIT detected (corr=%d)\n", correction);
             }
             break;
 
@@ -461,8 +467,10 @@ bool DecoderRTTY_C1::rxBit(bool bit) {
                     bitBufferCounter = symbolLen;
                     bitsReceived = 0;
                     currentByte = 0;
+                    DEBUG("RTTY: Valid START (SPACE at center)\n");
                 } else {
                     // False start bit
+                    DEBUG("RTTY: False START (MARK at center)\n");
                     currentState = IDLE;
                 }
             }
@@ -486,10 +494,11 @@ bool DecoderRTTY_C1::rxBit(bool bit) {
             if (--bitBufferCounter == 0) {
                 if (isMarkAtCenter()) { // Stop bit KELL MARK legyen!
                     char c = decodeBaudotCharacter(currentByte);
+                    DEBUG("RTTY: CHAR decoded: code=0x%02X '%c'\n", currentByte, (c >= 32 && c < 127) ? c : '.');
                     if (c != '\0') {
                         // Duplikált CR/LF szűrés (fldigi)
                         if ((c == '\r' && lastChar == '\r') || (c == '\n' && lastChar == '\n')) {
-                            // Skip duplikált line ending
+                            DEBUG("RTTY: Skipped duplicate line ending\n");
                         } else {
                             if (!decodedData.textBuffer.put(c)) {
                                 DEBUG("RTTY: textBuffer tele (karakter='%c')\n", c);
@@ -498,6 +507,8 @@ bool DecoderRTTY_C1::rxBit(bool bit) {
                         lastChar = c;
                     }
                     charDecoded = true;
+                } else {
+                    DEBUG("RTTY: Invalid STOP bit (code was 0x%02X)\n", currentByte);
                 }
                 // Mindig vissza IDLE-ba (helyes vagy hibás stop bit után)
                 currentState = IDLE;
