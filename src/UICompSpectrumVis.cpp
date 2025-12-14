@@ -1305,7 +1305,7 @@ void UICompSpectrumVis::renderModeIndicator() {
 }
 
 /**
- * @brief A látható frekvencia tartomány alsó és felső címkéinek kirajzolása
+ * @brief A látható frekvencia tartomány címkéinek kirajzolása
  * a mode indikátor helyére amikor az eltűnik
  * @param minDisplayFrequencyHz Az aktuálisan megjelenített minimum frekvencia Hz-ben
  * @param maxDisplayFrequencyHz Az aktuálisan megjelenített maximum frekvencia Hz-ben
