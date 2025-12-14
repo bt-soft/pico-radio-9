@@ -9,8 +9,3 @@ Kérlek, tartsd be a következő egyszerű szabályt a forráskód módosítása
 
 - Válaszok nyelve: MINDIG MAGYARUL válaszolj a projektbeliekkel folytatott kommunikációban (issue-k, PR-kommentek, belső megbeszélések), kivéve, ha a résztvevők kifejezetten másként kérik.
 
-Miért? A projekt fejlesztői és felhasználói magyar nyelvűek; a magyar kommentek megkönnyítik a karbantartást és a közös munkát.
-
-Ha kérdés merül fel a stílussal kapcsolatban, nyiss issue-t vagy jelezd a maintainernek.
-
-Köszönjük az együttműködést!

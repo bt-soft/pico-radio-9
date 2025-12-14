@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                       *
  * -----                                                                                                               *
- * Last Modified: 2025.11.22, Saturday  10:10:26                                                                       *
+ * Last Modified: 2025.12.14, Sunday  09:48:43                                                                         *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -25,7 +25,6 @@
 #pragma once
 #include <array>
 
-#include "BiquadFilter.h"
 #include "IDecoder.h"
 #include "RingBuffer.h"
 #include "WindowApplier.h"
