@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
  * -----                                                                                                               *
- * Last Modified: 2025.11.16, Sunday  09:42:17                                                                         *
+ * Last Modified: 2025.12.14, Sunday  09:10:49                                                                         *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -95,16 +95,32 @@ void ScreenAMRadioBase::layoutComponents(Rect sevenSegmentFreqBounds, Rect smete
  */
 void ScreenAMRadioBase::addSpecificHorizontalButtons(std::vector<UIHorizontalButtonBar::ButtonConfig> &buttonConfigs) {
     // BFO - Beat Frequency Oscillator
-    buttonConfigs.push_back({ScreenAMRadioBase::BFO_BUTTON, "BFO", UIButton::ButtonType::Toggleable, UIButton::ButtonState::Off, [this](const UIButton::ButtonEvent &event) { this->handleBFOButton(event); }});
+    buttonConfigs.push_back({ScreenAMRadioBase::BFO_BUTTON,    //
+                             "BFO",                            //
+                             UIButton::ButtonType::Toggleable, //
+                             UIButton::ButtonState::Off,       //
+                             [this](const UIButton::ButtonEvent &event) { this->handleBFOButton(event); }});
 
     // AntCap - Antenna Capacitor
-    buttonConfigs.push_back({ScreenAMRadioBase::ANTCAP_BUTTON, "AntCap", UIButton::ButtonType::Pushable, UIButton::ButtonState::Off, [this](const UIButton::ButtonEvent &event) { this->handleAntCapButton(event); }});
+    buttonConfigs.push_back({ScreenAMRadioBase::ANTCAP_BUTTON, //
+                             "AntCap",                         //
+                             UIButton::ButtonType::Pushable,   //
+                             UIButton::ButtonState::Off,       //
+                             [this](const UIButton::ButtonEvent &event) { this->handleAntCapButton(event); }});
 
     // Demod - Demodulation
-    buttonConfigs.push_back({ScreenAMRadioBase::DEMOD_BUTTON, "Demod", UIButton::ButtonType::Pushable, UIButton::ButtonState::Off, [this](const UIButton::ButtonEvent &event) { this->handleDemodButton(event); }});
+    buttonConfigs.push_back({ScreenAMRadioBase::DEMOD_BUTTON, //
+                             "Demod",                         //
+                             UIButton::ButtonType::Pushable,  //
+                             UIButton::ButtonState::Off,      //
+                             [this](const UIButton::ButtonEvent &event) { this->handleDemodButton(event); }});
 
     // AfBW - Audio Filter Bandwidth
-    buttonConfigs.push_back({ScreenAMRadioBase::AFBW_BUTTON, "AfBW", UIButton::ButtonType::Pushable, UIButton::ButtonState::Off, [this](const UIButton::ButtonEvent &event) { this->handleAfBWButton(event); }});
+    buttonConfigs.push_back({ScreenAMRadioBase::AFBW_BUTTON, //
+                             "AfBW",                         //
+                             UIButton::ButtonType::Pushable, //
+                             UIButton::ButtonState::Off,     //
+                             [this](const UIButton::ButtonEvent &event) { this->handleAfBWButton(event); }});
 }
 
 /**

@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
  * -----                                                                                                               *
- * Last Modified: 2025.11.30, Sunday  11:29:38                                                                         *
+ * Last Modified: 2025.12.14, Sunday  09:08:26                                                                         *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -25,10 +25,6 @@
 #include "ScreenAM.h"
 #include "PicoMemoryInfo.h"
 #include "UIMultiButtonDialog.h"
-
-namespace ScreenAMHorizontalButtonIDs {
-static constexpr uint8_t DECODER_BUTTON = 75; ///< CW/RTTY
-} // namespace ScreenAMHorizontalButtonIDs
 
 // =====================================================================
 // Konstruktor és inicializálás
@@ -104,9 +100,10 @@ void ScreenAM::addSpecificHorizontalButtons(std::vector<UIHorizontalButtonBar::B
          }});
 
     // Decoder választó gomb hozzáadása
+    constexpr uint8_t DECODER_BUTTON = 75;            // CW/RTTY/SSTV/WeFax dekóder választó gomb azonosító
     buttonConfigs.push_back(                          //
         {                                             //
-         ScreenAMHorizontalButtonIDs::DECODER_BUTTON, //
+         DECODER_BUTTON,                              //
          "Decod",                                     //
          UIButton::ButtonType::Pushable,              //
          UIButton::ButtonState::Off,                  //
