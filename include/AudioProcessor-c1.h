@@ -167,6 +167,8 @@ class AudioProcessorC1 {
     // Goertzel detektor API: kiszámolja a magnitúdót egy célfrekvenciára az utolsó feldolgozott minták alapján
     // Visszatérési érték: magnitúdó (lineáris), vagy -1 hibára
     float computeGoertzelMagnitude(float targetFreqHz);
-
     bool isBinInAudioRange(uint16_t binIndex, float binWidthHz, uint16_t spectrumSize) const;
+    // Kiemelt műveletek a spektrum előfeldolgozásához
+    void applyBinExclusion(SharedData &sharedData, uint32_t currentBandwidthHz);
+    void applyNoiseThreshold(SharedData &sharedData, uint32_t currentBandwidthHz);
 };
