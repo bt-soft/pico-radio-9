@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
  * -----                                                                                                               *
- * Last Modified: 2025.12.18, Thursday  08:34:32                                                                       *
+ * Last Modified: 2025.12.18, Thursday  08:58:54                                                                       *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -937,40 +937,19 @@ bool AudioProcessorC1::processFixedPointFFT(SharedData &sharedData, uint32_t &ff
     uint32_t endTotal = micros();
     uint32_t totalTime_us = endTotal - startTotal;
 
-    // Teljesítmény kimutatás minden 200. blokkban
-    static uint8_t runDebugCounter = 0;
-    if (++runDebugCounter >= 200) {
+    // 1 másodpercenként logoljuk a mérést
+    static uint32_t lastMeasureLog = 0;
+    if (Utils::timeHasPassed(lastMeasureLog, 1000)) {
+        lastMeasureLog = millis();
+
         const float N = (float)adcConfig.sampleCount;
-        float amp_q15 = (float)maxValue / Q15_MAX_AS_FLOAT; // Q15 → float konverzió csak debug céljára
-        float amp_mV_peak = amp_q15 * ADC_LSB_VOLTAGE_MV * N;
+        // Helyes FFT amplitúdó: maxValue * 2 / N (Hanning window kompenzációval)
+        float amp_q15 = (float)maxValue * 2.0f / N;
+        float amp_mV_peak = amp_q15 * ADC_LSB_VOLTAGE_MV;
         float amp_mV_vpp = amp_mV_peak * 2.0f;
 
         ADPROC_DEBUG("AudioProc-c1 [Q15]: Total=%lu us, FFT=%lu us, DomFreq=%.1f Hz, amp=%d, pk=%.1f mV, Vpp=%.1f mVpp\n", totalTime_us, fftTime_us,
                      dominantFreqHz, maxValue, amp_mV_peak, amp_mV_vpp);
-
-        // // Spektrum statisztika: hány bin nulla/nem-nulla
-        // uint16_t nonZeroBins = 0;
-        // uint16_t zeroBins = 0;
-        // q15_t minNonZero = 32767;
-        // q15_t maxNonZero = 0;
-        // for (uint16_t i = 0; i < sharedData.fftSpectrumSize; ++i) {
-        //     if (sharedData.fftSpectrumData[i] == 0) {
-        //         zeroBins++;
-        //     } else {
-        //         nonZeroBins++;
-        //         if (sharedData.fftSpectrumData[i] < minNonZero) {
-        //             minNonZero = sharedData.fftSpectrumData[i];
-        //         }
-        //         if (sharedData.fftSpectrumData[i] > maxNonZero) {
-        //             maxNonZero = sharedData.fftSpectrumData[i];
-        //         }
-        //     }
-        // }
-        //
-        // ADPROC_DEBUG("  Spectrum: bins=%d, nonZero=%d, zero=%d, range=[%d..%d], binWidth=%.1f Hz\n", sharedData.fftSpectrumSize, nonZeroBins, zeroBins,
-        //              minNonZero, maxNonZero, currentBinWidthHz);
-
-        runDebugCounter = 0;
     }
 #endif
 

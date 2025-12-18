@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
  * -----                                                                                                               *
- * Last Modified: 2025.11.29, Saturday  06:02:30                                                                       *
+ * Last Modified: 2025.12.18, Thursday  08:55:12                                                                       *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -596,9 +596,10 @@ void loop1() {
 
     } else {
 #ifdef __DEBUG
-        static uint32_t warnCount = 0;
-        if (++warnCount % 1000 == 0) {
-            CORE1_DEBUG("core-1:loop1(): processAudioAndDecoding: Inactive\n");
+        static uint32_t lastInactiveLog = 0;
+        if (Utils::timeHasPassed(lastInactiveLog, 5000)) { // 5 másodpercenként logoljuk, ha inaktív
+            CORE1_DEBUG("core-1:loop1(): processAudioAndDecoding: Inakív\n");
+            lastInactiveLog = millis();
         }
 #endif
         sleep_ms(5);
