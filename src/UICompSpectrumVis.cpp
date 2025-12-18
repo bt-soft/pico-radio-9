@@ -182,7 +182,7 @@ static inline q15_t q15Interpolate(const q15_t *data, float exactIndex, int minI
     return (q15_t)((low * (65536 - frac16) + high * frac16) >> 16);
 }
 
-// BACKWARD COMPATIBILITY: float visszatérési értékkel (megtartva a régi interfészt)
+// BACKWARD COMPATIBILITY: float visszatérési értékekkel (megtartva a régi interfészt)
 static inline float q15InterpolateFloat(const q15_t *data, float exactIndex, int minIdx, int maxIdx) {
     return (float)q15Interpolate(data, exactIndex, minIdx, maxIdx);
 }
@@ -274,7 +274,7 @@ UICompSpectrumVis::~UICompSpectrumVis() {
  */
 void UICompSpectrumVis::updateBarBasedGain(float currentBarMaxValue) {
 
-    // Ha némített állapotban vagyunk, az AGC ne működjön!
+    // Ha némított állapotban vagyunk, az AGC ne működjön!
     if (rtv::muteStat) {
         return;
     }
@@ -1692,6 +1692,11 @@ void UICompSpectrumVis::renderOscilloscope() {
         return;
     }
 
+    // AM módban túl sok minta esetén limitáljuk a megjelenítést
+    if (this->radioMode_ == RadioMode::AM && sampleCount > 512) {
+        sampleCount = 128;
+    }
+
     sprite_->fillSprite(TFT_BLACK);
     sprite_->drawFastHLine(0, graphH / 2, bounds.width, TFT_DARKGREY);
 
@@ -1763,8 +1768,9 @@ float UICompSpectrumVis::computeMagnitudeRmsMember(const q15_t *data, int startB
         sum_sq += v * v;
         ++count;
     }
-    if (count == 0)
+    if (count == 0) {
         return 0.0f;
+    }
     return static_cast<float>(std::sqrt(sum_sq / count));
 }
 
@@ -1798,6 +1804,10 @@ void UICompSpectrumVis::renderEnvelope() {
         sprite_->pushSprite(bounds.x, bounds.y);
         return;
     }
+
+    // Waterfall körkörös buffer használata (1D vektor)
+    // Az envelope görbe rajzolásához a vízesés buffer legalsó soraiba írunk
+    // (a legfelső sor már foglalt a vízesés görbéhez)
 
     // Waterfall scroll - optimaliz�lva k�rk�r�s bufferrel (nincs sz�ks�g move-ra)
 
@@ -2017,11 +2027,6 @@ void UICompSpectrumVis::renderCwOrRttyTuningAidWaterfall() {
 
         uint16_t color = valueToWaterfallColor(100 * val, 0.0f, 255.0f * 100, WATERFALL_COLOR_INDEX);
         sprite_->drawPixel(c, 0, color);
-    }
-
-    if (isAutoGainMode()) {
-        float estimatedPeak = (static_cast<float>(maxwabuf_Val) / 255.0f) * (graphH * GRAPH_TARGET_HEIGHT_UTILIZATION);
-        updateMagnitudeBasedGain(estimatedPeak);
     }
 
     // Draw tuning aid lines (CW zöld vonal, RTTY mark=zöld, space=sárga)

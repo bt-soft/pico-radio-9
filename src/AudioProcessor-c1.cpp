@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
  * -----                                                                                                               *
- * Last Modified: 2025.11.30, Sunday  12:16:24                                                                         *
+ * Last Modified: 2025.12.18, Thursday  08:34:32                                                                       *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -65,7 +65,7 @@ AudioProcessorC1::AudioProcessorC1()
       manualGain_(1.0f), // manual gain alapértelmezett érték (ha az AGC ki van kapcsolva)
 
       // Zajszűrés alapértelmezett értékek
-      useNoiseReduction_(false), // Alapértelmezetten zajszűrés bekapcsolva
+      useNoiseReduction_(false), // Alapértelmezett zajszűrés bekapcsolva
       smoothingPoints_(0)        // Alapértelmezett simítás értéke
 {}
 
@@ -943,9 +943,10 @@ bool AudioProcessorC1::processFixedPointFFT(SharedData &sharedData, uint32_t &ff
         const float N = (float)adcConfig.sampleCount;
         float amp_q15 = (float)maxValue / Q15_MAX_AS_FLOAT; // Q15 → float konverzió csak debug céljára
         float amp_mV_peak = amp_q15 * ADC_LSB_VOLTAGE_MV * N;
+        float amp_mV_vpp = amp_mV_peak * 2.0f;
 
-        ADPROC_DEBUG("AudioProc-c1 [Q15]: Total=%lu us, FFT=%lu us, DomFreq=%.1f Hz, amp=%d, pk=%.1f mV\n", totalTime_us, fftTime_us, dominantFreqHz, maxValue,
-                     amp_mV_peak);
+        ADPROC_DEBUG("AudioProc-c1 [Q15]: Total=%lu us, FFT=%lu us, DomFreq=%.1f Hz, amp=%d, pk=%.1f mV, Vpp=%.1f mVpp\n", totalTime_us, fftTime_us,
+                     dominantFreqHz, maxValue, amp_mV_peak, amp_mV_vpp);
 
         // // Spektrum statisztika: hány bin nulla/nem-nulla
         // uint16_t nonZeroBins = 0;
