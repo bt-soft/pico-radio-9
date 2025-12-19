@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
  * -----                                                                                                               *
- * Last Modified: 2025.11.30, Sunday  11:29:22                                                                         *
+ * Last Modified: 2025.12.19, Friday  04:34:46                                                                         *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -187,6 +187,7 @@ void ScreenFM::activate() {
     );
     ::audioController.setAgcEnabled(false);            // AGC kikapcsolása
     ::audioController.setManualGain(1.0f);             // Manuális erősítés (1.0 = nincs extra erősítés)
+    ::audioController.setSpectrumAveragingCount(0);    // Spektrum nem-koherens átlagolás: x db keret átlagolása, 0 = kikapcsolva
     ::audioController.setNoiseReductionEnabled(false); // Zajszűrés bekapcsolva (tisztább spektrum)
     ::audioController.setSmoothingPoints(0);           // Zajszűrés simítási pontok száma = 5 (erősebb zajszűrés, nincs frekvencia felbontási igény)
 }
