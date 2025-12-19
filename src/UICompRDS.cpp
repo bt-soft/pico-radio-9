@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
  * -----                                                                                                               *
- * Last Modified: 2025.11.17, Monday  03:49:09                                                                         *
+ * Last Modified: 2025.12.19, Friday  06:14:04                                                                         *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -26,7 +26,7 @@
 #include "Si4735Manager.h"
 
 // RDS működés debug engedélyezése de csak DEBUG módban
-#define __RDS_DEBUG
+//#define __RDS_DEBUG
 #if defined(__DEBUG) && defined(__RDS_DEBUG)
 #define RDS_DEBUG(fmt, ...) DEBUG(fmt __VA_OPT__(, ) __VA_ARGS__)
 #else
