@@ -136,10 +136,7 @@ struct SharedData {
     // FFT spektrum adatok (Q15 - CMSIS-DSP fixpontos)
     uint16_t fftSpectrumSize;
     q15_t fftSpectrumData[MAX_FFT_SPECTRUM_SIZE];
-
-    uint32_t dominantFrequency; // Domináns frekvencia Hz-ben
-    q15_t dominantAmplitude;    // Amplitúdó a domináns frekvencián (Q15 fixpontos)
-    float fftBinWidthHz;        // FFT bin szélessége Hz-ben
+    float fftBinWidthHz; // FFT bin szélessége Hz-ben
 
     // Opcionális futási megjelenítési határok, amelyeket a Core1 tölt ki, amikor a dekóder konfigurációja megváltozik
     uint16_t displayMinFreqHz; // Javasolt minimális frekvencia megjelenítéshez (Hz)

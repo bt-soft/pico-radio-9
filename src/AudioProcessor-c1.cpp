@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
  * -----                                                                                                               *
- * Last Modified: 2025.12.20, Saturday  07:16:31                                                                       *
+ * Last Modified: 2025.12.20, Saturday  07:35:51                                                                       *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -256,8 +256,6 @@ bool AudioProcessorC1::processAndFillSharedData(SharedData &sharedData) {
     if (!useFFT) {
         // Nincs FFT - csak a nyers minták kellenek (SSTV, WEFAX)
         sharedData.fftSpectrumSize = 0;
-        sharedData.dominantFrequency = 0;
-        sharedData.dominantAmplitude = 0;
         sharedData.fftBinWidthHz = 0.0f;
         return true;
     }
@@ -485,16 +483,17 @@ bool AudioProcessorC1::processFixedPointFFT(SharedData &sharedData) {
         }
     }
 
-    // Domináns frekvencia számítása (Hz)
-    // f = bin_index * (Fs / N) = bin_index * binWidth
-    sharedData.dominantFrequency = static_cast<uint32_t>(maxIndex * currentBinWidthHz);
-    sharedData.dominantAmplitude = maxValue;
-
 #ifdef __ADPROC_DEBUG
+
     // Debug kimenet ritkítva (5 másodpercenként)
     static uint32_t lastDebugTime = 0;
     if (Utils::timeHasPassed(lastDebugTime, 5000)) {
         lastDebugTime = millis();
+
+        // Domináns frekvencia számítása (Hz)
+        // A domináns frekvencia amplitúdója Q15 formátumban a maxValue változóban van
+        // f = bin_index * (Fs / N) = bin_index * binWidth
+        uint32_t dominantFrequency = static_cast<uint32_t>(maxIndex * currentBinWidthHz); // Domináns frekvencia Hz-ben
 
         // Vpp számítás a domináns frekvenciához
         //
@@ -516,7 +515,7 @@ bool AudioProcessorC1::processFixedPointFFT(SharedData &sharedData) {
         // Peak-to-peak (Vpp = 2 * Vpeak)
         float vppMv = peakMv * 2.0f;
 
-        ADPROC_DEBUG("AudioProc-c1: FFT kész - domFreq=%u Hz, amp=%d (%.1f mVpp), bins=%d, N=%d\n", sharedData.dominantFrequency, maxValue, vppMv,
+        ADPROC_DEBUG("AudioProc-c1: FFT kész - domFreq=%u Hz, amp=%d (%.1f mVpp), bins=%d, N=%d\n", dominantFrequency, maxValue, vppMv,
                      sharedData.fftSpectrumSize, N);
     }
 #endif
