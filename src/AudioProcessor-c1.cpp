@@ -379,12 +379,14 @@ void AudioProcessorC1::buildHanningWindow_q15(uint16_t size) {
  * 1. Bemeneti adatok előkészítése (komplex formátum)
  * 2. Hanning ablak alkalmazása (Q15 szorzás)
  * 3. CMSIS-DSP FFT futtatása
- * 4. FFT skálázás kompenzálása
- * 5. Magnitude számítás
- * 6. Domináns frekvencia keresése
+ * 4. Magnitude számítás
+ * 5. Domináns frekvencia keresése
  *
- * FONTOS: A CMSIS-DSP Q15 FFT automatikus skálázást végez minden
- * butterfly szakaszban (log2(N) bites jobbra tolás). Ezt kompenzálni kell!
+ * FONTOS MEGJEGYZÉSEK A CMSIS-DSP Q15 FFT-RŐL:
+ * - Az arm_cfft_q15 automatikusan skáláz minden butterfly szakaszban (log2(N) bit)
+ * - Az arm_cmplx_mag_q15 kimenete Q2.14 formátumú (17 bites jobbra tolás a négyzetösszegből)
+ * - A magnitude értékek így N-től FÜGGETLENEK lesznek (ez a kívánt viselkedés!)
+ * - NEM szabad visszaskálázni az FFT kimenetet, mert az SATURÁCIÓHOZ vezet!
  *
  * @param sharedData Kimeneti struktúra
  * @return true ha sikeres
@@ -398,12 +400,22 @@ bool AudioProcessorC1::processFixedPointFFT(SharedData &sharedData) {
         return false;
     }
 
-    // --- 1. LÉPÉS: Komplex formátumba rendezés ---
+    // --- 1. LÉPÉS: Komplex formátumba rendezés ÉS Q15 SKÁLÁZÁS ---
     // A valós bemeneti adatokat komplex formátumba tesszük: [re, im, re, im, ...]
     // Az imaginárius részek nullák
+    // FONTOS: A rawSampleData ~11-bites előjeles (-2048..+2047),
+    // de a Q15 formátum 15-bites (-32768..+32767)!
+    // Ezért 4 bittel balra toljuk (x16) a dinamikatartomány jobb kihasználásához!
+    constexpr int inputScaleShift = 4; // 11 bit -> 15 bit
+
+    // DEBUG: input maximum keresése
+    q15_t inputMax = 0;
     for (uint16_t i = 0; i < N; ++i) {
-        fftInput_q15[2 * i] = sharedData.rawSampleData[i]; // Valós rész
-        fftInput_q15[2 * i + 1] = 0;                       // Imaginárius rész = 0
+        q15_t scaled = static_cast<q15_t>(sharedData.rawSampleData[i] << inputScaleShift);
+        fftInput_q15[2 * i] = scaled; // Valós rész (felskálázva)
+        fftInput_q15[2 * i + 1] = 0;  // Imaginárius rész = 0
+        if (abs(scaled) > inputMax)
+            inputMax = abs(scaled);
     }
 
     // --- 2. LÉPÉS: Hanning ablak alkalmazása ---
@@ -415,34 +427,51 @@ bool AudioProcessorC1::processFixedPointFFT(SharedData &sharedData) {
 
     // --- 3. LÉPÉS: CMSIS-DSP FFT futtatása ---
     // Paraméterek: 0 = forward FFT, 1 = bit-reversal engedélyezve
+    // FONTOS: Az FFT AUTOMATIKUSAN SKÁLÁZ log2(N) bittel a túlcsordulás elkerülésére!
     arm_cfft_q15(&fft_inst_q15, fftInput_q15.data(), 0, 1);
 
-    // --- 4. LÉPÉS: FFT skálázás kompenzálása ---
-    // A CMSIS-DSP Q15 FFT log2(N) bites jobbra tolást végez a túlcsordulás elkerülésére.
-    // Ezt vissza kell állítani a helyes amplitúdó értékekhez.
-    uint16_t fftScaleBits = 0;
-    uint16_t temp = N;
-    while (temp > 1) {
-        fftScaleBits++;
-        temp >>= 1;
+    // DEBUG: FFT kimenet ellenőrzése
+    q15_t fftMaxRe = 0, fftMaxIm = 0;
+    for (uint16_t i = 0; i < N; ++i) {
+        if (abs(fftInput_q15[2 * i]) > fftMaxRe)
+            fftMaxRe = abs(fftInput_q15[2 * i]);
+        if (abs(fftInput_q15[2 * i + 1]) > fftMaxIm)
+            fftMaxIm = abs(fftInput_q15[2 * i + 1]);
     }
 
-    // Visszaskálázás (balra tolás) saturációval
-    for (uint16_t i = 0; i < N * 2; ++i) {
-        q31_t scaled = ((q31_t)fftInput_q15[i]) << fftScaleBits;
-        fftInput_q15[i] = static_cast<q15_t>(__SSAT(scaled, 16));
-    }
-
-    // --- 5. LÉPÉS: Magnitude számítás ---
+    // --- 4. LÉPÉS: Magnitude számítás ---
     // arm_cmplx_mag_q15: sqrt(re^2 + im^2) minden komplex számra
+    // FONTOS: A kimenet Q2.14 formátumú! (lásd CMSIS-DSP dokumentáció)
     // A harmadik paraméter a KOMPLEX számok száma!
     arm_cmplx_mag_q15(fftInput_q15.data(), magnitude_q15.data(), N);
+
+    // DEBUG: Magnitude ellenőrzése a skálázás előtt
+    q15_t magMaxBefore = 0;
+    for (uint16_t i = 0; i < N; ++i) {
+        if (magnitude_q15[i] > magMaxBefore)
+            magMaxBefore = magnitude_q15[i];
+    }
+
+    // --- 5. LÉPÉS: NINCS VISSZASKÁLÁZÁS! ---
+    // A CMSIS-DSP Q15 FFT auto-scaling már N-független kimenetet ad.
+    // Az arm_cmplx_mag_q15 kimenete is konzisztens minden N-re.
+    // A magnitude értékeket KÖZVETLENÜL használjuk, skálázás nélkül!
+    //
+    // Korábbi hiba: visszaskáláztunk log2(N) bittel, de ez SATURÁCIÓHOZ vezetett!
+    // (pl. 1514 << 8 = 387584 > 32767 -> saturált 32767-re)
+
+    // Debug kimenet minden feldolgozásnál (ideiglenesen)
+    static uint32_t debugCounter = 0;
+    if (++debugCounter >= 50) {
+        debugCounter = 0;
+        ADPROC_DEBUG("FFT DEBUG: inputMax=%d, fftMaxRe=%d, fftMaxIm=%d, mag=%d, N=%d\n", inputMax, fftMaxRe, fftMaxIm, magMaxBefore, N);
+    }
 
     // --- 6. LÉPÉS: Eredmények másolása a SharedData-ba ---
     uint16_t spectrumSize = N / 2; // Csak a pozitív frekvenciák (Nyquist)
     sharedData.fftSpectrumSize = std::min(spectrumSize, (uint16_t)MAX_FFT_SPECTRUM_SIZE);
 
-    // Spektrum adatok másolása
+    // Spektrum adatok másolása (skálázás nélkül)
     memcpy(sharedData.fftSpectrumData, magnitude_q15.data(), sharedData.fftSpectrumSize * sizeof(q15_t));
 
     // DC bin (bin[0]) nullázása - ez csak DC offset, nem hasznos információ
@@ -477,17 +506,28 @@ bool AudioProcessorC1::processFixedPointFFT(SharedData &sharedData) {
         lastDebugTime = millis();
 
         // Vpp számítás a domináns frekvenciához
-        // Az FFT magnitude értékből visszaszámoljuk a bemeneti jel Vpp értékét
-        const float fN = (float)N;
-        // FFT amplitúdó normalizálás: magnitude * 2 / N (Hanning ablak kompenzációval)
-        float ampNormalized = (float)maxValue * 2.0f / fN;
-        // ADC egységből mV-ba (1 LSB = 3300mV / 4096 ≈ 0.8057 mV)
-        float ampPeakMv = ampNormalized * ADC_LSB_VOLTAGE_MV;
-        // Csúcs értékből csúcstól-csúcsig (Vpp = 2 * Vpeak)
-        float ampVppMv = ampPeakMv * 2.0f;
+        //
+        // A magnitude értékek közvetlenül az arm_cmplx_mag_q15 kimenetéből jönnek.
+        // Az input 4 bittel fel lett skálázva (inputScaleShift = 4).
+        //
+        // Empirikus kalibráció: 300 mVpp bemenetnél mag ≈ 1514
+        // Képlet: Vpp = mag * kalibrációs_szorzó * ADC_LSB_VOLTAGE_MV
 
-        ADPROC_DEBUG("AudioProc-c1: FFT kész - domFreq=%u Hz, amp=%d (%.1f mVpp), bins=%d\n", sharedData.dominantFrequency, maxValue, ampVppMv,
-                     sharedData.fftSpectrumSize);
+        // Vissza kell skálázni az input skálázással (4 bit = 16x)
+        float magnitudeAdc = (float)maxValue / 16.0f;
+
+        // Hanning ablak és FFT kompenzáció (empirikusan kalibrálva: 2.0)
+        // Korábbi érték 4.0 volt, de az dupla Vpp-t adott
+        float peakAdc = magnitudeAdc * 2.0f;
+
+        // ADC egységből mV-ba (1 LSB = 3300mV / 4096 ≈ 0.8057 mV)
+        float peakMv = peakAdc * ADC_LSB_VOLTAGE_MV;
+
+        // Peak-to-peak (Vpp = 2 * Vpeak)
+        float vppMv = peakMv * 2.0f;
+
+        ADPROC_DEBUG("AudioProc-c1: FFT kész - domFreq=%u Hz, amp=%d (%.1f mVpp), bins=%d, N=%d\n", sharedData.dominantFrequency, maxValue, vppMv,
+                     sharedData.fftSpectrumSize, N);
     }
 #endif
 
