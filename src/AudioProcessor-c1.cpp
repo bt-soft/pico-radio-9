@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
  * -----                                                                                                               *
- * Last Modified: 2025.12.20.                                                                                          *
+ * Last Modified: 2025.12.20, Saturday  07:16:31                                                                       *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -456,16 +456,8 @@ bool AudioProcessorC1::processFixedPointFFT(SharedData &sharedData) {
     // A CMSIS-DSP Q15 FFT auto-scaling már N-független kimenetet ad.
     // Az arm_cmplx_mag_q15 kimenete is konzisztens minden N-re.
     // A magnitude értékeket KÖZVETLENÜL használjuk, skálázás nélkül!
-    //
     // Korábbi hiba: visszaskáláztunk log2(N) bittel, de ez SATURÁCIÓHOZ vezetett!
     // (pl. 1514 << 8 = 387584 > 32767 -> saturált 32767-re)
-
-    // Debug kimenet minden feldolgozásnál (ideiglenesen)
-    static uint32_t debugCounter = 0;
-    if (++debugCounter >= 50) {
-        debugCounter = 0;
-        ADPROC_DEBUG("FFT DEBUG: inputMax=%d, fftMaxRe=%d, fftMaxIm=%d, mag=%d, N=%d\n", inputMax, fftMaxRe, fftMaxIm, magMaxBefore, N);
-    }
 
     // --- 6. LÉPÉS: Eredmények másolása a SharedData-ba ---
     uint16_t spectrumSize = N / 2; // Csak a pozitív frekvenciák (Nyquist)
@@ -486,7 +478,6 @@ bool AudioProcessorC1::processFixedPointFFT(SharedData &sharedData) {
     // A legnagyobb amplitúdójú bin megkeresése (DC bin kihagyásával)
     uint16_t maxIndex = 1;
     q15_t maxValue = sharedData.fftSpectrumData[1];
-
     for (uint16_t i = 2; i < sharedData.fftSpectrumSize; ++i) {
         if (sharedData.fftSpectrumData[i] > maxValue) {
             maxValue = sharedData.fftSpectrumData[i];
@@ -517,7 +508,6 @@ bool AudioProcessorC1::processFixedPointFFT(SharedData &sharedData) {
         float magnitudeAdc = (float)maxValue / 16.0f;
 
         // Hanning ablak és FFT kompenzáció (empirikusan kalibrálva: 2.0)
-        // Korábbi érték 4.0 volt, de az dupla Vpp-t adott
         float peakAdc = magnitudeAdc * 2.0f;
 
         // ADC egységből mV-ba (1 LSB = 3300mV / 4096 ≈ 0.8057 mV)
