@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
  * -----                                                                                                               *
- * Last Modified: 2025.11.22, Saturday  10:01:21                                                                       *
+ * Last Modified: 2025.12.20, Saturday  06:33:30                                                                       *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -104,15 +104,6 @@ uint32_t AudioController::getSamplingRate() {
 }
 
 /**
- * @brief AudioProcessorC1 AGC engedélyezése/letiltása Core1-en.
- */
-bool AudioController::setAgcEnabled(bool enabled) {
-    rp2040.fifo.push(RP2040CommandCode::CMD_AUDIOPROC_SET_AGC_ENABLED);
-    rp2040.fifo.push(enabled ? 1 : 0);
-    return rp2040.fifo.pop() == RP2040ResponseCode::RESP_ACK; // ACK jött?
-}
-
-/**
  * @brief AudioProcessorC1 zajszűrés engedélyezése/letiltása Core1-en.
  */
 bool AudioController::setNoiseReductionEnabled(bool enabled) {
@@ -184,14 +175,6 @@ bool AudioController::getUseFftEnabled() {
         }
         return false;
     }
-}
-void AudioController::setManualGain(float gain) {
-    // Float átküldése FIFO-n uint32_t bit patternként
-    uint32_t gainBits;
-    memcpy(&gainBits, &gain, sizeof(uint32_t));
-    rp2040.fifo.push(RP2040CommandCode::CMD_AUDIOPROC_SET_MANUAL_GAIN);
-    rp2040.fifo.push(gainBits);
-    (void)rp2040.fifo.pop(); // ACK
 }
 
 /**

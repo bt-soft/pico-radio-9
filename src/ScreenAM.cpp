@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
  * -----                                                                                                               *
- * Last Modified: 2025.12.19, Friday  04:35:07                                                                         *
+ * Last Modified: 2025.12.20, Saturday  06:34:16                                                                       *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -154,8 +154,6 @@ void ScreenAM::activate() {
         AM_AF_RAW_SAMPLES_SIZE,             //
         AM_AF_BANDWIDTH_HZ                  //
     );
-    ::audioController.setAgcEnabled(false);            // AGC kikapcsolása
-    ::audioController.setManualGain(1.0f);             // Manuális erősítés (1.0 = nincs extra erősítés)
     ::audioController.setSpectrumAveragingCount(0);    // Spektrum nem-koherens átlagolás: x db keret átlagolása, 0 = kikapcsolva
     ::audioController.setNoiseReductionEnabled(false); // Zajszűrés beapcsolva (tisztább spektrum)
     ::audioController.setSmoothingPoints(0);           // Zajszűrés simítási pontok száma = 5 (erősebb zajszűrés, nincs frekvencia felbontási igény)

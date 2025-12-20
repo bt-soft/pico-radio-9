@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
  * -----                                                                                                               *
- * Last Modified: 2025.12.18, Thursday  08:55:12                                                                       *
+ * Last Modified: 2025.12.20, Saturday  06:31:29                                                                       *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -414,13 +414,6 @@ void processFifoCommands() {
             break;
         }
 
-        case RP2040CommandCode::CMD_AUDIOPROC_SET_AGC_ENABLED: {
-            bool enabled = (rp2040.fifo.pop() != 0);
-            audioProcC1.setAgcEnabled(enabled);
-            rp2040.fifo.push(RP2040ResponseCode::RESP_ACK);
-            break;
-        }
-
         case RP2040CommandCode::CMD_AUDIOPROC_SET_NOISE_REDUCTION_ENABLED: {
             bool enabled = (rp2040.fifo.pop() != 0);
             audioProcC1.setNoiseReductionEnabled(enabled);
@@ -444,14 +437,6 @@ void processFifoCommands() {
             break;
         }
 
-        case RP2040CommandCode::CMD_AUDIOPROC_SET_MANUAL_GAIN: {
-            uint32_t gainBits = rp2040.fifo.pop();
-            float gain;
-            memcpy(&gain, &gainBits, sizeof(float));
-            audioProcC1.setManualGain(gain);
-            rp2040.fifo.push(RP2040ResponseCode::RESP_ACK);
-            break;
-        }
         case RP2040CommandCode::CMD_AUDIOPROC_SET_BLOCKING_DMA_MODE: {
             bool blocking = (rp2040.fifo.pop() != 0);
             audioProcC1.setBlockingDmaMode(blocking);

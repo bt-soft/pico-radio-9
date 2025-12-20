@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                       *
  * -----                                                                                                               *
- * Last Modified: 2025.11.22, Saturday  09:32:50                                                                       *
+ * Last Modified: 2025.12.20, Saturday  06:33:23                                                                       *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -52,10 +52,8 @@ class AudioController {
     uint32_t getSamplingRate();
 
     // Vezérlő metódusok
-    bool setAgcEnabled(bool enabled);
     bool setNoiseReductionEnabled(bool enabled);
     bool setSmoothingPoints(uint32_t points);
-    void setManualGain(float gain);
     bool setBlockingDmaMode(bool blocking);
 
     // CW adaptive threshold (AGC-like) control through UI

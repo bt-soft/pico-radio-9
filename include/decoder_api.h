@@ -60,10 +60,8 @@ enum RP2040CommandCode : uint32_t {
 
     // AudioProcessor specifikus parancsok
     CMD_AUDIOPROC_SET_BLOCKING_DMA_MODE,        // ADC DMA blokkoló/nem-blokkoló mód beállítása
-    CMD_AUDIOPROC_SET_AGC_ENABLED,              // AudioProcessor AGC engedélyezése
     CMD_AUDIOPROC_SET_NOISE_REDUCTION_ENABLED,  // AudioProcessor zajcsökkentés engedélyezése
     CMD_AUDIOPROC_SET_SMOOTHING_POINTS,         // AudioProcessor zajcsökkentés simítási pontjainak beállítása
-    CMD_AUDIOPROC_SET_MANUAL_GAIN,              // AudioProcessor manuális erősítés beállítása
     CMD_AUDIOPROC_SET_SPECTRUM_AVERAGING_COUNT, // AudioProcessor spektrum nem-koherens átlagolási keretszámának beállítása
     CMD_AUDIOPROC_SET_USE_FFT_ENABLED,          // AudioProcessor FFT engedélyezés beállítása
     CMD_AUDIOPROC_GET_USE_FFT_ENABLED,          // AudioProcessor FFT engedélyezés lekérdezése

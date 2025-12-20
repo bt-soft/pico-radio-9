@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
  * -----                                                                                                               *
- * Last Modified: 2025.11.22, Saturday  08:30:05                                                                       *
+ * Last Modified: 2025.12.20, Saturday  06:34:27                                                                       *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -150,9 +150,6 @@ void ScreenAMWeFax::activate() {
     );
     ::audioController.setNoiseReductionEnabled(true); // Zajszűrés beapcsolva (tisztább spektrum)
     ::audioController.setSmoothingPoints(5);          // Zajszűrés simítási pontok száma = 5 (erősebb zajszűrés, nincs frekvencia felbontási igény)
-
-    ::audioController.setAgcEnabled(false); // AGC bekapcsolva
-    ::audioController.setManualGain(1.0f);  // Manuális erősítés: a kissebb HF sávszéleség miatt erősítünk rajta
 }
 
 /**
