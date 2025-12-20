@@ -150,10 +150,37 @@ static inline uint8_t q15ToUint8Safe(q15_t magQ15, float gain) {
 }
 
 /**
- * Q15 magnitude -> pixel height konverzió gain-nel
+ * Q15 magnitude -> pixel height konverzió gain-nel (LINEÁRIS)
  */
 static inline uint16_t q15ToPixelHeightSafe(q15_t magQ15, float gain, uint16_t maxHeight) {
     float normalized = q15ToFloatWithGain(magQ15, gain) / 255.0f; // 0..1
+    uint16_t height = static_cast<uint16_t>(normalized * maxHeight);
+    return std::min(height, maxHeight);
+}
+
+/**
+ * Q15 magnitude -> pixel height konverzió LOGARITMIKUS (dB) skálával
+ * Ez sokkal jobb dinamikus tartományt biztosít - a kis jelek is látszódnak!
+ * dB tartomány: -60dB .. 0dB (csendes .. maximális)
+ */
+static inline uint16_t q15ToPixelHeightLogarithmic(q15_t magQ15, float gain, uint16_t maxHeight) {
+    float valueNormalized = q15ToFloatWithGain(magQ15, gain) / 255.0f; // 0..1
+
+    if (valueNormalized < 0.001f) { // Nagyon kis érték -> 0 pixel
+        return 0;
+    }
+
+    // dB számítás: 20*log10(value)
+    // log10(x) = ln(x) / ln(10) ≈ ln(x) * 0.434294
+    float dB = 20.0f * log10f(valueNormalized);
+
+    // dB tartomány normalizálása: -60dB .. 0dB -> 0..1
+    const float DB_MIN = -60.0f; // Alsó küszöb (csendes jelek)
+    const float DB_MAX = 0.0f;   // Maximális jel (0dB = 100%)
+
+    float normalized = (dB - DB_MIN) / (DB_MAX - DB_MIN);
+    normalized = constrain(normalized, 0.0f, 1.0f);
+
     uint16_t height = static_cast<uint16_t>(normalized * maxHeight);
     return std::min(height, maxHeight);
 }
@@ -1626,8 +1653,8 @@ void UICompSpectrumVis::renderSpectrumBar(bool isLowRes) {
         for (uint8_t band_idx = 0; band_idx < bands_to_display; band_idx++) {
             q15_t magnitude_q15 = band_magnitudes_q15[band_idx];
 
-            // ÚJ BIZTONSÁGOS KONVERZIÓ
-            uint16_t height = q15ToPixelHeightSafe(magnitude_q15, barGain, MAX_BAR_HEIGHT);
+            // LOGARITMIKUS SKÁLÁZÁS - jobb dinamikus tartomány!
+            uint16_t height = q15ToPixelHeightLogarithmic(magnitude_q15, barGain, MAX_BAR_HEIGHT);
             if (height == 0 && magnitude_q15 != 0)
                 height = 1;
             computedHeights[band_idx] = height;
@@ -1698,8 +1725,8 @@ void UICompSpectrumVis::renderSpectrumBar(bool isLowRes) {
 
             q15_t magnitude_q15 = magnitudeData[fft_bin_index];
 
-            // ÚJ BIZTONSÁGOS KONVERZIÓ
-            uint16_t height = q15ToPixelHeightSafe(magnitude_q15, barGain, MAX_BAR_HEIGHT);
+            // LOGARITMIKUS SKÁLÁZÁS - jobb dinamikus tartomány!
+            uint16_t height = q15ToPixelHeightLogarithmic(magnitude_q15, barGain, MAX_BAR_HEIGHT);
 
             float newSm = HIGHRES_SMOOTH_ALPHA * highresSmoothedCols[x] + (1.0f - HIGHRES_SMOOTH_ALPHA) * height;
             highresSmoothedCols[x] = newSm;
