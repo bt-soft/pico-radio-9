@@ -1619,13 +1619,13 @@ void UICompSpectrumVis::updateTuningAidParameters() {
 }
 
 /**
- * @brief PROFESSZIONÁLIS spektrum renderelés (Low és High resolution)
+ * @brief SPEKTRUM BAR RENDERELÉS - TELJESEN ÚJRAÍRVA
  *
- * Teljesen újraírva a Q15 FFT környezethez:
- * - Logaritmikus (dB) skálázás
- * - Peak hold funkció
- * - Smooth bar release
- * - AGC/Manuális gain támogatás
+ * Egyszerű, átlátható logika:
+ * 1. Frame-alapú normalizálás (legnagyobb bar = referencia)
+ * 2. Hosszú távú AGC stabilizálás
+ * 3. Négyzetgyök kompresszió a kis jelek kiemelésére
+ * 4. Peak hold funkció
  *
  * @param isLowRes true = LowRes (16 sávos bar), false = HighRes (pixel-pontosságú)
  */
@@ -1646,24 +1646,22 @@ void UICompSpectrumVis::renderSpectrumBar(bool isLowRes) {
     }
 
     // ===== FFT BIN TARTOMÁNY =====
-    const uint16_t minBin = std::max(2, static_cast<int>(std::round(MIN_AUDIO_FREQUENCY_HZ / currentBinWidthHz)));
+    // FONTOS: Az első 4 bin-t kihagyjuk (DC offset + alacsony frekvenciás zaj)
+    const uint16_t minBin = std::max(4, static_cast<int>(std::round(MIN_AUDIO_FREQUENCY_HZ / currentBinWidthHz)));
     const uint16_t maxBin = std::min(static_cast<int>(actualFftSize - 1), static_cast<int>(std::round(maxDisplayFrequencyHz_ / currentBinWidthHz)));
     const uint16_t numBins = std::max(1, maxBin - minBin + 1);
 
-    // ===== GAIN SZÁMÍTÁS (AGC vagy manuális) =====
-    // Jelenleg: automatikus gain keresés az aktuális FFT adatokból
-    // Később: config.data.audioFftGainConfigAm/Fm használata manuális módban
-    int8_t gainCfg = (radioMode_ == RadioMode::AM) ? config.data.audioFftGainConfigAm : config.data.audioFftGainConfigFm;
-    float displayGain = calculateDisplayGain(magnitudeData, minBin, maxBin, isAutoGainMode(), gainCfg);
+    // ===== BAR MAGASSÁG LIMIT (85% kihasználtság) =====
+    const uint16_t maxBarHeight = static_cast<uint16_t>(graphH * GRAPH_TARGET_HEIGHT_UTILIZATION);
 
     // ===== TIMING KONSTANSOK =====
-    const uint8_t BAR_FALL_SPEED = 2;    // Bar esési sebesség (pixel/frame)
-    const uint8_t PEAK_HOLD_FRAMES = 30; // Peak tartás ideje (frame-ekben, ~500ms @ 60fps)
+    const uint8_t BAR_FALL_SPEED = 3;    // Bar esési sebesség (pixel/frame)
+    const uint8_t PEAK_HOLD_FRAMES = 25; // Peak tartás ideje (~1 sec @ 25fps)
     const uint8_t PEAK_FALL_SPEED = 1;   // Peak esési sebesség (pixel/frame)
 
     if (isLowRes) {
         // ╔═══════════════════════════════════════════════════════════════════╗
-        // ║  LOW RESOLUTION MODE (16 BAR)                                     ║
+        // ║  LOW RESOLUTION MODE (16 BAR) - EGYSZERŰ FRAME-ALAPÚ NORMALIZÁLÁS ║
         // ╚═══════════════════════════════════════════════════════════════════╝
 
         // Layout számítás
@@ -1673,7 +1671,9 @@ void UICompSpectrumVis::renderSpectrumBar(bool isLowRes) {
         uint8_t barSpacing = barWidth + BAR_GAP_PIXELS;
         int16_t xOffset = (bounds.width - (numBars * barWidth + (numBars - 1) * BAR_GAP_PIXELS)) / 2;
 
-        // 1. FFT bin -> band mapping (maximum érték keresése minden bandben)
+        // ═══════════════════════════════════════════════════════════════════
+        // 1. LÉPÉS: FFT bin -> band mapping (maximum érték minden bandben)
+        // ═══════════════════════════════════════════════════════════════════
         q15_t bandMaxValues[LOW_RES_BANDS] = {0};
         for (uint16_t bin = minBin; bin <= maxBin; bin++) {
             uint8_t bandIdx = getBandVal(bin, minBin, numBins, numBars);
@@ -1685,62 +1685,113 @@ void UICompSpectrumVis::renderSpectrumBar(bool isLowRes) {
             }
         }
 
-        // 2. LOGARITMIKUS (dB) konverzió -> pixel magasság
-        // Ez ÖNMAGÁBAN kezeli a dinamikus tartományt, nincs szükség arányosításra!
+        // ═══════════════════════════════════════════════════════════════════
+        // 2. LÉPÉS: FIX GAIN számítás (AGC vagy manuális)
+        // ═══════════════════════════════════════════════════════════════════
+        int8_t gainCfg = (radioMode_ == RadioMode::AM) ? config.data.audioFftGainConfigAm : config.data.audioFftGainConfigFm;
+        float displayGain = calculateDisplayGain(magnitudeData, minBin, maxBin, isAutoGainMode(), gainCfg);
+
+        // ═══════════════════════════════════════════════════════════════════
+        // 3. LÉPÉS: LOGARITMIKUS (dB) SKÁLÁZÁS -> pixel magasság
+        // ═══════════════════════════════════════════════════════════════════
+        const float DB_RANGE = 30.0f;   // Szűkített dinamika: 30 dB
+        const float MIN_DB = -DB_RANGE; // Alsó határ: -30dB -> 0%
+
+        // REFERENCIA PONT: 2000 magnitude = ~400mVpp = 0dB = 100% magasság
+        // Várható eredmények 30 dB dinamikával:
+        //   50mVpp (mag=250) -> 250/2000 = 0.125 -> -18dB -> 0.40 = 40%
+        //   200mVpp (mag=1000) -> 1000/2000 = 0.5 -> -6dB -> 0.80 = 80%
+        //   430mVpp (mag=2150) -> 2150/2000 = 1.075 -> +0.6dB -> 1.0 = 100%
+        const float REFERENCE_MAG = displayGain * 2000.0f;
+
         uint16_t targetHeights[LOW_RES_BANDS] = {0};
-        for (uint8_t i = 0; i < numBars; i++) {
-            targetHeights[i] = q15ToPixelHeightLogarithmic(bandMaxValues[i], displayGain, graphH);
+
+        // DEBUG: 1kHz frekvencia melyik bandbe esik?
+        // currentBinWidthHz * bin = frekvencia -> 1000Hz / currentBinWidthHz = bin
+        uint16_t bin1kHz = static_cast<uint16_t>(1000.0f / currentBinWidthHz);
+        uint8_t band1kHz = 255; // invalid
+        if (bin1kHz >= minBin && bin1kHz <= maxBin) {
+            band1kHz = getBandVal(bin1kHz, minBin, numBins, numBars);
         }
 
-        // 3. Smooth bar release (gyors felfutás, lassú esés)
+        for (uint8_t i = 0; i < numBars; i++) {
+            float magWithGain = static_cast<float>(bandMaxValues[i]) * displayGain;
+
+            if (magWithGain < 1.0f) {
+                targetHeights[i] = 0;
+            } else {
+                // dB számítás: 20*log10(gain*mag / reference)
+                float dB = 20.0f * log10f(magWithGain / REFERENCE_MAG);
+
+                // dB -> 0..1 normalizálás: -30dB..0dB -> 0..1
+                float normalized = (dB - MIN_DB) / DB_RANGE;
+                normalized = constrain(normalized, 0.0f, 1.0f);
+
+                targetHeights[i] = static_cast<uint16_t>(normalized * maxBarHeight);
+
+                // DEBUG LOG: 1kHz sáv részletes információi
+                if (i == band1kHz) {
+                    static uint32_t lastLogTime = 0;
+                    if (Utils::timeHasPassed(lastLogTime, 1000)) {
+                        Serial.printf("BAR[%d @ 1kHz]: mag=%d, gain=%.1f, magWithGain=%.0f, REF=%.0f, dB=%.1f, norm=%.3f, height=%d/%d\n", i, bandMaxValues[i],
+                                      displayGain, magWithGain, REFERENCE_MAG, dB, normalized, targetHeights[i], maxBarHeight);
+                        lastLogTime = millis();
+                    }
+                }
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════════════
+        // 5. LÉPÉS: Smooth bar release (gyors felfutás, lassú esés)
+        // ═══════════════════════════════════════════════════════════════════
         static uint8_t barFallTimer = 0;
-        bool shouldFall = (++barFallTimer % 2 == 0); // Lelassítás: minden 2. frame-ben
+        bool shouldFall = (++barFallTimer % 2 == 0);
 
         for (uint8_t i = 0; i < numBars; i++) {
             if (targetHeights[i] > bar_height_[i]) {
-                // Felfutás: azonnal
-                bar_height_[i] = targetHeights[i];
+                bar_height_[i] = targetHeights[i]; // Felfutás: azonnal
             } else if (shouldFall && bar_height_[i] > 0) {
-                // Esés: lassított
                 uint16_t diff = bar_height_[i] - targetHeights[i];
-                uint8_t fallSpeed = (diff > 20) ? BAR_FALL_SPEED * 2 : BAR_FALL_SPEED;
+                uint8_t fallSpeed = (diff > 15) ? BAR_FALL_SPEED * 2 : BAR_FALL_SPEED;
                 bar_height_[i] = (bar_height_[i] > fallSpeed) ? (bar_height_[i] - fallSpeed) : 0;
             }
         }
 
-        // 4. Peak hold (csúcsérték tartás)
+        // ═══════════════════════════════════════════════════════════════════
+        // 6. LÉPÉS: Peak hold (csúcsérték tartás)
+        // ═══════════════════════════════════════════════════════════════════
         static uint8_t peakHoldCounters[LOW_RES_BANDS] = {0};
         static uint8_t peakFallTimer = 0;
-        bool shouldPeakFall = (++peakFallTimer % 4 == 0); // Lassabb peak esés
+        bool shouldPeakFall = (++peakFallTimer % 3 == 0);
 
         for (uint8_t i = 0; i < numBars; i++) {
             if (bar_height_[i] >= Rpeak_[i]) {
-                // Új peak érték
                 Rpeak_[i] = bar_height_[i];
-                peakHoldCounters[i] = PEAK_HOLD_FRAMES; // Reset hold timer
+                peakHoldCounters[i] = PEAK_HOLD_FRAMES;
             } else {
-                // Peak tartás vagy esés
                 if (peakHoldCounters[i] > 0) {
-                    peakHoldCounters[i]--; // Hold phase
+                    peakHoldCounters[i]--;
                 } else if (shouldPeakFall && Rpeak_[i] > 0) {
                     Rpeak_[i] = (Rpeak_[i] > PEAK_FALL_SPEED) ? (Rpeak_[i] - PEAK_FALL_SPEED) : 0;
                 }
             }
         }
 
-        // 5. Rajzolás
-        sprite_->fillRect(0, 0, bounds.width, graphH, TFT_BLACK); // Teljes törlés
+        // ═══════════════════════════════════════════════════════════════════
+        // 7. LÉPÉS: Rajzolás
+        // ═══════════════════════════════════════════════════════════════════
+        sprite_->fillRect(0, 0, bounds.width, graphH, TFT_BLACK);
 
         for (uint8_t i = 0; i < numBars; i++) {
             uint16_t xPos = xOffset + i * barSpacing;
 
-            // Bar rajzolása (sima zöld szín)
+            // Bar (zöld)
             if (bar_height_[i] > 0) {
                 int16_t yStart = graphH - bar_height_[i];
                 sprite_->fillRect(xPos, yStart, barWidth, bar_height_[i], TFT_GREEN);
             }
 
-            // Peak marker (cián vonal)
+            // Peak marker (cián)
             if (Rpeak_[i] > 2) {
                 int16_t yPeak = graphH - Rpeak_[i];
                 sprite_->fillRect(xPos, yPeak, barWidth, 2, TFT_CYAN);
@@ -1749,7 +1800,7 @@ void UICompSpectrumVis::renderSpectrumBar(bool isLowRes) {
 
     } else {
         // ╔═══════════════════════════════════════════════════════════════════╗
-        // ║  HIGH RESOLUTION MODE (pixel-by-pixel)                            ║
+        // ║  HIGH RESOLUTION MODE - FRAME-ALAPÚ NORMALIZÁLÁS                  ║
         // ╚═══════════════════════════════════════════════════════════════════╝
 
         // Smooth buffer inicializálás
@@ -1765,25 +1816,43 @@ void UICompSpectrumVis::renderSpectrumBar(bool isLowRes) {
             hiResPeakHoldCounters.assign(bounds.width, 0);
         }
 
-        // 1. FFT bin -> pixel mapping és LOGARITMIKUS (dB) konverzió
+        // 1. FIX GAIN számítás
+        int8_t gainCfg = (radioMode_ == RadioMode::AM) ? config.data.audioFftGainConfigAm : config.data.audioFftGainConfigFm;
+        float displayGain = calculateDisplayGain(magnitudeData, minBin, maxBin, isAutoGainMode(), gainCfg);
+
+        // 2. FFT bin -> pixel mapping és LOGARITMIKUS (dB) SKÁLÁZÁS
+        const float DB_RANGE = 30.0f; // 30 dB dinamika
+        const float MIN_DB = -DB_RANGE;
+        const float REFERENCE_MAG = displayGain * 2000.0f;
+
         std::vector<uint16_t> targetHeights(bounds.width, 0);
         for (uint8_t x = 0; x < bounds.width; x++) {
             float ratio = (bounds.width > 1) ? static_cast<float>(x) / (bounds.width - 1) : 0.0f;
             uint16_t binIdx = minBin + static_cast<uint16_t>(ratio * (numBins - 1));
             binIdx = constrain(binIdx, minBin, maxBin);
 
-            targetHeights[x] = q15ToPixelHeightLogarithmic(magnitudeData[binIdx], displayGain, graphH);
+            float magWithGain = static_cast<float>(q15Abs(magnitudeData[binIdx])) * displayGain;
+            if (magWithGain < 1.0f) {
+                targetHeights[x] = 0;
+            } else {
+                float dB = 20.0f * log10f(magWithGain / REFERENCE_MAG);
+                float normalized = (dB - MIN_DB) / DB_RANGE;
+                normalized = constrain(normalized, 0.0f, 1.0f);
+                targetHeights[x] = static_cast<uint16_t>(normalized * maxBarHeight);
+            }
         }
 
-        // 2. Temporal smoothing (IIR szűrő)
-        const float SMOOTH_ALPHA = 0.7f; // 0=gyors, 1=lassú
+        // 4. Temporal smoothing (IIR szűrő)
+        const float SMOOTH_ALPHA = 0.7f;
         for (uint8_t x = 0; x < bounds.width; x++) {
             highresSmoothedCols[x] = SMOOTH_ALPHA * highresSmoothedCols[x] + (1.0f - SMOOTH_ALPHA) * targetHeights[x];
         }
 
-        // 3. Peak hold logika
+        // 5. Peak hold logika
+        const uint8_t PEAK_HOLD_FRAMES = 25;
+        const uint8_t PEAK_FALL_SPEED = 1;
         static uint8_t hiResPeakFallTimer = 0;
-        bool shouldPeakFall = (++hiResPeakFallTimer % 4 == 0);
+        bool shouldPeakFall = (++hiResPeakFallTimer % 3 == 0);
 
         for (uint8_t x = 0; x < bounds.width; x++) {
             uint16_t currentHeight = static_cast<uint16_t>(highresSmoothedCols[x] + 0.5f);
@@ -1800,7 +1869,7 @@ void UICompSpectrumVis::renderSpectrumBar(bool isLowRes) {
             }
         }
 
-        // 4. Rajzolás
+        // 6. Rajzolás
         sprite_->fillRect(0, 0, bounds.width, graphH, TFT_BLACK);
 
         for (uint8_t x = 0; x < bounds.width; x++) {
