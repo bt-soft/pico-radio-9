@@ -1700,7 +1700,7 @@ void UICompSpectrumVis::renderSpectrumBar(bool isLowRes) {
 
         // LOWRES BOOST: Érzékenység növelése (BANDWIDTH_GAIN_TABLE felett)
         // Állítsd 1.0 = nincs boost, 2.0 = 2x erősebb, 3.0 = 3x erősebb, stb.
-        constexpr float LOWRES_BAR_AMPLIFIER_BOOST = 3.0f;
+        constexpr float LOWRES_BAR_AMPLIFIER_BOOST = 5.0f;
         const float displayGain = displayGainBase * LOWRES_BAR_AMPLIFIER_BOOST;
 
         // ═══════════════════════════════════════════════════════════════════
@@ -1710,7 +1710,7 @@ void UICompSpectrumVis::renderSpectrumBar(bool isLowRes) {
         const float MIN_DB = -DB_RANGE; // Alsó határ: -30dB -> 0%
         uint16_t targetHeights[LOW_RES_BANDS] = {0};
 
-        // REFERENCIA PONT: Alap gain * 2000 = ~400mVpp = 0dB = 100% magasság
+        // REFERENCIA PONT(FFT_MAGNITUDE_REFERENCE_POINT): Alap gain * 2000 = ~400mVpp = 0dB = 100% magasság
         // Boost NEM változtatja a referenciát, így tényleg erősebb lesz!
         //   50mVpp (mag=250) -> 250/2000 = 0.125 -> -18dB -> 0.40 = 40%
         //   200mVpp (mag=1000) -> 1000/2000 = 0.5 -> -6dB -> 0.80 = 80%
