@@ -57,7 +57,7 @@ bool g_wefax_debug_reset = false;
 #define WEFAX_SHIFT 800.0f         // Deviáció (±400 Hz, teljes tartomány 800 Hz)
 #define TWOPI (2.0f * M_PI)
 
-#define WEAK_SIGNAL_IN_SECONDS 10.0f // Gyenge jel időkorlát (másodpercben)
+#define WEAK_SIGNAL_IN_SECONDS 30.0f // Gyenge jel időkorlát (másodpercben) - enyhítve
 
 /**
  * @brief Konstruktor
@@ -432,34 +432,38 @@ void DecoderWeFax_C1::processSamples(const int16_t *samples, size_t count) {
             if (rx_state == RXIMAGE) {
                 bool weak = false;
 
-                // 1. Kis dinamikatartomány ÉS szélsőséges átlag (túl fehér VAGY túl fekete)
+                // 1. Csak NAGYON extrém esetekben (túl szigorú volt)
                 //    WEFAX képek: átlag 235-245, tartomány 0-255 → NORMÁLIS
-                //    Gyenge jel fehér: átlag > 250, tartomány < 20 → HIBÁS
-                //    Gyenge jel fekete: átlag < 10, tartomány < 20 → HIBÁS
-                if (signal_dynamic_range < 20 && (signal_gray_avg > 250 || signal_gray_avg < 10)) {
+                //    Gyenge jel fehér: átlag > 254, tartomány < 10 → HIBÁS
+                //    Gyenge jel fekete: átlag < 5, tartomány < 10 → HIBÁS
+                if (signal_dynamic_range < 10 && (signal_gray_avg > 254 || signal_gray_avg < 5)) {
                     weak = true;
                 }
 
-                // 2. Túl sok fekete (> 95%) - nincs kép, csak fekete jel
+                // 2. Túl sok fekete (> 98%) - majdnem csak fekete jel (enyhítve)
                 //    WEFAX képek: fekete 1-5%, fehér 90-96% → NORMÁLIS
-                //    Gyenge jel: fekete > 95% → HIBÁS (nincs adás)
-                if (signal_black_ratio > 0.95f) {
+                //    Gyenge jel: fekete > 98% → HIBÁS (nincs adás)
+                if (signal_black_ratio > 0.98f) {
                     weak = true;
                 }
 
-                // 3. Fekete ÉS fehér arány is nagyon alacsony (középszürke zaj, nincs karakteres jel)
-                //    WEFAX képek: fehér 90-96%, fekete 1-5% → NORMÁLIS
-                //    Gyenge jel: fehér < 40%, fekete < 5% → HIBÁS
-                if (signal_black_ratio < 0.05f && signal_white_ratio < 0.40f) {
+                // 3. KIKAPCSOLVA - Középszürke jelek normálisak lehetnek
+                //    A fekete/fehér arány logika túl szigorú volt
+                //    Ha van dinamikatartomány (>100), akkor a jel valószínűleg jó
+                /*
+                if (signal_black_ratio < 0.03f && signal_white_ratio < 0.20f) {
                     weak = true;
                 }
+                */
 
-                // 4. Átlag középszürke ÉS nagy dinamikatartomány (AGC-zaj, hamis tartomány)
-                //    WEFAX képek: átlag 235-245 → nem triggerel
-                //    AGC-zaj: átlag 60-200, tartomány > 200 → HIBÁS
-                if (signal_gray_avg > 60 && signal_gray_avg < 200 && signal_dynamic_range > 200) {
+                // 4. KIKAPCSOLVA - A középszürke + nagy dinamika feltétel hibás volt
+                //    127±126 jel tökéletes, nem AGC-zaj!
+                //    Nagy dinamikatartomány (200+) pont azt jelenti hogy JÓ a jel!
+                /*
+                if (signal_gray_avg > 80 && signal_gray_avg < 180 && signal_dynamic_range > 240) {
                     weak = true;
                 }
+                */
 
                 // Ha jelvesztés van
                 if (weak) {
@@ -471,7 +475,10 @@ void DecoderWeFax_C1::processSamples(const int16_t *samples, size_t count) {
                         WEFAX_DEBUG(" ⚠  JELVESZTÉS - VÉTEL LEÁLLÍTVA\n");
                         WEFAX_DEBUG("-------------------------------------------------\n");
                         WEFAX_DEBUG("Jelstatisztika (%.0f sec gyenge jel): \n", WEAK_SIGNAL_IN_SECONDS);
-                        WEFAX_DEBUG(" • Átlag: %d (túl %s)\n", signal_gray_avg, signal_gray_avg > 200 ? "világos" : "sötét");
+                        WEFAX_DEBUG(" • Átlag: %d (%s)\n", signal_gray_avg,
+                                    signal_gray_avg > 240  ? "túl világos"
+                                    : signal_gray_avg < 15 ? "túl sötét"
+                                                           : "normális");
                         WEFAX_DEBUG(" • Tartomány: %d-%d (range=%d)\n", signal_gray_min, signal_gray_max, signal_dynamic_range);
                         WEFAX_DEBUG(" • Fekete: %.1f%% | Fehér: %.1f%%\n", signal_black_ratio * 100, signal_white_ratio * 100);
                         WEFAX_DEBUG("---------------------------------------------------\n");
