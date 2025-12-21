@@ -1664,7 +1664,7 @@ void UICompSpectrumVis::renderSpectrumBar(bool isLowRes) {
     //   50mVpp (mag=250) -> 250/2000 = 0.125 -> -18dB -> 0.40 = 40%
     //   200mVpp (mag=1000) -> 1000/2000 = 0.5 -> -6dB -> 0.80 = 80%
     //   430mVpp (mag=2150) -> 2150/2000 = 1.075 -> +0.6dB -> 1.0 = 100%
-    constexpr float FFT_MAGNITUDE_REFERENCE_POINT = 2000.0f;
+    const float FFT_MAGNITUDE_REFERENCE_POINT = 2000.0f;
 
     if (isLowRes) {
         // ╔═══════════════════════════════════════════════════════════════════╗
@@ -1693,25 +1693,29 @@ void UICompSpectrumVis::renderSpectrumBar(bool isLowRes) {
         }
 
         // ═══════════════════════════════════════════════════════════════════
-        // 2. LÉPÉS: FIX GAIN számítás (AGC vagy manuális)
+        // 2. LÉPÉS: FIX GAIN számítás (AGC vagy manuális) + BOOST
         // ═══════════════════════════════════════════════════════════════════
         int8_t gainCfg = (radioMode_ == RadioMode::AM) ? config.data.audioFftGainConfigAm : config.data.audioFftGainConfigFm;
-        float displayGain = calculateDisplayGain(magnitudeData, minBin, maxBin, isAutoGainMode(), gainCfg);
+        float displayGainBase = calculateDisplayGain(magnitudeData, minBin, maxBin, isAutoGainMode(), gainCfg);
+
+        // LOWRES BOOST: Érzékenység növelése (BANDWIDTH_GAIN_TABLE felett)
+        // Állítsd 1.0 = nincs boost, 2.0 = 2x erősebb, 3.0 = 3x erősebb, stb.
+        constexpr float LOWRES_BAR_AMPLIFIER_BOOST = 3.0f;
+        const float displayGain = displayGainBase * LOWRES_BAR_AMPLIFIER_BOOST;
 
         // ═══════════════════════════════════════════════════════════════════
         // 3. LÉPÉS: LOGARITMIKUS (dB) SKÁLÁZÁS -> pixel magasság
         // ═══════════════════════════════════════════════════════════════════
         const float DB_RANGE = 30.0f;   // Szűkített dinamika: 30 dB
         const float MIN_DB = -DB_RANGE; // Alsó határ: -30dB -> 0%
+        uint16_t targetHeights[LOW_RES_BANDS] = {0};
 
-        // REFERENCIA PONT: 2000 magnitude = ~400mVpp = 0dB = 100% magasság
-        // Várható eredmények 30 dB dinamikával:
+        // REFERENCIA PONT: Alap gain * 2000 = ~400mVpp = 0dB = 100% magasság
+        // Boost NEM változtatja a referenciát, így tényleg erősebb lesz!
         //   50mVpp (mag=250) -> 250/2000 = 0.125 -> -18dB -> 0.40 = 40%
         //   200mVpp (mag=1000) -> 1000/2000 = 0.5 -> -6dB -> 0.80 = 80%
         //   430mVpp (mag=2150) -> 2150/2000 = 1.075 -> +0.6dB -> 1.0 = 100%
-        const float REFERENCE_MAG = displayGain * FFT_MAGNITUDE_REFERENCE_POINT;
-
-        uint16_t targetHeights[LOW_RES_BANDS] = {0};
+        const float REFERENCE_MAG = displayGainBase * FFT_MAGNITUDE_REFERENCE_POINT;
 
         // DEBUG: 1kHz frekvencia melyik bandbe esik?
         // currentBinWidthHz * bin = frekvencia -> 1000Hz / currentBinWidthHz = bin
