@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
  * -----                                                                                                               *
- * Last Modified: 2025.12.03, Wednesday  06:13:48                                                                      *
+ * Last Modified: 2025.12.21, Sunday  04:23:26                                                                         *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -32,7 +32,7 @@
 extern DecodedData decodedData;
 
 // CW működés debug engedélyezése (csak ha __DEBUG definiálva van)
-#define __CW_DEBUG
+// #define __CW_DEBUG
 #if defined(__DEBUG) && defined(__CW_DEBUG)
 #define CW_DEBUG(fmt, ...) DEBUG(fmt __VA_OPT__(, ) __VA_ARGS__)
 #else

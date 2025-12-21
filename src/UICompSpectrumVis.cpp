@@ -75,11 +75,11 @@ struct BandwidthScaleConfig {
 constexpr BandwidthScaleConfig BANDWIDTH_GAIN_TABLE[] = {
     // bandwidthHz,    lowResBarGainDb, highResBarGainDb, oscilloscopeGainDb, envelopeGainDb, waterfallGainDb,
     // tuningAidWaterfallDb, tuningAidSnrCurveDb (NOAMP = mód nem elérhető)
-    {CW_AF_BANDWIDTH_HZ, NOAMP, NOAMP, NOAMP, NOAMP, NOAMP, 10.0f, 18.0f},   // 1.5kHz: CW mód (csak tuning aid)
-    {RTTY_AF_BANDWIDTH_HZ, NOAMP, NOAMP, NOAMP, NOAMP, NOAMP, 3.0f, 8.0f},   // 3kHz: RTTY mód (csak tuning aid)
-    {AM_AF_BANDWIDTH_HZ, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, NOAMP, NOAMP},        // 6kHz: AM mód (tuning aid nem elérhető)
+    {CW_AF_BANDWIDTH_HZ, NOAMP, NOAMP, NOAMP, NOAMP, NOAMP, -12.0f, -12.0f}, // 1.5kHz: CW mód (csak tuning aid)
+    {RTTY_AF_BANDWIDTH_HZ, NOAMP, NOAMP, NOAMP, NOAMP, NOAMP, 12.0f, 12.0f}, // 3kHz: RTTY mód (csak tuning aid)
+    {AM_AF_BANDWIDTH_HZ, 0.0f, 0.0f, 0.0f, 12.0f, 0.0f, NOAMP, NOAMP},       // 6kHz: AM mód (tuning aid nem elérhető)
     {WEFAX_SAMPLE_RATE_HZ, NOAMP, NOAMP, NOAMP, NOAMP, NOAMP, NOAMP, NOAMP}, // 11025Hz: WEFAX mód
-    {FM_AF_BANDWIDTH_HZ, 0.0f, 0.0f, 0.0f, 0.0f, 3.0f, NOAMP, NOAMP},        // 15kHz: FM mód (tuning aid nem elérhető)
+    {FM_AF_BANDWIDTH_HZ, 2.0f, 2.0f, -3.0f, 0.0f, 6.0f, NOAMP, NOAMP},       // 15kHz: FM mód (tuning aid nem elérhető)
 };
 constexpr size_t BANDWIDTH_GAIN_TABLE_SIZE = ARRAY_ITEM_COUNT(BANDWIDTH_GAIN_TABLE);
 
@@ -170,9 +170,7 @@ static inline uint16_t q15ToPixelHeightSafe(q15_t magQ15, float gain, uint16_t m
 static inline uint16_t q15ToPixelHeightSqrt(q15_t magQ15, float gain, uint16_t maxHeight) {
     float valueNormalized = q15ToFloatWithGain(magQ15, gain) / 255.0f; // 0..1
 
-    if (valueNormalized < 0.001f) {
-        return 0;
-    }
+    // Threshold eltávolítva - minden jel megjelenik!
 
     // Négyzetgyök kompresszió: sqrt(x) - sima, természetes átmenet
     float compressed = sqrtf(valueNormalized);
@@ -723,7 +721,7 @@ void UICompSpectrumVis::draw() {
 
         case DisplayMode::CwSnrCurve:
         case DisplayMode::RttySnrCurve:
-            renderSnrCurve();
+            renderCwOrRttyTuningAidSnrCurve();
             break;
         case DisplayMode::Off:
             renderOffMode();
@@ -2404,7 +2402,7 @@ void UICompSpectrumVis::renderCwOrRttyTuningAidWaterfall() {
 /**
  * @brief SNR Curve renderelése - frekvencia/SNR burkológörbe
  */
-void UICompSpectrumVis::renderSnrCurve() {
+void UICompSpectrumVis::renderCwOrRttyTuningAidSnrCurve() {
     uint16_t graphH = getGraphHeight();
     if (!flags_.spriteCreated || bounds.width == 0 || graphH <= 0) {
         return;

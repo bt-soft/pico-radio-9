@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
  * -----                                                                                                               *
- * Last Modified: 2025.12.03, Wednesday  05:10:47                                                                      *
+ * Last Modified: 2025.12.21, Sunday  04:13:44                                                                         *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -29,6 +29,15 @@
 
 #include "DecoderRTTY-c1.h"
 #include "defines.h"
+
+// RTTY működés debug engedélyezése (csak ha __DEBUG definiálva van)
+//#define __RTTY_DEBUG
+#if defined(__DEBUG) && defined(__RTTY_DEBUG)
+#define RTTY_DEBUG(fmt, ...) DEBUG(fmt __VA_OPT__(, ) __VA_ARGS__)
+#else
+#define RTTY_DEBUG(fmt, ...) // Üres makró, ha __DEBUG nincs definiálva
+#endif
+
 
 extern DecodedData decodedData;
 
@@ -108,7 +117,7 @@ bool DecoderRTTY_C1::start(const DecoderConfig &decoderConfig) {
     decodedData.rttySpaceFreq = static_cast<uint16_t>(spaceFreq);
     decodedData.rttyBaudRate = baudRate;
 
-    DEBUG("RTTY dekóder elindítva: Mark=%.1f Hz, Space=%.1f Hz, Shift=%.1f Hz, Baud=%.2f, Fs=%.0f Hz, ToneBlock=%u, BinSpacing=%.1f Hz\n", markFreq, spaceFreq,
+    RTTY_DEBUG("RTTY dekóder elindítva: Mark=%.1f Hz, Space=%.1f Hz, Shift=%.1f Hz, Baud=%.2f, Fs=%.0f Hz, ToneBlock=%u, BinSpacing=%.1f Hz\n", markFreq, spaceFreq,
           fabsf(markFreq - spaceFreq), baudRate, samplingRate, TONE_BLOCK_SIZE, BIN_SPACING_HZ);
     return true;
 }
@@ -117,7 +126,7 @@ void DecoderRTTY_C1::stop() {
     decodedData.rttyMarkFreq = 0;
     decodedData.rttySpaceFreq = 0;
     decodedData.rttyBaudRate = 0.0f;
-    DEBUG("RTTY dekóder leállítva.\n");
+    RTTY_DEBUG("RTTY dekóder leállítva.\n");
 }
 
 void DecoderRTTY_C1::processSamples(const int16_t *samples, size_t count) { processToneBlock(samples, count); }
@@ -366,7 +375,7 @@ bool DecoderRTTY_C1::detectTone(bool &isMark, float &confidence) {
     // Hibakereső kiírás (debug)
     static int debugCounter = 0;
     if (++debugCounter >= 20 && toneDetected) {
-        DEBUG("RTTY: M=%.0f/%.0f/%.0f, S=%.0f/%.0f/%.0f, Mc=%.0f, Sc=%.0f, nf=%.0f, metric=%.1f, %s (conf: %.1f)\n", markPeak, markEnvelope, markNoiseFloor,
+        RTTY_DEBUG("RTTY: M=%.0f/%.0f/%.0f, S=%.0f/%.0f/%.0f, Mc=%.0f, Sc=%.0f, nf=%.0f, metric=%.1f, %s (conf: %.1f)\n", markPeak, markEnvelope, markNoiseFloor,
               spacePeak, spaceEnvelope, spaceNoiseFloor, markClipped, spaceClipped, noiseFloor, metric, isMark ? "MARK" : "SPACE", confidence);
         debugCounter = 0;
     }
@@ -387,7 +396,7 @@ void DecoderRTTY_C1::initializePLL() {
     if (symbolLen > MAX_BIT_BUFFER_SIZE / 2)
         symbolLen = MAX_BIT_BUFFER_SIZE / 2;
 
-    DEBUG("RTTY: symbolLen=%d blocks/bit (%.2f exact, %.1f samples/bit, Fs=%.0f Hz, Baud=%.2f)\n", symbolLen, blocksPerBit, samplesPerBit, samplingRate,
+    RTTY_DEBUG("RTTY: symbolLen=%d blocks/bit (%.2f exact, %.1f samples/bit, Fs=%.0f Hz, Baud=%.2f)\n", symbolLen, blocksPerBit, samplesPerBit, samplingRate,
           baudRate);
 
     pllPhase = 0.0f;
@@ -456,7 +465,7 @@ bool DecoderRTTY_C1::rxBit(bool bit) {
             if (isMarkSpaceTransition(correction)) {
                 currentState = START_BIT;
                 bitBufferCounter = correction; // automatic timing correction!
-                DEBUG("RTTY: START_BIT detected (corr=%d)\n", correction);
+                RTTY_DEBUG("RTTY: START_BIT detected (corr=%d)\n", correction);
             }
             break;
 
@@ -467,10 +476,10 @@ bool DecoderRTTY_C1::rxBit(bool bit) {
                     bitBufferCounter = symbolLen;
                     bitsReceived = 0;
                     currentByte = 0;
-                    DEBUG("RTTY: Valid START (SPACE at center)\n");
+                    RTTY_DEBUG("RTTY: Valid START (SPACE at center)\n");
                 } else {
                     // False start bit
-                    DEBUG("RTTY: False START (MARK at center)\n");
+                    RTTY_DEBUG("RTTY: False START (MARK at center)\n");
                     currentState = IDLE;
                 }
             }
@@ -494,21 +503,21 @@ bool DecoderRTTY_C1::rxBit(bool bit) {
             if (--bitBufferCounter == 0) {
                 if (isMarkAtCenter()) { // Stop bit KELL MARK legyen!
                     char c = decodeBaudotCharacter(currentByte);
-                    DEBUG("RTTY: CHAR decoded: code=0x%02X '%c'\n", currentByte, (c >= 32 && c < 127) ? c : '.');
+                    RTTY_DEBUG("RTTY: CHAR decoded: code=0x%02X '%c'\n", currentByte, (c >= 32 && c < 127) ? c : '.');
                     if (c != '\0') {
                         // Duplikált CR/LF szűrés (fldigi)
                         if ((c == '\r' && lastChar == '\r') || (c == '\n' && lastChar == '\n')) {
-                            DEBUG("RTTY: Skipped duplicate line ending\n");
+                            RTTY_DEBUG("RTTY: Skipped duplicate line ending\n");
                         } else {
                             if (!decodedData.textBuffer.put(c)) {
-                                DEBUG("RTTY: textBuffer tele (karakter='%c')\n", c);
+                                RTTY_DEBUG("RTTY: textBuffer tele (karakter='%c')\n", c);
                             }
                         }
                         lastChar = c;
                     }
                     charDecoded = true;
                 } else {
-                    DEBUG("RTTY: Invalid STOP bit (code was 0x%02X)\n", currentByte);
+                    RTTY_DEBUG("RTTY: Invalid STOP bit (code was 0x%02X)\n", currentByte);
                 }
                 // Mindig vissza IDLE-ba (helyes vagy hibás stop bit után)
                 currentState = IDLE;
@@ -569,7 +578,7 @@ void DecoderRTTY_C1::updateAFC(bool charDecoded) {
 
     static int debugCounter = 0;
     if (++debugCounter >= 20) {
-        DEBUG("AFC: ferr=%.1f Hz, freqError=%.1f Hz, newMark=%.1f Hz, newSpace=%.1f Hz\n", ferr, freqError, newMarkFreq, newSpaceFreq);
+        RTTY_DEBUG("AFC: ferr=%.1f Hz, freqError=%.1f Hz, newMark=%.1f Hz, newSpace=%.1f Hz\n", ferr, freqError, newMarkFreq, newSpaceFreq);
         debugCounter = 0;
     }
 }

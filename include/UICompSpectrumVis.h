@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                       *
  * -----                                                                                                               *
- * Last Modified: 2025.11.30, Sunday  05:06:11                                                                         *
+ * Last Modified: 2025.12.21, Sunday  03:59:51                                                                         *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -253,7 +253,8 @@ class UICompSpectrumVis : public UIComponent {
     void renderOscilloscope();
     void renderWaterfall();
     void renderEnvelope();
-    void renderSnrCurve();
+    void renderCwOrRttyTuningAidWaterfall();
+    void renderCwOrRttyTuningAidSnrCurve();
     void renderModeIndicator();
     void renderFrequencyRangeLabels(uint16_t minDisplayFrequencyHz, uint16_t maxDisplayFrequencyHz);
 
@@ -295,7 +296,6 @@ class UICompSpectrumVis : public UIComponent {
      * @brief CW/RTTY hangolási segéd függvények
      */
     void setTuningAidType(TuningAidType type);
-    void renderCwOrRttyTuningAidWaterfall();
 
     /**
      * @brief Közös helper: frekvencia címkék rajzolása fekete háttérrel (CW/RTTY tuning aid módokhoz)
