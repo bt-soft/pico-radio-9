@@ -112,9 +112,8 @@ bool DecoderWeFax_C1::start(const DecoderConfig &decoderConfig) {
     WEFAX_DEBUG(" Fekete: %.0f Hz | Fehér: %.0f Hz\n", WEFAX_CARRIER_FREQ - WEFAX_SHIFT / 2.0f, WEFAX_CARRIER_FREQ + WEFAX_SHIFT / 2.0f);
     WEFAX_DEBUG(" Deviation ratio: %.2f (phase_diff → gray)\n", deviation_ratio);
     WEFAX_DEBUG("---------------------------------------------------\n");
-    WEFAX_DEBUG(" Phasing szinkron keresése...\n");
-    WEFAX_DEBUG(" Várakozás: fehér→fekete szinkronjelre\n");
-    WEFAX_DEBUG(" Timeout: 10 mp után 500ms fallback\n");
+    WEFAX_DEBUG(" Azonnali képvétel párhuzamos szinkron kereséssel\n");
+    WEFAX_DEBUG(" Működés: kép rajzolás + phasing detektálás egyszerre\n");
     WEFAX_DEBUG("---------------------------------------------------\n\n");
 
     // FM demodulátor állapot nullázása
@@ -139,7 +138,7 @@ bool DecoderWeFax_C1::start(const DecoderConfig &decoderConfig) {
     iq_buffer_index = 0;
 
     // Phasing detektálás nullázása
-    rx_state = RXPHASING; // Indítás közvetlenül phasing módban
+    rx_state = RXIMAGE; // Indítás AZONNAL képvétel módban (párhuzamos phasing keresés)
     phasing_count = 0;
     memset(phasing_history, 0, sizeof(phasing_history));
     phase_high = false;
@@ -574,8 +573,8 @@ void DecoderWeFax_C1::decode_phasing(int gray_value) {
         total_phasing_samples = 0; // Reset ha IMAGE módba váltunk
     }
 
-    // Ha 10 másodperc után nincs phasing detektálás → fallback
-    if (total_phasing_samples > 10 * sample_rate && phase_lines == 0) {
+    // KIKAPCSOLVA - Már induláskor RXIMAGE módban vagyunk, nincs szükség timeout-ra
+    if (false && total_phasing_samples > 30 * sample_rate && phase_lines == 0) {
         WEFAX_DEBUG("WeFax-C1: \n-------------------------------------------------\n");
         WEFAX_DEBUG("⚠  PHASING TIMEOUT - 10 másodperc eltelt\n");
         WEFAX_DEBUG("-------------------------------------------------\n");
@@ -633,22 +632,25 @@ void DecoderWeFax_C1::decode_phasing(int gray_value) {
         gray_hist_low = 255;
     }
 
-    // Átmenetek detektálása (ADAPTÍV küszöbök)
-    // Fehér kezdet: > 140, Fekete kezdet (SYNC): < 100
-    if (gray_value > 140 && !phase_high) {
+    // Átmenetek detektálása (ENYHÍTETT küszöbök)
+    // Fehér kezdet: > 120 (enyhítve), Fekete kezdet (SYNC): < 120 (enyhítve)
+    if (gray_value > 120 && !phase_high) {
         // FEKETE → FEHÉR átmenet
         phase_high = true;
-        // DEBUG: WEFAX_DEBUG("WeFax-C1:  >>> Fehér kezdet: gray=%d\n", gray_value);
-    } else if (gray_value < 100 && phase_high) {
+        WEFAX_DEBUG("WeFax-C1:  >>> FEHÉR kezdet: gray=%d\n", gray_value);
+    } else if (gray_value < 120 && phase_high) {
         // FEHÉR → FEKETE átmenet (sorszinkron!)
         phase_high = false;
-        // DEBUG: WEFAX_DEBUG("WeFax-C1:  <<< Fekete SYNC: gray=%d\n", gray_value);
-        // Érvényes phasing sor ellenőrzése (REÁLIS kritériumok WEFAX jelhez)
-        // Phasing sor tipikus szerkezete: 5% fehér + 95% fekete, időtartam: 0.4-0.6s
+        WEFAX_DEBUG("WeFax-C1:  <<< FEKETE SYNC: gray=%d (sor hossz: %.2fs)\n", gray_value, curr_phase_len / sample_rate);
+        // Érvényes phasing sor ellenőrzése (NAGYON ENYHÍTETT kritériumok)
+        // Phasing sor: bármilyen fehér→fekete átmenet ami elfogadható időtartamú
         float white_ratio = (float)curr_phase_high / curr_phase_len;
         float black_ratio = (float)curr_phase_low / curr_phase_len;
-        bool valid_ratios = (white_ratio >= 0.02f) && (black_ratio >= 0.30f);
-        bool valid_duration = (curr_phase_len >= 0.35f * sample_rate) && (curr_phase_len <= 0.65f * sample_rate);
+        bool valid_ratios = (white_ratio >= 0.001f) && (black_ratio >= 0.10f);                                   // 0.1% fehér, 10% fekete
+        bool valid_duration = (curr_phase_len >= 0.20f * sample_rate) && (curr_phase_len <= 1.0f * sample_rate); // 200ms-1s
+
+        WEFAX_DEBUG("WeFax-C1: Phasing ellenőrzés: %.1fs | F:%.1f%% Sz:%.1f%% | Érvényes: arány=%s idő=%s\n", curr_phase_len / sample_rate, white_ratio * 100,
+                    black_ratio * 100, valid_ratios ? "✓" : "✗", valid_duration ? "✓" : "✗");
 
         if (valid_ratios && valid_duration) {
             // ÉRVÉNYES PHASING SOR detektálva!
@@ -712,7 +714,7 @@ void DecoderWeFax_C1::decode_phasing(int gray_value) {
 
             // fldigi: több phasing sor gyűjtése jobb átlaghoz (20 sor helyett 10-15)
             // Elegendő phasing sor után átváltunk IMAGE módba
-            if (phase_lines >= 10 && phase_lines <= num_phase_lines) {
+            if (phase_lines >= 2 && phase_lines <= num_phase_lines) {
                 phasing_calls_nb++;
 
                 // fldigi módon: csak minden 5. phasing sornál frissítjük az LPM-et
