@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
  * -----                                                                                                               *
- * Last Modified: 2025.11.29, Saturday  06:40:22                                                                       *
+ * Last Modified: 2025.12.21, Sunday  01:08:28                                                                         *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -50,7 +50,7 @@ const Config_t DEFAULT_CONFIG = {
     .rdsEnabled = true,
 
     // Hangerő
-    .currVolume = 40, // Alapértelmezett hangerő
+    .currVolume = 60, // Alapértelmezett hangerő
 
     // AGC
     .agcGain = 1,        // Si4735Runtime::AgcGainMode::Automatic  -> 1

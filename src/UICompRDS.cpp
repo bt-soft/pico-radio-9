@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
  * -----                                                                                                               *
- * Last Modified: 2025.12.21, Sunday  11:34:04                                                                         *
+ * Last Modified: 2025.12.21, Sunday  03:02:30                                                                         *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -26,7 +26,7 @@
 #include "Si4735Manager.h"
 
 // RDS működés debug engedélyezése de csak DEBUG módban
-// #define __RDS_DEBUG
+#define __RDS_DEBUG
 #if defined(__DEBUG) && defined(__RDS_DEBUG)
 #define RDS_DEBUG(fmt, ...) DEBUG(fmt __VA_OPT__(, ) __VA_ARGS__)
 #else
@@ -413,6 +413,7 @@ void UICompRDS::updateRDS() {
 
     // Egyébként csak akkor rajzoljuk újra, ha változtak az adatok
     if (dataChanged) {
+        DEBUG("UICompRDS: RDS data változás történt, frissítjük a megjelenítést.\n");
         // Csak az érintett részek újrarajzolása (nem a keret!)
         drawStationName();
         drawProgramType();

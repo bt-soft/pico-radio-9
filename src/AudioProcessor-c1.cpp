@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
  * -----                                                                                                               *
- * Last Modified: 2025.12.20, Saturday  07:35:51                                                                       *
+ * Last Modified: 2025.12.21, Sunday  03:04:39                                                                         *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -508,52 +508,52 @@ bool AudioProcessorC1::processFixedPointFFT(SharedData &sharedData) {
         }
     }
 
-#ifdef __ADPROC_DEBUG
+    // #ifdef __ADPROC_DEBUG
 
-    // Debug kimenet ritkítva (5 másodpercenként)
-    static uint32_t lastDebugTime = 0;
-    if (Utils::timeHasPassed(lastDebugTime, 5000)) {
-        lastDebugTime = millis();
+    //     // Debug kimenet ritkítva (5 másodpercenként)
+    //     static uint32_t lastDebugTime = 0;
+    //     if (Utils::timeHasPassed(lastDebugTime, 5000)) {
+    //         lastDebugTime = millis();
 
-        // Pipeline debug adatok
-        Serial.printf("AudioProc-c1 PIPELINE DEBUG:\n");
-        Serial.printf("  RAW ADC: min=%d, max=%d (%.1f mVpp)\n", rawMin, rawMax, (rawMax - rawMin) * ADC_LSB_VOLTAGE_MV);
-        Serial.printf("  SCALED (x32): min=%d, max=%d, saturated=%d samples\n", inputMin, inputMax, saturatedInputCount);
-        Serial.printf("  WINDOWED: max=%d, saturated=%d samples\n", windowedMax, saturatedCount);
-        Serial.printf("  FFT OUT: maxRe=%d, maxIm=%d\n", fftMaxRe, fftMaxIm);
-        Serial.printf("  MAGNITUDE: maxBefore=%d, maxAfter=%d\n", magMaxBefore, maxValue);
+    //         // // Pipeline debug adatok
+    //         // Serial.printf("AudioProc-c1 PIPELINE DEBUG:\n");
+    //         // Serial.printf("  RAW ADC: min=%d, max=%d (%.1f mVpp)\n", rawMin, rawMax, (rawMax - rawMin) * ADC_LSB_VOLTAGE_MV);
+    //         // Serial.printf("  SCALED (x32): min=%d, max=%d, saturated=%d samples\n", inputMin, inputMax, saturatedInputCount);
+    //         // Serial.printf("  WINDOWED: max=%d, saturated=%d samples\n", windowedMax, saturatedCount);
+    //         // Serial.printf("  FFT OUT: maxRe=%d, maxIm=%d\n", fftMaxRe, fftMaxIm);
+    //         // Serial.printf("  MAGNITUDE: maxBefore=%d, maxAfter=%d\n", magMaxBefore, maxValue);
 
-        // Domináns frekvencia számítása (Hz)
-        // A domináns frekvencia amplitúdója Q15 formátumban a maxValue változóban van
-        // f = bin_index * (Fs / N) = bin_index * binWidth
-        uint32_t dominantFrequency = static_cast<uint32_t>(maxIndex * currentBinWidthHz); // Domináns frekvencia Hz-ben
+    //         // Domináns frekvencia számítása (Hz)
+    //         // A domináns frekvencia amplitúdója Q15 formátumban a maxValue változóban van
+    //         // f = bin_index * (Fs / N) = bin_index * binWidth
+    //         uint32_t dominantFrequency = static_cast<uint32_t>(maxIndex * currentBinWidthHz); // Domináns frekvencia Hz-ben
 
-        // Vpp számítás a domináns frekvenciához
-        //
-        // A magnitude értékek közvetlenül az arm_cmplx_mag_q15 kimenetéből jönnek.
-        // Az input 5 bittel fel lett skálázva (inputScaleShift = 5 = x32).
-        //
-        // Vissza kell skálázni az input skálázással (5 bit = 32x)
-        float magnitudeAdc = (float)maxValue / 32.0f;
+    //         // Vpp számítás a domináns frekvenciához
+    //         //
+    //         // A magnitude értékek közvetlenül az arm_cmplx_mag_q15 kimenetéből jönnek.
+    //         // Az input 5 bittel fel lett skálázva (inputScaleShift = 5 = x32).
+    //         //
+    //         // Vissza kell skálázni az input skálázással (5 bit = 32x)
+    //         float magnitudeAdc = (float)maxValue / 32.0f;
 
-        // Hanning ablak és FFT kompenzáció
-        // Empirikus kalibráció:
-        //   370mVpp → mér 358mVpp (jó)
-        //   210mVpp → mér 215mVpp (jó)
-        //   380mVpp → mér 266mVpp (alulmér ~30%, de 2.85x kompenzáció saturációt okoz!)
-        // Kompromisszum: 2.0x tartjuk, 350mVpp felett alulmér
-        float peakAdc = magnitudeAdc * 2.0f;
+    //         // Hanning ablak és FFT kompenzáció
+    //         // Empirikus kalibráció:
+    //         //   370mVpp → mér 358mVpp (jó)
+    //         //   210mVpp → mér 215mVpp (jó)
+    //         //   380mVpp → mér 266mVpp (alulmér ~30%, de 2.85x kompenzáció saturációt okoz!)
+    //         // Kompromisszum: 2.0x tartjuk, 350mVpp felett alulmér
+    //         float peakAdc = magnitudeAdc * 2.0f;
 
-        // ADC egységből mV-ba (1 LSB = 3300mV / 4096 ≈ 0.8057 mV)
-        float peakMv = peakAdc * ADC_LSB_VOLTAGE_MV;
+    //         // ADC egységből mV-ba (1 LSB = 3300mV / 4096 ≈ 0.8057 mV)
+    //         float peakMv = peakAdc * ADC_LSB_VOLTAGE_MV;
 
-        // Peak-to-peak (Vpp = 2 * Vpeak)
-        float vppMv = peakMv * 2.0f;
+    //         // Peak-to-peak (Vpp = 2 * Vpeak)
+    //         float vppMv = peakMv * 2.0f;
 
-        ADPROC_DEBUG("AudioProc-c1: FFT kész - domFreq=%u Hz, amp=%d (%.1f mVpp), bins=%d, N=%d\n", dominantFrequency, maxValue, vppMv,
-                     sharedData.fftSpectrumSize, N);
-    }
-#endif
+    //         ADPROC_DEBUG("AudioProc-c1: FFT kész - domFreq=%u Hz, amp=%d (%.1f mVpp), bins=%d, N=%d\n", dominantFrequency, maxValue, vppMv,
+    //                      sharedData.fftSpectrumSize, N);
+    //     }
+    // #endif
 
     return true;
 }
