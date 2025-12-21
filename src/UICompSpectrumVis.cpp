@@ -44,11 +44,15 @@
 #define UISPECTRUM_DEBUG(fmt, ...) // Üres makró, ha __DEBUG nincs definiálva
 #endif
 
-static constexpr float Q15_CORRECTION_FACTOR = 30.0f; // Q15 skálázási korrekciós tényező
-
 // A grafikon megjelenítési kitöltése
 // Itt egyszerre határozzuk meg a vizuális kitöltést és az AGC célját.
 static constexpr float GRAPH_TARGET_HEIGHT_UTILIZATION = 0.85f; // grafikon kitöltés / AGC cél (85%)
+
+//--- Baseline erősítés konstansok spektrum megjelenítéshez (dB) ---
+constexpr float LOWRES_BASELINE_GAIN_DB = -70.0f;   // LowRes alaperősítés (-70dB = 0.0001x csillapítás)
+constexpr float HIGHRES_BASELINE_GAIN_DB = 0.0f;    // HighRes alaperősítés (0dB = nincs változtatás)
+constexpr float ENVELOPE_BASELINE_GAIN_DB = -65.0f; // Envelope alaperősítés (-65dB = 0.00018x csillapítás)
+constexpr float WATERFALL_BASELINE_GAIN_DB = 0.0f;  // Waterfall alaperősítés (0dB = nincs változtatás)
 
 /**
  * @brief Sávszélesség-specifikus scale faktor konfiguráció (MINDEN megjelenítési módhoz)
@@ -138,7 +142,7 @@ static inline int32_t q15Abs(q15_t v) { return (v < 0) ? -(int32_t)v : (int32_t)
  */
 static inline float q15ToFloatWithGain(q15_t magQ15, float gain) {
     float magFloat = static_cast<float>(q15Abs(magQ15)) * gain;
-    return constrain(magFloat, 0.0f, 255.0f);
+    return constrain(magFloat, 0.0f, 500.0f); // Magasabb felső határ a jobb dinamikáért
 }
 
 /**
@@ -153,7 +157,7 @@ static inline uint8_t q15ToUint8Safe(q15_t magQ15, float gain) {
  * Q15 magnitude -> pixel height konverzió gain-nel (LINEÁRIS)
  */
 static inline uint16_t q15ToPixelHeightSafe(q15_t magQ15, float gain, uint16_t maxHeight) {
-    float normalized = q15ToFloatWithGain(magQ15, gain) / 255.0f; // 0..1
+    float normalized = q15ToFloatWithGain(magQ15, gain) / 500.0f; // 0..1
     uint16_t height = static_cast<uint16_t>(normalized * maxHeight);
     return std::min(height, maxHeight);
 }
@@ -165,7 +169,7 @@ static inline uint16_t q15ToPixelHeightSafe(q15_t magQ15, float gain, uint16_t m
  * Példa: 0.25 -> 0.5 (2x), 0.50 -> 0.707 (1.4x), 1.0 -> 1.0 (1x)
  */
 static inline uint16_t q15ToPixelHeightSqrt(q15_t magQ15, float gain, uint16_t maxHeight) {
-    float valueNormalized = q15ToFloatWithGain(magQ15, gain) / 255.0f; // 0..1
+    float valueNormalized = q15ToFloatWithGain(magQ15, gain) / 500.0f; // 0..1
 
     if (valueNormalized < 0.001f) {
         return 0;
@@ -185,20 +189,20 @@ static inline uint16_t q15ToPixelHeightSqrt(q15_t magQ15, float gain, uint16_t m
  * dB tartomány: -40dB .. +6dB (46dB széles ablak, optimális a spektrum megjelenítéshez)
  */
 static inline uint16_t q15ToPixelHeightLogarithmic(q15_t magQ15, float gain, uint16_t maxHeight) {
-    float valueNormalized = q15ToFloatWithGain(magQ15, gain) / 255.0f; // 0..1
+    float valueNormalized = q15ToFloatWithGain(magQ15, gain) / 500.0f; // 0..1
 
-    if (valueNormalized < 0.0001f) { // Nagyon kis érték -> 0 pixel
+    if (valueNormalized < 0.00001f) { // Enyhébb küszöb - több kis jel látszik
         return 0;
     }
 
     // dB számítás: 20*log10(value)
     float dB = 20.0f * log10f(valueNormalized);
 
-    // OPTIMALIZÁLT dB tartomány a bar megjelenítéshez:
-    // -40dB: nagyon halk jelek (éppen látható)
-    // +6dB: erős jelek (még nem vágódik ki)
-    const float DB_MIN = -40.0f;
-    const float DB_MAX = 6.0f;
+    // TOVÁBBI KIBŐVÍTETT dB tartomány a még jobb fokozatos megjelenítéshez:
+    // -70dB: nagyon halk jelek (alig látható)
+    // +5dB: erős jelek (90% kitérés)
+    const float DB_MIN = -70.0f;
+    const float DB_MAX = 5.0f;
 
     float normalized = (dB - DB_MIN) / (DB_MAX - DB_MIN);
     normalized = constrain(normalized, 0.0f, 1.0f);
@@ -262,18 +266,18 @@ static inline float calculateDisplayGain(const q15_t *magnitudeData, uint16_t mi
             rms = sqrtf(static_cast<float>(sumOfSquares) / count);
         }
 
-        // Auto-gain RMS alapján (sokkal stabilabb!)
-        const float targetRmsValue = 150.0f;
-        if (rms > 10.0f) {
+        // Auto-gain RMS alapján - MÉRSEKELT értékek HighRes-hez
+        const float targetRmsValue = 120.0f; // Közepes érték
+        if (rms > 8.0f) {
             gain = targetRmsValue / rms;
-            gain = std::max(gain, 15.0f);
+            gain = std::max(gain, 12.0f); // Mérsekelt minimum
         } else {
-            gain = 40.0f;
+            gain = 30.0f; // Mérsekelt default
         }
 
         // HOSSZÚ TÁVÚ simítás: 98% régi + 2% új = ~50 frame időállandó
         // Ez azt jelenti, hogy ~2 másodperc alatt adaptálódik (50 frame @ 25fps)
-        static float smoothedGainAuto = 40.0f;
+        static float smoothedGainAuto = 30.0f; // Mérsekelt érték
         smoothedGainAuto = 0.98f * smoothedGainAuto + 0.02f * gain;
         gain = smoothedGainAuto;
 
@@ -287,7 +291,7 @@ static inline float calculateDisplayGain(const q15_t *magnitudeData, uint16_t mi
         }
     }
 
-    return constrain(gain, 50.0f, 500.0f);
+    return constrain(gain, 15.0f, 200.0f); // Mérsekelt határok HighRes-hez
 }
 
 // OPTIMALIZÁLT fixpontos interpoláció Q15 tömbből (Q15 eredmény) - folytatás
@@ -1650,11 +1654,23 @@ void UICompSpectrumVis::renderSpectrumBar(bool isLowRes) {
     const uint16_t maxBin = std::min(static_cast<int>(actualFftSize - 1), static_cast<int>(std::round(maxDisplayFrequencyHz_ / currentBinWidthHz)));
     const uint16_t numBins = std::max(1, maxBin - minBin + 1);
 
-    // ===== GAIN SZÁMÍTÁS (AGC vagy manuális) =====
+    // ===== GAIN SZÁMÍTÁS (AGC vagy manuális) + BASELINE =====
     // Jelenleg: automatikus gain keresés az aktuális FFT adatokból
     // Később: config.data.audioFftGainConfigAm/Fm használata manuális módban
     int8_t gainCfg = (radioMode_ == RadioMode::AM) ? config.data.audioFftGainConfigAm : config.data.audioFftGainConfigFm;
     float displayGain = calculateDisplayGain(magnitudeData, minBin, maxBin, isAutoGainMode(), gainCfg);
+
+    // Baseline erősítés alkalmazása dB formátumban (LowRes vs HighRes)
+    float baselineGainDb;
+    if (isLowRes) {
+        baselineGainDb = LOWRES_BASELINE_GAIN_DB; // LowRes baseline
+    } else {
+        baselineGainDb = HIGHRES_BASELINE_GAIN_DB; // HighRes baseline
+    }
+
+    // dB -> lineáris konverzió és alkalmazás
+    float baselineMultiplier = powf(10.0f, baselineGainDb / 20.0f);
+    displayGain *= baselineMultiplier;
 
     // ===== TIMING KONSTANSOK =====
     const uint8_t BAR_FALL_SPEED = 2;    // Bar esési sebesség (pixel/frame)
@@ -2007,6 +2023,10 @@ void UICompSpectrumVis::renderEnvelope() {
     // Gain korlátozása
     envelopeGain = constrain(envelopeGain, 50.0f, 500.0f);
 
+    // Envelope baseline erősítés alkalmazása (dB formátumban)
+    float envelopeBaselineMultiplier = powf(10.0f, ENVELOPE_BASELINE_GAIN_DB / 20.0f);
+    envelopeGain *= envelopeBaselineMultiplier;
+
     // 3. Buffer scroll (minden oszlop 1-gyel balra)
     for (uint8_t r = 0; r < bounds.height; ++r) {
         for (uint8_t c = 0; c < bounds.width - 1; ++c) {
@@ -2127,6 +2147,11 @@ void UICompSpectrumVis::renderWaterfall() {
         }
     }
     waterfallGain = constrain(waterfallGain, 50.0f, 500.0f);
+
+    // Waterfall baseline erősítés alkalmazása (dB formátumban)
+    float waterfallBaselineMultiplier = powf(10.0f, WATERFALL_BASELINE_GAIN_DB / 20.0f);
+    waterfallGain *= waterfallBaselineMultiplier;
+
     // --- End of Gain Calculation ---
 
     uint8_t maxwabuf_Val = 0;

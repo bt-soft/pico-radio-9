@@ -417,20 +417,10 @@ bool AudioProcessorC1::processFixedPointFFT(SharedData &sharedData) {
             rawMin = raw;
     }
 
-    // Adaptív input skálázás a jel erősség alapján
-    // Kis jeleknél agresszívabb skálázás a jobb detektálásért
-    int16_t rawRange = rawMax - rawMin;
-    int inputScaleShift;
-
-    if (rawRange < 50) {         // Nagyon kis jel (<25mVpp)
-        inputScaleShift = 7;     // x128 - maximális érzékenység
-    } else if (rawRange < 200) { // Kis jel (<100mVpp)
-        inputScaleShift = 6;     // x64 - jó érzékenység
-    } else if (rawRange < 800) { // Közepes jel (<400mVpp)
-        inputScaleShift = 5;     // x32 - eredeti
-    } else {                     // Nagy jel (>400mVpp)
-        inputScaleShift = 4;     // x16 - saturáció védelem
-    }
+    // MINDIG MAXIMÁLIS skálázás a konzisztens UI megjelenítésért!
+    // Kis jelek: x128-al jól láthatók
+    // Nagy jelek: nagy értékekkel jelennek meg, saturáció ellen véd a __SSAT
+    const int inputScaleShift = 7; // x128 MINDIG - fix skálázás
 
     // Második pass: tényleges skálázás és komplex formátumba alakítás
     inputMax = 0;
@@ -558,7 +548,7 @@ bool AudioProcessorC1::processFixedPointFFT(SharedData &sharedData) {
         // Pipeline debug adatok
         Serial.printf("AudioProc-c1 PIPELINE DEBUG:\n");
         Serial.printf("  RAW ADC: min=%d, max=%d (%.1f mVpp)\n", rawMin, rawMax, (rawMax - rawMin) * ADC_LSB_VOLTAGE_MV);
-        Serial.printf("  SCALED (x%d): min=%d, max=%d, saturated=%d samples\n", 1 << inputScaleShift, inputMin, inputMax, saturatedInputCount);
+        Serial.printf("  SCALED (x128): min=%d, max=%d, saturated=%d samples\n", inputMin, inputMax, saturatedInputCount);
         Serial.printf("  WINDOWED: max=%d, saturated=%d samples, mode=%s\n", windowedMax, saturatedCount, useReducedWindow ? "REDUCED" : "FULL");
         Serial.printf("  FFT OUT: maxRe=%d, maxIm=%d\n", fftMaxRe, fftMaxIm);
         Serial.printf("  MAGNITUDE: maxBefore=%d, maxAfter=%d\n", magMaxBefore, maxValue);
@@ -571,8 +561,8 @@ bool AudioProcessorC1::processFixedPointFFT(SharedData &sharedData) {
         // Vpp számítás a domináns frekvenciához
         //
         // A magnitude értékek közvetlenül az arm_cmplx_mag_q15 kimenetéből jönnek.
-        // Adaptív skálázás visszaállítása
-        float magnitudeAdc = (float)maxValue / (float)(1 << inputScaleShift);
+        // Fix x128 skálázás visszaállítása
+        float magnitudeAdc = (float)maxValue / 128.0f;
 
         // Adaptív kompenzáció a skálázás és ablak alapján
         float compensationFactor = useReducedWindow ? 1.8f : 2.0f;
