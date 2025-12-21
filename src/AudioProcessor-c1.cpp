@@ -403,24 +403,49 @@ bool AudioProcessorC1::processFixedPointFFT(SharedData &sharedData) {
     // Az imaginárius részek nullák
     // FONTOS: A rawSampleData ~11-bites előjeles (-2048..+2047),
     // de a Q15 formátum 15-bites (-32768..+32767)!
-    // Ezért 4 bittel balra toljuk (x16) a dinamikatartomány jobb kihasználásához!
-    constexpr int inputScaleShift = 4; // 11 bit -> 15 bit
+    // Kompromisszum: kis jelek láthatók, de nagy jelek ne saturáljanak
+    // 400mVpp = 496 LSB → 496*32 = 15872 (biztos belefér Q15-be)
+    // 20mVpp = 25 LSB → 25*32 = 800 (FFT után is látszik)
+    constexpr int inputScaleShift = 5; // 11 bit -> 15 bit (x32)
 
-    // DEBUG: input maximum keresése
-    q15_t inputMax = 0;
+    // DEBUG: input értékek monitorozása
+    q15_t inputMax = 0, inputMin = 32767;
+    int16_t rawMax = -2048, rawMin = 2047;
+    int saturatedInputCount = 0;
     for (uint16_t i = 0; i < N; ++i) {
-        q15_t scaled = static_cast<q15_t>(sharedData.rawSampleData[i] << inputScaleShift);
-        fftInput_q15[2 * i] = scaled; // Valós rész (felskálázva)
+        int16_t raw = sharedData.rawSampleData[i];
+        if (raw > rawMax)
+            rawMax = raw;
+        if (raw < rawMin)
+            rawMin = raw;
+
+        // KRITIKUS: SATURÁCIÓVAL skálázni, különben wraparound overflow!
+        // Példa: -1045 * 32 = -33440 > -32768 (Q15 min) → wraparound → torzítás!
+        int32_t scaled32 = (int32_t)raw << inputScaleShift;
+        q15_t scaled = static_cast<q15_t>(__SSAT(scaled32, 16));
+        if (scaled32 != scaled)
+            saturatedInputCount++;
+
+        fftInput_q15[2 * i] = scaled; // Valós rész (felskálázva + saturált)
         fftInput_q15[2 * i + 1] = 0;  // Imaginárius rész = 0
         if (abs(scaled) > inputMax)
             inputMax = abs(scaled);
+        if (abs(scaled) < inputMin)
+            inputMin = abs(scaled);
     }
 
     // --- 2. LÉPÉS: Hanning ablak alkalmazása ---
     // Q15 * Q15 szorzás: az eredmény Q30, amit 15 bittel jobbra tolunk -> Q15
+    q15_t windowedMax = 0;
+    int saturatedCount = 0;
     for (uint16_t i = 0; i < N; ++i) {
         q31_t windowed = ((q31_t)fftInput_q15[2 * i] * (q31_t)hanningWindow_q15[i]) >> 15;
-        fftInput_q15[2 * i] = static_cast<q15_t>(__SSAT(windowed, 16)); // Saturáció
+        q15_t saturated = static_cast<q15_t>(__SSAT(windowed, 16)); // Saturáció
+        if (windowed != saturated)
+            saturatedCount++;
+        fftInput_q15[2 * i] = saturated;
+        if (abs(saturated) > windowedMax)
+            windowedMax = abs(saturated);
     }
 
     // --- 3. LÉPÉS: CMSIS-DSP FFT futtatása ---
@@ -490,6 +515,14 @@ bool AudioProcessorC1::processFixedPointFFT(SharedData &sharedData) {
     if (Utils::timeHasPassed(lastDebugTime, 5000)) {
         lastDebugTime = millis();
 
+        // Pipeline debug adatok
+        Serial.printf("AudioProc-c1 PIPELINE DEBUG:\n");
+        Serial.printf("  RAW ADC: min=%d, max=%d (%.1f mVpp)\n", rawMin, rawMax, (rawMax - rawMin) * ADC_LSB_VOLTAGE_MV);
+        Serial.printf("  SCALED (x32): min=%d, max=%d, saturated=%d samples\n", inputMin, inputMax, saturatedInputCount);
+        Serial.printf("  WINDOWED: max=%d, saturated=%d samples\n", windowedMax, saturatedCount);
+        Serial.printf("  FFT OUT: maxRe=%d, maxIm=%d\n", fftMaxRe, fftMaxIm);
+        Serial.printf("  MAGNITUDE: maxBefore=%d, maxAfter=%d\n", magMaxBefore, maxValue);
+
         // Domináns frekvencia számítása (Hz)
         // A domináns frekvencia amplitúdója Q15 formátumban a maxValue változóban van
         // f = bin_index * (Fs / N) = bin_index * binWidth
@@ -498,15 +531,17 @@ bool AudioProcessorC1::processFixedPointFFT(SharedData &sharedData) {
         // Vpp számítás a domináns frekvenciához
         //
         // A magnitude értékek közvetlenül az arm_cmplx_mag_q15 kimenetéből jönnek.
-        // Az input 4 bittel fel lett skálázva (inputScaleShift = 4).
+        // Az input 5 bittel fel lett skálázva (inputScaleShift = 5 = x32).
         //
-        // Empirikus kalibráció: 300 mVpp bemenetnél mag ≈ 1514
-        // Képlet: Vpp = mag * kalibrációs_szorzó * ADC_LSB_VOLTAGE_MV
+        // Vissza kell skálázni az input skálázással (5 bit = 32x)
+        float magnitudeAdc = (float)maxValue / 32.0f;
 
-        // Vissza kell skálázni az input skálázással (4 bit = 16x)
-        float magnitudeAdc = (float)maxValue / 16.0f;
-
-        // Hanning ablak és FFT kompenzáció (empirikusan kalibrálva: 2.0)
+        // Hanning ablak és FFT kompenzáció
+        // Empirikus kalibráció:
+        //   370mVpp → mér 358mVpp (jó)
+        //   210mVpp → mér 215mVpp (jó)
+        //   380mVpp → mér 266mVpp (alulmér ~30%, de 2.85x kompenzáció saturációt okoz!)
+        // Kompromisszum: 2.0x tartjuk, 350mVpp felett alulmér
         float peakAdc = magnitudeAdc * 2.0f;
 
         // ADC egységből mV-ba (1 LSB = 3300mV / 4096 ≈ 0.8057 mV)

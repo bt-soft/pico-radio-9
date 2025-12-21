@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
  * -----                                                                                                               *
- * Last Modified: 2025.12.20, Saturday  10:16:52                                                                       *
+ * Last Modified: 2025.12.21, Sunday  11:34:00                                                                         *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -27,7 +27,7 @@
 #include "StationData.h"
 
 // Si4735RDS működés debug engedélyezése de csak DEBUG módban
- #define __SI4735RDS_DEBUG
+// #define __SI4735RDS_DEBUG
 #if defined(__DEBUG) && defined(__SI4735RDS_DEBUG)
 #define SI4735RDS_DEBUG(fmt, ...) DEBUG(fmt __VA_OPT__(, ) __VA_ARGS__)
 #else

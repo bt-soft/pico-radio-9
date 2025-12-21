@@ -37,7 +37,7 @@
 #define TEST_DO_NOT_PROCESS_MUTED_STATE
 
 // UICompSpectrumVis működés debug engedélyezése de csak DEBUG módban
-#define __UISPECTRUM_DEBUG
+// #define __UISPECTRUM_DEBUG
 #if defined(__DEBUG) && defined(__UISPECTRUM_DEBUG)
 #define UISPECTRUM_DEBUG(fmt, ...) DEBUG(fmt __VA_OPT__(, ) __VA_ARGS__)
 #else
@@ -234,60 +234,32 @@ static inline uint16_t q15ToPixelHeight(q15_t v, int32_t gain_scaled, uint16_t m
 // OPTIMALIZÁLT fixpontos interpoláció Q15 tömbből (Q15 eredmény)
 
 /**
- * Közös gain számítás minden vizualizációs módhoz - HOSSZÚ TÁVÚ ÁTLAGOLÁSSAL
- * @param magnitudeData FFT magnitude adatok
- * @param minBin Minimum bin index
- * @param maxBin Maximum bin index
+ * Közös gain számítás minden vizualizációs módhoz - FIX GAIN (nincs AGC!)
+ * @param bandwidthGainTableDb Gain érték a BANDWIDTH_GAIN_TABLE-ből (dB)
  * @param isAutoGain Automatikus gain mód
- * @param manualGainDb Manuális gain dB értéke
- * @return Gain érték (50-500x tartományban)
+ * @param manualGainDb Manuális gain dB értéke (user állítás)
+ * @return Gain érték lineáris formában
  */
-static inline float calculateDisplayGain(const q15_t *magnitudeData, uint16_t minBin, uint16_t maxBin, bool isAutoGain, int8_t manualGainDb) {
+static inline float calculateDisplayGain(float bandwidthGainTableDb, bool isAutoGain, int8_t manualGainDb) {
     float gain;
 
     if (isAutoGain) {
-        // RMS (négyzetes átlag) számítás: jobb mint a maximum!
-        // Az RMS az átlagos jelerősséget méri, nem hagyja hogy egy csúcs mindent elnyomjon
-        uint32_t sumOfSquares = 0;
-        uint16_t count = 0;
-
-        for (uint16_t i = minBin; i <= maxBin; i++) {
-            int32_t absVal = q15Abs(magnitudeData[i]);
-            sumOfSquares += (absVal * absVal);
-            count++;
-        }
-
-        float rms = 0.0f;
-        if (count > 0) {
-            rms = sqrtf(static_cast<float>(sumOfSquares) / count);
-        }
-
-        // Auto-gain RMS alapján (sokkal stabilabb!)
-        const float targetRmsValue = 150.0f;
-        if (rms > 10.0f) {
-            gain = targetRmsValue / rms;
-            gain = std::max(gain, 15.0f);
-        } else {
-            gain = 40.0f;
-        }
-
-        // HOSSZÚ TÁVÚ simítás: 98% régi + 2% új = ~50 frame időállandó
-        // Ez azt jelenti, hogy ~2 másodperc alatt adaptálódik (50 frame @ 25fps)
-        static float smoothedGainAuto = 40.0f;
-        smoothedGainAuto = 0.98f * smoothedGainAuto + 0.02f * gain;
-        gain = smoothedGainAuto;
+        // AUTO-GAIN: BANDWIDTH_GAIN_TABLE érték (dB -> lineáris)
+        // FM: 0dB -> 1.0x, AM: -10dB -> 0.316x
+        gain = powf(10.0f, bandwidthGainTableDb / 20.0f);
 
     } else {
-        // Manuális gain
-        if (manualGainDb == 0) {
-            gain = 300.0f; // Alapértelmezett
-        } else {
-            // dB -> lineáris: 6dB = 2x, 12dB = 4x, stb.
-            gain = powf(10.0f, static_cast<float>(manualGainDb) / 20.0f) * 150.0f;
-        }
+        // Manuális gain: BANDWIDTH_GAIN_TABLE + user offset
+        // Példa: FM 0dB + user +6dB = +6dB -> 2.0x
+        float totalDb = bandwidthGainTableDb + static_cast<float>(manualGainDb);
+        gain = powf(10.0f, totalDb / 20.0f);
     }
 
-    return constrain(gain, 50.0f, 500.0f);
+    // FONTOS: Az FFT auto-scaling (log2(N) bit shift) SZÁNDÉKOS!
+    // Minden FFT méret konzisztens magnitude értékeket ad.
+    // NEM kell kompenzálni, az empirikus kalibráció (mag=1514 @ 300mVpp) már figyelembe veszi!
+
+    return std::max(gain, 0.001f); // Minimum gain 0.001x
 }
 
 // OPTIMALIZÁLT fixpontos interpoláció Q15 tömbből (Q15 eredmény) - folytatás
@@ -1659,17 +1631,23 @@ void UICompSpectrumVis::renderSpectrumBar(bool isLowRes) {
     constexpr uint8_t PEAK_HOLD_FRAMES = 25; // Peak tartás ideje (~1 sec @ 25fps)
     constexpr uint8_t PEAK_FALL_SPEED = 1;   // Peak esési sebesség (pixel/frame)
 
-    // REFERENCIA PONT: 2000 magnitude = ~400mVpp = 0dB = 100% magasság
-    // Várható eredmények 30 dB dinamikával:
-    //   50mVpp (mag=250) -> 250/2000 = 0.125 -> -18dB -> 0.40 = 40%
-    //   200mVpp (mag=1000) -> 1000/2000 = 0.5 -> -6dB -> 0.80 = 80%
-    //   430mVpp (mag=2150) -> 2150/2000 = 1.075 -> +0.6dB -> 1.0 = 100%
-    const float FFT_MAGNITUDE_REFERENCE_POINT = 2000.0f;
+    // REFERENCIA PONT: AudioProc inputScaleShift=5 (x32) esetén
+    // Mért értékek (inputScale=6 volt 2x nagyobb):
+    //   190mVpp → mag ≈ 3800 → most ≈1900
+    //   90mVpp → mag ≈ 1800 → most ≈900
+    //   25mVpp → mag ≈ 500 → most ≈250
+    // Referencia: 4000 magnitude = ~400mVpp = 0dB = 100% magasság
+    const float FFT_MAGNITUDE_REFERENCE_POINT = 4000.0f;
 
     if (isLowRes) {
         // ╔═══════════════════════════════════════════════════════════════════╗
         // ║  LOW RESOLUTION MODE (16 BAR) - EGYSZERŰ FRAME-ALAPÚ NORMALIZÁLÁS ║
         // ╚═══════════════════════════════════════════════════════════════════╝
+
+        // LOWRES BOOST: Érzékenység növelése (BANDWIDTH_GAIN_TABLE felett)
+        // Állítsd 1.0 = nincs boost, 2.0 = 2x erősebb, 3.0 = 3x erősebb, stb.
+        // FM mód (0dB = 1.0x alap) esetén 5.0x boost ajánlott
+        constexpr float LOWRES_BAR_AMPLIFIER_BOOST = 1.0f;
 
         // Layout számítás
         const uint8_t numBars = LOW_RES_BANDS;
@@ -1693,21 +1671,18 @@ void UICompSpectrumVis::renderSpectrumBar(bool isLowRes) {
         }
 
         // ═══════════════════════════════════════════════════════════════════
-        // 2. LÉPÉS: FIX GAIN számítás (AGC vagy manuális) + BOOST
+        // 2. LÉPÉS: FIX GAIN számítás (BANDWIDTH_GAIN_TABLE + user offset)
         // ═══════════════════════════════════════════════════════════════════
         int8_t gainCfg = (radioMode_ == RadioMode::AM) ? config.data.audioFftGainConfigAm : config.data.audioFftGainConfigFm;
-        float displayGainBase = calculateDisplayGain(magnitudeData, minBin, maxBin, isAutoGainMode(), gainCfg);
+        float displayGainBase = calculateDisplayGain(cachedGainDb_, isAutoGainMode(), gainCfg);
 
-        // LOWRES BOOST: Érzékenység növelése (BANDWIDTH_GAIN_TABLE felett)
-        // Állítsd 1.0 = nincs boost, 2.0 = 2x erősebb, 3.0 = 3x erősebb, stb.
-        constexpr float LOWRES_BAR_AMPLIFIER_BOOST = 5.0f;
         const float displayGain = displayGainBase * LOWRES_BAR_AMPLIFIER_BOOST;
 
         // ═══════════════════════════════════════════════════════════════════
         // 3. LÉPÉS: LOGARITMIKUS (dB) SKÁLÁZÁS -> pixel magasság
         // ═══════════════════════════════════════════════════════════════════
-        const float DB_RANGE = 30.0f;   // Szűkített dinamika: 30 dB
-        const float MIN_DB = -DB_RANGE; // Alsó határ: -30dB -> 0%
+        const float DB_RANGE = 50.0f;   // Növelt dinamika: 50 dB (kis jelek láthatóak)
+        const float MIN_DB = -DB_RANGE; // Alsó határ: -50dB -> 0%
         uint16_t targetHeights[LOW_RES_BANDS] = {0};
 
         // REFERENCIA PONT(FFT_MAGNITUDE_REFERENCE_POINT): Alap gain * 2000 = ~400mVpp = 0dB = 100% magasság
@@ -1739,17 +1714,37 @@ void UICompSpectrumVis::renderSpectrumBar(bool isLowRes) {
                 normalized = constrain(normalized, 0.0f, 1.0f);
 
                 targetHeights[i] = static_cast<uint16_t>(normalized * maxBarHeight);
+            }
+        }
 
-                // DEBUG LOG: 1kHz sáv részletes információi 1mp-enként
-                if (i == band1kHz) {
-                    static uint32_t lastLogTime = 0;
-                    if (Utils::timeHasPassed(lastLogTime, 1000)) {
-                        UISPECTRUM_DEBUG("BAR[%d @ 1kHz]: mag=%d, gain=%.1f, magWithGain=%.0f, REF=%.0f, dB=%.1f, norm=%.3f, height=%d/%d\n", i,
-                                         bandMaxValues[i], displayGain, magWithGain, REFERENCE_MAG, dB, normalized, targetHeights[i], maxBarHeight);
-                        lastLogTime = millis();
-                    }
+        // DEBUG LOG: Legnagyobb bar részletes információi (minden frame-ben)
+        static uint32_t lastLogTime = 0;
+        if (Utils::timeHasPassed(lastLogTime, 1000)) { // 1000ms-enként
+            // Keresés: legnagyobb magnitude és legnagyobb bar
+            uint8_t maxMagIdx = 0;
+            q15_t maxMag = 0;
+            uint8_t maxBarIdx = 0;
+            uint16_t maxBarHeightFound = 0; // Talált legnagyobb bar magassága
+
+            for (uint8_t i = 0; i < numBars; i++) {
+                if (bandMaxValues[i] > maxMag) {
+                    maxMag = bandMaxValues[i];
+                    maxMagIdx = i;
+                }
+                if (targetHeights[i] > maxBarHeightFound) {
+                    maxBarHeightFound = targetHeights[i];
+                    maxBarIdx = i;
                 }
             }
+
+            // Legnagyobb magnitude bar számítása
+            float magWithGain = static_cast<float>(maxMag) * displayGain;
+            float dB = (magWithGain >= 1.0f) ? 20.0f * log10f(magWithGain / REFERENCE_MAG) : -100.0f;
+            float normalized = (dB - MIN_DB) / DB_RANGE;
+
+            UISPECTRUM_DEBUG("LOWRES: maxMag[%d]=%d, maxBar[%d]=%d/%d, gain=%.1f, magWithGain=%.0f, REF=%.0f, dB=%.1f, norm=%.3f\n", maxMagIdx, maxMag,
+                             maxBarIdx, maxBarHeightFound, maxBarHeight, displayGain, magWithGain, REFERENCE_MAG, dB, normalized);
+            lastLogTime = millis();
         }
 
         // ═══════════════════════════════════════════════════════════════════
@@ -1814,7 +1809,7 @@ void UICompSpectrumVis::renderSpectrumBar(bool isLowRes) {
         // ║  HIGH RESOLUTION MODE - FRAME-ALAPÚ NORMALIZÁLÁS                  ║
         // ╚═══════════════════════════════════════════════════════════════════╝
 
-        const float HIGHRES_BAR_AMPLIFIER_BOOST = 10.0f; // HighRes mód érzékenység növelése
+        const float HIGHRES_BAR_AMPLIFIER_BOOST = 1.0f; // HighRes mód érzékenység növelése
 
         // Smooth buffer inicializálás
         if (highresSmoothedCols.size() != bounds.width) {
@@ -1829,12 +1824,12 @@ void UICompSpectrumVis::renderSpectrumBar(bool isLowRes) {
             hiResPeakHoldCounters.assign(bounds.width, 0);
         }
 
-        // 1. FIX GAIN számítás
+        // 1. FIX GAIN számítás (BANDWIDTH_GAIN_TABLE + user offset)
         int8_t gainCfg = (radioMode_ == RadioMode::AM) ? config.data.audioFftGainConfigAm : config.data.audioFftGainConfigFm;
-        float displayGainBase = calculateDisplayGain(magnitudeData, minBin, maxBin, isAutoGainMode(), gainCfg);
+        float displayGainBase = calculateDisplayGain(cachedGainDb_, isAutoGainMode(), gainCfg);
 
         // 2. FFT bin -> pixel mapping és LOGARITMIKUS (dB) SKÁLÁZÁS
-        const float DB_RANGE = 30.0f; // 30 dB dinamika
+        const float DB_RANGE = 50.0f; // 50 dB dinamika (kis jelek láthatóak)
         const float MIN_DB = -DB_RANGE;
 
         // HIGHRES: Referencia az ALAP gain-nel (boost nélkül), hogy a boost tényleg hasson
@@ -1864,6 +1859,35 @@ void UICompSpectrumVis::renderSpectrumBar(bool isLowRes) {
         const float SMOOTH_ALPHA = 0.7f;
         for (uint8_t x = 0; x < bounds.width; x++) {
             highresSmoothedCols[x] = SMOOTH_ALPHA * highresSmoothedCols[x] + (1.0f - SMOOTH_ALPHA) * targetHeights[x];
+        }
+
+        // DEBUG LOG: Legnagyobb pixel részletes információi (minden frame-ben)
+        static uint32_t lastLogTime = 0;
+        if (Utils::timeHasPassed(lastLogTime, 1000)) { // 1000ms-enként
+            // Keresés: legnagyobb magnitude és legnagyobb pixel
+            uint8_t maxPixelIdx = 0;
+            uint16_t maxPixelHeight = 0;
+
+            for (uint8_t x = 0; x < bounds.width; x++) {
+                if (targetHeights[x] > maxPixelHeight) {
+                    maxPixelHeight = targetHeights[x];
+                    maxPixelIdx = x;
+                }
+            }
+
+            // Legnagyobb pixel bin index és magnitude
+            float ratio = (bounds.width > 1) ? static_cast<float>(maxPixelIdx) / (bounds.width - 1) : 0.0f;
+            uint16_t binIdx = minBin + static_cast<uint16_t>(ratio * (numBins - 1));
+            binIdx = constrain(binIdx, minBin, maxBin);
+            q15_t magnitude = q15Abs(magnitudeData[binIdx]);
+
+            float magWithGain = static_cast<float>(magnitude) * displayGain;
+            float dB = (magWithGain >= 1.0f) ? 20.0f * log10f(magWithGain / REFERENCE_MAG) : -100.0f;
+            float normalized = (dB - MIN_DB) / DB_RANGE;
+
+            UISPECTRUM_DEBUG("HIGHRES: maxPixel[%d]=%d/%d, bin=%d, mag=%d, gain=%.1f, magWithGain=%.0f, REF=%.0f, dB=%.1f, norm=%.3f\n", maxPixelIdx,
+                             maxPixelHeight, maxBarHeight, binIdx, magnitude, displayGain, magWithGain, REFERENCE_MAG, dB, normalized);
+            lastLogTime = millis();
         }
 
         // 5. Peak hold logika
@@ -2284,7 +2308,7 @@ void UICompSpectrumVis::renderCwOrRttyTuningAidWaterfall() {
 
     // --- ÚJ EGYSÉGES GAIN SZÁMÍTÁS ---
     int8_t gainCfg = this->radioMode_ == RadioMode::AM ? config.data.audioFftGainConfigAm : config.data.audioFftGainConfigFm;
-    float tuningGain = calculateDisplayGain(magnitudeData, min_bin, max_bin, isAutoGainMode(), gainCfg);
+    float tuningGain = calculateDisplayGain(cachedGainDb_, isAutoGainMode(), gainCfg);
     // --- End of Gain Calculation ---
 
     uint8_t maxwabuf_Val = 0;
@@ -2367,7 +2391,7 @@ void UICompSpectrumVis::renderSnrCurve() {
 
     // --- ÚJ EGYSÉGES GAIN SZÁMÍTÁS ---
     int8_t gainCfg = this->radioMode_ == RadioMode::AM ? config.data.audioFftGainConfigAm : config.data.audioFftGainConfigFm;
-    float snrGain = calculateDisplayGain(magnitudeData, min_bin, max_bin, isAutoGainMode(), gainCfg);
+    float snrGain = calculateDisplayGain(cachedGainDb_, isAutoGainMode(), gainCfg);
     // --- End of Gain Calculation ---
 
     const uint16_t targetHeight = static_cast<uint16_t>(graphH * GRAPH_TARGET_HEIGHT_UTILIZATION);

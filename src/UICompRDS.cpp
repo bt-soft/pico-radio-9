@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
  * -----                                                                                                               *
- * Last Modified: 2025.12.20, Saturday  10:16:52                                                                       *
+ * Last Modified: 2025.12.21, Sunday  11:34:04                                                                         *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -26,7 +26,7 @@
 #include "Si4735Manager.h"
 
 // RDS működés debug engedélyezése de csak DEBUG módban
-#define __RDS_DEBUG
+// #define __RDS_DEBUG
 #if defined(__DEBUG) && defined(__RDS_DEBUG)
 #define RDS_DEBUG(fmt, ...) DEBUG(fmt __VA_OPT__(, ) __VA_ARGS__)
 #else
@@ -40,7 +40,8 @@
  * @brief UICompRDS konstruktor
  */
 UICompRDS::UICompRDS(const Rect &bounds)
-    : UIComponent(bounds, ColorScheme::defaultScheme()), lastScrollUpdate(0), scrollSprite(nullptr), scrollOffset(0), radioTextPixelWidth(0), needsScrolling(false), scrollSpriteCreated(false) {
+    : UIComponent(bounds, ColorScheme::defaultScheme()), lastScrollUpdate(0), scrollSprite(nullptr), scrollOffset(0), radioTextPixelWidth(0),
+      needsScrolling(false), scrollSpriteCreated(false) {
 
     // Alapértelmezett színek beállítása
     stationNameColor = TFT_CYAN;   // Állomásnév - cián
