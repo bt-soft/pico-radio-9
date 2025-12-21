@@ -184,6 +184,39 @@ static inline uint16_t q15ToPixelHeightSqrt(q15_t magQ15, float gain, uint16_t m
 }
 
 /**
+ * Q15 magnitude -> pixel height GAUSS-LIKE COMPRESSION (SNR curve-hez)
+ * Valódi kerek csúcs alakú megjelenítés - javított gauss görbe
+ * Exponenciális falloff a nagy értékeknél, természetes kerek csúcs forma
+ */
+static inline uint16_t q15ToPixelHeightSoftCompression(q15_t magQ15, float gain, uint16_t maxHeight) {
+    float valueNormalized = q15ToFloatWithGain(magQ15, gain) / 500.0f; // 0..1+
+
+    if (valueNormalized < 0.001f) {
+        return 0;
+    }
+
+    // TELJES Újraírás: valódi kerek csúcsok, SEMMI kocka!
+    // Egyszerű logaritmikus kompresszió + smooth kerekítés
+    float gaussLike;
+
+    if (valueNormalized < 0.001f) {
+        gaussLike = 0.0f;
+    } else if (valueNormalized > 1.0f) {
+        // Nagy értékek: logaritmikus lecsökkenés (természetes kerekítés)
+        gaussLike = 1.0f - 0.3f * logf(valueNormalized);
+    } else {
+        // Normál tartomány: négyzetgyök kompresszió (smooth emelkedés)
+        gaussLike = powf(valueNormalized, 0.6f); // Enyhe kompresszió
+    }
+
+    // Normalizálás és határolás
+    gaussLike = std::min(gaussLike, 1.0f);
+
+    uint16_t height = static_cast<uint16_t>(gaussLike * maxHeight);
+    return height;
+}
+
+/**
  * Q15 magnitude -> pixel height konverzió LOGARITMIKUS (dB) skálával - OPTIMALIZÁLT
  * Szélesebb dinamikus tartomány, jobb kis jelek láthatósága
  * dB tartomány: -40dB .. +6dB (46dB széles ablak, optimális a spektrum megjelenítéshez)
@@ -1212,34 +1245,28 @@ void UICompSpectrumVis::setTuningAidType(TuningAidType type) {
         uint16_t oldMaxFreq = currentTuningAidMaxFreqHz_;
 
         if (currentTuningAidType_ == TuningAidType::CW_TUNING) {
-            // CW: Az aktuális HF sávszélesség alapján optimalizált span
+            // CW: Szélesebb span a vékonyabb megjelenítéshez
             uint16_t centerFreq = config.data.cwToneFrequencyHz;
             uint16_t hfBandwidthHz = CW_AF_BANDWIDTH_HZ; // Alapértelmezett CW sávszélesség
 
-            float cwSpanHz = std::max(600.0f, hfBandwidthHz / 2.0f);
+            float cwSpanHz = std::max(2000.0f, static_cast<float>(hfBandwidthHz * 2)); // Nagyobb tartomány! (1200->2000Hz minimum)
 
             currentTuningAidMinFreqHz_ = centerFreq - cwSpanHz / 2;
             currentTuningAidMaxFreqHz_ = centerFreq + cwSpanHz / 2;
 
         } else if (currentTuningAidType_ == TuningAidType::RTTY_TUNING) {
+            // RTTY: Adaptív tartomány - shift frekvenciához igazított + padding
             uint16_t f_mark = config.data.rttyMarkFrequencyHz;
             uint16_t f_space = f_mark - config.data.rttyShiftFrequencyHz;
+
+            // Mindig a mark/space között legyen a központ
             float f_center = (f_mark + f_space) / 2.0f;
-            if (config.data.rttyShiftFrequencyHz <= 200) {
-                // 8 rész: teljes sávszélesség 1kHz,
-                // A space a 3., mark az 5. jobb oldalán
-                constexpr float total_bw = 800.0f;
-                float part = total_bw / 8.0f;
-                // 3. jobb oldala: f_center - part
-                // 5. jobb oldala: f_center + part
-                currentTuningAidMinFreqHz_ = f_center - 4 * part;
-                currentTuningAidMaxFreqHz_ = f_center + 4 * part;
-            } else {
-                // 6 rész: space a 2. jobb oldalán, mark a 4. jobb oldalán
-                float part = config.data.rttyShiftFrequencyHz / 2.0f;
-                currentTuningAidMinFreqHz_ = f_center - 3 * part;
-                currentTuningAidMaxFreqHz_ = f_center + 3 * part;
-            }
+
+            // Adaptív span: shift + 1000Hz padding (500Hz mindkét oldalon)
+            float span = config.data.rttyShiftFrequencyHz + 1000.0f;
+
+            currentTuningAidMinFreqHz_ = f_center - span / 2.0f;
+            currentTuningAidMaxFreqHz_ = f_center + span / 2.0f;
 
         } else {
             // OFF_DECODER: alapértelmezett tartomány
@@ -2319,8 +2346,8 @@ void UICompSpectrumVis::renderCwOrRttyTuningAidSnrCurve() {
         float exact_bin = min_bin + ratio * (num_bins - 1);
         q15_t mag_q15 = static_cast<q15_t>(std::round(q15InterpolateFloat(magnitudeData, exact_bin, min_bin, max_bin)));
 
-        // ÚJ BIZTONSÁGOS PIXEL MAGASSÁG SZÁMÍTÁS
-        uint16_t height = q15ToPixelHeightSafe(mag_q15, snrGain, targetHeight);
+        // ÚJ SOFT COMPRESSION PIXEL MAGASSÁG SZÁMÍTÁS (görbített tetejű)
+        uint16_t height = q15ToPixelHeightSoftCompression(mag_q15, snrGain, targetHeight);
         pixelHeights[x] = height;
 
         if (height > maxPixelHeight) {
@@ -2333,10 +2360,14 @@ void UICompSpectrumVis::renderCwOrRttyTuningAidSnrCurve() {
         updateMagnitudeBasedGain(static_cast<float>(maxPixelHeight));
     }
 
-    // Görbe rajzolása
+    // Görbe rajzolása (soft compression - természetes csúcsok)
     int16_t prevX = -1, prevY = -1;
     for (uint16_t x = 0; x < bounds.width; x++) {
-        uint16_t height = constrain(pixelHeights[x], 0, graphH - 1);
+        uint16_t height = pixelHeights[x]; // Nincs hard clipping!
+        // Csak a képernyőn kívüli értékeket korlátozzuk
+        if (height >= graphH)
+            height = graphH - 1;
+
         int16_t y = graphH - 1 - height; // y koordináta: graphH-1 az alja, 0 a teteje
 
         if (prevX != -1) {
