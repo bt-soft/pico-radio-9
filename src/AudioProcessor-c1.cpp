@@ -403,26 +403,51 @@ bool AudioProcessorC1::processFixedPointFFT(SharedData &sharedData) {
     // Az imaginárius részek nullák
     // FONTOS: A rawSampleData ~11-bites előjeles (-2048..+2047),
     // de a Q15 formátum 15-bites (-32768..+32767)!
-    // Kompromisszum: kis jelek láthatók, de nagy jelek ne saturáljanak
-    // 400mVpp = 496 LSB → 496*32 = 15872 (biztos belefér Q15-be)
-    // 20mVpp = 25 LSB → 25*32 = 800 (FFT után is látszik)
-    constexpr int inputScaleShift = 5; // 11 bit -> 15 bit (x32)
 
-    // DEBUG: input értékek monitorozása
+    // DEBUG: input értékek előzetes elemzése adaptív skálázáshoz
     q15_t inputMax = 0, inputMin = 32767;
     int16_t rawMax = -2048, rawMin = 2047;
-    int saturatedInputCount = 0;
+
+    // Első pass: jel tartomány meghatározása
     for (uint16_t i = 0; i < N; ++i) {
         int16_t raw = sharedData.rawSampleData[i];
         if (raw > rawMax)
             rawMax = raw;
         if (raw < rawMin)
             rawMin = raw;
+    }
 
-        // KRITIKUS: SATURÁCIÓVAL skálázni, különben wraparound overflow!
-        // Példa: -1045 * 32 = -33440 > -32768 (Q15 min) → wraparound → torzítás!
+    // Adaptív input skálázás a jel erősség alapján
+    // Kis jeleknél agresszívabb skálázás a jobb detektálásért
+    int16_t rawRange = rawMax - rawMin;
+    int inputScaleShift;
+
+    if (rawRange < 50) {         // Nagyon kis jel (<25mVpp)
+        inputScaleShift = 7;     // x128 - maximális érzékenység
+    } else if (rawRange < 200) { // Kis jel (<100mVpp)
+        inputScaleShift = 6;     // x64 - jó érzékenység
+    } else if (rawRange < 800) { // Közepes jel (<400mVpp)
+        inputScaleShift = 5;     // x32 - eredeti
+    } else {                     // Nagy jel (>400mVpp)
+        inputScaleShift = 4;     // x16 - saturáció védelem
+    }
+
+    // Második pass: tényleges skálázás és komplex formátumba alakítás
+    inputMax = 0;
+    inputMin = 32767; // Reset a második passhez
+    int saturatedInputCount = 0;
+    for (uint16_t i = 0; i < N; ++i) {
+        int16_t raw = sharedData.rawSampleData[i];
+
+        // KRITIKUS: SATURÁCIÓVAL skálázni + zajszűrés kis jeleknél
         int32_t scaled32 = (int32_t)raw << inputScaleShift;
         q15_t scaled = static_cast<q15_t>(__SSAT(scaled32, 16));
+
+        // Kis jelek esetén egyszerű zajszűrés (1 LSB threshold)
+        if (inputScaleShift >= 6 && abs(raw) <= 1) {
+            scaled = 0; // Kis DC ingadozások nullázása
+        }
+
         if (scaled32 != scaled)
             saturatedInputCount++;
 
@@ -434,12 +459,27 @@ bool AudioProcessorC1::processFixedPointFFT(SharedData &sharedData) {
             inputMin = abs(scaled);
     }
 
-    // --- 2. LÉPÉS: Hanning ablak alkalmazása ---
-    // Q15 * Q15 szorzás: az eredmény Q30, amit 15 bittel jobbra tolunk -> Q15
+    // --- 2. LÉPÉS: Adaptív Hanning ablak alkalmazása ---
+    // Kis jeleknél csökkentett ablak a jobb érzékenységért
     q15_t windowedMax = 0;
     int saturatedCount = 0;
+
+    // Adaptív ablak erősség a skálázás alapján
+    bool useReducedWindow = (inputScaleShift >= 6); // x64+ skáláznál csökkentett ablak
+
     for (uint16_t i = 0; i < N; ++i) {
-        q31_t windowed = ((q31_t)fftInput_q15[2 * i] * (q31_t)hanningWindow_q15[i]) >> 15;
+        q31_t windowed;
+
+        if (useReducedWindow) {
+            // 80% Hanning + 20% eredeti - jobb kis jel detektálás
+            q31_t hanningPart = ((q31_t)fftInput_q15[2 * i] * (q31_t)hanningWindow_q15[i]) >> 15;
+            q31_t originalPart = (q31_t)fftInput_q15[2 * i] / 5; // 20% eredeti
+            windowed = (hanningPart * 4 + originalPart) / 5;
+        } else {
+            // Teljes Hanning ablak normál jeleknél
+            windowed = ((q31_t)fftInput_q15[2 * i] * (q31_t)hanningWindow_q15[i]) >> 15;
+        }
+
         q15_t saturated = static_cast<q15_t>(__SSAT(windowed, 16)); // Saturáció
         if (windowed != saturated)
             saturatedCount++;
@@ -508,52 +548,46 @@ bool AudioProcessorC1::processFixedPointFFT(SharedData &sharedData) {
         }
     }
 
-    // #ifdef __ADPROC_DEBUG
+#ifdef __ADPROC_DEBUG
 
-    //     // Debug kimenet ritkítva (5 másodpercenként)
-    //     static uint32_t lastDebugTime = 0;
-    //     if (Utils::timeHasPassed(lastDebugTime, 5000)) {
-    //         lastDebugTime = millis();
+    // Debug kimenet ritkítva (5 másodpercenként)
+    static uint32_t lastDebugTime = 0;
+    if (Utils::timeHasPassed(lastDebugTime, 5000)) {
+        lastDebugTime = millis();
 
-    //         // // Pipeline debug adatok
-    //         // Serial.printf("AudioProc-c1 PIPELINE DEBUG:\n");
-    //         // Serial.printf("  RAW ADC: min=%d, max=%d (%.1f mVpp)\n", rawMin, rawMax, (rawMax - rawMin) * ADC_LSB_VOLTAGE_MV);
-    //         // Serial.printf("  SCALED (x32): min=%d, max=%d, saturated=%d samples\n", inputMin, inputMax, saturatedInputCount);
-    //         // Serial.printf("  WINDOWED: max=%d, saturated=%d samples\n", windowedMax, saturatedCount);
-    //         // Serial.printf("  FFT OUT: maxRe=%d, maxIm=%d\n", fftMaxRe, fftMaxIm);
-    //         // Serial.printf("  MAGNITUDE: maxBefore=%d, maxAfter=%d\n", magMaxBefore, maxValue);
+        // Pipeline debug adatok
+        Serial.printf("AudioProc-c1 PIPELINE DEBUG:\n");
+        Serial.printf("  RAW ADC: min=%d, max=%d (%.1f mVpp)\n", rawMin, rawMax, (rawMax - rawMin) * ADC_LSB_VOLTAGE_MV);
+        Serial.printf("  SCALED (x%d): min=%d, max=%d, saturated=%d samples\n", 1 << inputScaleShift, inputMin, inputMax, saturatedInputCount);
+        Serial.printf("  WINDOWED: max=%d, saturated=%d samples, mode=%s\n", windowedMax, saturatedCount, useReducedWindow ? "REDUCED" : "FULL");
+        Serial.printf("  FFT OUT: maxRe=%d, maxIm=%d\n", fftMaxRe, fftMaxIm);
+        Serial.printf("  MAGNITUDE: maxBefore=%d, maxAfter=%d\n", magMaxBefore, maxValue);
 
-    //         // Domináns frekvencia számítása (Hz)
-    //         // A domináns frekvencia amplitúdója Q15 formátumban a maxValue változóban van
-    //         // f = bin_index * (Fs / N) = bin_index * binWidth
-    //         uint32_t dominantFrequency = static_cast<uint32_t>(maxIndex * currentBinWidthHz); // Domináns frekvencia Hz-ben
+        // Domináns frekvencia számítása (Hz)
+        // A domináns frekvencia amplitúdója Q15 formátumban a maxValue változóban van
+        // f = bin_index * (Fs / N) = bin_index * binWidth
+        uint32_t dominantFrequency = static_cast<uint32_t>(maxIndex * currentBinWidthHz); // Domináns frekvencia Hz-ben
 
-    //         // Vpp számítás a domináns frekvenciához
-    //         //
-    //         // A magnitude értékek közvetlenül az arm_cmplx_mag_q15 kimenetéből jönnek.
-    //         // Az input 5 bittel fel lett skálázva (inputScaleShift = 5 = x32).
-    //         //
-    //         // Vissza kell skálázni az input skálázással (5 bit = 32x)
-    //         float magnitudeAdc = (float)maxValue / 32.0f;
+        // Vpp számítás a domináns frekvenciához
+        //
+        // A magnitude értékek közvetlenül az arm_cmplx_mag_q15 kimenetéből jönnek.
+        // Adaptív skálázás visszaállítása
+        float magnitudeAdc = (float)maxValue / (float)(1 << inputScaleShift);
 
-    //         // Hanning ablak és FFT kompenzáció
-    //         // Empirikus kalibráció:
-    //         //   370mVpp → mér 358mVpp (jó)
-    //         //   210mVpp → mér 215mVpp (jó)
-    //         //   380mVpp → mér 266mVpp (alulmér ~30%, de 2.85x kompenzáció saturációt okoz!)
-    //         // Kompromisszum: 2.0x tartjuk, 350mVpp felett alulmér
-    //         float peakAdc = magnitudeAdc * 2.0f;
+        // Adaptív kompenzáció a skálázás és ablak alapján
+        float compensationFactor = useReducedWindow ? 1.8f : 2.0f;
+        float peakAdc = magnitudeAdc * compensationFactor;
 
-    //         // ADC egységből mV-ba (1 LSB = 3300mV / 4096 ≈ 0.8057 mV)
-    //         float peakMv = peakAdc * ADC_LSB_VOLTAGE_MV;
+        // ADC egységből mV-ba (1 LSB = 3300mV / 4096 ≈ 0.8057 mV)
+        float peakMv = peakAdc * ADC_LSB_VOLTAGE_MV;
 
-    //         // Peak-to-peak (Vpp = 2 * Vpeak)
-    //         float vppMv = peakMv * 2.0f;
+        // Peak-to-peak (Vpp = 2 * Vpeak)
+        float vppMv = peakMv * 2.0f;
 
-    //         ADPROC_DEBUG("AudioProc-c1: FFT kész - domFreq=%u Hz, amp=%d (%.1f mVpp), bins=%d, N=%d\n", dominantFrequency, maxValue, vppMv,
-    //                      sharedData.fftSpectrumSize, N);
-    //     }
-    // #endif
+        ADPROC_DEBUG("AudioProc-c1: FFT kész - domFreq=%u Hz, amp=%d (%.1f mVpp), bins=%d, N=%d\n", dominantFrequency, maxValue, vppMv,
+                     sharedData.fftSpectrumSize, N);
+    }
+#endif
 
     return true;
 }
