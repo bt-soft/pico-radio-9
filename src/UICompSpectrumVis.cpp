@@ -1655,9 +1655,16 @@ void UICompSpectrumVis::renderSpectrumBar(bool isLowRes) {
     const uint16_t maxBarHeight = static_cast<uint16_t>(graphH * GRAPH_TARGET_HEIGHT_UTILIZATION);
 
     // ===== TIMING KONSTANSOK =====
-    const uint8_t BAR_FALL_SPEED = 3;    // Bar esési sebesség (pixel/frame)
-    const uint8_t PEAK_HOLD_FRAMES = 25; // Peak tartás ideje (~1 sec @ 25fps)
-    const uint8_t PEAK_FALL_SPEED = 1;   // Peak esési sebesség (pixel/frame)
+    constexpr uint8_t BAR_FALL_SPEED = 3;    // Bar esési sebesség (pixel/frame)
+    constexpr uint8_t PEAK_HOLD_FRAMES = 25; // Peak tartás ideje (~1 sec @ 25fps)
+    constexpr uint8_t PEAK_FALL_SPEED = 1;   // Peak esési sebesség (pixel/frame)
+
+    // REFERENCIA PONT: 2000 magnitude = ~400mVpp = 0dB = 100% magasság
+    // Várható eredmények 30 dB dinamikával:
+    //   50mVpp (mag=250) -> 250/2000 = 0.125 -> -18dB -> 0.40 = 40%
+    //   200mVpp (mag=1000) -> 1000/2000 = 0.5 -> -6dB -> 0.80 = 80%
+    //   430mVpp (mag=2150) -> 2150/2000 = 1.075 -> +0.6dB -> 1.0 = 100%
+    constexpr float FFT_MAGNITUDE_REFERENCE_POINT = 2000.0f;
 
     if (isLowRes) {
         // ╔═══════════════════════════════════════════════════════════════════╗
@@ -1702,7 +1709,7 @@ void UICompSpectrumVis::renderSpectrumBar(bool isLowRes) {
         //   50mVpp (mag=250) -> 250/2000 = 0.125 -> -18dB -> 0.40 = 40%
         //   200mVpp (mag=1000) -> 1000/2000 = 0.5 -> -6dB -> 0.80 = 80%
         //   430mVpp (mag=2150) -> 2150/2000 = 1.075 -> +0.6dB -> 1.0 = 100%
-        const float REFERENCE_MAG = displayGain * 2000.0f;
+        const float REFERENCE_MAG = displayGain * FFT_MAGNITUDE_REFERENCE_POINT;
 
         uint16_t targetHeights[LOW_RES_BANDS] = {0};
 
@@ -1729,12 +1736,12 @@ void UICompSpectrumVis::renderSpectrumBar(bool isLowRes) {
 
                 targetHeights[i] = static_cast<uint16_t>(normalized * maxBarHeight);
 
-                // DEBUG LOG: 1kHz sáv részletes információi
+                // DEBUG LOG: 1kHz sáv részletes információi 1mp-enként
                 if (i == band1kHz) {
                     static uint32_t lastLogTime = 0;
                     if (Utils::timeHasPassed(lastLogTime, 1000)) {
-                        Serial.printf("BAR[%d @ 1kHz]: mag=%d, gain=%.1f, magWithGain=%.0f, REF=%.0f, dB=%.1f, norm=%.3f, height=%d/%d\n", i, bandMaxValues[i],
-                                      displayGain, magWithGain, REFERENCE_MAG, dB, normalized, targetHeights[i], maxBarHeight);
+                        UISPECTRUM_DEBUG("BAR[%d @ 1kHz]: mag=%d, gain=%.1f, magWithGain=%.0f, REF=%.0f, dB=%.1f, norm=%.3f, height=%d/%d\n", i,
+                                         bandMaxValues[i], displayGain, magWithGain, REFERENCE_MAG, dB, normalized, targetHeights[i], maxBarHeight);
                         lastLogTime = millis();
                     }
                 }
@@ -1803,6 +1810,8 @@ void UICompSpectrumVis::renderSpectrumBar(bool isLowRes) {
         // ║  HIGH RESOLUTION MODE - FRAME-ALAPÚ NORMALIZÁLÁS                  ║
         // ╚═══════════════════════════════════════════════════════════════════╝
 
+        const float HIGHRES_BAR_AMPLIFIER_BOOST = 10.0f; // HighRes mód érzékenység növelése
+
         // Smooth buffer inicializálás
         if (highresSmoothedCols.size() != bounds.width) {
             highresSmoothedCols.assign(bounds.width, 0.0f);
@@ -1818,12 +1827,17 @@ void UICompSpectrumVis::renderSpectrumBar(bool isLowRes) {
 
         // 1. FIX GAIN számítás
         int8_t gainCfg = (radioMode_ == RadioMode::AM) ? config.data.audioFftGainConfigAm : config.data.audioFftGainConfigFm;
-        float displayGain = calculateDisplayGain(magnitudeData, minBin, maxBin, isAutoGainMode(), gainCfg);
+        float displayGainBase = calculateDisplayGain(magnitudeData, minBin, maxBin, isAutoGainMode(), gainCfg);
 
         // 2. FFT bin -> pixel mapping és LOGARITMIKUS (dB) SKÁLÁZÁS
         const float DB_RANGE = 30.0f; // 30 dB dinamika
         const float MIN_DB = -DB_RANGE;
-        const float REFERENCE_MAG = displayGain * 2000.0f;
+
+        // HIGHRES: Referencia az ALAP gain-nel (boost nélkül), hogy a boost tényleg hasson
+        const float REFERENCE_MAG = displayGainBase * FFT_MAGNITUDE_REFERENCE_POINT;
+
+        // HIGHRES BOOST: Csak a magnitude szorzás, referencia NEM változik!
+        const float displayGain = displayGainBase * HIGHRES_BAR_AMPLIFIER_BOOST;
 
         std::vector<uint16_t> targetHeights(bounds.width, 0);
         for (uint8_t x = 0; x < bounds.width; x++) {
