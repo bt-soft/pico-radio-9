@@ -35,7 +35,7 @@ extern DecodedData decodedData;
 bool g_wefax_debug_reset = false;
 
 // WEFAX működés debug engedélyezése de csak DEBUG módban
-#define __WEFAX_DEBUG
+// #define __WEFAX_DEBUG  // KIKAPCSOLVA - túl sok log
 #if defined(__DEBUG) && defined(__WEFAX_DEBUG)
 #define WEFAX_DEBUG(fmt, ...) DEBUG(fmt __VA_OPT__(, ) __VA_ARGS__)
 #else
@@ -649,8 +649,9 @@ void DecoderWeFax_C1::decode_phasing(int gray_value) {
         bool valid_ratios = (white_ratio >= 0.001f) && (black_ratio >= 0.10f);                                   // 0.1% fehér, 10% fekete
         bool valid_duration = (curr_phase_len >= 0.20f * sample_rate) && (curr_phase_len <= 1.0f * sample_rate); // 200ms-1s
 
-        WEFAX_DEBUG("WeFax-C1: Phasing ellenőrzés: %.1fs | F:%.1f%% Sz:%.1f%% | Érvényes: arány=%s idő=%s\n", curr_phase_len / sample_rate, white_ratio * 100,
-                    black_ratio * 100, valid_ratios ? "✓" : "✗", valid_duration ? "✓" : "✗");
+        // WEFAX_DEBUG("WeFax-C1: Phasing ellenőrzés: %.1fs | F:%.1f%% Sz:%.1f%% | Érvényes: arány=%s idő=%s\n", curr_phase_len / sample_rate, white_ratio *
+        // 100,
+        //             black_ratio * 100, valid_ratios ? "✓" : "✗", valid_duration ? "✓" : "✗");
 
         if (valid_ratios && valid_duration) {
             // ÉRVÉNYES PHASING SOR detektálva!
@@ -688,7 +689,7 @@ void DecoderWeFax_C1::decode_phasing(int gray_value) {
 
             } else {
                 // Outlier detektálva - NEM számítjuk bele az átlagba!
-                WEFAX_DEBUG("WeFax-C1: 🔴 Hibás szinkron (%.1f LPM - érvénytelen, 90-300 tartományon kívül)\n", tmp_lpm);
+                // WEFAX_DEBUG("WeFax-C1: 🔴 Hibás szinkron (%.1f LPM - érvénytelen, 90-300 tartományon kívül)\n", tmp_lpm);
             }
 
             // Folyamatosan frissítjük az LPM-et minden phasing sornál
