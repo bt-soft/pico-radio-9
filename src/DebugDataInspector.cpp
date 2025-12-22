@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
  * -----                                                                                                               *
- * Last Modified: 2025.11.16, Sunday  09:40:43                                                                         *
+ * Last Modified: 2025.12.22, Monday  10:20:22                                                                         *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -84,12 +84,16 @@ void DebugDataInspector::printConfigData(const Config_t &configData) {
     DEBUG("  screenSaverTimeoutMinutes: %u\n", configData.screenSaverTimeoutMinutes);
     DEBUG("  beeperEnabled: %s\n", configData.beeperEnabled ? "true" : "false");
     DEBUG("  rotaryAccelerationEnabled: %s\n", configData.rotaryAccelerationEnabled ? "true" : "false");
+
+    DEBUG("  audioModeAM: %u\n", configData.audioModeAM);
     if (configData.audioFftGainConfigAm == SPECTRUM_GAIN_MODE_AUTO) {
         DEBUG("  audioFftGainConfigAm: Auto Gain\n");
     } else {
         float amDb = static_cast<float>(configData.audioFftGainConfigAm);
         DEBUG("  audioFftGainConfigAm: %.1f dB (linear: %.3fx)\n", amDb, powf(10.0f, amDb / 20.0f));
     }
+
+    DEBUG("  audioModeFM: %u\n", configData.audioModeFM);
     if (configData.audioFftGainConfigFm == SPECTRUM_GAIN_MODE_AUTO) {
         DEBUG("  audioFftGainConfigFm: Auto Gain\n");
     } else {
