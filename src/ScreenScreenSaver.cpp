@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
  * -----                                                                                                               *
- * Last Modified: 2025.11.16, Sunday  09:43:23                                                                         *
+ * Last Modified: 2025.12.22, Monday  11:16:51                                                                         *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -247,7 +247,7 @@ void ScreenScreenSaver::drawBatteryInfo() {
     float vSupply = PicoSensorUtils::readVBusExternal();
     uint8_t bat_percent = map(static_cast<int>(vSupply * 100), MIN_BATTERY_VOLTAGE, MAX_BATTERY_VOLTAGE, 0, 100);
     bat_percent = constrain(bat_percent, 0, 100); // Akkumulátor szín meghatározása töltöttség alapján
-    uint16_t colorBatt = TFT_DARKCYAN;
+    uint16_t colorBatt = UIColorPalette::TFT_COLOR_FULL_BATTERY;
     if (bat_percent < 5) {
         colorBatt = UIColorPalette::TFT_COLOR_DRAINED_BATTERY; // Lemerült: vörös
     } else if (bat_percent < 15) {
@@ -261,8 +261,9 @@ void ScreenScreenSaver::drawBatteryInfo() {
     // Akkumulátor szimbólum rajzolása
     tft.fillRect(batteryX, batteryY, BATTERY_RECT_W, BATTERY_RECT_H, TFT_BLACK); // Terület törlése
     tft.drawRect(batteryX, batteryY, BATTERY_RECT_W, BATTERY_RECT_H, colorBatt);
-    tft.drawRect(batteryX + BATTERY_RECT_W, batteryY + (BATTERY_RECT_H - BATTERY_NUB_H) / 2, BATTERY_NUB_W, BATTERY_NUB_H,
-                 colorBatt); // Töltöttségi százalék szöveg kiírása az akkumulátor belsejében
+    tft.drawRect(batteryX + BATTERY_RECT_W, batteryY + (BATTERY_RECT_H - BATTERY_NUB_H) / 2, BATTERY_NUB_W, BATTERY_NUB_H, colorBatt);
+
+    // Töltöttségi százalék szöveg kiírása az akkumulátor belsejében
     tft.setFreeFont();
     tft.setTextSize(1);
     tft.setTextColor(colorBatt, TFT_BLACK); // Fekete háttér az akkumulátor belsejében
@@ -284,12 +285,14 @@ bool ScreenScreenSaver::handleTouch(const TouchEvent &event) {
         return true;
     }
     return false;
-} /**
-   * @brief Forgó encoder esemény kezelése
-   * @param event Forgó encoder esemény adatok
-   * @return true ha kezelte az eseményt (mindig), false egyébként
-   * @details Bármilyen forgó encoder esemény (forgatás vagy kattintás) ébreszti a képernyővédőt
-   */
+}
+
+/**
+ * @brief Forgó encoder esemény kezelése
+ * @param event Forgó encoder esemény adatok
+ * @return true ha kezelte az eseményt (mindig), false egyébként
+ * @details Bármilyen forgó encoder esemény (forgatás vagy kattintás) ébreszti a képernyővédőt
+ */
 bool ScreenScreenSaver::handleRotary(const RotaryEvent &event) {
     // Bármilyen forgó encoder esemény (forgatás vagy kattintás) ébresztő hatású
     if (getScreenManager()) {

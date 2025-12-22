@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
  * -----                                                                                                               *
- * Last Modified: 2025.11.16, Sunday  09:53:18                                                                         *
+ * Last Modified: 2025.12.22, Monday  11:12:12                                                                         *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -80,7 +80,8 @@ struct ButtonColorScheme : public ColorScheme {
     ButtonColorScheme() : ColorScheme(ColorScheme::defaultScheme()) {}
 
     // Konstruktor az alap séma és LED színek megadásával
-    ButtonColorScheme(const ColorScheme &baseColorScheme, uint16_t colorOn, uint16_t colorOff) : ColorScheme(baseColorScheme), ledOnColor(colorOn), ledOffColor(colorOff) {}
+    ButtonColorScheme(const ColorScheme &baseColorScheme, uint16_t colorOn, uint16_t colorOff)
+        : ColorScheme(baseColorScheme), ledOnColor(colorOn), ledOffColor(colorOff) {}
 };
 
 /**
@@ -141,8 +142,11 @@ class UIColorPalette {
     static constexpr uint16_t SCREEN_BORDER = TFT_WHITE;
 
     // === Batterry szimbólum színek ===
-    static constexpr uint16_t TFT_COLOR_DRAINED_BATTERY = TFT_COLOR(248, 252, 0);
-    static constexpr uint16_t TFT_COLOR_SUBMERSIBLE_BATTERY = TFT_ORANGE; // === FREKVENCIA KIJELZŐ SZÍNEK ===
+    static constexpr uint16_t TFT_COLOR_FULL_BATTERY = TFT_DARKGREEN;             // Teljesen feltöltött: zöld  //TFT_DARKCYAN;
+    static constexpr uint16_t TFT_COLOR_DRAINED_BATTERY = TFT_COLOR(248, 252, 0); // Lemerült: vörös
+    static constexpr uint16_t TFT_COLOR_SUBMERSIBLE_BATTERY = TFT_ORANGE;         // Alacsony: narancssárga
+
+    // === FREKVENCIA KIJELZŐ SZÍNEK ===
 
     // Normál (SSB/CW) mód színei
     static constexpr uint16_t FREQ_NORMAL_ACTIVE = TFT_GOLD;                // Aktív számjegyek színe
