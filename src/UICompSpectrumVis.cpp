@@ -2149,6 +2149,9 @@ void UICompSpectrumVis::renderEnvelope() {
  */
 void UICompSpectrumVis::renderSpectrumBarWithWaterfall() {
 
+    // Peak hold engedélyezése
+    // #define BARWATERFALL_ENABLE_PEAK_HOLD
+
     // Helper lambda függvény a bar területének kirajzolásához (DRY principle)
     auto drawBarArea = [this](uint16_t barHeight, const std::vector<uint16_t> &hiResPeaks) {
         sprite_->fillRect(0, 0, bounds.width, barHeight, TFT_BLACK);
@@ -2162,11 +2165,15 @@ void UICompSpectrumVis::renderSpectrumBarWithWaterfall() {
                 sprite_->drawFastVLine(x, yStart, height, TFT_GREEN);
             }
 
-            // Peak pixel (világosabb zöld)
+#ifdef BARWATERFALL_ENABLE_PEAK_HOLD
+            // Peak pixel (világosabb zöld) - csak ha engedélyezve
             if (hiResPeaks[x] > 1) {
                 uint16_t yPeak = barHeight - hiResPeaks[x];
                 sprite_->drawPixel(x, yPeak, TFT_GREENYELLOW);
             }
+#else
+            (void)hiResPeaks; // Figyelmeztetés elkerülése ha nem használjuk
+#endif
         }
     };
 
@@ -2212,13 +2219,18 @@ void UICompSpectrumVis::renderSpectrumBarWithWaterfall() {
         highresSmoothedCols.assign(bounds.width, 0.0f);
     }
 
-    // Peak hold bufferek (közös a highres mode-dal)
+#ifdef BARWATERFALL_ENABLE_PEAK_HOLD
+    // Peak hold bufferek (közös a highres mode-dal) - csak ha engedélyezve
     static std::vector<uint16_t> hiResPeaks;
     static std::vector<uint8_t> hiResPeakHoldCounters;
     if (hiResPeaks.size() != bounds.width) {
         hiResPeaks.assign(bounds.width, 0);
         hiResPeakHoldCounters.assign(bounds.width, 0);
     }
+#else
+    // Üres peak vector ha le van tiltva (csak hogy a drawBarArea ne hibázzon)
+    static std::vector<uint16_t> hiResPeaks;
+#endif
 
     // 1. Target magasságok kiszámítása (nyers FFT adatokból)
     std::vector<uint16_t> targetHeights(bounds.width, 0);
@@ -2236,7 +2248,8 @@ void UICompSpectrumVis::renderSpectrumBarWithWaterfall() {
         highresSmoothedCols[x] = SMOOTH_ALPHA * highresSmoothedCols[x] + (1.0f - SMOOTH_ALPHA) * targetHeights[x];
     }
 
-    // 3. Peak hold logika (közös a highres mode-dal)
+#ifdef BARWATERFALL_ENABLE_PEAK_HOLD
+    // 3. Peak hold logika (közös a highres mode-dal) - csak ha engedélyezve
     const uint8_t PEAK_HOLD_FRAMES = 30; // Peak tartás ideje
     const uint8_t PEAK_FALL_SPEED = 1;   // Peak esési sebesség
     static uint8_t hiResPeakFallTimer = 0;
@@ -2256,6 +2269,7 @@ void UICompSpectrumVis::renderSpectrumBarWithWaterfall() {
             }
         }
     }
+#endif
 
     // 4. Bar rajzolása simított értékekkel
     drawBarArea(barHeight, hiResPeaks);
