@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
  * -----                                                                                                               *
- * Last Modified: 2025.12.22, Monday  12:39:57                                                                         *
+ * Last Modified: 2025.12.22, Monday  12:45:36                                                                         *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -288,9 +288,7 @@ void ScreenScreenSaver::drawBatteryInfo() {
  */
 bool ScreenScreenSaver::handleTouch(const TouchEvent &event) {
     if (event.pressed) {
-        if (getScreenManager()) {
-            getScreenManager()->goBack(); // Visszatérés az előző képernyőre
-        }
+        getScreenManager()->goBack(); // Visszatérés az előző képernyőre
         return true;
     }
     return false;
@@ -304,9 +302,7 @@ bool ScreenScreenSaver::handleTouch(const TouchEvent &event) {
  */
 bool ScreenScreenSaver::handleRotary(const RotaryEvent &event) {
     // Bármilyen forgó encoder esemény (forgatás vagy kattintás) ébresztő hatású
-    if (getScreenManager()) {
-        getScreenManager()->goBack(); // Visszatérés az előző képernyőre
-    }
+    getScreenManager()->goBack(); // Visszatérés az előző képernyőre
     return true;
 }
 
