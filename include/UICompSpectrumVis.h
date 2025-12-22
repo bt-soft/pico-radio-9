@@ -311,6 +311,7 @@ class UICompSpectrumVis : public UIComponent {
      * @brief Segéd függvények
      */
     uint16_t valueToWaterfallColor(float val, float min_val, float max_val, byte colorProfileIndex);
+    uint16_t valueToWaterfallColor(uint8_t val, byte colorProfileIndex); // Overload: egyszerűsített 0-255 verzió
     uint16_t getGraphHeight() const;
     uint8_t getIndicatorHeight() const;
     uint16_t getEffectiveHeight() const;

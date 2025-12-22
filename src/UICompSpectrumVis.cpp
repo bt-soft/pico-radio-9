@@ -1228,6 +1228,23 @@ uint16_t UICompSpectrumVis::valueToWaterfallColor(float val, float min_val, floa
 }
 
 /**
+ * @brief Egyszerűsített waterfall szín konverzió 0-255 értékhez (uint8_t)
+ * @param val Intenzitás érték (0-255)
+ * @param colorProfileIndex Színprofil index (0 vagy 1)
+ * @return RGB565 színkód
+ */
+uint16_t UICompSpectrumVis::valueToWaterfallColor(uint8_t val, byte colorProfileIndex) {
+    const uint16_t *colors = (colorProfileIndex == 0) ? FftDisplayConstants::waterFallColors_0 : FftDisplayConstants::waterFallColors_1;
+    constexpr uint8_t color_size = 16;
+
+    // Egyszerű lineáris mapping: 0-255 → 0-15
+    uint8_t index = (val * (color_size - 1)) / 255;
+    index = constrain(index, 0, color_size - 1);
+
+    return colors[index];
+}
+
+/**
  * @brief Beállítja a hangolási segéd típusát (CW vagy RTTY).
  * @param type A beállítandó TuningAidType.
  * @note A setFftParametersForDisplayMode() hívja meg ezt a függvényt a hangolási segéd típusának beállítására.
@@ -2131,6 +2148,7 @@ void UICompSpectrumVis::renderEnvelope() {
  * A két megjelenítés frekvenciában illeszkedik egymáshoz
  */
 void UICompSpectrumVis::renderSpectrumBarWithWaterfall() {
+
     // Helper lambda függvény a bar területének kirajzolásához (DRY principle)
     auto drawBarArea = [this](uint16_t barHeight, const std::vector<uint16_t> &hiResPeaks) {
         sprite_->fillRect(0, 0, bounds.width, barHeight, TFT_BLACK);
@@ -2180,11 +2198,13 @@ void UICompSpectrumVis::renderSpectrumBarWithWaterfall() {
 
     // Bar baseline erősítés - jelentősen csökkentve hogy ne ugorjanak max magasságra
     // A displayGain már tartalmaz automatikus erősítést, így csak enyhe korrekcióra van szükség
-    float barGain = displayGain * 0.0008f; // Kb -62dB, sokkal lágyabb mint a HIGHRES_BASELINE_GAIN_DB
+    const float barGain = displayGain * 0.0008f; // Kb -62dB, sokkal lágyabb mint a HIGHRES_BASELINE_GAIN_DB
 
-    // Waterfall baseline erősítés
-    float waterfallBaselineMultiplier = powf(10.0f, WATERFALL_BASELINE_GAIN_DB / 20.0f);
-    float waterfallGain = displayGain * waterfallBaselineMultiplier * 2.5f; // Extra erősítés a waterfall-hoz
+    // Waterfall gain számítás - TELJESEN FÜGGETLEN a bar gain-től!
+    // Cél: magQ15 értékek (tipikusan 100-600) → 0-255 tartomány
+    // Ha átlagos maximum ~600, akkor 255/600 ≈ 0.42 kéne
+    // De legyen dinamikus tartomány is, ezért kissebb érték: ~0.3-0.5
+    constexpr float waterfallGain = 0.4f; // Egyszerű konstans érték, jó dinamikai tartomány
 
     // ===== HIGH-RES BAR RAJZOLÁSA (FELSŐ RÉSZ) - TEMPORAL SMOOTHING =====
     // Ugyanazokat a buffereket használjuk mint a highres mode (memória takarékosság)
@@ -2264,12 +2284,12 @@ void UICompSpectrumVis::renderSpectrumBarWithWaterfall() {
         float magFloat = static_cast<float>(q15Abs(magQ15)) * waterfallGain;
         uint8_t val = static_cast<uint8_t>(constrain(static_cast<int>(magFloat), 0, 255));
 
-        if (val > maxWaterfallVal)
+        if (val > maxWaterfallVal) {
             maxWaterfallVal = val;
+        }
 
-        // Pixel színének kiszámítása és kirajzolása
-        // FONTOS: 100x szorzó a jobb színskálázáshoz (mint a többi waterfall-nál)
-        uint16_t color = valueToWaterfallColor(100.0f * val, 0.0f, 255.0f * 100.0f, WATERFALL_COLOR_INDEX);
+        // Pixel színének kiszámítása és kirajzolása (egyszerűsített: közvetlenül 0-255 érték)
+        uint16_t color = valueToWaterfallColor(val, WATERFALL_COLOR_INDEX);
         sprite_->drawPixel(x, waterfallStartY, color);
     }
 
