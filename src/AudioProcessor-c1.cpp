@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
  * -----                                                                                                               *
- * Last Modified: 2025.12.21, Sunday  03:04:39                                                                         *
+ * Last Modified: 2025.12.22, Monday  09:56:52                                                                         *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -545,13 +545,13 @@ bool AudioProcessorC1::processFixedPointFFT(SharedData &sharedData) {
     if (Utils::timeHasPassed(lastDebugTime, 5000)) {
         lastDebugTime = millis();
 
-        // Pipeline debug adatok
-        Serial.printf("AudioProc-c1 PIPELINE DEBUG:\n");
-        Serial.printf("  RAW ADC: min=%d, max=%d (%.1f mVpp)\n", rawMin, rawMax, (rawMax - rawMin) * ADC_LSB_VOLTAGE_MV);
-        Serial.printf("  SCALED (x128): min=%d, max=%d, saturated=%d samples\n", inputMin, inputMax, saturatedInputCount);
-        Serial.printf("  WINDOWED: max=%d, saturated=%d samples, mode=%s\n", windowedMax, saturatedCount, useReducedWindow ? "REDUCED" : "FULL");
-        Serial.printf("  FFT OUT: maxRe=%d, maxIm=%d\n", fftMaxRe, fftMaxIm);
-        Serial.printf("  MAGNITUDE: maxBefore=%d, maxAfter=%d\n", magMaxBefore, maxValue);
+        // // Pipeline debug adatok
+        // ADPROC_DEBUG("AudioProc-c1 PIPELINE DEBUG:\n");
+        // ADPROC_DEBUG("  RAW ADC: min=%d, max=%d (%.1f mVpp)\n", rawMin, rawMax, (rawMax - rawMin) * ADC_LSB_VOLTAGE_MV);
+        // ADPROC_DEBUG("  SCALED (x128): min=%d, max=%d, saturated=%d samples\n", inputMin, inputMax, saturatedInputCount);
+        // ADPROC_DEBUG("  WINDOWED: max=%d, saturated=%d samples, mode=%s\n", windowedMax, saturatedCount, useReducedWindow ? "REDUCED" : "FULL");
+        // ADPROC_DEBUG("  FFT OUT: maxRe=%d, maxIm=%d\n", fftMaxRe, fftMaxIm);
+        // ADPROC_DEBUG("  MAGNITUDE: maxBefore=%d, maxAfter=%d\n", magMaxBefore, maxValue);
 
         // Domináns frekvencia számítása (Hz)
         // A domináns frekvencia amplitúdója Q15 formátumban a maxValue változóban van

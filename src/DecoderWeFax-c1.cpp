@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
  * -----                                                                                                               *
- * Last Modified: 2025.12.02, Tuesday  05:37:35                                                                        *
+ * Last Modified: 2025.12.22, Monday  09:54:50                                                                         *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -390,7 +390,7 @@ void DecoderWeFax_C1::processSamples(const int16_t *samples, size_t count) {
         if (signal_counter > 0) {
             int signal_gray_avg = signal_gray_sum / signal_counter;
             float signal_black_ratio = (float)signal_black_count / signal_counter;
-            float signal_white_ratio = (float)signal_white_count / signal_counter;
+            //float signal_white_ratio = (float)signal_white_count / signal_counter;
             int signal_dynamic_range = signal_gray_max - signal_gray_min;
 
             // DEBUG: minden esetben kiírjuk az első 60 másodpercben

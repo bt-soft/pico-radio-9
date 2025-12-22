@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
  * -----                                                                                                               *
- * Last Modified: 2025.12.21, Sunday  04:23:26                                                                         *
+ * Last Modified: 2025.12.22, Monday  09:53:58                                                                         *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -92,9 +92,11 @@ bool DecoderCW_C1::start(const DecoderConfig &decoderConfig) {
     for (size_t i = 0; i < FREQ_SCAN_STEPS; i++) {
         scanFrequencies_[i] = targetFreq_ + FREQ_STEPS[i];
         scanCoeffs_[i] = calculateGoertzelCoeff(scanFrequencies_[i]);
+#ifdef __CW_DEBUG
         // Q15 → float debug konverzió
         float coeff_f = (float)scanCoeffs_[i] / Q15_MAX_AS_FLOAT;
         CW_DEBUG("CW-C1: Scan freq[%d] = %.1f Hz, coeff[Q15] = %d (%.4f)\n", i, scanFrequencies_[i], scanCoeffs_[i], coeff_f);
+#endif
     }
 
     currentFreqIndex_ = 4; // Kezdjük a középső frekvenciával (0 Hz offset)
@@ -399,11 +401,13 @@ void DecoderCW_C1::updateFrequencyTracking() {
                 // Stabil státusz beállítása: megtartjuk legalább STABLE_HOLD_MS-ig
                 stableFreqIndex_ = currentFreqIndex_;
                 stableHoldUntilMs_ = now + STABLE_HOLD_MS;
+#ifdef __CW_DEBUG
                 // Q15 → float debug konverzió
                 float newMag_f = (float)newMag / Q15_SCALE;
                 float curMag_f = (float)curMag / Q15_SCALE;
                 CW_DEBUG("CW-C1: Frekvencia végleges váltás: %.1f Hz (mag[Q15]=%d(%.4f), cur[Q15]=%d(%.4f))\n", //
                          scanFrequencies_[currentFreqIndex_], newMag, newMag_f, curMag, curMag_f);
+#endif
             } else {
                 CW_DEBUG("CW-C1: Frekvencia váltás elhalasztva, tartási idő alatt: %.1f Hz\n", scanFrequencies_[stableFreqIndex_]);
             }
