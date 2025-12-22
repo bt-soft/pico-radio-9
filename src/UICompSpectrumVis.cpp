@@ -2131,6 +2131,27 @@ void UICompSpectrumVis::renderEnvelope() {
  * A két megjelenítés frekvenciában illeszkedik egymáshoz
  */
 void UICompSpectrumVis::renderSpectrumBarWithWaterfall() {
+    // Helper lambda függvény a bar területének kirajzolásához (DRY principle)
+    auto drawBarArea = [this](uint16_t barHeight, const std::vector<uint16_t> &hiResPeaks) {
+        sprite_->fillRect(0, 0, bounds.width, barHeight, TFT_BLACK);
+        for (uint16_t x = 0; x < bounds.width; x++) {
+            uint16_t height = static_cast<uint16_t>(highresSmoothedCols[x] + 0.5f);
+            height = constrain(height, 0, barHeight);
+
+            // Bar oszlop (zöld)
+            if (height > 0) {
+                uint16_t yStart = barHeight - height;
+                sprite_->drawFastVLine(x, yStart, height, TFT_GREEN);
+            }
+
+            // Peak pixel (világosabb zöld)
+            if (hiResPeaks[x] > 1) {
+                uint16_t yPeak = barHeight - hiResPeaks[x];
+                sprite_->drawPixel(x, yPeak, TFT_GREENYELLOW);
+            }
+        }
+    };
+
     uint16_t graphH = getGraphHeight();
     if (!flags_.spriteCreated || bounds.width == 0 || graphH <= 0 || wabuf_.empty()) {
         return;
@@ -2166,18 +2187,17 @@ void UICompSpectrumVis::renderSpectrumBarWithWaterfall() {
     float waterfallGain = displayGain * waterfallBaselineMultiplier * 2.5f; // Extra erősítés a waterfall-hoz
 
     // ===== HIGH-RES BAR RAJZOLÁSA (FELSŐ RÉSZ) - TEMPORAL SMOOTHING =====
-    // Simítási buffer inicializálása (static, hogy megmaradjon frame-ek között)
-    static std::vector<float> barSmoothedCols;
-    if (barSmoothedCols.size() != bounds.width) {
-        barSmoothedCols.assign(bounds.width, 0.0f);
+    // Ugyanazokat a buffereket használjuk mint a highres mode (memória takarékosság)
+    if (highresSmoothedCols.size() != bounds.width) {
+        highresSmoothedCols.assign(bounds.width, 0.0f);
     }
 
-    // Peak hold bufferek
-    static std::vector<uint16_t> barPeaks;
-    static std::vector<uint8_t> barPeakHoldCounters;
-    if (barPeaks.size() != bounds.width) {
-        barPeaks.assign(bounds.width, 0);
-        barPeakHoldCounters.assign(bounds.width, 0);
+    // Peak hold bufferek (közös a highres mode-dal)
+    static std::vector<uint16_t> hiResPeaks;
+    static std::vector<uint8_t> hiResPeakHoldCounters;
+    if (hiResPeaks.size() != bounds.width) {
+        hiResPeaks.assign(bounds.width, 0);
+        hiResPeakHoldCounters.assign(bounds.width, 0);
     }
 
     // 1. Target magasságok kiszámítása (nyers FFT adatokból)
@@ -2193,48 +2213,32 @@ void UICompSpectrumVis::renderSpectrumBarWithWaterfall() {
     // 2. Temporal smoothing (IIR szűrő) - csökkenti a villogást
     const float SMOOTH_ALPHA = 0.7f; // 0=gyors, 1=lassú (0.7 = 70% régi, 30% új)
     for (uint16_t x = 0; x < bounds.width; x++) {
-        barSmoothedCols[x] = SMOOTH_ALPHA * barSmoothedCols[x] + (1.0f - SMOOTH_ALPHA) * targetHeights[x];
+        highresSmoothedCols[x] = SMOOTH_ALPHA * highresSmoothedCols[x] + (1.0f - SMOOTH_ALPHA) * targetHeights[x];
     }
 
-    // 3. Peak hold logika (mint a highres-nél)
+    // 3. Peak hold logika (közös a highres mode-dal)
     const uint8_t PEAK_HOLD_FRAMES = 30; // Peak tartás ideje
     const uint8_t PEAK_FALL_SPEED = 1;   // Peak esési sebesség
-    static uint8_t barPeakFallTimer = 0;
-    bool shouldPeakFall = (++barPeakFallTimer % 4 == 0);
+    static uint8_t hiResPeakFallTimer = 0;
+    bool shouldPeakFall = (++hiResPeakFallTimer % 4 == 0);
 
     for (uint16_t x = 0; x < bounds.width; x++) {
-        uint16_t currentHeight = static_cast<uint16_t>(barSmoothedCols[x] + 0.5f);
+        uint16_t currentHeight = static_cast<uint16_t>(highresSmoothedCols[x] + 0.5f);
 
-        if (currentHeight >= barPeaks[x]) {
-            barPeaks[x] = currentHeight;
-            barPeakHoldCounters[x] = PEAK_HOLD_FRAMES;
+        if (currentHeight >= hiResPeaks[x]) {
+            hiResPeaks[x] = currentHeight;
+            hiResPeakHoldCounters[x] = PEAK_HOLD_FRAMES;
         } else {
-            if (barPeakHoldCounters[x] > 0) {
-                barPeakHoldCounters[x]--;
-            } else if (shouldPeakFall && barPeaks[x] > 0) {
-                barPeaks[x] = (barPeaks[x] > PEAK_FALL_SPEED) ? (barPeaks[x] - PEAK_FALL_SPEED) : 0;
+            if (hiResPeakHoldCounters[x] > 0) {
+                hiResPeakHoldCounters[x]--;
+            } else if (shouldPeakFall && hiResPeaks[x] > 0) {
+                hiResPeaks[x] = (hiResPeaks[x] > PEAK_FALL_SPEED) ? (hiResPeaks[x] - PEAK_FALL_SPEED) : 0;
             }
         }
     }
 
     // 4. Bar rajzolása simított értékekkel
-    sprite_->fillRect(0, 0, bounds.width, barHeight, TFT_BLACK);
-    for (uint16_t x = 0; x < bounds.width; x++) {
-        uint16_t height = static_cast<uint16_t>(barSmoothedCols[x] + 0.5f);
-        height = constrain(height, 0, barHeight);
-
-        // Bar oszlop (zöld)
-        if (height > 0) {
-            uint16_t yStart = barHeight - height;
-            sprite_->drawFastVLine(x, yStart, height, TFT_GREEN);
-        }
-
-        // Peak pixel (világosabb zöld)
-        if (barPeaks[x] > 1) {
-            uint16_t yPeak = barHeight - barPeaks[x];
-            sprite_->drawPixel(x, yPeak, TFT_GREENYELLOW);
-        }
-    }
+    drawBarArea(barHeight, hiResPeaks);
 
     // ===== WATERFALL RAJZOLÁSA (ALSÓ RÉSZ) =====
     // Scroll művelet: az alsó rész (waterfall) 1 pixellel lefelé mozog
@@ -2245,23 +2249,7 @@ void UICompSpectrumVis::renderSpectrumBarWithWaterfall() {
     sprite_->scroll(0, 1);
 
     // Az első sort (bar területet) újra kirajzoljuk a simított értékekkel, mert a scroll elmozdította
-    sprite_->fillRect(0, 0, bounds.width, barHeight, TFT_BLACK);
-    for (uint16_t x = 0; x < bounds.width; x++) {
-        uint16_t height = static_cast<uint16_t>(barSmoothedCols[x] + 0.5f);
-        height = constrain(height, 0, barHeight);
-
-        // Bar oszlop (zöld)
-        if (height > 0) {
-            uint16_t yStart = barHeight - height;
-            sprite_->drawFastVLine(x, yStart, height, TFT_GREEN);
-        }
-
-        // Peak pixel (világosabb zöld)
-        if (barPeaks[x] > 1) {
-            uint16_t yPeak = barHeight - barPeaks[x];
-            sprite_->drawPixel(x, yPeak, TFT_GREENYELLOW);
-        }
-    }
+    drawBarArea(barHeight, hiResPeaks);
 
     // Új waterfall sor rajzolása a bar alá (waterfallStartY pozícióba)
     uint8_t maxWaterfallVal = 0;
@@ -2280,7 +2268,8 @@ void UICompSpectrumVis::renderSpectrumBarWithWaterfall() {
             maxWaterfallVal = val;
 
         // Pixel színének kiszámítása és kirajzolása
-        uint16_t color = valueToWaterfallColor(val, 0, 255, WATERFALL_COLOR_INDEX);
+        // FONTOS: 100x szorzó a jobb színskálázáshoz (mint a többi waterfall-nál)
+        uint16_t color = valueToWaterfallColor(100.0f * val, 0.0f, 255.0f * 100.0f, WATERFALL_COLOR_INDEX);
         sprite_->drawPixel(x, waterfallStartY, color);
     }
 
