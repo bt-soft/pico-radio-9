@@ -48,16 +48,17 @@ class UICompSpectrumVis : public UIComponent {
      * @brief Megjelenítési módok
      */
     enum class DisplayMode {
-        Off = 0,         //
-        SpectrumLowRes,  // 1
-        SpectrumHighRes, // 2
-        Oscilloscope,    // 3
-        Envelope,        // 4
-        Waterfall,       // 5
-        CWWaterfall,     // 6
-        CwSnrCurve,      // 7
-        RTTYWaterfall,   // 8
-        RttySnrCurve     // 9
+        Off = 0,                 //
+        SpectrumLowRes,          // 1
+        SpectrumHighRes,         // 2
+        Oscilloscope,            // 3
+        Envelope,                // 4
+        Waterfall,               // 5
+        CWWaterfall,             // 6
+        CwSnrCurve,              // 7
+        RTTYWaterfall,           // 8
+        RttySnrCurve,            // 9
+        SpectrumBarWithWaterfall // 10 - High-res bar + lefelé haladó waterfall
     };
 
     /**
@@ -255,6 +256,7 @@ class UICompSpectrumVis : public UIComponent {
     void renderEnvelope();
     void renderCwOrRttyTuningAidWaterfall();
     void renderCwOrRttyTuningAidSnrCurve();
+    void renderSpectrumBarWithWaterfall();
     void renderModeIndicator();
     void renderFrequencyRangeLabels(uint16_t minDisplayFrequencyHz, uint16_t maxDisplayFrequencyHz);
 

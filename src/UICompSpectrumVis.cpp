@@ -641,7 +641,7 @@ bool UICompSpectrumVis::isAutoGainMode() const {
  * @brief Config értékek konvertálása
  */
 UICompSpectrumVis::DisplayMode UICompSpectrumVis::configValueToDisplayMode(uint8_t configValue) {
-    if (configValue <= static_cast<uint8_t>(DisplayMode::RttySnrCurve)) {
+    if (configValue <= static_cast<uint8_t>(DisplayMode::SpectrumBarWithWaterfall)) {
         return static_cast<DisplayMode>(configValue);
     }
     return DisplayMode::Off;
@@ -777,6 +777,9 @@ void UICompSpectrumVis::draw() {
             break;
         case DisplayMode::Waterfall:
             renderWaterfall();
+            break;
+        case DisplayMode::SpectrumBarWithWaterfall:
+            renderSpectrumBarWithWaterfall();
             break;
         case DisplayMode::CWWaterfall:
         case DisplayMode::RTTYWaterfall:
@@ -974,8 +977,8 @@ void UICompSpectrumVis::cycleThroughModes() {
 
     uint8_t nextMode = static_cast<uint8_t>(currentMode_) + 1;
 
-    // Körbe járunk maximum DisplayMode::RttySnrCurve-ig
-    if (nextMode > static_cast<uint8_t>(DisplayMode::RttySnrCurve)) {
+    // Körbe járunk maximum DisplayMode::SpectrumBarWithWaterfall-ig
+    if (nextMode > static_cast<uint8_t>(DisplayMode::SpectrumBarWithWaterfall)) {
         nextMode = static_cast<uint8_t>(DisplayMode::Off);
     }
 
@@ -983,7 +986,7 @@ void UICompSpectrumVis::cycleThroughModes() {
     uint8_t attempts = 0;
     while (!isModeAvailable(static_cast<DisplayMode>(nextMode)) && attempts < 12) {
         nextMode++;
-        if (nextMode > static_cast<uint8_t>(DisplayMode::RttySnrCurve)) {
+        if (nextMode > static_cast<uint8_t>(DisplayMode::SpectrumBarWithWaterfall)) {
             nextMode = static_cast<uint8_t>(DisplayMode::Off);
         }
         attempts++;
@@ -1413,6 +1416,9 @@ const char *UICompSpectrumVis::decodeModeToStr() {
             break;
         case DisplayMode::RttySnrCurve:
             modeText = "RTTY SNR Curve";
+            break;
+        case DisplayMode::SpectrumBarWithWaterfall:
+            modeText = "Bar + Waterfall";
             break;
         default:
             modeText = "Unknown";
@@ -2117,6 +2123,188 @@ void UICompSpectrumVis::renderEnvelope() {
     }
 
     sprite_->pushSprite(bounds.x, bounds.y);
+}
+
+/**
+ * @brief Spectrum Bar + Waterfall kombinált renderelés
+ * A felső részben vízszintes high-res bar, alatta pedig lefelé haladó waterfall
+ * A két megjelenítés frekvenciában illeszkedik egymáshoz
+ */
+void UICompSpectrumVis::renderSpectrumBarWithWaterfall() {
+    uint16_t graphH = getGraphHeight();
+    if (!flags_.spriteCreated || bounds.width == 0 || graphH <= 0 || wabuf_.empty()) {
+        return;
+    }
+
+    const q15_t *magnitudeData = nullptr;
+    uint16_t actualFftSize = 0;
+    float currentBinWidthHz = 0.0f;
+    if (!getCore1SpectrumData(&magnitudeData, &actualFftSize, &currentBinWidthHz) || !magnitudeData || currentBinWidthHz == 0) {
+        sprite_->pushSprite(bounds.x, bounds.y);
+        return;
+    }
+
+    // FFT bin tartomány meghatározása
+    const uint16_t minBin = std::max(2, static_cast<int>(std::round(MIN_AUDIO_FREQUENCY_HZ / currentBinWidthHz)));
+    const uint16_t maxBin = std::min(static_cast<int>(actualFftSize - 1), static_cast<int>(std::round(maxDisplayFrequencyHz_ / currentBinWidthHz)));
+    const uint16_t numBins = std::max(1, maxBin - minBin + 1);
+
+    // Layout: felső 1/4 a bar, alsó 3/4 a waterfall
+    const uint16_t barHeight = graphH / 4;      // Bar magassága (1/4 része a teljes magasságnak)
+    const uint16_t waterfallStartY = barHeight; // Waterfall kezdési pozíciója (y koordináta)
+
+    // ===== GAIN SZÁMÍTÁS =====
+    int8_t gainCfg = (radioMode_ == RadioMode::AM) ? config.data.audioFftGainConfigAm : config.data.audioFftGainConfigFm;
+    float displayGain = calculateDisplayGain(magnitudeData, minBin, maxBin, isAutoGainMode(), gainCfg);
+
+    // Bar baseline erősítés - jelentősen csökkentve hogy ne ugorjanak max magasságra
+    // A displayGain már tartalmaz automatikus erősítést, így csak enyhe korrekcióra van szükség
+    float barGain = displayGain * 0.0008f; // Kb -62dB, sokkal lágyabb mint a HIGHRES_BASELINE_GAIN_DB
+
+    // Waterfall baseline erősítés
+    float waterfallBaselineMultiplier = powf(10.0f, WATERFALL_BASELINE_GAIN_DB / 20.0f);
+    float waterfallGain = displayGain * waterfallBaselineMultiplier * 2.5f; // Extra erősítés a waterfall-hoz
+
+    // ===== HIGH-RES BAR RAJZOLÁSA (FELSŐ RÉSZ) - TEMPORAL SMOOTHING =====
+    // Simítási buffer inicializálása (static, hogy megmaradjon frame-ek között)
+    static std::vector<float> barSmoothedCols;
+    if (barSmoothedCols.size() != bounds.width) {
+        barSmoothedCols.assign(bounds.width, 0.0f);
+    }
+
+    // Peak hold bufferek
+    static std::vector<uint16_t> barPeaks;
+    static std::vector<uint8_t> barPeakHoldCounters;
+    if (barPeaks.size() != bounds.width) {
+        barPeaks.assign(bounds.width, 0);
+        barPeakHoldCounters.assign(bounds.width, 0);
+    }
+
+    // 1. Target magasságok kiszámítása (nyers FFT adatokból)
+    std::vector<uint16_t> targetHeights(bounds.width, 0);
+    for (uint16_t x = 0; x < bounds.width; x++) {
+        float binFloat = minBin + (static_cast<float>(x) * (numBins - 1)) / std::max(1, (bounds.width - 1));
+        uint16_t binIdx = static_cast<uint16_t>(std::round(binFloat));
+        binIdx = constrain(binIdx, minBin, maxBin);
+
+        targetHeights[x] = q15ToPixelHeightLogarithmic(magnitudeData[binIdx], barGain, barHeight);
+    }
+
+    // 2. Temporal smoothing (IIR szűrő) - csökkenti a villogást
+    const float SMOOTH_ALPHA = 0.7f; // 0=gyors, 1=lassú (0.7 = 70% régi, 30% új)
+    for (uint16_t x = 0; x < bounds.width; x++) {
+        barSmoothedCols[x] = SMOOTH_ALPHA * barSmoothedCols[x] + (1.0f - SMOOTH_ALPHA) * targetHeights[x];
+    }
+
+    // 3. Peak hold logika (mint a highres-nél)
+    const uint8_t PEAK_HOLD_FRAMES = 30; // Peak tartás ideje
+    const uint8_t PEAK_FALL_SPEED = 1;   // Peak esési sebesség
+    static uint8_t barPeakFallTimer = 0;
+    bool shouldPeakFall = (++barPeakFallTimer % 4 == 0);
+
+    for (uint16_t x = 0; x < bounds.width; x++) {
+        uint16_t currentHeight = static_cast<uint16_t>(barSmoothedCols[x] + 0.5f);
+
+        if (currentHeight >= barPeaks[x]) {
+            barPeaks[x] = currentHeight;
+            barPeakHoldCounters[x] = PEAK_HOLD_FRAMES;
+        } else {
+            if (barPeakHoldCounters[x] > 0) {
+                barPeakHoldCounters[x]--;
+            } else if (shouldPeakFall && barPeaks[x] > 0) {
+                barPeaks[x] = (barPeaks[x] > PEAK_FALL_SPEED) ? (barPeaks[x] - PEAK_FALL_SPEED) : 0;
+            }
+        }
+    }
+
+    // 4. Bar rajzolása simított értékekkel
+    sprite_->fillRect(0, 0, bounds.width, barHeight, TFT_BLACK);
+    for (uint16_t x = 0; x < bounds.width; x++) {
+        uint16_t height = static_cast<uint16_t>(barSmoothedCols[x] + 0.5f);
+        height = constrain(height, 0, barHeight);
+
+        // Bar oszlop (zöld)
+        if (height > 0) {
+            uint16_t yStart = barHeight - height;
+            sprite_->drawFastVLine(x, yStart, height, TFT_GREEN);
+        }
+
+        // Peak pixel (világosabb zöld)
+        if (barPeaks[x] > 1) {
+            uint16_t yPeak = barHeight - barPeaks[x];
+            sprite_->drawPixel(x, yPeak, TFT_GREENYELLOW);
+        }
+    }
+
+    // ===== WATERFALL RAJZOLÁSA (ALSÓ RÉSZ) =====
+    // Scroll művelet: az alsó rész (waterfall) 1 pixellel lefelé mozog
+    // Ezt a sprite scroll funkciójával valósítjuk meg, csak a waterfall területen
+    // FONTOS: Ez sprite-on belüli művelet, nem kell külön buffer
+
+    // Scroll-t teljes sprite-ra alkalmazzuk, de csak lefelé
+    sprite_->scroll(0, 1);
+
+    // Az első sort (bar területet) újra kirajzoljuk a simított értékekkel, mert a scroll elmozdította
+    sprite_->fillRect(0, 0, bounds.width, barHeight, TFT_BLACK);
+    for (uint16_t x = 0; x < bounds.width; x++) {
+        uint16_t height = static_cast<uint16_t>(barSmoothedCols[x] + 0.5f);
+        height = constrain(height, 0, barHeight);
+
+        // Bar oszlop (zöld)
+        if (height > 0) {
+            uint16_t yStart = barHeight - height;
+            sprite_->drawFastVLine(x, yStart, height, TFT_GREEN);
+        }
+
+        // Peak pixel (világosabb zöld)
+        if (barPeaks[x] > 1) {
+            uint16_t yPeak = barHeight - barPeaks[x];
+            sprite_->drawPixel(x, yPeak, TFT_GREENYELLOW);
+        }
+    }
+
+    // Új waterfall sor rajzolása a bar alá (waterfallStartY pozícióba)
+    uint8_t maxWaterfallVal = 0;
+    for (uint16_t x = 0; x < bounds.width; x++) {
+        // Frekvencia bin index számítás (ugyanaz mint a bar-nál)
+        float binFloat = minBin + (static_cast<float>(x) * (numBins - 1)) / std::max(1, (bounds.width - 1));
+        uint16_t binIdx = static_cast<uint16_t>(std::round(binFloat));
+        binIdx = constrain(binIdx, minBin, maxBin);
+
+        // Q15 -> uint8 konverzió a waterfall számára
+        q15_t magQ15 = magnitudeData[binIdx];
+        float magFloat = static_cast<float>(q15Abs(magQ15)) * waterfallGain;
+        uint8_t val = static_cast<uint8_t>(constrain(static_cast<int>(magFloat), 0, 255));
+
+        if (val > maxWaterfallVal)
+            maxWaterfallVal = val;
+
+        // Pixel színének kiszámítása és kirajzolása
+        uint16_t color = valueToWaterfallColor(val, 0, 255, WATERFALL_COLOR_INDEX);
+        sprite_->drawPixel(x, waterfallStartY, color);
+    }
+
+    // ===== AGC FRISSÍTÉS (ha engedélyezve van) =====
+    if (isAutoGainMode()) {
+        // Magnitude-alapú AGC frissítés
+        q15_t maxMagQ15 = 0;
+        for (uint16_t i = minBin; i <= maxBin; i++) {
+            q15_t absVal = q15Abs(magnitudeData[i]);
+            if (absVal > maxMagQ15) {
+                maxMagQ15 = absVal;
+            }
+        }
+        float estimatedPeak = (static_cast<float>(maxMagQ15) / 32768.0f) * (graphH * GRAPH_TARGET_HEIGHT_UTILIZATION);
+        updateMagnitudeBasedGain(estimatedPeak);
+    }
+
+    // ===== SPRITE MEGJELENÍTÉSE =====
+    sprite_->pushSprite(bounds.x, bounds.y);
+
+    // Frekvencia feliratok megjelenítése (ha a mode indicator nem látható)
+    if (!flags_.modeIndicatorVisible) {
+        renderFrequencyRangeLabels(MIN_AUDIO_FREQUENCY_HZ, maxDisplayFrequencyHz_);
+    }
 }
 
 /**
