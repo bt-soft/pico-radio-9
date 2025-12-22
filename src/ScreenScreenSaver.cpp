@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
  * -----                                                                                                               *
- * Last Modified: 2025.12.22, Monday  11:16:51                                                                         *
+ * Last Modified: 2025.12.22, Monday  12:39:57                                                                         *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -32,7 +32,7 @@
  */
 ScreenScreenSaver::ScreenScreenSaver()
     : ScreenFrequDisplayBase(SCREEN_NAME_SCREENSAVER), activationTime(0), lastAnimationUpdateTime(0), animationBorderX(0), animationBorderY(0),
-      currentFrequencyValue(0), posSaver(0), lastFullUpdateSaverTime(0) {
+      currentFrequencyValue(0), posSaver(0) {
 
     // Animációs vonal színeinek előszámítása
     for (uint8_t i = 0; i < ScreenSaverConstants::SAVER_ANIMATION_LINE_LENGTH; i++) {
@@ -56,7 +56,6 @@ void ScreenScreenSaver::activate() {
     UIScreen::activate(); // Szülő osztály activate hívása
     activationTime = millis();
     lastAnimationUpdateTime = millis();
-    lastFullUpdateSaverTime = millis(); // Teljes frissítés időzítő nullázása
 
     // FreqDisplay konfigurálása képernyővédő módra: kék színek és rejtett aláhúzás
     sevenSegmentFreq->setCustomColors(UIColorPalette::createScreenSaverFreqColors());
@@ -67,11 +66,32 @@ void ScreenScreenSaver::activate() {
 
     // Az egyes pozíciók meghatározása az aktuális mód alapján
     currentBorderWidth = getCurrentBorderWidth(); // Animált keret véletlenszerű pozíciójának meghatározása
-    currentAccuXOffset =
-        currentBorderWidth - (ScreenSaverConstants::BATTERY_RECT_FULL_W + ScreenSaverConstants::ELEMENT_GAP); // Akkumulátor X pozíció a keret bal szélétől
+    // Akkumulátor X pozíció a keret bal szélétől
+    currentAccuXOffset = currentBorderWidth - (ScreenSaverConstants::BATTERY_RECT_FULL_W + ScreenSaverConstants::ELEMENT_GAP);
 
-    // Frekvencia és akkumulátor kezdeti elhelyezése
-    updateFrequencyAndBatteryDisplay();
+    // Képernyő törlése és kezdeti pozíció beállítása
+    tft.fillScreen(TFT_COLOR_BACKGROUND);
+
+    using namespace ScreenSaverConstants;
+    uint16_t maxBorderX = max((uint16_t)1, (uint16_t)(tft.width() - currentBorderWidth));
+    uint16_t maxBorderY = max((uint16_t)1, (uint16_t)(tft.height() - ANIMATION_BORDER_HEIGHT));
+
+    // Kezdeti véletlenszerű pozíció
+    animationBorderX = random(maxBorderX);
+    animationBorderY = random(maxBorderY);
+
+    // FreqDisplay pozícionálása a keret belsejében
+    uint16_t freqDisplayX = animationBorderX + INTERNAL_MARGIN;
+    uint16_t freqDisplayY = animationBorderY + SEVEN_SEGMENT_FREQ_Y_OFFSET;
+    if (sevenSegmentFreq) {
+        sevenSegmentFreq->setBounds(
+            Rect(freqDisplayX, freqDisplayY, UICompSevenSegmentFreq::SEVEN_SEGMENT_FREQ_WIDTH, UICompSevenSegmentFreq::SEVEN_SEGMENT_FREQ_HEIGHT));
+        sevenSegmentFreq->setFrequency(currentFrequencyValue);
+        sevenSegmentFreq->markForRedraw();
+    }
+
+    // Biztosítjuk, hogy a teljes képernyő újrarajzolódjon
+    markForRedraw();
 }
 
 /**
@@ -91,7 +111,6 @@ void ScreenScreenSaver::deactivate() {
  * @details Animáció pozíció frissítése és 15 másodpercenkénti teljes frissítés kezelése
  */
 void ScreenScreenSaver::handleOwnLoop() {
-    uint32_t currentTime = millis();
 
     // Animáció pozíció számláló növelése
     posSaver++;
@@ -100,15 +119,15 @@ void ScreenScreenSaver::handleOwnLoop() {
     }
 
     // 15 másodpercenként teljes frissítés (új pozíció és akkumulátor info)
-    if (currentTime - lastFullUpdateSaverTime >= ScreenSaverConstants::SAVER_NEW_POS_INTERVAL_MSEC) {
-        lastFullUpdateSaverTime = currentTime;
+    static uint32_t lastNewPosTime = millis();
+    if (Utils::timeHasPassed(lastNewPosTime, ScreenSaverConstants::SAVER_NEW_POS_INTERVAL_MSEC)) {
         updateFrequencyAndBatteryDisplay();
-        // updateFrequencyAndBatteryDisplay hívja a markForRedraw()-t
+        lastNewPosTime = millis();
     }
 
     // Az animáció minden frame-nél újrarajzolást igényel
     // A flag-et a loop végén állítjuk be, hogy biztosítsuk az animáció folytonosságát
-    needsRedraw = true;
+    UIComponent::needsRedraw = true;
 }
 
 /**
@@ -116,7 +135,6 @@ void ScreenScreenSaver::handleOwnLoop() {
  * @details FreqDisplay gyermek komponensként rajzolódik, az animált keretet és akkumulátor infót minden frame-ben rajzoljuk
  */
 void ScreenScreenSaver::drawContent() {
-
     // Animált keret rajzolása
     drawAnimatedBorder();
 }
@@ -131,14 +149,8 @@ void ScreenScreenSaver::updateFrequencyAndBatteryDisplay() {
 
     using namespace ScreenSaverConstants; // Aktuális keret szélesség lekérése a rádió mód alapján
     // Most a FreqDisplay és akkumulátor a keret belsejében van, ezért csak a keret mérete számít
-    uint16_t maxBorderX = tft.width() - currentBorderWidth;
-    uint16_t maxBorderY = tft.height() - ANIMATION_BORDER_HEIGHT;
-
-    // Ellenőrizzük, hogy van-e elég hely
-    if (maxBorderX <= 0)
-        maxBorderX = 1;
-    if (maxBorderY <= 0)
-        maxBorderY = 1;
+    uint16_t maxBorderX = max((uint16_t)1, (uint16_t)(tft.width() - currentBorderWidth));
+    uint16_t maxBorderY = max((uint16_t)1, (uint16_t)(tft.height() - ANIMATION_BORDER_HEIGHT));
 
     // Új véletlenszerű pozíció az animált keretnek
     animationBorderX = random(maxBorderX);
@@ -156,9 +168,6 @@ void ScreenScreenSaver::updateFrequencyAndBatteryDisplay() {
 
     // Akkumulátor info rajzolása
     drawBatteryInfo();
-
-    // Minden komponens újrarajzolása
-    markForRedraw();
 }
 
 /**
@@ -309,13 +318,18 @@ bool ScreenScreenSaver::handleRotary(const RotaryEvent &event) {
 uint16_t ScreenScreenSaver::getCurrentBorderWidth() const {
     using namespace ScreenSaverConstants;
     if (::pSi4735Manager) {
+
         switch (::pSi4735Manager->getCurrentBandType()) {
+
             case FM_BAND_TYPE:
                 return ANIMATION_BORDER_WIDTH_FM;
+
             case LW_BAND_TYPE:
                 return ANIMATION_BORDER_WIDTH_AM_LW;
+
             case MW_BAND_TYPE:
                 return ANIMATION_BORDER_WIDTH_AM_MW;
+
             case SW_BAND_TYPE:
                 if (::pSi4735Manager->isCurrentDemodSSBorCW()) {
                     if (rtv::bfoOn) {
@@ -323,7 +337,6 @@ uint16_t ScreenScreenSaver::getCurrentBorderWidth() const {
                     }
                     return ANIMATION_BORDER_WIDTH_SSB_CW;
                 }
-
                 return ANIMATION_BORDER_WIDTH_AM_SW;
 
             default:

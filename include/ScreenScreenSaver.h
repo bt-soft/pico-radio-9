@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                       *
  * -----                                                                                                               *
- * Last Modified: 2025.11.16, Sunday  09:51:31                                                                         *
+ * Last Modified: 2025.12.22, Monday  12:34:55                                                                         *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -86,9 +86,7 @@ class ScreenScreenSaver : public ScreenFrequDisplayBase {
     uint16_t posSaver;                                                          // Animáció pozíció számláló
     uint8_t saverLineColors[ScreenSaverConstants::SAVER_ANIMATION_LINE_LENGTH]; // Animációs vonal színei
 
-    uint32_t lastFullUpdateSaverTime; // Utolsó teljes frissítés időpontja
-
-    uint16_t currentBorderWidth = 0; // Aktuális keret szélesség a rádió mód szerint
+        uint16_t currentBorderWidth = 0; // Aktuális keret szélesség a rádió mód szerint
     uint16_t currentAccuXOffset = 0; // Akkumulátor X pozíció a keret bal szélétől
 
     /**
