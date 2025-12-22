@@ -54,6 +54,12 @@ constexpr float HIGHRES_BASELINE_GAIN_DB = -6.0f;   // HighRes alaperősítés (
 constexpr float ENVELOPE_BASELINE_GAIN_DB = -65.0f; // Envelope alaperősítés (-65dB = 0.00018x csillapítás)
 constexpr float WATERFALL_BASELINE_GAIN_DB = 0.0f;  // Waterfall alaperősítés (0dB = nincs változtatás)
 
+// CW/RTTY tuning aid baseline erősítések (dB)
+constexpr float CW_WATERFALL_BASELINE_GAIN_DB = -20.0f;   // CW Waterfall alaperősítés (-20dB = 0.1x csillapítás)
+constexpr float CW_SNRCURVE_BASELINE_GAIN_DB = -60.0f;    // CW SNR Curve alaperősítés (-60dB = 0.0001x csillapítás)
+constexpr float RTTY_WATERFALL_BASELINE_GAIN_DB = -20.0f; // RTTY Waterfall alaperősítés (-20dB = 0.1x csillapítás)
+constexpr float RTTY_SNRCURVE_BASELINE_GAIN_DB = -60.0f;  // RTTY SNR Curve alaperősítés (-60dB = 0.0001x csillapítás)
+
 /**
  * @brief Sávszélesség-specifikus scale faktor konfiguráció (MINDEN megjelenítési módhoz)
  *
@@ -79,8 +85,8 @@ struct BandwidthScaleConfig {
 constexpr BandwidthScaleConfig BANDWIDTH_GAIN_TABLE[] = {
     // bandwidthHz,    lowResBarGainDb, highResBarGainDb, oscilloscopeGainDb, envelopeGainDb, waterfallGainDb,
     // tuningAidWaterfallDb, tuningAidSnrCurveDb (NOAMP = mód nem elérhető)
-    {CW_AF_BANDWIDTH_HZ, NOAMP, NOAMP, NOAMP, NOAMP, NOAMP, 10.0f, 18.0f},   // 1.5kHz: CW mód (csak tuning aid)
-    {RTTY_AF_BANDWIDTH_HZ, NOAMP, NOAMP, NOAMP, NOAMP, NOAMP, 3.0f, 8.0f},   // 3kHz: RTTY mód (csak tuning aid)
+    {CW_AF_BANDWIDTH_HZ, NOAMP, NOAMP, NOAMP, NOAMP, NOAMP, -8.0f, -8.0f},   // 1.5kHz: CW mód (csak tuning aid)
+    {RTTY_AF_BANDWIDTH_HZ, NOAMP, NOAMP, NOAMP, NOAMP, NOAMP, -8.0f, -8.0f}, // 3kHz: RTTY mód (csak tuning aid)
     {AM_AF_BANDWIDTH_HZ, -10.0f, -10.0f, -10.0f, 5.0f, 10.0f, NOAMP, NOAMP}, // 6kHz: AM mód (tuning aid nem elérhető)
     {WEFAX_SAMPLE_RATE_HZ, NOAMP, NOAMP, NOAMP, NOAMP, NOAMP, NOAMP, NOAMP}, // 11025Hz: WEFAX mód
     {FM_AF_BANDWIDTH_HZ, 0.0f, 0.0f, -3.0f, 0.0f, 0.0f, NOAMP, NOAMP},       // 15kHz: FM mód (tuning aid nem elérhető)
@@ -272,15 +278,16 @@ static inline uint16_t q15ToPixelHeight(q15_t v, int32_t gain_scaled, uint16_t m
 
 /**
  * Közös gain számítás minden vizualizációs módhoz - HOSSZÚ TÁVÚ ÁTLAGOLÁSSAL
+ * VISSZATÉRÉS: dB FORMÁTUMBAN
  * @param magnitudeData FFT magnitude adatok
  * @param minBin Minimum bin index
  * @param maxBin Maximum bin index
  * @param isAutoGain Automatikus gain mód
  * @param manualGainDb Manuális gain dB értéke
- * @return Gain érték (50-500x tartományban)
+ * @return Gain érték DECIBELBEN
  */
-static inline float calculateDisplayGain(const q15_t *magnitudeData, uint16_t minBin, uint16_t maxBin, bool isAutoGain, int8_t manualGainDb) {
-    float gain;
+static inline float calculateDisplayGainDb(const q15_t *magnitudeData, uint16_t minBin, uint16_t maxBin, bool isAutoGain, int8_t manualGainDb) {
+    float gainDb;
 
     if (isAutoGain) {
         // RMS (négyzetes átlag) számítás: jobb mint a maximum!
@@ -299,32 +306,39 @@ static inline float calculateDisplayGain(const q15_t *magnitudeData, uint16_t mi
             rms = sqrtf(static_cast<float>(sumOfSquares) / count);
         }
 
-        // Auto-gain RMS alapján - MÉRSEKELT értékek HighRes-hez
+        // Auto-gain RMS alapján - számítás lineárisan
         const float targetRmsValue = 120.0f; // Közepes érték
+        float gainLinear;
         if (rms > 8.0f) {
-            gain = targetRmsValue / rms;
-            gain = std::max(gain, 12.0f); // Mérsekelt minimum
+            gainLinear = targetRmsValue / rms;
+            gainLinear = std::max(gainLinear, 12.0f); // Mérsekelt minimum
         } else {
-            gain = 30.0f; // Mérsekelt default
+            gainLinear = 30.0f; // Mérsekelt default
         }
 
         // HOSSZÚ TÁVÚ simítás: 98% régi + 2% új = ~50 frame időállandó
-        // Ez azt jelenti, hogy ~2 másodperc alatt adaptálódik (50 frame @ 25fps)
-        static float smoothedGainAuto = 30.0f; // Mérsekelt érték
-        smoothedGainAuto = 0.98f * smoothedGainAuto + 0.02f * gain;
-        gain = smoothedGainAuto;
+        static float smoothedGainAuto = 30.0f;
+        smoothedGainAuto = 0.98f * smoothedGainAuto + 0.02f * gainLinear;
+        gainLinear = smoothedGainAuto;
+
+        // Konvertálás dB-re
+        gainLinear = constrain(gainLinear, 15.0f, 200.0f);
+        gainDb = 20.0f * log10f(gainLinear);
 
     } else {
-        // Manuális gain
+        // Manuális gain - már dB formátumban van!
         if (manualGainDb == 0) {
-            gain = 300.0f; // Alapértelmezett
+            // 300.0f lineáris -> ~49.5dB
+            gainDb = 20.0f * log10f(300.0f);
         } else {
-            // dB -> lineáris: 6dB = 2x, 12dB = 4x, stb.
-            gain = powf(10.0f, static_cast<float>(manualGainDb) / 20.0f) * 150.0f;
+            // Bázis erősítés + manuális beállítás
+            // A korábbi formula: powf(10, manualGainDb/20) * 150.0f
+            // Ez dB-ben: manualGainDb + 20*log10(150) = manualGainDb + ~43.5dB
+            gainDb = static_cast<float>(manualGainDb) + 20.0f * log10f(150.0f);
         }
     }
 
-    return constrain(gain, 15.0f, 200.0f); // Mérsekelt határok HighRes-hez
+    return gainDb;
 }
 
 // OPTIMALIZÁLT fixpontos interpoláció Q15 tömbből (Q15 eredmény) - folytatás
@@ -1269,28 +1283,27 @@ void UICompSpectrumVis::setTuningAidType(TuningAidType type) {
         uint16_t oldMaxFreq = currentTuningAidMaxFreqHz_;
 
         if (currentTuningAidType_ == TuningAidType::CW_TUNING) {
-            // CW: Szélesebb span a vékonyabb megjelenítéshez
+            // CW: CW frekvencia középen, +-600Hz padding
             uint16_t centerFreq = config.data.cwToneFrequencyHz;
-            uint16_t hfBandwidthHz = CW_AF_BANDWIDTH_HZ; // Alapértelmezett CW sávszélesség
+            constexpr uint16_t CW_PADDING_HZ = 600; // +-600Hz padding a CW frekvencia körül
 
-            float cwSpanHz = std::max(2000.0f, static_cast<float>(hfBandwidthHz * 2)); // Nagyobb tartomány! (1200->2000Hz minimum)
-
-            currentTuningAidMinFreqHz_ = centerFreq - cwSpanHz / 2;
-            currentTuningAidMaxFreqHz_ = centerFreq + cwSpanHz / 2;
+            currentTuningAidMinFreqHz_ = centerFreq - CW_PADDING_HZ;
+            currentTuningAidMaxFreqHz_ = centerFreq + CW_PADDING_HZ;
 
         } else if (currentTuningAidType_ == TuningAidType::RTTY_TUNING) {
-            // RTTY: Adaptív tartomány - shift frekvenciához igazított + padding
+            // RTTY: Fix szélességű tartomány, mark és space közti középfrekvencia középen
             uint16_t f_mark = config.data.rttyMarkFrequencyHz;
             uint16_t f_space = f_mark - config.data.rttyShiftFrequencyHz;
 
-            // Mindig a mark/space között legyen a központ
+            // Középfrekvencia: mark és space között
             float f_center = (f_mark + f_space) / 2.0f;
 
-            // Adaptív span: shift + 1000Hz padding (500Hz mindkét oldalon)
-            float span = config.data.rttyShiftFrequencyHz + 1000.0f;
+            // FIX tartomány szélessége: ±800Hz a központól (1600Hz összesen)
+            // Ez elegendő minden RTTY shift típushoz (85-850Hz), és mindig középen van a center
+            constexpr float RTTY_HALF_SPAN_HZ = 800.0f;
 
-            currentTuningAidMinFreqHz_ = f_center - span / 2.0f;
-            currentTuningAidMaxFreqHz_ = f_center + span / 2.0f;
+            currentTuningAidMinFreqHz_ = f_center - RTTY_HALF_SPAN_HZ;
+            currentTuningAidMaxFreqHz_ = f_center + RTTY_HALF_SPAN_HZ;
 
         } else {
             // OFF_DECODER: alapértelmezett tartomány
@@ -1712,19 +1725,14 @@ void UICompSpectrumVis::renderSpectrumBar(bool isLowRes) {
     // Jelenleg: automatikus gain keresés az aktuális FFT adatokból
     // Később: config.data.audioFftGainConfigAm/Fm használata manuális módban
     int8_t gainCfg = (radioMode_ == RadioMode::AM) ? config.data.audioFftGainConfigAm : config.data.audioFftGainConfigFm;
-    float displayGain = calculateDisplayGain(magnitudeData, minBin, maxBin, isAutoGainMode(), gainCfg);
+    float displayGainDb = calculateDisplayGainDb(magnitudeData, minBin, maxBin, isAutoGainMode(), gainCfg);
 
-    // Baseline erősítés alkalmazása dB formátumban (LowRes vs HighRes)
-    float baselineGainDb;
-    if (isLowRes) {
-        baselineGainDb = LOWRES_BASELINE_GAIN_DB; // LowRes baseline
-    } else {
-        baselineGainDb = HIGHRES_BASELINE_GAIN_DB; // HighRes baseline
-    }
+    // Baseline erősítés és bandwidth gain összeadása dB formátumban
+    float baselineGainDb = isLowRes ? LOWRES_BASELINE_GAIN_DB : HIGHRES_BASELINE_GAIN_DB;
+    float totalGainDb = displayGainDb + baselineGainDb + cachedGainDb_;
 
-    // dB -> lineáris konverzió és alkalmazás
-    float baselineMultiplier = powf(10.0f, baselineGainDb / 20.0f);
-    displayGain *= baselineMultiplier;
+    // Végső dB -> lineáris konverzió
+    float displayGain = powf(10.0f, totalGainDb / 20.0f);
 
     // ===== TIMING KONSTANSOK =====
     const uint8_t BAR_FALL_SPEED = 2;    // Bar esési sebesség (pixel/frame)
@@ -2205,11 +2213,12 @@ void UICompSpectrumVis::renderSpectrumBarWithWaterfall() {
 
     // ===== GAIN SZÁMÍTÁS =====
     int8_t gainCfg = (radioMode_ == RadioMode::AM) ? config.data.audioFftGainConfigAm : config.data.audioFftGainConfigFm;
-    float displayGain = calculateDisplayGain(magnitudeData, minBin, maxBin, isAutoGainMode(), gainCfg);
+    float displayGainDb = calculateDisplayGainDb(magnitudeData, minBin, maxBin, isAutoGainMode(), gainCfg);
 
     // Bar baseline erősítés - jelentősen csökkentve hogy ne ugorjanak max magasságra
     // A displayGain már tartalmaz automatikus erősítést, így csak enyhe korrekcióra van szükség
-    const float barGain = displayGain * 0.0008f; // Kb -62dB, sokkal lágyabb mint a HIGHRES_BASELINE_GAIN_DB
+    const float barGainDb = displayGainDb + 20.0f * log10f(0.0008f) + cachedGainDb_; // ≈ -62dB extra attenuation
+    const float barGain = powf(10.0f, barGainDb / 20.0f);
 
     // Waterfall gain számítás - TELJESEN FÜGGETLEN a bar gain-től!
     // Cél: magQ15 értékek (tipikusan 100-600) → 0-255 tartomány
@@ -2462,9 +2471,16 @@ void UICompSpectrumVis::renderCwOrRttyTuningAidWaterfall() {
     const uint16_t max_bin = std::min(static_cast<int>(actualFftSize - 1), static_cast<int>(std::round(currentTuningAidMaxFreqHz_ / currentBinWidthHz)));
     const uint16_t num_bins = std::max(1, max_bin - min_bin + 1);
 
-    // --- ÚJ EGYSÉGES GAIN SZÁMÍTÁS ---
+    // --- ÚJ EGYSÉGES GAIN SZÁMÍTÁS (dB alapú) ---
     int8_t gainCfg = this->radioMode_ == RadioMode::AM ? config.data.audioFftGainConfigAm : config.data.audioFftGainConfigFm;
-    float tuningGain = calculateDisplayGain(magnitudeData, min_bin, max_bin, isAutoGainMode(), gainCfg);
+    float tuningGainDb = calculateDisplayGainDb(magnitudeData, min_bin, max_bin, isAutoGainMode(), gainCfg);
+
+    // Baseline gain (CW vs RTTY) + BANDWIDTH_GAIN_TABLE érték összeadása dB-ben
+    float baselineGainDb = (currentTuningAidType_ == TuningAidType::CW_TUNING) ? CW_WATERFALL_BASELINE_GAIN_DB : RTTY_WATERFALL_BASELINE_GAIN_DB;
+    float totalGainDb = tuningGainDb + baselineGainDb + cachedGainDb_;
+
+    // Végső dB -> lineáris konverzió
+    float tuningGain = powf(10.0f, totalGainDb / 20.0f);
     // --- End of Gain Calculation ---
 
     uint8_t maxwabuf_Val = 0;
@@ -2545,9 +2561,16 @@ void UICompSpectrumVis::renderCwOrRttyTuningAidSnrCurve() {
     const uint16_t max_bin = std::min(static_cast<int>(actualFftSize - 1), static_cast<int>(std::round(max_freq / currentBinWidthHz)));
     const uint16_t num_bins = std::max(1, max_bin - min_bin + 1);
 
-    // --- ÚJ EGYSÉGES GAIN SZÁMÍTÁS ---
+    // --- ÚJ EGYSÉGES GAIN SZÁMÍTÁS (dB alapú) ---
     int8_t gainCfg = this->radioMode_ == RadioMode::AM ? config.data.audioFftGainConfigAm : config.data.audioFftGainConfigFm;
-    float snrGain = calculateDisplayGain(magnitudeData, min_bin, max_bin, isAutoGainMode(), gainCfg);
+    float snrGainDb = calculateDisplayGainDb(magnitudeData, min_bin, max_bin, isAutoGainMode(), gainCfg);
+
+    // Baseline gain (CW vs RTTY) + BANDWIDTH_GAIN_TABLE érték összeadása dB-ben
+    float baselineGainDb = (currentTuningAidType_ == TuningAidType::CW_TUNING) ? CW_SNRCURVE_BASELINE_GAIN_DB : RTTY_SNRCURVE_BASELINE_GAIN_DB;
+    float totalGainDb = snrGainDb + baselineGainDb + cachedGainDb_;
+
+    // Végső dB -> lineáris konverzió
+    float snrGain = powf(10.0f, totalGainDb / 20.0f);
     // --- End of Gain Calculation ---
 
     const uint16_t targetHeight = static_cast<uint16_t>(graphH * GRAPH_TARGET_HEIGHT_UTILIZATION);
