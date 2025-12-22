@@ -996,7 +996,11 @@ void UICompSpectrumVis::cycleThroughModes() {
     setCurrentDisplayMode(static_cast<DisplayMode>(nextMode));
 
     // Config-ba is beállítjuk (mentésre) az aktuális módot
-    config.data.audioModeAM = nextMode;
+    if (RadioMode::FM == radioMode_) {
+        config.data.audioModeFM = nextMode;
+    } else {
+        config.data.audioModeAM = nextMode;
+    }
 
     // AGC reset mód váltáskor
     resetMagnitudeAgc();
