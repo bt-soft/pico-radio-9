@@ -57,7 +57,7 @@ constexpr float WATERFALL_BASELINE_GAIN_DB = 0.0f;  // Waterfall alaperősítés
 // CW/RTTY tuning aid baseline erősítések (dB)
 constexpr float CW_WATERFALL_BASELINE_GAIN_DB = -20.0f;   // CW Waterfall alaperősítés (-20dB = 0.1x csillapítás)
 constexpr float CW_SNRCURVE_BASELINE_GAIN_DB = -60.0f;    // CW SNR Curve alaperősítés (-60dB = 0.0001x csillapítás)
-constexpr float RTTY_WATERFALL_BASELINE_GAIN_DB = -20.0f; // RTTY Waterfall alaperősítés (-20dB = 0.1x csillapítás)
+constexpr float RTTY_WATERFALL_BASELINE_GAIN_DB = -60.0f; // RTTY Waterfall alaperősítés (-20dB = 0.1x csillapítás)
 constexpr float RTTY_SNRCURVE_BASELINE_GAIN_DB = -60.0f;  // RTTY SNR Curve alaperősítés (-60dB = 0.0001x csillapítás)
 
 /**

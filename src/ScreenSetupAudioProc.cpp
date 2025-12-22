@@ -158,7 +158,7 @@ void ScreenSetupAudioProc::handleRttyShiftFrequencyDialog(int index) {
                 updateListItem(index);
             }
         };
-        RTTYParamDialogs::showSpaceFreqDialog(this, &config, cb);
+        RTTYParamDialogs::showShiftFreqDialog(this, &config, cb);
     }
 }
 

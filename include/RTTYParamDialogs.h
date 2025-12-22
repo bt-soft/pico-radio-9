@@ -41,8 +41,8 @@ using DialogCallback = std::function<void(UIDialogBase *sender, UIDialogBase::Di
 // Magyar komment: Megjelenít egy dialógust az RTTY Mark frekvencia szerkesztéséhez
 void showMarkFreqDialog(UIScreen *parent, Config *cfg, DialogCallback cb = nullptr);
 
-// Magyar komment: Megjelenít egy dialógust az RTTY Space frekvencia szerkesztéséhez
-void showSpaceFreqDialog(UIScreen *parent, Config *cfg, DialogCallback cb = nullptr);
+// Magyar komment: Megjelenít egy dialógust az RTTY Shift frekvencia szerkesztéséhez
+void showShiftFreqDialog(UIScreen *parent, Config *cfg, DialogCallback cb = nullptr);
 
 // Magyar komment: Megjelenít egy dialógust az RTTY Baudrate szerkesztéséhez
 void showBaudRateDialog(UIScreen *parent, Config *cfg, DialogCallback cb = nullptr);

@@ -302,6 +302,40 @@ void UIValueChangeDialog::layoutDialogContent() {
         _increaseButton->setBounds(
             Rect(startX2 + boolButtonWidth + 2 * valueButtonSpacing + valueBoxWidth, valueAreaY, boolButtonWidth, BUTTON_HEIGHT)); // TRUE
     }
+
+    // Preset gombok elhelyezése (ID 10-15), ha vannak
+    // Preset gombok az OK/Cancel gombok felett, egy sorban
+    std::vector<std::shared_ptr<UIButton>> presetButtons;
+    for (auto &child : children) {
+        // Statikus cast használata (RTTI nincs engedélyezve)
+        // Csak UIButton lehet ID 10-15 tartományban
+        auto btn = std::static_pointer_cast<UIButton>(child);
+        if (btn && btn->getId() >= 10 && btn->getId() <= 15) {
+            presetButtons.push_back(btn);
+        }
+    }
+
+    if (!presetButtons.empty()) {
+        // OK/Cancel gombok Y pozíciója a dialógus aljától
+        const int16_t okCancelY = contentBounds.y + contentBounds.height - PADDING - BUTTON_HEIGHT;
+        // Preset gombok az OK/Cancel felett 15px térközzel (5+10px extra)
+        const int16_t presetY = okCancelY - 25 - 15;
+
+        // Preset gombok szélessége és térköze
+        const int16_t presetButtonWidth = 40;
+        const int16_t presetButtonHeight = 25;
+        const int16_t presetButtonGap = 4;
+
+        // Összes preset gomb szélessége + közök
+        const int16_t totalPresetsWidth = presetButtons.size() * presetButtonWidth + (presetButtons.size() - 1) * presetButtonGap;
+        const int16_t presetsStartX = centerX - totalPresetsWidth / 2;
+
+        // Preset gombok elhelyezése
+        for (size_t i = 0; i < presetButtons.size(); i++) {
+            int16_t btnX = presetsStartX + i * (presetButtonWidth + presetButtonGap);
+            presetButtons[i]->setBounds(Rect(btnX, presetY, presetButtonWidth, presetButtonHeight));
+        }
+    }
 }
 
 /**

@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
  * -----                                                                                                               *
- * Last Modified: 2025.12.20, Saturday  06:34:34                                                                       *
+ * Last Modified: 2025.12.22, Monday  06:01:30                                                                         *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -124,7 +124,7 @@ void ScreenAMRTTY::addSpecificHorizontalButtons(std::vector<UIHorizontalButtonBa
              }
 
              // RTTY Paraméterek gomb megnyomva -> megjelenítjük a 3 gombos dialógust
-             static const char *options[] = {"Mark", "Space", "Baud"};
+             static const char *options[] = {"Mark", "Shift", "Baud"};
 
              // Létrehozzuk a szülő 3-gombos dialógust automatikus bezárás nélkül,
              // így manuálisan tudjuk bezárni, amikor gyereket nyitunk, majd
@@ -157,7 +157,7 @@ void ScreenAMRTTY::addSpecificHorizontalButtons(std::vector<UIHorizontalButtonBa
                  if (idx == 0) { // Mark
                      RTTYParamDialogs::showMarkFreqDialog(this, &::config, childClosedCb);
                  } else if (idx == 1) { // Space
-                     RTTYParamDialogs::showSpaceFreqDialog(this, &::config, childClosedCb);
+                     RTTYParamDialogs::showShiftFreqDialog(this, &::config, childClosedCb);
                  } else if (idx == 2) { // Baud
                      RTTYParamDialogs::showBaudRateDialog(this, &::config, childClosedCb);
                  }
@@ -203,7 +203,7 @@ void ScreenAMRTTY::activate() {
         RTTY_AF_BANDWIDTH_HZ,               // RTTY audio sávszélesség
         0,                                  // cwCenterFreqHz muszáj megadni, de az RTTY-nél nem használjuk
         config.data.rttyMarkFrequencyHz,    // RTTY Mark frekvencia
-        config.data.rttyShiftFrequencyHz,   // RTTY Space frekvencia
+        config.data.rttyShiftFrequencyHz,   // RTTY Shift frekvencia
         config.data.rttyBaudRate            // RTTY Baud rate
     );
 
