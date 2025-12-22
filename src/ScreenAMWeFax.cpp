@@ -105,6 +105,10 @@ void ScreenAMWeFax::layoutComponents() {
 
     // Wefax kép helyének kirajzolása
     this->clearPictureArea();
+
+    // Aktuális mód kijelzése (ha már fut a dekóder)
+    const char *modeName = (decodedData.currentMode == 0) ? "IOC576" : "IOC288";
+    drawWeFaxMode(modeName);
 }
 
 /**
@@ -191,7 +195,7 @@ void ScreenAMWeFax::clearPictureArea() {
     // Fehér keret rajzolása a kép körül (1px-el kívül)
     tft.drawRect(WEFAX_PICTURE_START_X - 1, WEFAX_PICTURE_START_Y - 1, WEFAX_SCALED_WIDTH + 2, WEFAX_SCALED_HEIGHT + 2, TFT_WHITE);
 
-    this->drawWeFaxMode(nullptr); // Mód név törlése
+    // Mód név törlése NEM kell itt, mert állandóan látható marad
 }
 
 /**
@@ -236,12 +240,15 @@ void ScreenAMWeFax::checkDecodedData() {
     if (decodedData.modeChanged) {
         decodedData.modeChanged = false;
         modeChanged = true;
-        // Mód név lekérése és kiírása
+        // Mód név lekérése
         const char *modeName = (decodedData.currentMode == 0) ? "IOC576" : "IOC288";
         WEFAX_DEBUG("core-0: WEFAX mód változás: %s\n", modeName);
 
-        // Töröljük a képterületet módváltáskor
+        // Töröljük a képterületet módváltáskor (DE még NEM a mód feliratot)
         clearPictureArea();
+
+        // Mód név megjelenítése a képernyőn (clearPictureArea UTÁN!)
+        drawWeFaxMode(modeName);
     }
 
     // Új kép kezdés ellenőrzése

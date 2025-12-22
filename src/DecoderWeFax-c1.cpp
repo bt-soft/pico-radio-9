@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
  * -----                                                                                                               *
- * Last Modified: 2025.12.22, Monday  09:54:50                                                                         *
+ * Last Modified: 2025.12.22, Monday  06:31:31                                                                         *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -35,7 +35,7 @@ extern DecodedData decodedData;
 bool g_wefax_debug_reset = false;
 
 // WEFAX működés debug engedélyezése de csak DEBUG módban
-// #define __WEFAX_DEBUG  // KIKAPCSOLVA - túl sok log
+#define __WEFAX_DEBUG
 #if defined(__DEBUG) && defined(__WEFAX_DEBUG)
 #define WEFAX_DEBUG(fmt, ...) DEBUG(fmt __VA_OPT__(, ) __VA_ARGS__)
 #else
@@ -390,7 +390,7 @@ void DecoderWeFax_C1::processSamples(const int16_t *samples, size_t count) {
         if (signal_counter > 0) {
             int signal_gray_avg = signal_gray_sum / signal_counter;
             float signal_black_ratio = (float)signal_black_count / signal_counter;
-            //float signal_white_ratio = (float)signal_white_count / signal_counter;
+            float signal_white_ratio = (float)signal_white_count / signal_counter;
             int signal_dynamic_range = signal_gray_max - signal_gray_min;
 
             // DEBUG: minden esetben kiírjuk az első 60 másodpercben
@@ -637,13 +637,13 @@ void DecoderWeFax_C1::decode_phasing(int gray_value) {
     if (gray_value > 120 && !phase_high) {
         // FEKETE → FEHÉR átmenet
         phase_high = true;
-        WEFAX_DEBUG("WeFax-C1:  >>> FEHÉR kezdet: gray=%d\n", gray_value);
+        // WEFAX_DEBUG("WeFax-C1:  >>> FEHÉR kezdet: gray=%d\n", gray_value);
     } else if (gray_value < 120 && phase_high) {
         // FEHÉR → FEKETE átmenet (sorszinkron!)
         phase_high = false;
-        WEFAX_DEBUG("WeFax-C1:  <<< FEKETE SYNC: gray=%d (sor hossz: %.2fs)\n", gray_value, curr_phase_len / sample_rate);
-        // Érvényes phasing sor ellenőrzése (NAGYON ENYHÍTETT kritériumok)
-        // Phasing sor: bármilyen fehér→fekete átmenet ami elfogadható időtartamú
+        // WEFAX_DEBUG("WeFax-C1:  <<< FEKETE SYNC: gray=%d (sor hossz: %.2fs)\n", gray_value, curr_phase_len / sample_rate);
+        //  Érvényes phasing sor ellenőrzése (NAGYON ENYHÍTETT kritériumok)
+        //  Phasing sor: bármilyen fehér→fekete átmenet ami elfogadható időtartamú
         float white_ratio = (float)curr_phase_high / curr_phase_len;
         float black_ratio = (float)curr_phase_low / curr_phase_len;
         bool valid_ratios = (white_ratio >= 0.001f) && (black_ratio >= 0.10f);                                   // 0.1% fehér, 10% fekete
