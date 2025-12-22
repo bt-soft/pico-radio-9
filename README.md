@@ -1,5 +1,7 @@
 # pico-radio-9
 
+**A projekt még fejlesztés alatt áll**
+
 Egy Raspberry Pi Pico alapú rádióprojekt (Si4735 vezérléssel) — fejlett dekóderekkel (RTTY, CW, SSTV, WeFax), spektrum megjelenítéssel és interaktív érintőképernyős felülettel.
 
 **Fő funkciók**
