@@ -27,6 +27,7 @@
 #include "ScreenAMRadioBase.h"
 #include "UICommonVerticalButtons.h"
 #include "UICompTextBox.h"
+#include "UICompTuningBar.h"
 
 /**
  * @brief AM WeFax dekóder képernyő
@@ -93,6 +94,8 @@ class ScreenAMWeFax : public ScreenAMRadioBase, public UICommonVerticalButtons::
     uint16_t lastDrawnTargetLine;
     // Reset gomb, ami törli a képterületet és reseteli a dekódert
     std::shared_ptr<UIButton> resetButton;
+    // Tuning Bar - FFT spektrum sáv
+    std::shared_ptr<UICompTuningBar> tuningBar;
 
     void clearPictureArea();
     void checkDecodedData();

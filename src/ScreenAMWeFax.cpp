@@ -103,6 +103,22 @@ void ScreenAMWeFax::layoutComponents() {
         UIContainerComponent::addChild(resetButton);
     }
 
+    // Tuning Bar: Spektrum sáv a Reset gomb alatt (kép felett)
+    constexpr uint16_t tuningBarHeight = 18;
+    constexpr uint16_t tuningBarY = resetBtnY + UIButton::DEFAULT_BUTTON_HEIGHT + 2; // Reset gomb alatt 2px-lel
+    constexpr uint16_t tuningBarWidth = WEFAX_SCALED_WIDTH;
+    if (!tuningBar) {
+        tuningBar = std::make_shared<UICompTuningBar>(Rect(WEFAX_PICTURE_START_X, tuningBarY, tuningBarWidth, tuningBarHeight), // bounds
+                                                      1000,                                                                     // minFreqHz: 1000 Hz
+                                                      2500                                                                      // maxFreqHz: 2500 Hz
+        );
+        // Frekvencia markerek konfigurálása WeFax esetén
+        tuningBar->addMarker(1500, TFT_CYAN, "1500");   // Black (fekete szint) - ciánnal jelölve
+        tuningBar->addMarker(1900, TFT_WHITE, "1900");  // Carrier (vivő) - fehéren
+        tuningBar->addMarker(2300, TFT_YELLOW, "2300"); // White (fehér szint) - sárgán
+        UIContainerComponent::addChild(tuningBar);
+    }
+
     // Wefax kép helyének kirajzolása
     this->clearPictureArea();
 
@@ -226,6 +242,12 @@ void ScreenAMWeFax::drawWeFaxMode(const char *modeName) {
 void ScreenAMWeFax::handleOwnLoop() {
     // Szülő osztály loop kezelése (S-Meter frissítés, stb.)
     ScreenAMRadioBase::handleOwnLoop();
+
+    // FFT spektrum frissítése a tuning bar számára (Core1 -> Core0 irány)
+    if (tuningBar && sharedData[1].fftSpectrumSize > 0) {
+        tuningBar->updateSpectrum(sharedData[1].fftSpectrumData, sharedData[1].fftSpectrumSize, sharedData[1].fftBinWidthHz);
+        tuningBar->draw(tft);
+    }
 
     // WeFax dekódolt képsor frissítése
     this->checkDecodedData();

@@ -357,11 +357,10 @@ void processFifoCommands() {
             // hogy a dekóder objektumok (pl. SSTV) megkapják az Fs-et, ha szükségük van rá.
             decoderConfig.samplingRate = finalRate;
 
-            // FFT-t csak azokban a módokban használunk, ahol spektrum vagy FFT-alapú dekódolás szükséges.
-            // SSTV: Nincs FFT (saját decode_sstv könyvtár használja)
-            // WEFAX: Nincs FFT (FM dekódolás)
-            // CW, RTTY, DomFreq: FFT-alapú feldolgozás (AudioProcessor Q15 FFT)
-            bool useFFT = (decoderConfig.decoderId != ID_DECODER_SSTV && decoderConfig.decoderId != ID_DECODER_WEFAX);
+            // FFT-t minden dekóderben használunk:
+            // - SSTV/WEFAX: Hangolási segéd spektrum bar-hoz
+            // - CW, RTTY, DomFreq: FFT-alapú dekódolás
+            bool useFFT = true; // Minden esetben FFT
 
             // DMA mód beállítása dekóder típusa szerint:
             // - SSTV és WEFAX: BLOKKOLÓ mód (garantált teljes blokk szükséges a pixel-pontos dekódoláshoz)

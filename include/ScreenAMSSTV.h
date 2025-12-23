@@ -27,6 +27,7 @@
 #include "ScreenAMRadioBase.h"
 #include "UICommonVerticalButtons.h"
 #include "UICompTextBox.h"
+#include "UICompTuningBar.h"
 
 /**
  * @brief AM SSTV dekóder képernyő
@@ -86,6 +87,8 @@ class ScreenAMSSTV : public ScreenAMRadioBase, public UICommonVerticalButtons::M
     int lastModeDisplayed;
     // Reset gomb, ami törli a képterületet
     std::shared_ptr<UIButton> resetButton;
+    // Tuning Bar - FFT spektrum sáv
+    std::shared_ptr<UICompTuningBar> tuningBar;
 
     void checkDecodedData();
     void clearPictureArea();

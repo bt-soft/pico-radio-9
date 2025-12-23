@@ -106,6 +106,23 @@ void ScreenAMSSTV::layoutComponents() {
         UIContainerComponent::addChild(resetButton);
     }
 
+    // Tuning Bar: Spektrum sáv a Reset gomb alatt
+    constexpr uint16_t tuningBarHeight = 36;                                              // 2x magasabb (18 -> 36)
+    constexpr uint16_t tuningBarY = resetBtnY + UIButton::DEFAULT_BUTTON_HEIGHT + 2 + 10; // Reset gomb alatt 2px-lel + 10px lejjebb
+    constexpr uint16_t tuningBarWidth = UIButton::DEFAULT_BUTTON_WIDTH * 2;               // 2x szélesebb
+    constexpr uint16_t tuningBarX = resetBtnX;                                            // Reset gomb alatt
+    if (!tuningBar) {
+        tuningBar = std::make_shared<UICompTuningBar>(Rect(tuningBarX, tuningBarY, tuningBarWidth, tuningBarHeight), // bounds
+                                                      1000,                                                          // minFreqHz: 1000 Hz
+                                                      2500                                                           // maxFreqHz: 2500 Hz
+        );
+        // Frekvencia markerek konfigurálása SSTV esetén
+        tuningBar->addMarker(1200, TFT_GREEN, "1200");  // Sync (szinkron impulzus) - zölden
+        tuningBar->addMarker(1500, TFT_CYAN, "1500");   // Black (fekete szint) - ciánnal
+        tuningBar->addMarker(2300, TFT_YELLOW, "2300"); // White (fehér szint) - sárgán
+        UIContainerComponent::addChild(tuningBar);
+    }
+
     // SSTV kép helyének kirajzolása
     this->clearPictureArea();
 }
@@ -227,6 +244,12 @@ void ScreenAMSSTV::drawSstvMode(const char *modeName) {
 void ScreenAMSSTV::handleOwnLoop() {
     // Szülő osztály loop kezelése (S-Meter frissítés, stb.)
     ScreenAMRadioBase::handleOwnLoop();
+
+    // FFT spektrum frissítése a tuning bar számára (Core1 -> Core0 irány)
+    if (tuningBar && sharedData[1].fftSpectrumSize > 0) {
+        tuningBar->updateSpectrum(sharedData[1].fftSpectrumData, sharedData[1].fftSpectrumSize, sharedData[1].fftBinWidthHz);
+        tuningBar->draw(tft);
+    }
 
     this->checkDecodedData();
 }
