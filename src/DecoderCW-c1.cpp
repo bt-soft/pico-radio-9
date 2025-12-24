@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
  * -----                                                                                                               *
- * Last Modified: 2025.12.22, Monday  09:53:58                                                                         *
+ * Last Modified: 2025.12.24, Wednesday  03:22:08                                                                      *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -43,7 +43,7 @@ extern DecodedData decodedData;
 constexpr char DecoderCW_C1::morseSymbols_[128];
 
 /**
- * @brief fldigi decayavg() helper függvény - exponenciális mozgó átlag
+ * @brief decayavg() helper függvény - exponenciális mozgó átlag
  * @param average Jelenlegi átlag érték
  * @param input Új bemenet
  * @param weight Súly (nagyobb = lassabb követés)
@@ -103,7 +103,7 @@ bool DecoderCW_C1::start(const DecoderConfig &decoderConfig) {
     initGoertzel();
     resetDecoder();
 
-    // fldigi WPM limitek inicializálása (min_wpm - CWrange, max_wpm + CWrange)
+    // WPM limitek inicializálása (min_wpm - CWrange, max_wpm + CWrange)
     wpm_lowerlimit_ = (minWpm_ > CWrange_) ? (minWpm_ - CWrange_) : 1;
     wpm_upperlimit_ = maxWpm_ + CWrange_;
     CW_DEBUG("CW-C1: WPM limits - lower=%u, upper=%u\n", wpm_lowerlimit_, wpm_upperlimit_);
@@ -185,7 +185,7 @@ q15_t DecoderCW_C1::processGoertzelBlock(const int16_t *samples, size_t count, q
 }
 
 /**
- * @brief Tónus detekció fldigi módszerrel - envelope tracking + adaptive threshold
+ * @brief Tónus detekció - envelope tracking + adaptive threshold
  * @param samples Bemeneti minták int16_t formátumban
  * @param count Minták száma
  * @return true ha tónus detektálva
@@ -210,10 +210,10 @@ bool DecoderCW_C1::detectTone(const int16_t *samples, size_t count) {
     }
     measuredFreqIndex_ = bestIndex;
 
-    // Q15 → float konverzió (0-1000 tartomány, mint fldigi-nél)
+    // Q15 → float konverzió (0-1000 tartomány)
     float value = static_cast<float>(maxMagnitude) / Q15_SCALE * 1000.0f;
 
-    // --- fldigi envelope tracking algoritmus ---
+    // --- envelope tracking algoritmus ---
     if (useAdaptiveThreshold_) {
         // sig_avg követés (decay)
         sig_avg_ = decayavg(sig_avg_, value, decay_weight_);
@@ -252,7 +252,7 @@ bool DecoderCW_C1::detectTone(const int16_t *samples, size_t count) {
             metric_ += 0.2f * constrain(2.5f * snr_db, 0.0f, 100.0f);
         }
 
-        // Adaptive threshold számítás (fldigi módszer)
+        // Adaptive threshold számítás
         float diff = norm_sig - norm_noise;
         cw_upper_ = norm_sig - 0.2f * diff;
         cw_lower_ = norm_noise + 0.7f * diff;
@@ -514,7 +514,7 @@ void DecoderCW_C1::processSamples(const int16_t *rawAudioSamples, size_t count) 
             trailingEdgeTime_ = currentTime;
             unsigned long duration = trailingEdgeTime_ - leadingEdgeTime_;
 
-            // fldigi noise spike threshold: kiszűrjük a túl rövid jeleket (dot_length / 2)
+            // noise spike threshold: kiszűrjük a túl rövid jeleket (dot_length / 2)
             if (noise_spike_threshold_ > 0 && duration < noise_spike_threshold_) {
                 // CW_DEBUG("CW-C1: Noise spike rejected - duration=%lu ms < threshold=%lu ms\n", duration, noise_spike_threshold_);
                 measuring_ = false;
@@ -798,9 +798,9 @@ void DecoderCW_C1::calculateWpm(unsigned long letterDuration) {
  * @param dah Dah (hosszú) elem hossza ms-ben
  */
 void DecoderCW_C1::updateTracking(unsigned long dit, unsigned long dah) {
-    // fldigi update_tracking() - teljes validáció + tracking filter
+    // update_tracking() - teljes validáció + tracking filter
 
-    // 1. Ratio validáció: dah/dit arány max 4x lehet (fldigi logic)
+    // 1. Ratio validáció: dah/dit arány max 4x lehet
     if (dah > 4 * dit || dit > 4 * dah) {
         // CW_DEBUG("CW-C1: Invalid ratio - dit=%lu ms, dah=%lu ms (ratio=%.2f)\n", dit, dah, (float)dah / dit);
         return;
@@ -809,7 +809,7 @@ void DecoderCW_C1::updateTracking(unsigned long dit, unsigned long dah) {
     // 2. WPM számítás a two_dots alapján (dit + dah = ~2 dots)
     float two_dots_measured = (float)(dit + dah);
 
-    // 3. Tracking filter alkalmazása (simple low-pass filter mint az fldigi trackingfilter->run())
+    // 3. Tracking filter alkalmazása (simple low-pass filter  trackingfilter->run())
     if (two_dots_ == 0.0f) {
         two_dots_ = two_dots_measured;
     } else {
@@ -823,12 +823,12 @@ void DecoderCW_C1::updateTracking(unsigned long dit, unsigned long dah) {
     float dot_length = two_dots_ / 2.0f;
     float estimated_wpm = 1200.0f / dot_length;
 
-    // fldigi: min_dot = KWPM / 200, max_dash = 3 * KWPM / 5
+    //  min_dot = KWPM / 200, max_dash = 3 * KWPM / 5
     // KWPM = dot_length (ms), tehát:
     min_dot_length_ = (unsigned long)(dot_length / 2.0f);         // Minimum fél dot hossz
     max_dash_length_ = (unsigned long)(dot_length * 3.0f * 1.5f); // Maximum 4.5 dot hossz
 
-    // Noise spike threshold: negyed dot hossz (engedékenyebb mint fldigi)
+    // Noise spike threshold: negyed dot hossz (engedékenyebb mint a feldolgozásban)
     noise_spike_threshold_ = (unsigned long)(dot_length / 4.0f);
 
     // 5. WPM limit ellenőrzés (lowerwpm/upperwpm)
@@ -885,7 +885,7 @@ void DecoderCW_C1::resetDecoder() {
     ::decodedData.cwCurrentWpm = 0;
     ::decodedData.cwCurrentFreq = 0;
 
-    // fldigi tracking filter változók resetése
+    // tracking filter változók resetése
     two_dots_ = 0.0f;
     min_dot_length_ = 0;
     max_dash_length_ = 0;

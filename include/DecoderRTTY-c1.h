@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                       *
  * -----                                                                                                               *
- * Last Modified: 2025.12.14, Sunday  09:48:43                                                                         *
+ * Last Modified: 2025.12.24, Wednesday  03:22:08                                                                      *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -98,13 +98,13 @@ class DecoderRTTY_C1 : public IDecoder {
     bool pllLocked;
     int pllLockCounter;
 
-    // Bit buffer (fldigi módszer)
+    // Bit buffer
     static constexpr int MAX_BIT_BUFFER_SIZE = 512; // max symbollen
     bool bitBuffer[MAX_BIT_BUFFER_SIZE];
     int symbolLen;        // symbollen = TONE_BLOCK_SIZE
     int bitBufferCounter; // counter az rx() state machine-hez
 
-    // AFC (Automatic Frequency Control) - fldigi módszer
+    // AFC (Automatic Frequency Control)
     float freqError;                   // jelenlegi frekvencia hiba (Hz)
     int afcEnabled;                    // AFC engedélyezve (0=ki, 1=lassabb, 2=gyorsabb)
     static constexpr int MAXPIPE = 16; // history buffer méret
@@ -139,10 +139,10 @@ class DecoderRTTY_C1 : public IDecoder {
 
     void initializePLL();
 
-    // Bit buffer módszerek (fldigi)
+    // Bit buffer módszerek
     bool isMarkSpaceTransition(int &correction);
     bool isMarkAtCenter();
-    bool rxBit(bool bit); // fldigi rx() metódus
+    bool rxBit(bool bit); // rx() metódus
 
     // AFC (Automatic Frequency Control)
     void updateAFC(bool charDecoded);

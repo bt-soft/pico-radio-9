@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
  * -----                                                                                                               *
- * Last Modified: 2025.12.21, Sunday  04:13:44                                                                         *
+ * Last Modified: 2025.12.24, Wednesday  03:21:55                                                                      *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -31,13 +31,12 @@
 #include "defines.h"
 
 // RTTY működés debug engedélyezése (csak ha __DEBUG definiálva van)
-//#define __RTTY_DEBUG
+// #define __RTTY_DEBUG
 #if defined(__DEBUG) && defined(__RTTY_DEBUG)
 #define RTTY_DEBUG(fmt, ...) DEBUG(fmt __VA_OPT__(, ) __VA_ARGS__)
 #else
 #define RTTY_DEBUG(fmt, ...) // Üres makró, ha __DEBUG nincs definiálva
 #endif
-
 
 extern DecodedData decodedData;
 
@@ -46,7 +45,7 @@ extern DecodedData decodedData;
 #define MIN_NOISE_FLOOR 10.0f  // Alacsony minimum a gyenge jelekhez
 #define MIN_DOMINANT_MAG 50.0f // Nagyon alacsony küszöb a gyenge jelek fogadásához
 
-// envelope és noise tracking konstansok (fldigi alapú, optimalizált gyenge jelekhez)
+// envelope és noise tracking konstansok (optimalizált gyenge jelekhez)
 static constexpr float ENVELOPE_ATTACK_ALPHA = 1.0f / 16.0f; // gyors attack (64/4 = 16)
 static constexpr float ENVELOPE_DECAY_ALPHA = 1.0f / 512.0f; // közepesen gyors decay (64*8 = 512)
 static constexpr float NOISE_ATTACK_ALPHA = 1.0f / 16.0f;    // gyors attack (64/4 = 16)
@@ -117,8 +116,8 @@ bool DecoderRTTY_C1::start(const DecoderConfig &decoderConfig) {
     decodedData.rttySpaceFreq = static_cast<uint16_t>(spaceFreq);
     decodedData.rttyBaudRate = baudRate;
 
-    RTTY_DEBUG("RTTY dekóder elindítva: Mark=%.1f Hz, Space=%.1f Hz, Shift=%.1f Hz, Baud=%.2f, Fs=%.0f Hz, ToneBlock=%u, BinSpacing=%.1f Hz\n", markFreq, spaceFreq,
-          fabsf(markFreq - spaceFreq), baudRate, samplingRate, TONE_BLOCK_SIZE, BIN_SPACING_HZ);
+    RTTY_DEBUG("RTTY dekóder elindítva: Mark=%.1f Hz, Space=%.1f Hz, Shift=%.1f Hz, Baud=%.2f, Fs=%.0f Hz, ToneBlock=%u, BinSpacing=%.1f Hz\n", markFreq,
+               spaceFreq, fabsf(markFreq - spaceFreq), baudRate, samplingRate, TONE_BLOCK_SIZE, BIN_SPACING_HZ);
     return true;
 }
 
@@ -242,7 +241,7 @@ void DecoderRTTY_C1::processToneBlock(const int16_t *samples, size_t count) {
             float confidence = 0.0f;
 
             if (detectTone(isMark, confidence)) {
-                // fldigi módszer: bit buffer alapú dekódolás
+                // bit buffer alapú dekódolás
                 bool charDecoded = rxBit(isMark);
 
                 // AFC frissítés ha karakter dekódolva
@@ -308,7 +307,7 @@ bool DecoderRTTY_C1::detectTone(bool &isMark, float &confidence) {
     spaceHistory[historyPtr] = spaceComplex;
     historyPtr = (historyPtr + 1) % MAXPIPE;
 
-    // 2. Zajpadló követése (fldigi módszer: decayavg)
+    // 2. Zajpadló követése (decayavg)
     // mark_noise = decayavg(mark_noise, mark_mag, (mark_mag < mark_noise) ? symbollen/4 : symbollen*48)
     float markNoiseSample = (BINS_PER_TONE > 1) ? ((markSum - markPeak) / static_cast<float>(BINS_PER_TONE - 1)) : 0.0f;
     float spaceNoiseSample = (BINS_PER_TONE > 1) ? ((spaceSum - spacePeak) / static_cast<float>(BINS_PER_TONE - 1)) : 0.0f;
@@ -328,7 +327,7 @@ bool DecoderRTTY_C1::detectTone(bool &isMark, float &confidence) {
     markNoiseFloor = std::max(markNoiseFloor, MIN_NOISE_FLOOR);
     spaceNoiseFloor = std::max(spaceNoiseFloor, MIN_NOISE_FLOOR);
 
-    // 3. Envelope követés (fldigi módszer, javított)
+    // 3. Envelope követés
     // mark_env = decayavg(mark_env, mark_mag, (mark_mag > mark_env) ? symbollen/4 : symbollen*16)
     // Gyors attack ha nő, gyors decay ha csökken
     markEnvelope = decayavg(markEnvelope, markPeak, (markPeak > markEnvelope) ? ENVELOPE_ATTACK_ALPHA : ENVELOPE_DECAY_ALPHA);
@@ -348,7 +347,7 @@ bool DecoderRTTY_C1::detectTone(bool &isMark, float &confidence) {
     markClipped = std::max(markClipped, noiseFloor);
     spaceClipped = std::max(spaceClipped, noiseFloor);
 
-    // 5. Optimal ATC metric számítás (fldigi algoritmus, normalizált)
+    // 5. Optimal ATC metric számítás
     // v3 = (mclipped - noise) * (mark_env - noise) -
     //      (sclipped - noise) * (space_env - noise) - 0.25 * (
     //      (mark_env - noise)² - (space_env - noise)²)
@@ -375,8 +374,9 @@ bool DecoderRTTY_C1::detectTone(bool &isMark, float &confidence) {
     // Hibakereső kiírás (debug)
     static int debugCounter = 0;
     if (++debugCounter >= 20 && toneDetected) {
-        RTTY_DEBUG("RTTY: M=%.0f/%.0f/%.0f, S=%.0f/%.0f/%.0f, Mc=%.0f, Sc=%.0f, nf=%.0f, metric=%.1f, %s (conf: %.1f)\n", markPeak, markEnvelope, markNoiseFloor,
-              spacePeak, spaceEnvelope, spaceNoiseFloor, markClipped, spaceClipped, noiseFloor, metric, isMark ? "MARK" : "SPACE", confidence);
+        RTTY_DEBUG("RTTY: M=%.0f/%.0f/%.0f, S=%.0f/%.0f/%.0f, Mc=%.0f, Sc=%.0f, nf=%.0f, metric=%.1f, %s (conf: %.1f)\n", markPeak, markEnvelope,
+                   markNoiseFloor, spacePeak, spaceEnvelope, spaceNoiseFloor, markClipped, spaceClipped, noiseFloor, metric, isMark ? "MARK" : "SPACE",
+                   confidence);
         debugCounter = 0;
     }
 
@@ -397,7 +397,7 @@ void DecoderRTTY_C1::initializePLL() {
         symbolLen = MAX_BIT_BUFFER_SIZE / 2;
 
     RTTY_DEBUG("RTTY: symbolLen=%d blocks/bit (%.2f exact, %.1f samples/bit, Fs=%.0f Hz, Baud=%.2f)\n", symbolLen, blocksPerBit, samplesPerBit, samplingRate,
-          baudRate);
+               baudRate);
 
     pllPhase = 0.0f;
     pllLocked = false;
@@ -423,7 +423,7 @@ char DecoderRTTY_C1::decodeBaudotCharacter(uint8_t baudotCode) {
     return result;
 }
 
-// Bit buffer segédfüggvények (fldigi módszer)
+// Bit buffer segédfüggvények
 bool DecoderRTTY_C1::isMarkSpaceTransition(int &correction) {
     correction = 0;
     // Keresünk MARK→SPACE átmenetet (start bit detektálás)
@@ -505,7 +505,7 @@ bool DecoderRTTY_C1::rxBit(bool bit) {
                     char c = decodeBaudotCharacter(currentByte);
                     RTTY_DEBUG("RTTY: CHAR decoded: code=0x%02X '%c'\n", currentByte, (c >= 32 && c < 127) ? c : '.');
                     if (c != '\0') {
-                        // Duplikált CR/LF szűrés (fldigi)
+                        // Duplikált CR/LF szűrés
                         if ((c == '\r' && lastChar == '\r') || (c == '\n' && lastChar == '\n')) {
                             RTTY_DEBUG("RTTY: Skipped duplicate line ending\n");
                         } else {
@@ -531,13 +531,13 @@ bool DecoderRTTY_C1::rxBit(bool bit) {
     return charDecoded;
 }
 
-// AFC (Automatic Frequency Control) - fldigi módszer
+// AFC (Automatic Frequency Control)
 void DecoderRTTY_C1::updateAFC(bool charDecoded) {
     if (!afcEnabled || !charDecoded)
         return;
 
     // Számítsuk a frekvencia hibát a fázis változásból
-    // fldigi: freqerr = (TWOPI * samplerate / baud) * arg(conj(history[n]) * history[n-1])
+    // freqerr = (TWOPI * samplerate / baud) * arg(conj(history[n]) * history[n-1])
     int mp0 = historyPtr - 2;
     int mp1 = historyPtr - 1;
     if (mp0 < 0)

@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                       *
  * -----                                                                                                               *
- * Last Modified: 2025.11.23, Sunday  09:47:37                                                                         *
+ * Last Modified: 2025.12.24, Wednesday  03:19:57                                                                      *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -74,27 +74,27 @@ class DecoderCW_C1 : public IDecoder {
     q15_t goertzelCoeff_;                    // Goertzel együttható (Q15)
     q15_t threshold_q15;                     // Jelszint küszöb (Q15)
 
-    // --- AGC paraméterek (fldigi alapú envelope tracking) ---
-    // Ha true, a dekóder adaptív küszöböt számol (fldigi módszer)
+    // --- AGC paraméterek  ---
+    // Ha true, a dekóder adaptív küszöböt számol 
     // Ha false, csak a `minThreshold_q15` értéket használjuk (fix küszöb)
     bool useAdaptiveThreshold_ = false;
 
-    // fldigi envelope tracking változók (float, nem Q15!)
+    //  envelope tracking változók (float, nem Q15!)
     float sig_avg_ = 0.0f;     // Jel átlag (decayavg)
     float noise_floor_ = 0.0f; // Zajpadló (decayavg)
     float agc_peak_ = 0.0f;    // AGC csúcs (decayavg)
     float metric_ = 0.0f;      // SNR metrika (0-100)
 
-    // fldigi attack/decay konstansok (weight paraméterek a decayavg-hez)
+    // attack/decay konstansok (weight paraméterek a decayavg-hez)
     // attack: gyors követés (kisebb weight), decay: lassú követés (nagyobb weight)
     int attack_weight_ = 200; // Alapértelmezett: medium (200, 400 slow, 100 fast)
     int decay_weight_ = 1000; // Alapértelmezett: medium (1000, 2000 slow, 500 fast)
 
-    // Adaptive threshold értékek (fldigi módszer)
+    // Adaptive threshold értékek
     float cw_upper_ = 0.5f; // Felső küszöb (normalizált)
     float cw_lower_ = 0.3f; // Alsó küszöb (normalizált)
 
-    // fldigi WPM tracking filter változók
+    // WPM tracking filter változók
     float two_dots_ = 0.0f;                   // Két dot időtartam (tracking filter kimenet)
     unsigned long min_dot_length_ = 0;        // Minimális érvényes dot hossz (ms)
     unsigned long max_dash_length_ = 0;       // Maximális érvényes dash hossz (ms)
@@ -107,7 +107,7 @@ class DecoderCW_C1 : public IDecoder {
     q15_t agcLevel_q15 = 8192;         // AGC szint (mozgó átlag) Q15: 250.0f × 32768 / 1000 ≈ 8192
     q15_t agcAlpha_q15 = 655;          // AGC szűrési állandó Q15: 0.02f × 32768 ≈ 655
     q15_t minThreshold_q15 = 4915;     // Minimális threshold_q15 érték Q15: 150.0f × 32768 / 1000 ≈ 4915
-    const float THRESH_FACTOR = 0.80f; // DEPRECATED - fldigi módszer használja a cw_upper/lower-t
+    //const float THRESH_FACTOR = 0.80f; // DEPRECATED - a cw_upper/lower-t
 
     // Jelzi, hogy az AGC egyszer már inicializálva lett valódi mérésből
     bool agcInitialized_ = false;

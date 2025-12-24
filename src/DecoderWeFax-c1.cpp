@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
  * -----                                                                                                               *
- * Last Modified: 2025.12.22, Monday  06:31:31                                                                         *
+ * Last Modified: 2025.12.24, Wednesday  03:19:57                                                                      *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -212,7 +212,7 @@ void DecoderWeFax_C1::reset() {
     phase_high = false;
     memset(phasing_history, 0, sizeof(phasing_history));
 
-    // fldigi korreláció változók resetelése
+    // korreláció változók resetelése
     corr_calls_nb = 0;
     curr_corr_avg = 0.0;
     imag_corr_max = 0.0;
@@ -713,12 +713,12 @@ void DecoderWeFax_C1::decode_phasing(int gray_value) {
                 decodedData.modeChanged = true;
             }
 
-            // fldigi: több phasing sor gyűjtése jobb átlaghoz (20 sor helyett 10-15)
+            // több phasing sor gyűjtése jobb átlaghoz (20 sor helyett 10-15)
             // Elegendő phasing sor után átváltunk IMAGE módba
             if (phase_lines >= 2 && phase_lines <= num_phase_lines) {
                 phasing_calls_nb++;
 
-                // fldigi módon: csak minden 5. phasing sornál frissítjük az LPM-et
+                // csak minden 5. phasing sornál frissítjük az LPM-et
                 if ((phasing_calls_nb % 5) == 0 || phase_lines == num_phase_lines) {
                     WEFAX_DEBUG("WeFax-C1: \n-------------------------------------------------\n");
 
@@ -823,7 +823,7 @@ void DecoderWeFax_C1::decode_image(int gray_value, uint16_t *current_line_idx) {
                 WEFAX_DEBUG("WeFax-C1: ⚠ BUFFER TELE! Sor #%d elveszett (Core0 lassú?)\n", *current_line_idx);
             }
 
-            // fldigi: line-to-line korreláció számítás minden sor végén
+            // line-to-line korreláció számítás minden sor végén
             // De csak másodpercenként egyszer (CPU spórolás)
             unsigned long now = millis();
             if (now - last_corr_time >= 1000) { // 1 másodpercenként
@@ -849,13 +849,13 @@ void DecoderWeFax_C1::decode_image(int gray_value, uint16_t *current_line_idx) {
     pix_samples_nb++;
     img_sample++;
 
-    // fldigi: correlation buffer feltöltése (ring buffer)
+    // correlation buffer feltöltése (ring buffer)
     correlation_buffer[corr_buffer_index] = (uint8_t)gray_value;
     corr_buffer_index = (corr_buffer_index + 1) % CORR_BUFFER_SIZE;
 }
 
 // =============================================================================
-// fldigi LINE-TO-LINE KORRELÁCIÓ (KÉPMINŐSÉG ELLENŐRZÉS)
+// LINE-TO-LINE KORRELÁCIÓ (KÉPMINŐSÉG ELLENŐRZÉS)
 // =============================================================================
 
 /**
@@ -864,8 +864,8 @@ void DecoderWeFax_C1::decode_image(int gray_value, uint16_t *current_line_idx) {
  * @param line_offset Eltolás (mintákban) - tipikusan 1 sor hossza
  * @return Korreláció érték (0.0-1.0)
  *
- * fldigi alapú line-to-line correlation számítás.
- * Ezt használja az fldigi a kép minőségének ellenőrzésére és az APT stop detektáláshoz.
+ *  line-to-line correlation számítás.
+ *  kép minőségének ellenőrzésére és az APT stop detektálására.
  */
 double DecoderWeFax_C1::correlation_from_index(size_t line_length, size_t line_offset) const {
     // Ring buffer indexelés
@@ -903,10 +903,10 @@ double DecoderWeFax_C1::correlation_from_index(size_t line_length, size_t line_o
 }
 
 /**
- * @brief Periodikus korreláció számítás (fldigi módon)
+ * @brief Periodikus korreláció számítás 
  *
  * Ezt hívjuk meg minden sor végén a kép minőségének nyomon követéséhez.
- * Az fldigi ezt használja APT stop detektáláshoz és minőségellenőrzéshez.
+ * Az APT stop detektáláshoz és minőségellenőrzéshez.
  */
 void DecoderWeFax_C1::correlation_calc() {
     corr_calls_nb++;
@@ -925,7 +925,7 @@ void DecoderWeFax_C1::correlation_calc() {
         current_corr = 1.0;
     }
 
-    // fldigi módon: exponenciális mozgóátlag (decayavg szerű)
+    // exponenciális mozgóátlag (decayavg szerű)
     static const int min_corr_rows = 5; // Minimum sorok száma az átlagoláshoz
 
     if (corr_calls_nb < min_corr_rows) {

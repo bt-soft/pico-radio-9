@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                       *
  * -----                                                                                                               *
- * Last Modified: 2025.11.22, Saturday  07:31:44                                                                       *
+ * Last Modified: 2025.12.24, Wednesday  03:22:08                                                                      *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -88,7 +88,7 @@ class DecoderWeFax_C1 : public IDecoder {
 
     float complex_arg_diff(float prev_real, float prev_imag, float curr_real, float curr_imag);
 
-    // fldigi-alapú korrelációs minőség ellenőrzés
+    // korrelációs minőség ellenőrzés
     double correlation_from_index(size_t line_length, size_t line_offset) const;
     void correlation_calc();
 
@@ -139,7 +139,7 @@ class DecoderWeFax_C1 : public IDecoder {
     int pixel_val = 0;
     int pix_samples_nb = 0;
 
-    // fldigi line-to-line korreláció (képminőség ellenőrzés)
+    // line-to-line korreláció (képminőség ellenőrzés)
 #define CORR_BUFFER_SIZE 4096 // Ring buffer a korrelációhoz (~2 sor IOC288 esetén)
     uint8_t correlation_buffer[CORR_BUFFER_SIZE] = {0};
     size_t corr_buffer_index = 0;
@@ -148,7 +148,7 @@ class DecoderWeFax_C1 : public IDecoder {
     int corr_calls_nb = 0;            // Korreláció hívások száma
     unsigned long last_corr_time = 0; // Utolsó korreláció számítás ideje
 
-    // fldigi phasing fejlesztések
-    int num_phase_lines = 20; // Cél phasing sorok száma (fldigi: 20)
+    // phasing fejlesztések
+    int num_phase_lines = 20; // Cél phasing sorok száma ~20
     int phasing_calls_nb = 0; // Phasing hívások számlálója
 };
