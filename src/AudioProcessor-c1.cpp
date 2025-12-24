@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
  * -----                                                                                                               *
- * Last Modified: 2025.12.22, Monday  09:56:52                                                                         *
+ * Last Modified: 2025.12.24, Wednesday  08:31:18                                                                      *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -213,7 +213,8 @@ void AudioProcessorC1::calibrateDcMidpoint(uint32_t sampleCount) {
         start();
     }
 
-    ADPROC_DEBUG("AudioProc-c1: DC midpoint kalibrálva = %u (mérések: %u)\n", adcMidpoint_, sampleCount);
+    float dcMidpointMv = adcMidpoint_ * ADC_LSB_VOLTAGE_MV;
+    ADPROC_DEBUG("AudioProc-c1: DC midpoint kalibrálva = %u (%.2f mV) (mérések: %u)\n", adcMidpoint_, dcMidpointMv, sampleCount);
 }
 
 // ============================================================================
