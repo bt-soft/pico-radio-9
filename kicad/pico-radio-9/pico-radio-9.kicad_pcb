@@ -117,7 +117,7 @@
 			(mirror no)
 			(drillshape 0)
 			(scaleselection 1)
-			(outputdirectory "../nyák rendelés/")
+			(outputdirectory "../pico-radio-9-NYÁK-rendelés-egyoldalas/")
 		)
 	)
 	(net 0 "")

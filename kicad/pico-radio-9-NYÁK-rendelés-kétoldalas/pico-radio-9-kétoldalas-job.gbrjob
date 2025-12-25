@@ -3,19 +3,19 @@
     "GenerationSoftware": {
       "Vendor": "KiCad",
       "Application": "Pcbnew",
-      "Version": "9.0.3"
+      "Version": "9.0.6"
     },
-    "CreationDate": "2025-08-11T18:10:46+02:00"
+    "CreationDate": "2025-12-25T20:23:02+01:00"
   },
   "GeneralSpecs": {
     "ProjectId": {
-      "Name": "pico-radio-5",
-      "GUID": "7069636f-2d72-4616-9469-6f2d352e6b69",
+      "Name": "pico-radio-9-kétoldalas",
+      "GUID": "7069636f-2d72-4616-9469-6f2d392d6be9",
       "Revision": "rev?"
     },
     "Size": {
-      "X": 87.3,
-      "Y": 67.05
+      "X": 88.05,
+      "Y": 57.3
     },
     "LayerNumber": 2,
     "BoardThickness": 1.6,
@@ -32,27 +32,27 @@
   ],
   "FilesAttributes": [
     {
-      "Path": "pico-radio-5-B_Cu.gbr",
+      "Path": "pico-radio-9-kétoldalas-B_Cu.gbr",
       "FileFunction": "Copper,L2,Bot",
       "FilePolarity": "Positive"
     },
     {
-      "Path": "pico-radio-5-F_Silkscreen.gbr",
+      "Path": "pico-radio-9-kétoldalas-F_Silkscreen.gbr",
       "FileFunction": "Legend,Top",
       "FilePolarity": "Positive"
     },
     {
-      "Path": "pico-radio-5-B_Silkscreen.gbr",
+      "Path": "pico-radio-9-kétoldalas-B_Silkscreen.gbr",
       "FileFunction": "Legend,Bot",
       "FilePolarity": "Positive"
     },
     {
-      "Path": "pico-radio-5-B_Mask.gbr",
+      "Path": "pico-radio-9-kétoldalas-B_Mask.gbr",
       "FileFunction": "SolderMask,Bot",
       "FilePolarity": "Negative"
     },
     {
-      "Path": "pico-radio-5-Edge_Cuts.gbr",
+      "Path": "pico-radio-9-kétoldalas-Edge_Cuts.gbr",
       "FileFunction": "Profile",
       "FilePolarity": "Positive"
     }
