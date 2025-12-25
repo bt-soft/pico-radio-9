@@ -1,9 +1,15 @@
 # pico-radio-9
 
 ## PCB 3D View
+
+
 ![PCB 3D View - kétoldalas](doc/PCB%203D%20View%20-%20kétoldalas.png)
+<br/>
+<em>Kétoldalas NYÁK terv</em>
 
 ![PCB 3D nézet - egyoldalas](doc/PCB%203D%20View.png)
+<br/>
+<em>Egyoldalas NYÁK terv</em>
 
 **A projekt még fejlesztés alatt áll!**
 
