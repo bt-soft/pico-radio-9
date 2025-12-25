@@ -1,8 +1,11 @@
 # pico-radio-9
 
-![PCB 3D nézet](doc/PCB%203D%20View.png)
+## PCB 3D View
+![PCB 3D View - kétoldalas](doc/PCB%203D%20View%20-%20kétoldalas.png)
 
-**A projekt még fejlesztés alatt áll**
+![PCB 3D nézet - egyoldalas](doc/PCB%203D%20View.png)
+
+**A projekt még fejlesztés alatt áll!**
 
 Egy Raspberry Pi Pico alapú rádióprojekt (Si4735 vezérléssel) — fejlett dekóderekkel (RTTY, CW, SSTV, WeFax), spektrum megjelenítéssel és interaktív érintőképernyős felülettel.
 
