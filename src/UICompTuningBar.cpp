@@ -1,5 +1,5 @@
 /*
- * Project: [pico-radio-9] Raspberry Pi Pico Si4735 Radio
+ * Project: [pico-radio-9] Raspberry Pi Pico Si4735 Radio                                                              *
  * File: UICompTuningBar.cpp
  * Created Date: 2025.12.22.
  *
@@ -74,10 +74,13 @@ void UICompTuningBar::updateSpectrum(const int16_t *fftData, uint16_t fftSize, f
 }
 
 void UICompTuningBar::draw(TFT_eSPI &tft) {
-    // FPS limitálás: 25 FPS (40ms/frame)
-    constexpr uint32_t FRAME_TIME_MS = 40;
+    
+    // FPS limitálás
+    constexpr uint32_t FPS_LIMIT = 30;
+    constexpr uint32_t FRAME_TIME_MS = 1000 / FPS_LIMIT;
+
     uint32_t currentMs = millis();
-    if (currentMs - lastUpdateMs < FRAME_TIME_MS) {
+    if (!Utils::timeHasPassed(lastUpdateMs, FRAME_TIME_MS)) {
         return; // Még nem telt el elég idő
     }
     lastUpdateMs = currentMs;
@@ -113,6 +116,12 @@ void UICompTuningBar::draw(TFT_eSPI &tft) {
     // Peak hold konstansok
     constexpr uint8_t PEAK_HOLD_FRAMES = 15; // ~600ms tartás 25 FPS-nél
     constexpr uint8_t DECAY_SPEED = 1;       // Lassú esés sebessége
+
+    // Biztosítjuk, hogy a displayedHeights és peakHoldCounters tömbök megfelelő méretűek
+    if (displayedHeights.size() != barHeights.size()) {
+        displayedHeights.resize(barHeights.size(), 0);
+        peakHoldCounters.resize(barHeights.size(), 0);
+    }
 
     // Bar graph rajzolása (függőleges oszlopok) peak hold logikával
     for (size_t i = 0; i < barHeights.size(); i++) {

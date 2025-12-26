@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
  * -----                                                                                                               *
- * Last Modified: 2025.12.20, Saturday  06:34:27                                                                       *
+ * Last Modified: 2025.12.26, Friday  09:38:05                                                                         *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -34,9 +34,6 @@
 #define WEFAX_DEBUG(fmt, ...) // Üres makró, ha __DEBUG nincs definiálva
 #endif
 
-// #define WEFAX_SCALE 300.0f / WEFAX_MAX_OUTPUT_WIDTH                                  // Kép skálázási tényező
-// #define WEFAX_SCALED_WIDTH ((uint16_t)(WEFAX_MAX_OUTPUT_WIDTH * WEFAX_SCALE + 0.5f)) // Új szélesség skálázva
-//  #define WEFAX_SCALED_HEIGHT ((uint16_t)(WEFAX_LINE_HEIGHT * WEFAX_SCALE + 0.5f))     // Új magasság skálázva
 #define WEFAX_SCALED_WIDTH 400  // Fix szélesség a skálázott képnek
 #define WEFAX_SCALED_HEIGHT 190 // Fix magasság a skálázott képnek
 
@@ -85,9 +82,9 @@ void ScreenAMWeFax::layoutComponents() {
     ScreenRadioBase::createCommonHorizontalButtons(false);
 
     // Reset gomb elhelyezése: a gomb jobb oldala egy vonalban legyen a kép jobb oldalával,
-    constexpr uint16_t resetBtnRightX = WEFAX_PICTURE_START_X + WEFAX_SCALED_WIDTH;             // kép jobb oldala
-    constexpr uint16_t resetBtnX = resetBtnRightX - UIButton::DEFAULT_BUTTON_WIDTH;             // gomb bal oldala
-    constexpr uint16_t resetBtnY = WEFAX_PICTURE_START_Y - 5 - UIButton::DEFAULT_BUTTON_HEIGHT; // 5px a kép felett
+    constexpr uint16_t resetBtnRightX = WEFAX_PICTURE_START_X + WEFAX_SCALED_WIDTH; // kép jobb oldala
+    constexpr uint16_t resetBtnX = resetBtnRightX - UIButton::DEFAULT_BUTTON_WIDTH; // gomb bal oldala
+    constexpr uint16_t resetBtnY = 20;
     if (!resetButton) {
         resetButton = std::make_shared<UIButton>( //
             201,                                  // egyedi ID
@@ -104,13 +101,15 @@ void ScreenAMWeFax::layoutComponents() {
     }
 
     // Tuning Bar: Spektrum sáv a Reset gomb alatt (kép felett)
-    constexpr uint16_t tuningBarHeight = 18;
-    constexpr uint16_t tuningBarY = resetBtnY + UIButton::DEFAULT_BUTTON_HEIGHT + 2; // Reset gomb alatt 2px-lel
-    constexpr uint16_t tuningBarWidth = WEFAX_SCALED_WIDTH;
+    constexpr uint16_t tuningBarHeight = 30;
+    constexpr uint16_t tuningBarWidth = 160;
+    constexpr uint16_t tuningBarX = WEFAX_PICTURE_START_X + WEFAX_SCALED_WIDTH - tuningBarWidth;
+    constexpr uint16_t tuningBarY = MODE_TXT_Y - 17;
     if (!tuningBar) {
-        tuningBar = std::make_shared<UICompTuningBar>(Rect(WEFAX_PICTURE_START_X, tuningBarY, tuningBarWidth, tuningBarHeight), // bounds
-                                                      1000,                                                                     // minFreqHz: 1000 Hz
-                                                      2500                                                                      // maxFreqHz: 2500 Hz
+        tuningBar = std::make_shared<UICompTuningBar>(                     //
+            Rect(tuningBarX, tuningBarY, tuningBarWidth, tuningBarHeight), // bounds
+            1000,                                                          // minFreqHz: 1000 Hz
+            2500                                                           // maxFreqHz: 2500 Hz
         );
         // Frekvencia markerek konfigurálása WeFax esetén
         tuningBar->addMarker(1500, TFT_CYAN, "1500");   // Black (fekete szint) - ciánnal jelölve

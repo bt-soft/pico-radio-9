@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
  * -----                                                                                                               *
- * Last Modified: 2025.11.22, Saturday  07:35:49                                                                       *
+ * Last Modified: 2025.12.26, Friday  09:14:49                                                                         *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -85,7 +85,7 @@ void ScreenAMSSTV::layoutComponents() {
 
     // --- Reset gomb elhelyezése a kép jobb oldalán, 20px-el jobbra ---
     const int resetBtnX = SSTV_PICTURE_START_X + SSTV_SCALED_WIDTH + 20;
-    const int resetBtnY = SSTV_PICTURE_START_Y; // ugyanazon a magasságon
+    const int resetBtnY = 30; 
 
     if (!resetButton) {
         // Létrehozzuk és hozzáadjuk a képernyőhöz
