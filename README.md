@@ -3,11 +3,11 @@
 ## PCB 3D View
 
 
-![PCB 3D View - kétoldalas](doc/PCB%203D%20View%20-%20kétoldalas.png)
+![PCB 3D View - kétoldalas](doc/pictures/PCB%203D%20View%20-%20kétoldalas.png)
 <br/>
 <em>Kétoldalas NYÁK terv</em>
 
-![PCB 3D nézet - egyoldalas](doc/PCB%203D%20View.png)
+![PCB 3D nézet - egyoldalas](doc/pictures/PCB%203D%20View.png)
 <br/>
 <em>Egyoldalas NYÁK terv</em>
 
