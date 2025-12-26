@@ -1,5 +1,7 @@
 # pico-radio-9
 
+**A projekt még fejlesztés alatt áll!**
+
 
 ## A kütyü
 ![A kísérleti kütyü](doc/pictures/A%20kísérleti%20kütyü.jpg)
@@ -29,7 +31,7 @@
   </tr>
 </table>
 
-**A projekt még fejlesztés alatt áll!**
+
 
 Egy Raspberry Pi Pico alapú rádióprojekt (Si4735 vezérléssel) — fejlett dekóderekkel (RTTY, CW, SSTV, WeFax), spektrum megjelenítéssel és interaktív érintőképernyős felülettel.
 
