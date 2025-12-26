@@ -9,13 +9,25 @@
 
 
 ## PCB 3D View
-<img src="doc/pictures/PCB%203D%20View%20-%20kétoldalas.png" alt="PCB 3D View - kétoldalas" width="50%"/>
-<br/>
-<em>Kétoldalas NYÁK terv</em>
 
-<img src="doc/pictures/PCB%203D%20View.png" alt="PCB 3D nézet - egyoldalas" width="50%"/>
-<br/>
-<em>Egyoldalas NYÁK terv</em>
+<table style="border:none; width:100%;">
+  <tr>
+    <td style="border:none; text-align:center; vertical-align:middle;">
+      <img src="doc/pictures/PCB%203D%20View%20-%20kétoldalas.png" alt="PCB 3D View - kétoldalas" width="50%"/>
+    </td>
+    <td style="border:none; text-align:center; vertical-align:middle;">
+      <img src="doc/pictures/PCB%203D%20View.png" alt="PCB 3D nézet - egyoldalas" width="50%"/>
+    </td>
+  </tr>
+  <tr>
+    <td style="border:none; text-align:center;">
+      <em>Kétoldalas NYÁK terv</em>
+    </td>
+    <td style="border:none; text-align:center;">
+      <em>Egyoldalas NYÁK terv</em>
+    </td>
+  </tr>
+</table>
 
 **A projekt még fejlesztés alatt áll!**
 
