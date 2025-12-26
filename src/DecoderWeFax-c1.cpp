@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
  * -----                                                                                                               *
- * Last Modified: 2025.12.24, Wednesday  03:19:57                                                                      *
+ * Last Modified: 2025.12.26, Friday  11:08:50                                                                         *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -640,9 +640,8 @@ void DecoderWeFax_C1::decode_phasing(int gray_value) {
         return;
     }
 
-    // Magas/alacsony pixelek számlálása (fldigi alapján)
-    // fldigi küszöbök: x > 188 (fehér), x < 68 (fekete)
-    // Ezek sokkal tágabbak mint a korábbi 160/80 értékek
+    // Magas/alacsony pixelek számlálása
+    // Küszöbök: x > 188 (fehér), x < 68 (fekete)
     if (gray_value > 188) {
         curr_phase_high++;
     } else if (gray_value < 68) {
@@ -677,9 +676,8 @@ void DecoderWeFax_C1::decode_phasing(int gray_value) {
         gray_hist_low = 255;
     }
 
-    // Átmenetek detektálása (fldigi alapján)
-    // fldigi küszöbök: x > 200 (fehér kezdet), x < 25 (fekete kezdet)
-    // Ezek sokkal markánsabbak mint a korábbi 120/120 értékek
+    // Átmenetek detektálása
+    // Küszöbök: x > 200 (fehér kezdet), x < 25 (fekete kezdet)
     if (gray_value > 200 && !phase_high) {
         // FEKETE → FEHÉR átmenet
         phase_high = true;
@@ -690,7 +688,7 @@ void DecoderWeFax_C1::decode_phasing(int gray_value) {
         float line_time_s = curr_phase_len / sample_rate;
         // WEFAX_DEBUG("WeFax-C1:  <<< FEKETE SYNC: gray=%d (sor hossz: %.2fs)\n", gray_value, line_time_s);
 
-        // Érvényes sor ellenőrzése (fldigi alapján, de IMAGE módhoz adaptálva)
+        // Érvényes sor ellenőrzése (IMAGE módhoz adaptálva)
         float white_ratio = (float)curr_phase_high / curr_phase_len;
         float black_ratio = (float)curr_phase_low / curr_phase_len;
 
@@ -701,7 +699,7 @@ void DecoderWeFax_C1::decode_phasing(int gray_value) {
         bool valid_ratios, valid_duration;
 
         if (rx_state == RXPHASING || rx_state == IDLE) {
-            // PHASING HEADER kritériumok (fldigi eredeti)
+            // PHASING HEADER kritériumok
             valid_ratios = (white_ratio >= 0.04f) && (black_ratio >= 0.94f); // 4% fehér, 94% fekete
             valid_duration = (curr_phase_len >= 0.4f * sample_rate);         // min 4.4s @ 11025 Hz
         } else {
@@ -826,14 +824,14 @@ void DecoderWeFax_C1::decode_phasing(int gray_value) {
 #endif
             }
 
-            // fldigi logika: MINDIG reseteljük a számlálókat a fekete átmenetnél (line 1788-1791)
+            // MINDIG reseteljük a számlálókat a fekete átmenetnél (line 1788-1791)
             // Ez biztosítja, hogy a normál képsorok (500ms) fekete sync impulzusai is megfelelően detektálódjanak!
             curr_phase_len = 0;
             curr_phase_high = 0;
             curr_phase_low = 0;
 
         } else if (curr_phase_len > 5 * sample_rate) {
-            // Timeout (5 másodperc) - reset (fldigi line 1781-1786)
+            // Timeout (5 másodperc) - reset (line 1781-1786)
             // Ha túl hosszú lett, valami nem stimmel -> reset
             curr_phase_len = 0;
             curr_phase_high = 0;
@@ -841,7 +839,7 @@ void DecoderWeFax_C1::decode_phasing(int gray_value) {
             WEFAX_DEBUG("WeFax-C1: [!] Phasing timeout (5s) - reset\n");
         } else {
             // NEM érvényes phasing header (túl rövid vagy rossz arány)
-            // De fldigi szerint itt is resetelünk a fekete átmenetnél! (line 1788-1791)
+            // De itt is resetelünk a fekete átmenetnél! (line 1788-1791)
             // FONTOS: Ez biztosítja, hogy minden sor után újrainduljon a mérés!
             curr_phase_len = 0;
             curr_phase_high = 0;
