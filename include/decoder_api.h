@@ -203,7 +203,8 @@ struct SharedData {
 // Tehát: 11025 = bandwidthHz * 2.5  =>  bandwidthHz = 11025 / 2.5 = 4410 Hz
 #define WEFAX_SAMPLE_RATE_HZ 11025 // WEFAX mintavételezési frekvencia (fix)
 #define WEFAX_AF_BANDWIDTH_HZ 4410 // Számított a 11025 Hz mintavételezéshez (4410 * 2.5 = 11025)
-#define WEFAX_RAW_SAMPLES_SIZE 128 // KRITIKUS! NE változtasd! FM demodulátor IIR filterek blokk-függők (DC blocker, gray offset tracker)
+#define WEFAX_RAW_SAMPLES_SIZE 256 // KRITIKUS, nem lehet nagyobbra venni sajnos...
+// FFT felbontás vs dekóder stabilitás kompromisszum (256 → 43 Hz/bin, 23ms blokk)
 
 // WEFAX képszélesség mód szerint (IOC = Index of Cooperation)
 #define WEFAX_IOC576_WIDTH 1809                   // IOC 576: 576 * π ≈ 1809 pixel/sor
