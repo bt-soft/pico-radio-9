@@ -1,12 +1,12 @@
 %TF.GenerationSoftware,KiCad,Pcbnew,9.0.6*%
-%TF.CreationDate,2025-12-25T20:22:07+01:00*%
+%TF.CreationDate,2025-12-26T08:37:36+01:00*%
 %TF.ProjectId,pico-radio-9-k_toldalas,7069636f-2d72-4616-9469-6f2d392d6be9,rev?*%
 %TF.SameCoordinates,Original*%
 %TF.FileFunction,NonPlated,1,2,NPTH,Drill*%
 %TF.FilePolarity,Positive*%
 %FSLAX46Y46*%
 G04 Gerber Fmt 4.6, Leading zero omitted, Abs format (unit mm)*
-G04 Created by KiCad (PCBNEW 9.0.6) date 2025-12-25 20:22:07*
+G04 Created by KiCad (PCBNEW 9.0.6) date 2025-12-26 08:37:36*
 %MOMM*%
 %LPD*%
 G01*
@@ -18,6 +18,8 @@ G04 APERTURE END LIST*
 D10*
 %TO.C,H3*%
 X77000000Y-83750000D03*
+%TO.C,H4*%
+X89750000Y-50000000D03*
 %TO.C,H2*%
 X136750000Y-33500000D03*
 %TO.C,H1*%

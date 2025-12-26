@@ -851,6 +851,292 @@
 			)
 			(embedded_fonts no)
 		)
+		(symbol "Connector:Conn_01x05_Pin"
+			(pin_names
+				(offset 1.016)
+				(hide yes)
+			)
+			(exclude_from_sim no)
+			(in_bom yes)
+			(on_board yes)
+			(property "Reference" "J"
+				(at 0 7.62 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Value" "Conn_01x05_Pin"
+				(at 0 -7.62 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Footprint" ""
+				(at 0 0 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(hide yes)
+				)
+			)
+			(property "Datasheet" "~"
+				(at 0 0 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(hide yes)
+				)
+			)
+			(property "Description" "Generic connector, single row, 01x05, script generated"
+				(at 0 0 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(hide yes)
+				)
+			)
+			(property "ki_locked" ""
+				(at 0 0 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "ki_keywords" "connector"
+				(at 0 0 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(hide yes)
+				)
+			)
+			(property "ki_fp_filters" "Connector*:*_1x??_*"
+				(at 0 0 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(hide yes)
+				)
+			)
+			(symbol "Conn_01x05_Pin_1_1"
+				(rectangle
+					(start 0.8636 5.207)
+					(end 0 4.953)
+					(stroke
+						(width 0.1524)
+						(type default)
+					)
+					(fill
+						(type outline)
+					)
+				)
+				(rectangle
+					(start 0.8636 2.667)
+					(end 0 2.413)
+					(stroke
+						(width 0.1524)
+						(type default)
+					)
+					(fill
+						(type outline)
+					)
+				)
+				(rectangle
+					(start 0.8636 0.127)
+					(end 0 -0.127)
+					(stroke
+						(width 0.1524)
+						(type default)
+					)
+					(fill
+						(type outline)
+					)
+				)
+				(rectangle
+					(start 0.8636 -2.413)
+					(end 0 -2.667)
+					(stroke
+						(width 0.1524)
+						(type default)
+					)
+					(fill
+						(type outline)
+					)
+				)
+				(rectangle
+					(start 0.8636 -4.953)
+					(end 0 -5.207)
+					(stroke
+						(width 0.1524)
+						(type default)
+					)
+					(fill
+						(type outline)
+					)
+				)
+				(polyline
+					(pts
+						(xy 1.27 5.08) (xy 0.8636 5.08)
+					)
+					(stroke
+						(width 0.1524)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy 1.27 2.54) (xy 0.8636 2.54)
+					)
+					(stroke
+						(width 0.1524)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy 1.27 0) (xy 0.8636 0)
+					)
+					(stroke
+						(width 0.1524)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy 1.27 -2.54) (xy 0.8636 -2.54)
+					)
+					(stroke
+						(width 0.1524)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy 1.27 -5.08) (xy 0.8636 -5.08)
+					)
+					(stroke
+						(width 0.1524)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(pin passive line
+					(at 5.08 5.08 180)
+					(length 3.81)
+					(name "Pin_1"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "1"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at 5.08 2.54 180)
+					(length 3.81)
+					(name "Pin_2"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "2"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at 5.08 0 180)
+					(length 3.81)
+					(name "Pin_3"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "3"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at 5.08 -2.54 180)
+					(length 3.81)
+					(name "Pin_4"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "4"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at 5.08 -5.08 180)
+					(length 3.81)
+					(name "Pin_5"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "5"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+			)
+			(embedded_fonts no)
+		)
 		(symbol "Connector:Screw_Terminal_01x02"
 			(pin_names
 				(offset 1.016)
@@ -1775,244 +2061,6 @@
 						(effects
 							(font
 								(size 1.27 1.27)
-							)
-						)
-					)
-				)
-			)
-			(embedded_fonts no)
-		)
-		(symbol "Device:KY-040"
-			(pin_names
-				(offset 1.016)
-			)
-			(exclude_from_sim no)
-			(in_bom yes)
-			(on_board yes)
-			(property "Reference" "U"
-				(at -5.08 10.16 0)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-					(justify left bottom)
-				)
-			)
-			(property "Value" "KY-040"
-				(at -5.08 -12.7 0)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-					(justify left bottom)
-				)
-			)
-			(property "Footprint" "KY-040:KY-040-PORT"
-				(at 0 0 0)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-					(justify bottom)
-					(hide yes)
-				)
-			)
-			(property "Datasheet" ""
-				(at 0 0 0)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-					(hide yes)
-				)
-			)
-			(property "Description" ""
-				(at 0 0 0)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-					(hide yes)
-				)
-			)
-			(property "MF" "Joy-IT"
-				(at 0 0 0)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-					(justify bottom)
-					(hide yes)
-				)
-			)
-			(property "Description_1" "KY-5.0-4P Green(RAL6018/T) ; CONTACT WITH TIN PLATED MARK"
-				(at 0 0 0)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-					(justify bottom)
-					(hide yes)
-				)
-			)
-			(property "Package" "Package"
-				(at 0 0 0)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-					(justify bottom)
-					(hide yes)
-				)
-			)
-			(property "Price" "None"
-				(at 0 0 0)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-					(justify bottom)
-					(hide yes)
-				)
-			)
-			(property "SnapEDA_Link" "https://www.snapeda.com/parts/KY-040/Joy-IT/view-part/?ref=snap"
-				(at 0 0 0)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-					(justify bottom)
-					(hide yes)
-				)
-			)
-			(property "MP" "KY-040"
-				(at 0 0 0)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-					(justify bottom)
-					(hide yes)
-				)
-			)
-			(property "Availability" "Not in stock"
-				(at 0 0 0)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-					(justify bottom)
-					(hide yes)
-				)
-			)
-			(property "Check_prices" "https://www.snapeda.com/parts/KY-040/Joy-IT/view-part/?ref=eda"
-				(at 0 0 0)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-					(justify bottom)
-					(hide yes)
-				)
-			)
-			(symbol "KY-040_0_0"
-				(rectangle
-					(start -5.08 7.62)
-					(end 5.08 -7.62)
-					(stroke
-						(width 0.254)
-						(type default)
-					)
-					(fill
-						(type background)
-					)
-				)
-				(pin output line
-					(at -10.16 5.08 0)
-					(length 5.08)
-					(name "CLK"
-						(effects
-							(font
-								(size 1.016 1.016)
-							)
-						)
-					)
-					(number "CLK"
-						(effects
-							(font
-								(size 1.016 1.016)
-							)
-						)
-					)
-				)
-				(pin output line
-					(at -10.16 2.54 0)
-					(length 5.08)
-					(name "DT"
-						(effects
-							(font
-								(size 1.016 1.016)
-							)
-						)
-					)
-					(number "DT"
-						(effects
-							(font
-								(size 1.016 1.016)
-							)
-						)
-					)
-				)
-				(pin output line
-					(at -10.16 0 0)
-					(length 5.08)
-					(name "SW"
-						(effects
-							(font
-								(size 1.016 1.016)
-							)
-						)
-					)
-					(number "SW"
-						(effects
-							(font
-								(size 1.016 1.016)
-							)
-						)
-					)
-				)
-				(pin power_in line
-					(at -10.16 -2.54 0)
-					(length 5.08)
-					(name "VCC"
-						(effects
-							(font
-								(size 1.016 1.016)
-							)
-						)
-					)
-					(number "VCC"
-						(effects
-							(font
-								(size 1.016 1.016)
-							)
-						)
-					)
-				)
-				(pin power_in line
-					(at -10.16 -5.08 0)
-					(length 5.08)
-					(name "GND"
-						(effects
-							(font
-								(size 1.016 1.016)
-							)
-						)
-					)
-					(number "GND"
-						(effects
-							(font
-								(size 1.016 1.016)
 							)
 						)
 					)
@@ -5826,16 +5874,6 @@
 	)
 	(wire
 		(pts
-			(xy 222.25 17.78) (xy 224.79 17.78)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "03a0965f-dc91-4625-bbbe-d8893bcb7083")
-	)
-	(wire
-		(pts
 			(xy 104.14 62.23) (xy 104.14 71.12)
 		)
 		(stroke
@@ -5984,16 +6022,6 @@
 		)
 		(uuid "16538110-b301-4d16-ac47-a9e14c8bdbdb")
 	)
-	(wire
-		(pts
-			(xy 222.25 20.32) (xy 224.79 20.32)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "171edf64-243d-40cd-82cb-7cffb5ae6ba7")
-	)
 	(bus
 		(pts
 			(xy 93.98 73.66) (xy 96.52 73.66)
@@ -6086,6 +6114,16 @@
 	)
 	(wire
 		(pts
+			(xy 232.41 22.86) (xy 238.76 22.86)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "22a31fff-40bf-497d-83b8-cf260ea5c857")
+	)
+	(wire
+		(pts
 			(xy 71.12 176.53) (xy 80.01 176.53)
 		)
 		(stroke
@@ -6143,6 +6181,16 @@
 			(type default)
 		)
 		(uuid "2e6a185c-1af3-401f-ba8d-d050ad9b54a4")
+	)
+	(wire
+		(pts
+			(xy 232.41 20.32) (xy 238.76 20.32)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "2f690330-42b6-4ac1-877e-b331a9ddbce3")
 	)
 	(wire
 		(pts
@@ -6286,6 +6334,16 @@
 	)
 	(wire
 		(pts
+			(xy 232.41 17.78) (xy 238.76 17.78)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "3e532897-5ecd-4915-b790-7a4a976ba3e6")
+	)
+	(wire
+		(pts
 			(xy 153.67 144.78) (xy 161.29 144.78)
 		)
 		(stroke
@@ -6313,16 +6371,6 @@
 			(type default)
 		)
 		(uuid "3f7dd60c-00d8-4ad2-b0c6-c9c125ca8f0a")
-	)
-	(wire
-		(pts
-			(xy 224.79 27.94) (xy 224.79 30.48)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "40452fe0-3d9f-45ca-a564-890b2047b4c2")
 	)
 	(wire
 		(pts
@@ -6816,16 +6864,6 @@
 	)
 	(wire
 		(pts
-			(xy 223.52 25.4) (xy 224.79 25.4)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "7895c0fe-1574-4711-9c36-0dc873d188ab")
-	)
-	(wire
-		(pts
 			(xy 153.67 71.12) (xy 165.1 71.12)
 		)
 		(stroke
@@ -7296,16 +7334,6 @@
 	)
 	(wire
 		(pts
-			(xy 222.25 22.86) (xy 224.79 22.86)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "ab67e893-8168-41a4-83a8-da1a9d62a4db")
-	)
-	(wire
-		(pts
 			(xy 83.82 62.23) (xy 83.82 71.12)
 		)
 		(stroke
@@ -7443,6 +7471,16 @@
 			(type default)
 		)
 		(uuid "bc339232-2f2c-44b7-a2cb-7de542f0c72e")
+	)
+	(wire
+		(pts
+			(xy 233.68 25.4) (xy 238.76 25.4)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "bc71df34-c143-4cb6-a8e6-277374202783")
 	)
 	(wire
 		(pts
@@ -7696,6 +7734,16 @@
 	)
 	(wire
 		(pts
+			(xy 234.95 27.94) (xy 234.95 30.48)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "e024e187-823b-4249-8df1-517166cf0d72")
+	)
+	(wire
+		(pts
 			(xy 233.68 146.05) (xy 233.68 156.21)
 		)
 		(stroke
@@ -7703,6 +7751,16 @@
 			(type default)
 		)
 		(uuid "e3489f91-d7cf-4d1c-8267-52fef53a4aa7")
+	)
+	(wire
+		(pts
+			(xy 234.95 27.94) (xy 238.76 27.94)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "e438fc2f-1deb-4a95-89ae-59647f0646f2")
 	)
 	(wire
 		(pts
@@ -8404,7 +8462,7 @@
 	)
 	(global_label "ROT_CLK"
 		(shape input)
-		(at 222.25 17.78 180)
+		(at 232.41 17.78 180)
 		(fields_autoplaced yes)
 		(effects
 			(font
@@ -8414,7 +8472,7 @@
 		)
 		(uuid "75c21c01-0ee4-4422-a090-d06c35cf4111")
 		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 211.161 17.78 0)
+			(at 221.321 17.78 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -8514,7 +8572,7 @@
 	)
 	(global_label "ROT_SW"
 		(shape input)
-		(at 222.25 22.86 180)
+		(at 232.41 22.86 180)
 		(fields_autoplaced yes)
 		(effects
 			(font
@@ -8524,7 +8582,7 @@
 		)
 		(uuid "cb69233f-16ce-4316-ac2d-161125ea1044")
 		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 212.0682 22.86 0)
+			(at 222.2282 22.86 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -8536,7 +8594,7 @@
 	)
 	(global_label "ROT_DT"
 		(shape input)
-		(at 222.25 20.32 180)
+		(at 232.41 20.32 180)
 		(fields_autoplaced yes)
 		(effects
 			(font
@@ -8546,7 +8604,7 @@
 		)
 		(uuid "fffe31f2-89b9-4dd9-88a9-17567aaf8419")
 		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 212.4915 20.32 0)
+			(at 222.6515 20.32 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -9289,6 +9347,83 @@
 			(project "pico-radio-9-kétoldalas"
 				(path "/b9640508-dcc6-4f6b-830f-c53a732dcb5b"
 					(reference "#PWR037")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "Connector:Conn_01x05_Pin")
+		(at 243.84 22.86 0)
+		(mirror y)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "269ab240-1e58-42fe-a788-75ba3452a6a6")
+		(property "Reference" "J6"
+			(at 246.126 21.844 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "KY-040 Rotary"
+			(at 245.11 30.734 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" "Connector_PinHeader_2.54mm:PinHeader_1x05_P2.54mm_Vertical"
+			(at 243.84 22.86 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 243.84 22.86 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" "Generic connector, single row, 01x05, script generated"
+			(at 243.84 22.86 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "4"
+			(uuid "c6951fd9-e81a-441c-a23e-2105f03c2391")
+		)
+		(pin "5"
+			(uuid "5fa8a1cd-753c-4afe-9b91-1381d6012924")
+		)
+		(pin "1"
+			(uuid "9e453756-29b7-45cf-9112-ff48e91f73e3")
+		)
+		(pin "3"
+			(uuid "c81a660e-e16b-446c-b17f-b774103974d4")
+		)
+		(pin "2"
+			(uuid "c951ce44-e60f-4ca6-98fb-6178bceb609c")
+		)
+		(instances
+			(project ""
+				(path "/b9640508-dcc6-4f6b-830f-c53a732dcb5b"
+					(reference "J6")
 					(unit 1)
 				)
 			)
@@ -11390,6 +11525,70 @@
 		)
 	)
 	(symbol
+		(lib_id "Mechanical:MountingHole")
+		(at 265.43 161.29 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom no)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "7f02e64c-1b44-4ec6-b496-13e21365131c")
+		(property "Reference" "H4"
+			(at 267.97 160.0199 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "MountingHole"
+			(at 267.97 162.5599 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "MountingHole:MountingHole_3.2mm_M3"
+			(at 265.43 161.29 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 265.43 161.29 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" "Mounting Hole without connection"
+			(at 265.43 161.29 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(instances
+			(project "pico-radio-9-kétoldalas"
+				(path "/b9640508-dcc6-4f6b-830f-c53a732dcb5b"
+					(reference "H4")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
 		(lib_id "power:GND")
 		(at 143.51 109.22 90)
 		(unit 1)
@@ -12386,165 +12585,6 @@
 		)
 	)
 	(symbol
-		(lib_id "Device:KY-040")
-		(at 234.95 22.86 0)
-		(unit 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(dnp no)
-		(uuid "a3e650c4-3458-4575-af03-2e0197421abf")
-		(property "Reference" "U4"
-			(at 230.632 32.004 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Value" "KY-040"
-			(at 230.886 34.29 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Footprint" "Rotary_Encoder:KY-040-PORT"
-			(at 234.95 22.86 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify bottom)
-				(hide yes)
-			)
-		)
-		(property "Datasheet" ""
-			(at 234.95 22.86 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(property "Description" ""
-			(at 234.95 22.86 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(property "MF" "Joy-IT"
-			(at 234.95 22.86 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify bottom)
-				(hide yes)
-			)
-		)
-		(property "Description_1" "KY-5.0-4P Green(RAL6018/T) ; CONTACT WITH TIN PLATED MARK"
-			(at 234.95 22.86 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify bottom)
-				(hide yes)
-			)
-		)
-		(property "Package" "Package"
-			(at 234.95 22.86 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify bottom)
-				(hide yes)
-			)
-		)
-		(property "Price" "None"
-			(at 234.95 22.86 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify bottom)
-				(hide yes)
-			)
-		)
-		(property "SnapEDA_Link" "https://www.snapeda.com/parts/KY-040/Joy-IT/view-part/?ref=snap"
-			(at 234.95 22.86 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify bottom)
-				(hide yes)
-			)
-		)
-		(property "MP" "KY-040"
-			(at 234.95 22.86 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify bottom)
-				(hide yes)
-			)
-		)
-		(property "Availability" "Not in stock"
-			(at 234.95 22.86 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify bottom)
-				(hide yes)
-			)
-		)
-		(property "Check_prices" "https://www.snapeda.com/parts/KY-040/Joy-IT/view-part/?ref=eda"
-			(at 234.95 22.86 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify bottom)
-				(hide yes)
-			)
-		)
-		(pin "VCC"
-			(uuid "46b09c8e-8415-40df-948f-161fdf85c6ac")
-		)
-		(pin "GND"
-			(uuid "d7b02126-933d-4242-994f-579ce7e1c454")
-		)
-		(pin "SW"
-			(uuid "aee4ec44-d294-4ec4-b959-95215f2563f7")
-		)
-		(pin "DT"
-			(uuid "62a95e6b-1485-4dfc-9a01-ae3793540d93")
-		)
-		(pin "CLK"
-			(uuid "3c0bd768-f50c-4d34-a3df-6470cc3463a0")
-		)
-		(instances
-			(project ""
-				(path "/b9640508-dcc6-4f6b-830f-c53a732dcb5b"
-					(reference "U4")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
 		(lib_id "Device:Crystal")
 		(at 104.14 95.25 0)
 		(mirror y)
@@ -13069,7 +13109,7 @@
 	)
 	(symbol
 		(lib_id "power:+3.3V")
-		(at 223.52 25.4 90)
+		(at 233.68 25.4 90)
 		(unit 1)
 		(exclude_from_sim no)
 		(in_bom yes)
@@ -13077,7 +13117,7 @@
 		(dnp no)
 		(uuid "b7dde2ad-0c4a-4b0d-9dad-b6da63948d69")
 		(property "Reference" "#PWR030"
-			(at 227.33 25.4 0)
+			(at 237.49 25.4 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -13086,7 +13126,7 @@
 			)
 		)
 		(property "Value" "+3.3V"
-			(at 223.774 27.432 90)
+			(at 233.934 27.432 90)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -13095,7 +13135,7 @@
 			)
 		)
 		(property "Footprint" ""
-			(at 223.52 25.4 0)
+			(at 233.68 25.4 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -13104,7 +13144,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 223.52 25.4 0)
+			(at 233.68 25.4 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -13113,7 +13153,7 @@
 			)
 		)
 		(property "Description" "Power symbol creates a global label with name \"+3.3V\""
-			(at 223.52 25.4 0)
+			(at 233.68 25.4 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -13135,7 +13175,7 @@
 	)
 	(symbol
 		(lib_id "power:GND")
-		(at 224.79 30.48 0)
+		(at 234.95 30.48 0)
 		(unit 1)
 		(exclude_from_sim no)
 		(in_bom yes)
@@ -13144,7 +13184,7 @@
 		(fields_autoplaced yes)
 		(uuid "b83309fd-3fa1-4680-b1dc-092ff14da8d8")
 		(property "Reference" "#PWR031"
-			(at 224.79 36.83 0)
+			(at 234.95 36.83 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -13153,7 +13193,7 @@
 			)
 		)
 		(property "Value" "GND"
-			(at 224.79 35.56 0)
+			(at 234.95 35.56 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -13161,7 +13201,7 @@
 			)
 		)
 		(property "Footprint" ""
-			(at 224.79 30.48 0)
+			(at 234.95 30.48 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -13170,7 +13210,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 224.79 30.48 0)
+			(at 234.95 30.48 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -13179,7 +13219,7 @@
 			)
 		)
 		(property "Description" "Power symbol creates a global label with name \"GND\" , ground"
-			(at 224.79 30.48 0)
+			(at 234.95 30.48 0)
 			(effects
 				(font
 					(size 1.27 1.27)
