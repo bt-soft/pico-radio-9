@@ -1,14 +1,14 @@
 # pico-radio-9
 
-## PCB 3D View
 
+## A kütyü
 ![A kísérleti kütyü](doc/pictures/A%20kísérleti%20kütyü.jpg)
 <br/>
 <em>A kísérleti kütyü (a V5 egy hangfrekis műveleti erősítővel kiegészítve)</em>
 
 
 
-
+## PCB 3D View
 <img src="doc/pictures/PCB%203D%20View%20-%20kétoldalas.png" alt="PCB 3D View - kétoldalas" width="50%"/>
 <br/>
 <em>Kétoldalas NYÁK terv</em>
