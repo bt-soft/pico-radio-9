@@ -4,7 +4,7 @@
 ## A kütyü
 ![A kísérleti kütyü](doc/pictures/A%20kísérleti%20kütyü.jpg)
 <br/>
-<em>A kísérleti kütyü (a V5 egy hangfrekis műveleti erősítővel kiegészítve)</em>
+<em>A kísérleti kütyü (egy V7-es prototípus hangfrekis műveleti erősítővel kiegészítve)</em>
 
 
 
