@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
  * -----                                                                                                               *
- * Last Modified: 2025.11.16, Sunday  09:43:09                                                                         *
+ * Last Modified: 2025.12.26, Friday  11:20:33                                                                         *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -26,6 +26,7 @@
 #include "Si4735Manager.h"
 #include "StationStore.h"
 #include "UIMultiButtonDialog.h"
+#include "rtVars.h"
 
 // ===================================================================
 // Konstruktor és inicializálás
@@ -57,10 +58,11 @@ void ScreenRadioBase::activate() {
     // Szülő osztály aktiválása (UIScreen)
     UIScreen::activate();
 
-    // Signal quality cache invalidálása képernyő aktiváláskor
-    // Ez biztosítja, hogy az S-meter azonnal frissüljön, amikor visszatérünk
-    // a memória képernyőről vagy másik képernyőről
     if (pSi4735Manager) {
+
+        // Signal quality cache invalidálása képernyő aktiváláskor
+        // Ez biztosítja, hogy az S-meter azonnal frissüljön, amikor visszatérünk
+        // a memória képernyőről vagy másik képernyőről
         pSi4735Manager->invalidateSignalCache();
 
         // Frekvencia kijelző inicializálása az aktuális frekvenciával
@@ -232,13 +234,16 @@ void ScreenRadioBase::createCommonHorizontalButtons(bool addDefaultButtons) {
 
     if (addDefaultButtons) {
         // 1. HAM - Ham rádió funkcionalitás
-        buttonConfigs.push_back({CommonHorizontalButtonIDs::HAM_BUTTON, "Ham", UIButton::ButtonType::Pushable, UIButton::ButtonState::Off, [this](const UIButton::ButtonEvent &event) { handleHamButton(event); }});
+        buttonConfigs.push_back({CommonHorizontalButtonIDs::HAM_BUTTON, "Ham", UIButton::ButtonType::Pushable, UIButton::ButtonState::Off,
+                                 [this](const UIButton::ButtonEvent &event) { handleHamButton(event); }});
 
         // 2. BAND - Sáv (Band) kezelés
-        buttonConfigs.push_back({CommonHorizontalButtonIDs::BAND_BUTTON, "Band", UIButton::ButtonType::Pushable, UIButton::ButtonState::Off, [this](const UIButton::ButtonEvent &event) { handleBandButton(event); }});
+        buttonConfigs.push_back({CommonHorizontalButtonIDs::BAND_BUTTON, "Band", UIButton::ButtonType::Pushable, UIButton::ButtonState::Off,
+                                 [this](const UIButton::ButtonEvent &event) { handleBandButton(event); }});
 
         // 3. SCAN - Folyamatos keresés
-        buttonConfigs.push_back({CommonHorizontalButtonIDs::SCAN_BUTTON, "Scan", UIButton::ButtonType::Pushable, UIButton::ButtonState::Off, [this](const UIButton::ButtonEvent &event) { handleScanButton(event); }});
+        buttonConfigs.push_back({CommonHorizontalButtonIDs::SCAN_BUTTON, "Scan", UIButton::ButtonType::Pushable, UIButton::ButtonState::Off,
+                                 [this](const UIButton::ButtonEvent &event) { handleScanButton(event); }});
     }
 
     // ===================================================================

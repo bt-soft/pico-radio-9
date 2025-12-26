@@ -27,6 +27,7 @@
 #include <patch_full.h> // SSB patch for whole SSBRX full download
 
 #include "Si4735Band.h"
+#include "rtVars.h"
 
 /**
  * Band inicializálása konfig szerint
@@ -284,6 +285,12 @@ void Si4735Band::useBand(bool useDefaults) {
     // Antenna tuning capacitor beállítása
     si4735.setTuneFrequencyAntennaCapacitor(currentBand.antCap);
     delay(100);
+
+    // FONTOS: A setAM() és setFM() hívások automatikusan feloldják a mute-ot a Si4735 chip-en!
+    // Ezért sávváltás/inicializálás után újra be kell állítani a mute státuszt
+    // (Ha rtv::muteStat == true, akkor újra némítunk, különben hangosan marad)
+    si4735.setHardwareAudioMute(rtv::muteStat);
+    si4735.setAudioMute(rtv::muteStat);
 }
 
 /**
@@ -353,8 +360,8 @@ void Si4735Band::setAfBandWidth() {
     } else if (isCurrentDemodFM()) { // FM mód
         /**
          * @brief Sets the Bandwith on FM mode
-         * @details Selects bandwidth of channel filter applied at the demodulation stage. Default is automatic which means the device automatically selects proper
-         * channel filter. <BR>
+         * @details Selects bandwidth of channel filter applied at the demodulation stage. Default is automatic which means the device automatically selects
+         * proper channel filter. <BR>
          * @details | Filter  | Description |
          * @details | ------- | -------------|
          * @details |    0    | Automatically select proper channel filter (Default) |
