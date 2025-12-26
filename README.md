@@ -24,7 +24,7 @@ Egy Raspberry Pi Pico alapú rádióprojekt (Si4735 vezérléssel) — fejlett d
 - Konfigurációs tárolás EEPROM-ban (station/setting store)
 
 ## Architektúra
- - RP2040 / multicore: A Raspberry Pi Pico kétmagos RP2040 mikrovezérlője lehetővé teszi a feladatok elkülönítését (audio-feldolgozás a második magon, míg az első mag a UI/Si4735 vezérlést végzi). Ezt a projekt kihasználja a valós idejű audio dekódolás és UI reakciók párhuzamosítása érdekében.
+ - RP2040 / multicore: A Raspberry Pi Pico kétmagos RP2040 mikrovezérlője lehetővé teszi a feladatok elkülönítését (audio-feldolgozás a második magon, míg az első mag a UI/Si4735 vezérlést végzi). Ezt a projekt kihasználja a valós idejű audio dekódolás és UI műveletek párhuzamosítása érdekében.
 
 
 ## Technológiák
@@ -45,10 +45,10 @@ Egy Raspberry Pi Pico alapú rádióprojekt (Si4735 vezérléssel) — fejlett d
 
 ## Felhasznált könyvtárak
 - `Arduino-Pico`: https://github.com/earlephilhower/arduino-pico
-- `TFT_eSPI`: https://github.com/Bodmer/TFT_eSPI
-- `RPI_PICO_TimerInterrupt`: https://github.com/khoih-prog/RPI_PICO_TimerInterrupt
+- `TFT eSPI`: https://github.com/Bodmer/TFT_eSPI
+- `RPI PICO TimerInterrupt`: https://github.com/khoih-prog/RPI_PICO_TimerInterrupt
 - `PU2CLR SI4735`: https://github.com/pu2clr/SI4735
-- `arduinoFFT`: https://github.com/kosme/arduinoFFT
+- `Arduino CMSIS-DSP`: https://www.arduinolibraries.info/libraries/arduino_cmsis-dsp
 - `lib/pico_sstv`: https://github.com/dawsonjon/PicoSSTV
 
 
@@ -57,15 +57,15 @@ Egy Raspberry Pi Pico alapú rádióprojekt (Si4735 vezérléssel) — fejlett d
   - `main.cpp`, `main-c1.cpp` - indító fájlok
   - `Screen*` - különböző képernyők (RTTY, CW, FM, AM, SSTV, WeFax, Setup, stb.)
   - `Decoder*` - dekóderek (RTTY, CW, SSTV, WeFax, stb.)
-  - `UI*` - UI komponensek (gombok, dialógusok, spektrum, textbox, stb.)
+  - `UI*` - UI keretrensdszer komponensei (gombok, dialógusok, spektrum, textbox, stb.)
   - `Si4735*` - Si4735 kezelő és runtime logika
   - `AudioController.*`, `AudioProcessor-*` - audio pipeline és feldolgozás
 - `include/` - header fájlok (összes osztály, UI, konfigurációs struktúrák)
   - `Config.h`, `ConfigData.h` - konfigurációs struktúrák és default értékek
   - `UIDialogBase.h`, `UIMultiButtonDialog.h`, `UIValueChangeDialog.h` - dialógusok és vezérlők
   - `UIHorizontalButtonBar.h` - alsó gombsor kezelése
-- `lib/` - külső vagy saját könyvtárak (pl. `pico_sstv`)
-- `doc/` - dokumentációs anyagok (AGC, FFT, zajszűrés, használati leírások)
+- `lib/` - külső vagy saját könyvtárak (pl. `pico_sstv`, `CMSIS-DSP`)
+- `doc/` - dokumentációs anyagok 
 - `test/` - teszt erőforrások és példa adatállományok (pl. cw, rtty tesztek)
 
 
@@ -74,7 +74,7 @@ Egy Raspberry Pi Pico alapú rádióprojekt (Si4735 vezérléssel) — fejlett d
 - Station / memory store beállítások EEPROM-ban tárolódnak (lásd `StationStore*` és `Eeprom*` fájlok).
 
 
-## UI felületek, dialógusok
+## UI képernyők, dialógusok
 - Rétegzett dialógus rendszer: a `UIScreen` tartalmaz egy dialógusstack-et, a `showDialog()` és `onDialogClosed()` mechanizmusokkal.
 - Többgombos dialógusok: `UIMultiButtonDialog` + `UIValueChangeDialog` az értékek szerkesztéséhez.
 
@@ -91,7 +91,7 @@ Egy Raspberry Pi Pico alapú rádióprojekt (Si4735 vezérléssel) — fejlett d
 
 
 ## Kapcsolási rajz / nyomtatott áramkör
-- Kicad formátumban a `kicad` mappában.
+- Kicad formátumban a `kicad` mappában (egy- és kétoldalas NYÁK tervvel).
 
 ---
 
