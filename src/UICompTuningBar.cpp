@@ -14,9 +14,9 @@
 #include "UICompTuningBar.h"
 #include <algorithm>
 
-UICompTuningBar::UICompTuningBar(const Rect &bounds, uint16_t minFreqHz, uint16_t maxFreqHz)
-    : UIComponent(bounds), minFreqHz(minFreqHz), maxFreqHz(maxFreqHz), currentBinWidthHz(0.0f), needsRedraw(true), sprite(nullptr), spriteCreated(false),
-      lastUpdateMs(0) {
+UICompTuningBar::UICompTuningBar(const Rect &bounds, uint16_t minFreqHz, uint16_t maxFreqHz, float gain)
+    : UIComponent(bounds), minFreqHz(minFreqHz), maxFreqHz(maxFreqHz), gain(gain), currentBinWidthHz(0.0f), needsRedraw(true), sprite(nullptr),
+      spriteCreated(false), lastUpdateMs(0) {
     // Bar heights cache inicializálása
     barHeights.reserve(bounds.width);
     displayedHeights.reserve(bounds.width);
@@ -56,10 +56,10 @@ void UICompTuningBar::updateSpectrum(const int16_t *fftData, uint16_t fftSize, f
         if (binIndex < fftSize) {
             // FFT magnitúdó (q15_t: -32768..32767) -> bar magasság (0-bounds.height)
             // q15 típus: abszolút érték + skálázás 0-255 tartományba
-            // 4x gain alkalmazva a jobb láthatóságért
+            // Konfigurálható gain alkalmazva a jobb láthatóságért (gyenge jelek esetén növelhető)
             int16_t q15Value = fftData[binIndex];
             uint16_t absValue = (q15Value < 0) ? -q15Value : q15Value; // Abszolút érték
-            uint32_t scaledValue = (uint32_t)absValue * 4;             // 4x gain
+            uint32_t scaledValue = (uint32_t)(absValue * gain);        // Konfigurálható gain
             if (scaledValue > 32767)
                 scaledValue = 32767;                                    // Clipping
             uint8_t magnitude = (uint8_t)((scaledValue * 255) / 32767); // Skálázás 0-255-re
@@ -74,7 +74,7 @@ void UICompTuningBar::updateSpectrum(const int16_t *fftData, uint16_t fftSize, f
 }
 
 void UICompTuningBar::draw(TFT_eSPI &tft) {
-    
+
     // FPS limitálás
     constexpr uint32_t FPS_LIMIT = 30;
     constexpr uint32_t FRAME_TIME_MS = 1000 / FPS_LIMIT;

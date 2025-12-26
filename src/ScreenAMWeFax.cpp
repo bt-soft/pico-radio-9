@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
  * -----                                                                                                               *
- * Last Modified: 2025.12.26, Friday  09:38:05                                                                         *
+ * Last Modified: 2025.12.26, Friday  11:59:09                                                                         *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -109,7 +109,8 @@ void ScreenAMWeFax::layoutComponents() {
         tuningBar = std::make_shared<UICompTuningBar>(                     //
             Rect(tuningBarX, tuningBarY, tuningBarWidth, tuningBarHeight), // bounds
             1000,                                                          // minFreqHz: 1000 Hz
-            2500                                                           // maxFreqHz: 2500 Hz
+            2500,                                                          // maxFreqHz: 2500 Hz
+            10.0f                                                          // erősítés
         );
         // Frekvencia markerek konfigurálása WeFax esetén
         tuningBar->addMarker(1500, TFT_CYAN, "1500");   // Black (fekete szint) - ciánnal jelölve

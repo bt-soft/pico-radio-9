@@ -42,8 +42,9 @@ class UICompTuningBar : public UIComponent {
      * @param bounds Komponens pozíció és méret
      * @param minFreqHz Minimum frekvencia (Hz)
      * @param maxFreqHz Maximum frekvencia (Hz)
+     * @param gain Erősítési tényező (1.0 = alapértelmezett, 2.0 = dupla érzékenység, stb.)
      */
-    UICompTuningBar(const Rect &bounds, uint16_t minFreqHz, uint16_t maxFreqHz);
+    UICompTuningBar(const Rect &bounds, uint16_t minFreqHz, uint16_t maxFreqHz, float gain = 4.0f);
 
     /**
      * @brief Destruktor - sprite felszabadítása
@@ -84,6 +85,7 @@ class UICompTuningBar : public UIComponent {
   private:
     uint16_t minFreqHz;                    // Minimum frekvencia
     uint16_t maxFreqHz;                    // Maximum frekvencia
+    float gain;                            // Erősítési tényező (érzékenység szabályozás)
     std::vector<FrequencyMarker> markers;  // Frekvencia markerek
     std::vector<uint8_t> barHeights;       // Bar magasságok (cache)
     std::vector<uint8_t> displayedHeights; // Megjelenített magasságok (peak hold + decay)

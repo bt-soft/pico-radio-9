@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
  * -----                                                                                                               *
- * Last Modified: 2025.12.26, Friday  09:14:49                                                                         *
+ * Last Modified: 2025.12.26, Friday  11:39:27                                                                         *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -84,8 +84,8 @@ void ScreenAMSSTV::layoutComponents() {
     ScreenRadioBase::createCommonHorizontalButtons(false);
 
     // --- Reset gomb elhelyezése a kép jobb oldalán, 20px-el jobbra ---
-    const int resetBtnX = SSTV_PICTURE_START_X + SSTV_SCALED_WIDTH + 20;
-    const int resetBtnY = 30; 
+    const int resetBtnX = SSTV_PICTURE_START_X + SSTV_SCALED_WIDTH + 50;
+    const int resetBtnY = 30;
 
     if (!resetButton) {
         // Létrehozzuk és hozzáadjuk a képernyőhöz
@@ -107,14 +107,16 @@ void ScreenAMSSTV::layoutComponents() {
     }
 
     // Tuning Bar: Spektrum sáv a Reset gomb alatt
-    constexpr uint16_t tuningBarHeight = 36;                                              // 2x magasabb (18 -> 36)
-    constexpr uint16_t tuningBarY = resetBtnY + UIButton::DEFAULT_BUTTON_HEIGHT + 2 + 10; // Reset gomb alatt 2px-lel + 10px lejjebb
-    constexpr uint16_t tuningBarWidth = UIButton::DEFAULT_BUTTON_WIDTH * 2;               // 2x szélesebb
-    constexpr uint16_t tuningBarX = resetBtnX;                                            // Reset gomb alatt
+    constexpr uint16_t tuningBarHeight = 36;                                      // Magasság
+    constexpr uint16_t tuningBarY = SSTV_PICTURE_START_Y;                         // A kép tetejével egy vonalban
+    constexpr uint16_t tuningBarWidth = 160;                                      // Szélesség
+    constexpr uint16_t tuningBarX = SSTV_PICTURE_START_X + SSTV_SCALED_WIDTH + 5; // Reset gomb alatt
     if (!tuningBar) {
-        tuningBar = std::make_shared<UICompTuningBar>(Rect(tuningBarX, tuningBarY, tuningBarWidth, tuningBarHeight), // bounds
-                                                      1000,                                                          // minFreqHz: 1000 Hz
-                                                      2500                                                           // maxFreqHz: 2500 Hz
+        tuningBar = std::make_shared<UICompTuningBar>(                     //
+            Rect(tuningBarX, tuningBarY, tuningBarWidth, tuningBarHeight), // bounds
+            1000,                                                          // minFreqHz: 1000 Hz
+            2500,                                                           // maxFreqHz: 2500 Hz
+            10.0f                                                            // erősítés
         );
         // Frekvencia markerek konfigurálása SSTV esetén
         tuningBar->addMarker(1200, TFT_GREEN, "1200");  // Sync (szinkron impulzus) - zölden
