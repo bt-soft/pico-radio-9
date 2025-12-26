@@ -2,12 +2,18 @@
 
 ## PCB 3D View
 
+![A kísérleti kütyü](doc/pictures/A%20kísérleti%20kütyü.jpg)
+<br/>
+<em>A kísérleti kütyü (a V5 egy hangfrekis műveleti erősítővel kiegészítve)</em>
 
-![PCB 3D View - kétoldalas](doc/pictures/PCB%203D%20View%20-%20kétoldalas.png)
+
+
+
+<img src="doc/pictures/PCB%203D%20View%20-%20kétoldalas.png" alt="PCB 3D View - kétoldalas" width="50%"/>
 <br/>
 <em>Kétoldalas NYÁK terv</em>
 
-![PCB 3D nézet - egyoldalas](doc/pictures/PCB%203D%20View.png)
+<img src="doc/pictures/PCB%203D%20View.png" alt="PCB 3D nézet - egyoldalas" width="50%"/>
 <br/>
 <em>Egyoldalas NYÁK terv</em>
 
