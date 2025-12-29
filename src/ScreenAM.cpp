@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
  * -----                                                                                                               *
- * Last Modified: 2025.12.20, Saturday  06:34:16                                                                       *
+ * Last Modified: 2025.12.28, Sunday  07:57:59                                                                         *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -234,11 +234,12 @@ void ScreenAM::handleStepButton(const UIButton::ButtonEvent &event) {
         title = "Step tune BFO";
         labels = ::pSi4735Manager->getStepSizeLabels(Band::stepSizeBFO, labelsCount);
 
-    } else if (currMod == FM_DEMOD_TYPE) {
-        title = "Step tune FM";
-        labels = ::pSi4735Manager->getStepSizeLabels(Band::stepSizeFM, labelsCount);
-        w = 300;
-        h = 100;
+        // FM módban nem kell Step szerintem...
+        // } else if (currMod == FM_DEMOD_TYPE) {
+        //     title = "Step tune FM";
+        //     labels = ::pSi4735Manager->getStepSizeLabels(Band::stepSizeFM, labelsCount);
+        //     w = 300;
+        //     h = 100;
     } else {
         title = "Step tune AM/SSB";
         labels = ::pSi4735Manager->getStepSizeLabels(Band::stepSizeAM, labelsCount);

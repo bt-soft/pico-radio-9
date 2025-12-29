@@ -5603,6 +5603,10 @@
 		(uuid "2bdb0b33-e9e3-4264-9fc7-68e977f7c9c5")
 	)
 	(no_connect
+		(at 182.88 20.32)
+		(uuid "3d04a71f-c3ec-4b43-a915-5ec0b69a9497")
+	)
+	(no_connect
 		(at 210.82 76.2)
 		(uuid "5118220d-ead5-4678-89ec-85d47242f7fe")
 	)
@@ -9021,71 +9025,6 @@
 		)
 	)
 	(symbol
-		(lib_id "power:+BATT")
-		(at 182.88 20.32 0)
-		(unit 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(dnp no)
-		(uuid "1654c22d-7b9b-4aad-9c47-78f6c421f3c4")
-		(property "Reference" "#PWR022"
-			(at 182.88 24.13 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(property "Value" "+Vsys"
-			(at 177.8 18.542 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Footprint" ""
-			(at 182.88 20.32 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(property "Datasheet" ""
-			(at 182.88 20.32 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(property "Description" "Power symbol creates a global label with name \"+BATT\""
-			(at 182.88 20.32 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(pin "1"
-			(uuid "f6afcdb1-96bc-4a50-b484-63e8410dd75d")
-		)
-		(instances
-			(project "pico-radio-9"
-				(path "/b9640508-dcc6-4f6b-830f-c53a732dcb5b"
-					(reference "#PWR022")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
 		(lib_id "power:GND")
 		(at 245.11 55.88 0)
 		(unit 1)
@@ -12321,7 +12260,7 @@
 		(dnp no)
 		(uuid "969cd7ce-b498-47ed-a4c2-1936ff8f4fd7")
 		(property "Reference" "C10"
-			(at 182.626 120.142 0)
+			(at 183.642 119.634 0)
 			(effects
 				(font
 					(size 1.27 1.27)
