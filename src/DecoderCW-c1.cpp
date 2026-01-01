@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                     *
  * -----                                                                                                               *
- * Last Modified: 2025.12.24, Wednesday  03:22:08                                                                      *
+ * Last Modified: 2025.12.29, Monday  05:45:17                                                                         *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -516,7 +516,6 @@ void DecoderCW_C1::processSamples(const int16_t *rawAudioSamples, size_t count) 
 
             // noise spike threshold: kiszűrjük a túl rövid jeleket (dot_length / 2)
             if (noise_spike_threshold_ > 0 && duration < noise_spike_threshold_) {
-                // CW_DEBUG("CW-C1: Noise spike rejected - duration=%lu ms < threshold=%lu ms\n", duration, noise_spike_threshold_);
                 measuring_ = false;
                 continue; // Ezt a jelet eldobjuk
             }
