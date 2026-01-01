@@ -2,6 +2,7 @@
 
 **A projekt még fejlesztés alatt áll!**
 
+A projekt leírása: https://electrodiy.blog.hu/2026/01/01/pico_radio_fm_am_ssb_cw_rtty_sstv_wefax
 
 ## A kütyü
 ![A kísérleti kütyü](doc/pictures/A%20kísérleti%20kütyü.jpg)
