@@ -5429,17 +5429,6 @@
 			(embedded_fonts no)
 		)
 	)
-	(text "A TFT SDO/MISO bekötése opcionális!\nAkkor kell, ha a TFT-ről pixel adatokat szeretnénk beolvasni"
-		(exclude_from_sim no)
-		(at 13.97 15.748 0)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify left)
-		)
-		(uuid "c146e142-c7ca-45f3-96f8-943d8bc49757")
-	)
 	(junction
 		(at 179.07 111.76)
 		(diameter 0)
@@ -5603,10 +5592,6 @@
 		(uuid "2bdb0b33-e9e3-4264-9fc7-68e977f7c9c5")
 	)
 	(no_connect
-		(at 182.88 20.32)
-		(uuid "3d04a71f-c3ec-4b43-a915-5ec0b69a9497")
-	)
-	(no_connect
 		(at 210.82 76.2)
 		(uuid "5118220d-ead5-4678-89ec-85d47242f7fe")
 	)
@@ -5625,6 +5610,10 @@
 	(no_connect
 		(at 99.06 62.23)
 		(uuid "a8c71616-9aba-43a5-a0da-172f6463e97a")
+	)
+	(no_connect
+		(at 187.96 22.86)
+		(uuid "b14725ce-6612-40c5-af2a-b645b129c304")
 	)
 	(no_connect
 		(at 210.82 57.15)
@@ -6715,16 +6704,6 @@
 			(type default)
 		)
 		(uuid "679cc084-429a-45cd-a4a0-35f0bfe29458")
-	)
-	(wire
-		(pts
-			(xy 187.96 20.32) (xy 187.96 22.86)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "68655af2-1d51-47d3-802c-49325bccfc4a")
 	)
 	(wire
 		(pts
@@ -9244,7 +9223,7 @@
 				(hide yes)
 			)
 		)
-		(property "Value" "+Vbus"
+		(property "Value" "+Vsys"
 			(at 265.43 74.676 0)
 			(effects
 				(font
@@ -10937,7 +10916,7 @@
 				(hide yes)
 			)
 		)
-		(property "Value" "+Vbus"
+		(property "Value" "+Vsys"
 			(at 232.41 54.356 0)
 			(effects
 				(font
@@ -13783,6 +13762,71 @@
 		)
 	)
 	(symbol
+		(lib_id "power:+BATT")
+		(at 182.88 20.32 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "d26dda9e-0e61-4dad-a53f-010302b6bb30")
+		(property "Reference" "#PWR022"
+			(at 182.88 24.13 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Value" "+Vsys"
+			(at 182.118 16.256 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 182.88 20.32 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" ""
+			(at 182.88 20.32 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" "Power symbol creates a global label with name \"+BATT\""
+			(at 182.88 20.32 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "d3bbdc96-3f93-4515-9366-a3e8ea94759d")
+		)
+		(instances
+			(project "pico-radio-9-kétoldalas"
+				(path "/b9640508-dcc6-4f6b-830f-c53a732dcb5b"
+					(reference "#PWR022")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
 		(lib_id "Device:R")
 		(at 107.95 148.59 270)
 		(unit 1)
@@ -13844,71 +13888,6 @@
 			(project "pico-radio-9"
 				(path "/b9640508-dcc6-4f6b-830f-c53a732dcb5b"
 					(reference "R5")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "power:+BATT")
-		(at 187.96 20.32 0)
-		(unit 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(dnp no)
-		(uuid "d502fb48-ad2d-41f2-b555-0c3b55fde980")
-		(property "Reference" "#PWR025"
-			(at 187.96 24.13 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(property "Value" "+Vbus"
-			(at 187.96 16.256 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Footprint" ""
-			(at 187.96 20.32 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(property "Datasheet" ""
-			(at 187.96 20.32 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(property "Description" "Power symbol creates a global label with name \"+BATT\""
-			(at 187.96 20.32 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(pin "1"
-			(uuid "38c2f2b4-ee68-4916-b054-52135fadec7f")
-		)
-		(instances
-			(project ""
-				(path "/b9640508-dcc6-4f6b-830f-c53a732dcb5b"
-					(reference "#PWR025")
 					(unit 1)
 				)
 			)
@@ -14069,7 +14048,7 @@
 				(hide yes)
 			)
 		)
-		(property "Value" "+Vbus"
+		(property "Value" "+Vsys"
 			(at 266.7 32.766 0)
 			(effects
 				(font
@@ -14465,7 +14444,7 @@
 				(hide yes)
 			)
 		)
-		(property "Value" "+Vbus"
+		(property "Value" "+Vsys"
 			(at 233.68 114.046 0)
 			(effects
 				(font

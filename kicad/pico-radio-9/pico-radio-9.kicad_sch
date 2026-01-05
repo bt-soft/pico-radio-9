@@ -6180,6 +6180,10 @@
 		(uuid "5852708d-6e05-4715-9bd6-11486ba22ad4")
 	)
 	(no_connect
+		(at 187.96 22.86)
+		(uuid "6474021f-c201-401d-b110-16e19bb237d6")
+	)
+	(no_connect
 		(at 210.82 54.61)
 		(uuid "685248db-19ca-4f8b-a32a-2e0c40bbcd63")
 	)
@@ -7331,16 +7335,6 @@
 			(type default)
 		)
 		(uuid "679cc084-429a-45cd-a4a0-35f0bfe29458")
-	)
-	(wire
-		(pts
-			(xy 187.96 20.32) (xy 187.96 22.86)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "68655af2-1d51-47d3-802c-49325bccfc4a")
 	)
 	(wire
 		(pts
@@ -11688,7 +11682,7 @@
 				(hide yes)
 			)
 		)
-		(property "Value" "+Vbus"
+		(property "Value" "+Vsys"
 			(at 232.41 54.356 0)
 			(effects
 				(font
@@ -14960,71 +14954,6 @@
 		)
 	)
 	(symbol
-		(lib_id "power:+BATT")
-		(at 187.96 20.32 0)
-		(unit 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(dnp no)
-		(uuid "d502fb48-ad2d-41f2-b555-0c3b55fde980")
-		(property "Reference" "#PWR025"
-			(at 187.96 24.13 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(property "Value" "+Vbus"
-			(at 187.96 16.256 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Footprint" ""
-			(at 187.96 20.32 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(property "Datasheet" ""
-			(at 187.96 20.32 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(property "Description" "Power symbol creates a global label with name \"+BATT\""
-			(at 187.96 20.32 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(pin "1"
-			(uuid "38c2f2b4-ee68-4916-b054-52135fadec7f")
-		)
-		(instances
-			(project ""
-				(path "/b9640508-dcc6-4f6b-830f-c53a732dcb5b"
-					(reference "#PWR025")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
 		(lib_id "Device:R_Potentiometer_Trim")
 		(at 153.67 148.59 270)
 		(unit 1)
@@ -15179,7 +15108,7 @@
 				(hide yes)
 			)
 		)
-		(property "Value" "+Vbus"
+		(property "Value" "+Vsys"
 			(at 266.7 32.766 0)
 			(effects
 				(font
@@ -15646,7 +15575,7 @@
 				(hide yes)
 			)
 		)
-		(property "Value" "+Vbus"
+		(property "Value" "+Vsys"
 			(at 233.68 114.046 0)
 			(effects
 				(font
