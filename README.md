@@ -8,9 +8,9 @@ A projekt leírása: https://electrodiy.blog.hu/2026/01/01/pico_radio_fm_am_ssb_
 ![A kísérleti kütyü](doc/pictures/banner.jpg)
 <br/>
 
+<em>A kísérleti kütyü (egy V7-es prototípus hangfrekis műveleti erősítővel kiegészítve)</em>
 ![A kísérleti kütyü](doc/pictures/A%20kísérleti%20kütyü.jpg)
 <br/>
-<em>A kísérleti kütyü (egy V7-es prototípus hangfrekis műveleti erősítővel kiegészítve)</em>
 
 
 
