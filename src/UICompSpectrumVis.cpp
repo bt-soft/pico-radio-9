@@ -50,8 +50,8 @@ static constexpr float GRAPH_TARGET_HEIGHT_UTILIZATION = 0.85f; // grafikon kit�
 
 //--- Baseline erősítés konstansok spektrum megjelenítéshez (dB) ---
 constexpr float LOWRES_BASELINE_GAIN_DB = -70.0f;   // LowRes alaperősítés (-70dB = 0.0001x csillapítás)
-constexpr float HIGHRES_BASELINE_GAIN_DB = -6.0f;   // HighRes alaperősítés (-6dB = 0.5x csillapítás)
-constexpr float ENVELOPE_BASELINE_GAIN_DB = -65.0f; // Envelope alaperősítés (-65dB = 0.00018x csillapítás)
+constexpr float HIGHRES_BASELINE_GAIN_DB = -40.0f;   // HighRes alaperősítés (-6dB = 0.5x csillapítás)
+constexpr float ENVELOPE_BASELINE_GAIN_DB = -60.0f; // Envelope alaperősítés (-65dB = 0.00018x csillapítás)
 constexpr float WATERFALL_BASELINE_GAIN_DB = 0.0f;  // Waterfall alaperősítés (0dB = nincs változtatás)
 
 // CW/RTTY tuning aid baseline erősítések (dB)
