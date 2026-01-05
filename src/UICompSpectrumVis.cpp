@@ -1452,7 +1452,7 @@ const char *UICompSpectrumVis::decodeModeToStr() {
             modeText = "RTTY SNR Curve";
             break;
         case DisplayMode::SpectrumBarWithWaterfall:
-            modeText = "Bar + Waterfall";
+            modeText = "Bar+Waterfall";
             break;
         default:
             modeText = "Unknown";
@@ -1959,6 +1959,9 @@ void UICompSpectrumVis::renderOscilloscope() {
         final_gain_lin *= powf(10.0f, static_cast<float>(gainCfg) / 20.0f) * softGainFactor;
     }
     // --- End of Gain Calculation ---
+
+        // Gain korlátozása oszcilloszkóphoz
+    final_gain_lin = constrain(final_gain_lin, 0.1f, 10.0f);
 
     uint16_t prev_x = 0;
     int16_t prev_y = 0;
