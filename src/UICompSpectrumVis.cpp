@@ -44,304 +44,432 @@
 #define UISPECTRUM_DEBUG(fmt, ...) // Üres makró, ha __DEBUG nincs definiálva
 #endif
 
-// A grafikon megjelenítési kitöltése
-// Itt egyszerre határozzuk meg a vizuális kitöltést és az AGC célját.
-static constexpr float GRAPH_TARGET_HEIGHT_UTILIZATION = 0.85f; // grafikon kitöltés / AGC cél (85%)
+// ===== Vizualizáció általános konstansok =====
+/**
+ * @brief Grafikon célkitöltés (AGC cél)
+ * 0.85 = 85% - ennyi helyet céloz meg az AGC a grafikon magasságából
+ */
+static constexpr float GRAPH_TARGET_HEIGHT_UTILIZATION = 0.85f;
 
-//--- Baseline erősítés konstansok spektrum megjelenítéshez (dB) ---
-// Újrakalibrálva a dBFS-alapú számításhoz (20*log10(mag/32767))
-constexpr float LOWRES_BASELINE_GAIN_DB = 0.0f;
-constexpr float HIGHRES_BASELINE_GAIN_DB = 0.0f;
-constexpr float ENVELOPE_BASELINE_GAIN_DB = 0.0f;
-constexpr float WATERFALL_BASELINE_GAIN_DB = 0.0f;    // Waterfall alaperősítés (0dB = nincs változtatás)
-constexpr float OSCILLOSCOPE_BASELINE_GAIN_DB = 0.0f; // Oszcilloszkóp alaperősítés (kezdetben 0dB)
-
-// CW/RTTY tuning aid baseline erősítések (dB)
-constexpr float CW_WATERFALL_BASELINE_GAIN_DB = -20.0f;   // CW Waterfall alaperősítés (-20dB = 0.1x csillapítás)
-constexpr float CW_SNRCURVE_BASELINE_GAIN_DB = -24.0f;    // CW SNR Curve alaperősítés (-60dB = 0.0001x csillapítás) - korrigálva
-constexpr float RTTY_WATERFALL_BASELINE_GAIN_DB = -24.0f; // RTTY Waterfall alaperősítés (-20dB = 0.1x csillapítás) - korrigálva
-constexpr float RTTY_SNRCURVE_BASELINE_GAIN_DB = -24.0f;  // RTTY SNR Curve alaperősítés (-60dB = 0.0001x csillapítás) - korrigálva
+// ===== Baseline erősítés konstansok spektrum megjelenítéshez (dB) =====
+/**
+ * @brief Alap vizualizációs erősítések dB-ben (AGC korrekció előtt)
+ * Újrakalibrálva a dBFS-alapú számításhoz (20*log10(mag/32767))
+ * 0dB = nincs változtatás (semleges)
+ */
+constexpr float LOWRES_BASELINE_GAIN_DB = 0.0f;       // Low-res spektrum
+constexpr float HIGHRES_BASELINE_GAIN_DB = 0.0f;      // High-res spektrum
+constexpr float ENVELOPE_BASELINE_GAIN_DB = 0.0f;     // Burkológörbe
+constexpr float WATERFALL_BASELINE_GAIN_DB = 0.0f;    // Vízesés
+constexpr float OSCILLOSCOPE_BASELINE_GAIN_DB = 0.0f; // Oszcilloszkóp
 
 /**
- * @brief Sávszélesség-specifikus scale faktor konfiguráció (MINDEN megjelenítési módhoz)
+ * @brief CW/RTTY hangolási segéd baseline erősítések (dB)
+ * Negatív érték = csillapítás a túl erős jelekhez
+ */
+constexpr float CW_WATERFALL_BASELINE_GAIN_DB = -20.0f;   // CW vízesés
+constexpr float CW_SNRCURVE_BASELINE_GAIN_DB = -24.0f;    // CW SNR görbe
+constexpr float RTTY_WATERFALL_BASELINE_GAIN_DB = -24.0f; // RTTY vízesés
+constexpr float RTTY_SNRCURVE_BASELINE_GAIN_DB = -24.0f;  // RTTY SNR görbe
+
+/**
+ * @brief Sávszélesség-specifikus gain konfiguráció struktúra
  *
- * Keskenyebb sávszélesség = kevesebb FFT bin = kisebb összenergia → nagyobb erősítés szükséges
- * Szélesebb sávszélesség = több FFT bin = nagyobb összenergia → kisebb erősítés elegendő
- *
- * MINDEN scale faktor (envelope, waterfall, tuning aid, spectrum bar, oszcilloszkóp)
- * egységesen a táblázatból származik.
+ * Egy táblázat a különböző dekóder sávszélességekhez rendelt erősítési értékekkel.
+ * Keskenyebb sávszélesség → kevesebb FFT bin → kisebb összenergia → nagyobb erősítés szükséges
+ * Szélesebb sávszélesség → több FFT bin → nagyobb összenergia → kisebb erősítés elegendő
  */
 struct BandwidthScaleConfig {
-    uint32_t bandwidthHz;       // Dekóder sávszélesség (Hz)
-    float lowResBarGainDb;      // dB a low-res bar megjelenítéshez (float támogatja a tizedesjegyeket)
-    float highResBarGainDb;     // dB a high-res bar megjelenítéshez
-    float oscilloscopeGainDb;   // dB az oszcilloszkóphoz
-    float envelopeGainDb;       // dB a burkológörbéhez
-    float waterfallGainDb;      // dB a vízeséshez
-    float tuningAidWaterfallDb; // dB tuning aid waterfall
-    float tuningAidSnrCurveDb;  // dB tuning aid SNR curve
+    uint32_t bandwidthHz;       ///< Dekóder sávszélesség (Hz)
+    float lowResBarGainDb;      ///< Erősítés low-res spektrum módhoz (dB)
+    float highResBarGainDb;     ///< Erősítés high-res spektrum módhoz (dB)
+    float oscilloscopeGainDb;   ///< Erősítés oszcilloszkóphoz (dB)
+    float envelopeGainDb;       ///< Erősítés burkológörbéhez (dB)
+    float waterfallGainDb;      ///< Erősítés vízeséshez (dB)
+    float tuningAidWaterfallDb; ///< Erősítés hangolási segéd vízeséshez (dB)
+    float tuningAidSnrCurveDb;  ///< Erősítés hangolási segéd SNR görbéhez (dB)
 };
 
-// Előre definiált gain táblázat (sávszélesség szerint növekvő sorrendben!)
-#define NOAMP 0.0f // Nincs erősítés
+/**
+ * @brief Nincs erősítés konstans (mód nem elérhető adott sávszélességnél)
+ */
+#define NOAMP 0.0f
+
+/**
+ * @brief Előre definiált gain táblázat sávszélesség szerint (növekvő sorrendben)
+ *
+ * MEGJEGYZÉS: A NOAMP jelzéssel ellátott értékek azt jelzik, hogy az adott mód
+ * nem elérhető az adott sávszélességen (pl. CW módnál nincs normál spektrum).
+ */
 constexpr BandwidthScaleConfig BANDWIDTH_GAIN_TABLE[] = {
-    // bandwidthHz,    lowResBarGainDb, highResBarGainDb, oscilloscopeGainDb, envelopeGainDb, waterfallGainDb,
-    // tuningAidWaterfallDb, tuningAidSnrCurveDb (NOAMP = mód nem elérhető)
-    {CW_AF_BANDWIDTH_HZ, NOAMP, NOAMP, NOAMP, NOAMP, NOAMP, -8.0f, -8.0f},   // 1.5kHz: CW mód (csak tuning aid)
-    {RTTY_AF_BANDWIDTH_HZ, NOAMP, NOAMP, NOAMP, NOAMP, NOAMP, -8.0f, -8.0f}, // 3kHz: RTTY mód (csak tuning aid)
-    {AM_AF_BANDWIDTH_HZ, -10.0f, -10.0f, -10.0f, 5.0f, 10.0f, NOAMP, NOAMP}, // 6kHz: AM mód (tuning aid nem elérhető)
-    {WEFAX_SAMPLE_RATE_HZ, NOAMP, NOAMP, NOAMP, NOAMP, NOAMP, NOAMP, NOAMP}, // 11025Hz: WEFAX mód
-    {FM_AF_BANDWIDTH_HZ, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, NOAMP, NOAMP},        // 15kHz: FM mód (tuning aid nem elérhető)
+    // bandwidthHz,          lowRes, highRes, osc,    env,   water,  tuningW, tuningSNR
+    {CW_AF_BANDWIDTH_HZ, NOAMP, NOAMP, NOAMP, NOAMP, NOAMP, -8.0f, -8.0f},   // 1.5kHz CW
+    {RTTY_AF_BANDWIDTH_HZ, NOAMP, NOAMP, NOAMP, NOAMP, NOAMP, -8.0f, -8.0f}, // 3kHz RTTY
+    {AM_AF_BANDWIDTH_HZ, -10.0f, -10.0f, -10.0f, 5.0f, 10.0f, NOAMP, NOAMP}, // 6kHz AM
+    {WEFAX_SAMPLE_RATE_HZ, NOAMP, NOAMP, NOAMP, NOAMP, NOAMP, NOAMP, NOAMP}, // 11025Hz WEFAX
+    {FM_AF_BANDWIDTH_HZ, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, NOAMP, NOAMP},        // 15kHz FM
 };
 constexpr size_t BANDWIDTH_GAIN_TABLE_SIZE = ARRAY_ITEM_COUNT(BANDWIDTH_GAIN_TABLE);
 
-//--- AGC konstansok ---
-constexpr float AGC_GENERIC_MIN_GAIN_VALUE = 0.0001f;
-constexpr float AGC_GENERIC_MAX_GAIN_VALUE = 80.0f;
-
-// Színprofilok
-namespace FftDisplayConstants {
+// ===== AGC (Automatic Gain Control) konstansok =====
 /**
- * Waterfall színpaletta RGB565 formátumban
+ * @brief AGC minimum és maximum erősítés értékek
+ * Ezek korlátozzák az automatikus erősítés szabályozást
  */
-const uint16_t waterFallColors_0[16] = {
-    0x000C, // sötétkék háttér (gyenge jel)
-    0x001F, // közepes kék
-    0x021F, // világoskék
-    0x07FF, // cián
-    0x07E0, // zöld
-    0x5FE0, // világoszöld
-    0xFFE0, // sárga
-    0xFD20, // narancs
-    0xF800, // piros
-    0xF81F, // pink
-    0xFFFF, // fehér
-    0xFFFF, // fehér
-    0xFFFF, // fehér
-    0xFFFF, // fehér
-    0xFFFF, // fehér
-    0xFFFF, // fehér
-};
-// piros árnyalatokkal kezdődő paletta
+constexpr float AGC_MIN_GAIN = 0.0001f; ///< Minimális gain érték (végtelen csillapítás ellen)
+constexpr float AGC_MAX_GAIN = 80.0f;   ///< Maximális gain érték (túlerősítés ellen)
+
+// ===== Színprofilok =====
+namespace FftDisplayConstants {
+
+/**
+ * @brief Waterfall színpaletta RGB565 formátumban (alapértelmezett: sötétkék-zöld-sárga-piros)
+ */
+const uint16_t waterFallColors_0[16] = {0x000C, // sötétkék háttér (gyenge jel)
+                                        0x001F, // közepes kék
+                                        0x021F, // világoskék
+                                        0x07FF, // cián
+                                        0x07E0, // zöld
+                                        0x5FE0, // világoszöld
+                                        0xFFE0, // sárga
+                                        0xFD20, // narancs
+                                        0xF800, // piros
+                                        0xF81F, // pink
+                                        0xFFFF, // fehér (erős jel)
+                                        0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF};
+
+/**
+ * @brief Waterfall színpaletta RGB565 formátumban (alternatív: piros árnyalatok)
+ */
 const uint16_t waterFallColors_1[16] = {0x0000, 0x1000, 0x2000, 0x4000, 0x8000, 0xC000, 0xF800, 0xF8A0,
                                         0xF9C0, 0xFD20, 0xFFE0, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF};
+
+/** @brief Használt színpaletta index (0 vagy 1) */
 #define WATERFALL_COLOR_INDEX 0
 
-constexpr uint16_t MODE_INDICATOR_VISIBLE_TIMEOUT_MS = 10 * 1000; // A mód indikátor kiírásának láthatósága x másodpercig
-constexpr uint8_t SPECTRUM_FPS = 25;                              // FPS limitálás konstans, ez még élvezhető vizualizációt ad, maradjon így 20 FPS-en
+/** @brief Mód indikátor láthatósági időtúllépés (ms) */
+constexpr uint16_t MODE_INDICATOR_VISIBLE_TIMEOUT_MS = 10 * 1000;
+
+/** @brief Spektrum FPS korlátozás (frame per second) */
+constexpr uint8_t SPECTRUM_FPS = 25;
 
 }; // namespace FftDisplayConstants
 
-// ===== Integer-alapú segédfüggvények =====
-// Cél: minden számítás egész számokkal történjen, minimalizálva a castolásokat
-// Q15 alapú segédfüggvények
-// Ezek fogadják a Core1-től érkező q15_t értékeket és belül végzik a szükséges konverziókat
-// Q15: signed 1.15 fixed-point, typedef q15_t == int16_t
-
-static inline int32_t q15Abs(q15_t v) { return (v < 0) ? -(int32_t)v : (int32_t)v; }
-
-// ===== ÚJ, EGYSÉGES, dBFS-ALAPÚ MAGNITUDE KEZELÉS =====
+// ===== dBFS (Decibels relative to Full Scale) számítási konstansok =====
+/**
+ * @brief Q15 teljes skála referencia érték
+ * Q15 formátumban (signed 16-bit) a maximális érték 32767
+ */
+constexpr float Q15_FULL_SCALE = 32767.0f;
 
 /**
- * @brief Egy Q15 magnitúdót normalizált értékké (0.0f - 1.0f) konvertál logaritmikus dBFS skála segítségével.
- * Ez egy általános célú segédfüggvény a különböző vizualizációkhoz.
- * @param magQ15 A bemeneti Q15 magnitúdó.
- * @param totalGainDb A teljes erősítés (AGC, baseline, stb.) decibelben.
- * @param dbRangeMin A vizuális tartomány minimális dB értéke (ez lesz 0.0f).
- * @param dbRangeMax A vizuális tartomány maximális dB értéke (ez lesz 1.0f).
- * @return Normalizált lebegőpontos érték 0.0f és 1.0f között.
+ * @brief Csend küszöb dBFS-ben
+ * Ennél alacsonyabb értékeket csendnek tekintünk (log10 végtelen értékének elkerülése)
  */
-static inline float q15ToDbFsNormalized(q15_t magQ15, float totalGainDb, float dbRangeMin, float dbRangeMax) {
-    // Magnitúdó konvertálása dBFS-re (decibel a 32767-es teljes skálához képest)
-    float dbfs = 20.0f * log10f(static_cast<float>(q15Abs(magQ15)) / 32767.0f);
+constexpr float DB_SILENCE_THRESHOLD = -100.0f;
 
-    if (dbfs < -100.0f) { // Csendküszöb
-        return 0.0f;
+/**
+ * @brief Vizualizációs dinamika tartományok különböző módokhoz
+ */
+namespace DbRanges {
+// Spektrum és oszcilloszkóp vizualizációhoz
+constexpr float SPECTRUM_DB_MIN = -72.0f; ///< Leggyengébb látható jel
+constexpr float SPECTRUM_DB_MAX = 6.0f;   ///< Legerősebb jel (kis tartalékkal 0 felett)
+
+// Vízesés és burkológörbe vizualizációhoz (szélesebb tartomány)
+constexpr float WATERFALL_DB_MIN = -80.0f; ///< Érzékenyebb a gyenge jelekhez
+constexpr float WATERFALL_DB_MAX = 0.0f;   ///< Teljes skála felső határa
+
+// SNR hangolási segéd (tömörített tartomány a tiszta csúcsokhoz)
+constexpr float SNR_CURVE_DB_MIN = -60.0f; ///< SNR görbe alsó határa
+constexpr float SNR_CURVE_DB_MAX = 10.0f;  ///< SNR görbe felső határa
+
+// SNR görbe simítási exponens (hatványfüggvény a vizuális kellemességhez)
+constexpr float SNR_CURVE_SMOOTHING_EXPONENT = 0.6f;
+} // namespace DbRanges
+
+// ===== dBFS segédfüggvények =====
+
+/**
+ * @brief Q15 magnitúdó abszolút értéke (gyors inline)
+ */
+static inline int32_t q15Abs(q15_t v) { return (v < 0) ? -(int32_t)v : (int32_t)v; }
+
+/**
+ * @brief Q15 érték konvertálása dBFS-re (Decibels relative to Full Scale)
+ *
+ * @param magQ15 Q15 formátumú magnitúdó érték
+ * @return dBFS érték, vagy DB_SILENCE_THRESHOLD ha túl kicsi a jel
+ *
+ * @note Formula: dBFS = 20 * log10(magnitude / Q15_FULL_SCALE)
+ *       Példa: 327 magnitúdó → 20*log10(327/32767) ≈ -40 dBFS
+ */
+static inline float q15ToDbFs(q15_t magQ15) {
+    float magnitude = static_cast<float>(q15Abs(magQ15));
+    if (magnitude < 1.0f) {
+        return DB_SILENCE_THRESHOLD;
     }
+    return 20.0f * log10f(magnitude / Q15_FULL_SCALE);
+}
 
-    // Teljes erősítés alkalmazása a dB tartományban
+/**
+ * @brief dBFS normalizálás megadott tartományra (0.0 - 1.0)
+ *
+ * @param dbfs dBFS érték
+ * @param totalGainDb Összes alkalmazott erősítés (dB)
+ * @param dbMin Tartomány alsó határa (dB)
+ * @param dbMax Tartomány felső határa (dB)
+ * @return Normalizált érték 0.0 és 1.0 között
+ *
+ * @note A tartományon kívüli értékek 0.0-ra vagy 1.0-ra korlátozódnak
+ */
+static inline float normalizeDbRange(float dbfs, float totalGainDb, float dbMin, float dbMax) {
     float dbTotal = dbfs + totalGainDb;
-
-    // Normalizálás 0.0-1.0 közé a vizuális dB ablak alapján
-    float normalized = (dbTotal - dbRangeMin) / (dbRangeMax - dbRangeMin);
+    float normalized = (dbTotal - dbMin) / (dbMax - dbMin);
     return constrain(normalized, 0.0f, 1.0f);
 }
 
 /**
- * @brief Q15 magnitúdót uint8_t (0-255) értékké konvertál logaritmikus dBFS skálán.
- * Ideális vízesés és burkológörbe megjelenítéshez.
+ * @brief Q15 magnitúdó → normalizált érték (0.0-1.0) logaritmikus dBFS skálán
+ *
+ * Általános célú konverziós függvény különböző vizualizációkhoz.
+ *
+ * @param magQ15 Bemeneti Q15 magnitúdó
+ * @param totalGainDb Teljes erősítés (AGC, baseline, stb.) decibelben
+ * @param dbRangeMin Vizuális tartomány minimális dB értéke (→ 0.0f)
+ * @param dbRangeMax Vizuális tartomány maximális dB értéke (→ 1.0f)
+ * @return Normalizált lebegőpontos érték 0.0f és 1.0f között
+ */
+static inline float q15ToDbFsNormalized(q15_t magQ15, float totalGainDb, float dbRangeMin, float dbRangeMax) {
+    float dbfs = q15ToDbFs(magQ15);
+
+    if (dbfs <= DB_SILENCE_THRESHOLD) {
+        return 0.0f;
+    }
+
+    return normalizeDbRange(dbfs, totalGainDb, dbRangeMin, dbRangeMax);
+}
+
+/**
+ * @brief Q15 magnitúdó → uint8_t (0-255) logaritmikus dBFS skálán
+ *
+ * Ideális vízesés és burkológörbe megjelenítéshez (szélesebb dinamika).
+ *
+ * @param magQ15 Q15 magnitúdó
+ * @param totalGainDb Teljes erősítés (dB)
+ * @return uint8_t érték 0 és 255 között
  */
 static inline uint8_t q15ToUint8Log(q15_t magQ15, float totalGainDb) {
-    // A vízesés/burkológörbe szélesebb, érzékenyebb dinamikatartományt használ
-    const float DB_MIN = -80.0f;
-    const float DB_MAX = 0.0f;
-    float normalized = q15ToDbFsNormalized(magQ15, totalGainDb, DB_MIN, DB_MAX);
+    float normalized = q15ToDbFsNormalized(magQ15, totalGainDb, DbRanges::WATERFALL_DB_MIN, DbRanges::WATERFALL_DB_MAX);
     return static_cast<uint8_t>(normalized * 255.0f);
 }
 
 /**
- * @brief Q15 magnitúdót pixelmagassággá konvertál 'soft-compression' görbével, ideális SNR hangolási segédekhez.
- * dBFS-alapú számítást használ, ahol a normalizált eredményre egy hatványfüggvényt alkalmazunk.
+ * @brief Q15 magnitúdó → pixelmagasság 'soft-compression' görbével
+ *
+ * Ideális SNR hangolási segédekhez. A normalizált eredményre hatványfüggvényt
+ * alkalmazunk a csúcsok vizuálisan kellemesebb megjelenítéséhez.
+ *
+ * @param magQ15 Q15 magnitúdó
+ * @param totalGainDb Teljes erősítés (dB)
+ * @param maxHeight Maximális pixelmagasság
+ * @return Pixelmagasság (0 - maxHeight)
  */
 static inline uint16_t q15ToPixelHeightSnrCurve(q15_t magQ15, float totalGainDb, uint16_t maxHeight) {
-    // Az SNR görbének egy jobban tömörített tartományra van szüksége a csúcsok tiszta megjelenítéséhez
-    const float DB_MIN = -60.0f;
-    const float DB_MAX = 10.0f;
-    float normalized = q15ToDbFsNormalized(magQ15, totalGainDb, DB_MIN, DB_MAX);
+    float normalized = q15ToDbFsNormalized(magQ15, totalGainDb, DbRanges::SNR_CURVE_DB_MIN, DbRanges::SNR_CURVE_DB_MAX);
 
     if (normalized < 0.001f) {
         return 0;
     }
 
-    // Egy görbét (hatványfüggvényt) alkalmazunk, hogy a csúcs 'kerekebb', vizuálisan kellemesebb legyen a hangoláshoz.
-    float curved = powf(normalized, 0.6f);
+    // Soft-compression: hatványfüggvény a kerekebb, kellemesebb csúcsokért
+    float curved = powf(normalized, DbRanges::SNR_CURVE_SMOOTHING_EXPONENT);
 
     uint16_t height = static_cast<uint16_t>(curved * maxHeight);
     return std::min(height, maxHeight);
 }
 
 /**
- * @brief Q15 magnitude -> pixel magasság konverzió LOGARITMIKUS (dBFS) skálával.
- * Ez a központi függvény a spektrum-alapú megjelenítésekhez.
+ * @brief Q15 magnitude → pixel magasság konverzió LOGARITMIKUS (dBFS) skálával
  *
- * A számítás alapja a dBFS (Decibels relative to Full Scale), ahol 0 dBFS a maximális
- * lehetséges jelszintet jelöli (a Q15 típusnál ez 32767). Ez egyértelmű fizikai
- * referenciát ad a számításoknak, megszüntetve a korábbi "mágikus számokat".
+ * Ez a központi függvény a spektrum-alapú megjelenítésekhez (bar chart, stb.).
+ * A számítás alapja a dBFS (Decibels relative to Full Scale), ahol 0 dBFS
+ * a maximális lehetséges jelszintet jelöli (Q15 típusnál ez 32767).
  *
- * @param magQ15 A bemeneti Q15 magnitúdó érték.
- * @param gainDb A teljes, összegzett erősítés (AGC, baseline, sávszélesség) DECIBELBEN.
- * @param maxHeight A grafikon maximális magassága pixelben.
- * @return A kiszámított pixelmagasság (uint16_t).
+ * Előnyök a dBFS használatának:
+ * - Egyértelmű fizikai referencia (nincs "mágikus szám")
+ * - Emberi hallás logaritmikus érzékelésének megfelelő
+ * - Könnyű kalibrálhatóság és hibakeresés
+ *
+ * @param magQ15 Bemeneti Q15 magnitúdó érték
+ * @param gainDb Teljes összegzett erősítés (AGC + baseline + sávszélesség) DECIBELBEN
+ * @param maxHeight Grafikon maximális magassága pixelben
+ * @return Kiszámított pixelmagasság (0 - maxHeight)
+ *
+ * @example
+ *   magQ15 = 327 → dBFS ≈ -40 dB
+ *   Ha gainDb = +40 dB → dbTotal = 0 dB → kb. középső magasság
  */
 static inline uint16_t q15ToPixelHeightLogarithmic(q15_t magQ15, float gainDb, uint16_t maxHeight) {
-    // 1. Magnitúdó konvertálása dBFS-re (decibel a teljes skálához képest)
-    // A Q15 teljes skálája 32767. 0 dBFS a maximális jelszint.
-    // Pl. egy 327-es magnitúdó: 20*log10(327/32767) = -40 dBFS.
-    float dbfs = 20.0f * log10f(static_cast<float>(q15Abs(magQ15)) / 32767.0f);
+    float dbfs = q15ToDbFs(magQ15);
 
-    // Csend-küszöb: a nagyon alacsony (-100 dBFS alatti) értékeket 0-nak vesszük.
-    if (dbfs < -100.0f) {
+    if (dbfs <= DB_SILENCE_THRESHOLD) {
         return 0;
     }
 
-    // 2. Teljes erősítés hozzáadása a dB-tartományban
+    // Erősítés alkalmazása dB tartományban (egyszerű összeadás)
     float dbTotal = dbfs + gainDb;
 
-    // 3. A kapott dB érték leképezése a képernyő magasságára.
-    // Meghatározunk egy vizuális dinamikatartományt, pl. -72 dB-től +6 dB-ig.
-    const float DB_MIN = -72.0f; // A leggyengébb még látható jel.
-    const float DB_MAX = 6.0f;   // A legerősebb jel (kis tartalékkal a 0 felett).
+    // Normalizálás és konverzió pixel magasságra
+    float normalized = normalizeDbRange(dbTotal, 0.0f, DbRanges::SPECTRUM_DB_MIN, DbRanges::SPECTRUM_DB_MAX);
 
-    // Normalizálás a 0.0-1.0 tartományba a vizuális dB ablak alapján.
-    float normalized = (dbTotal - DB_MIN) / (DB_MAX - DB_MIN);
-    normalized = constrain(normalized, 0.0f, 1.0f);
-
-    // Pixelmagasság kiszámítása és visszaadása.
     uint16_t height = static_cast<uint16_t>(normalized * maxHeight);
     return std::min(height, maxHeight);
 }
 
-// RÉGI függvények - backward compatibility (deprecated, ne használd új kódban!)
-static inline uint8_t q15ToUint8(q15_t v, int32_t gain_scaled) {
-    // FIGYELEM: Nagy gain_scaled esetén túlcsordulhat!
-    int32_t abs_val = q15Abs(v);
-    if (abs_val == 0)
-        return 0;
-    int32_t result = (abs_val * gain_scaled) >> 15;
-    return (uint8_t)constrain(result, 0, 255);
-}
-
-static inline uint16_t q15ToPixelHeight(q15_t v, int32_t gain_scaled, uint16_t max_height) {
-    // FIGYELEM: Nagy gain_scaled esetén túlcsordulhat!
-    int32_t abs_val = q15Abs(v);
-    if (abs_val == 0)
-        return 0;
-    // gain_scaled = gain_lin * 255
-    // result = (q15_val * gain_scaled * max_height) >> 15 / 255
-    int32_t temp = (abs_val * gain_scaled) >> 15; // 0..255
-    int32_t result = (temp * max_height) >> 8;    // skalalas max_height-ra
-    return (uint16_t)constrain(result, 0, (int32_t)max_height);
-}
-
-// OPTIMALIZÁLT fixpontos interpoláció Q15 tömbből (Q15 eredmény)
+// ===== BACKWARD COMPATIBILITY függvények (DEPRECATED) =====
+/**
+ * @deprecated Régi lineáris konverziós függvények
+ * @warning Ezek túlcsordulásra hajlamosak nagy gain értékeknél!
+ * @note Új kódban NE használd - helyette a dBFS alapú függvények ajánlottak
+ */
 
 /**
- * Közös gain számítás minden vizualizációs módhoz - HOSSZÚ TÁVÚ ÁTLAGOLÁSSAL
- * VISSZATÉRÉS: dB FORMÁTUMBAN
- * @param magnitudeData FFT magnitude adatok
- * @param minBin Minimum bin index
- * @param maxBin Maximum bin index
- * @param isAutoGain Automatikus gain mód
- * @param manualGainDb Manuális gain dB értéke
- * @return Gain érték DECIBELBEN
+ * @brief Q15 → uint8_t konverzió (RÉGI, lineáris módszer)
+ * @deprecated Használd helyette: q15ToUint8Log()
  */
-static inline float calculateDisplayGainDb(const q15_t *magnitudeData, uint16_t minBin, uint16_t maxBin, bool isAutoGain, int8_t manualGainDb) {
-    float gainDb;
+static inline uint8_t q15ToUint8(q15_t v, int32_t gain_scaled) {
+    int32_t abs_val = q15Abs(v);
+    if (abs_val == 0)
+        return 0;
 
-    if (isAutoGain) {
-        // RMS (négyzetes átlag) számítás: jobb mint a maximum!
-        // Az RMS az átlagos jelerősséget méri, nem hagyja hogy egy csúcs mindent elnyomjon
-        uint32_t sumOfSquares = 0;
-        uint16_t count = 0;
-
-        for (uint16_t i = minBin; i <= maxBin; i++) {
-            int32_t absVal = q15Abs(magnitudeData[i]);
-            sumOfSquares += (absVal * absVal);
-            count++;
-        }
-
-        float rms = 0.0f;
-        if (count > 0) {
-            rms = sqrtf(static_cast<float>(sumOfSquares) / count);
-        }
-
-        // Auto-gain RMS alapján - számítás lineárisan
-        const float targetRmsValue = 120.0f; // Közepes érték
-        float gainLinear;
-        if (rms > 8.0f) {
-            gainLinear = targetRmsValue / rms;
-            gainLinear = std::max(gainLinear, 12.0f); // Mérsekelt minimum
-        } else {
-            gainLinear = 30.0f; // Mérsekelt default
-        }
-
-        // HOSSZÚ TÁVÚ simítás: 98% régi + 2% új = ~50 frame időállandó
-        static float smoothedGainAuto = 30.0f;
-        smoothedGainAuto = 0.98f * smoothedGainAuto + 0.02f * gainLinear;
-        gainLinear = smoothedGainAuto;
-
-        // Konvertálás dB-re
-        gainLinear = constrain(gainLinear, 15.0f, 200.0f);
-        gainDb = 20.0f * log10f(gainLinear);
-
-    } else {
-        // Manuális gain: a beállított értéket használjuk közvetlenül
-        gainDb = static_cast<float>(manualGainDb);
-    }
-
-    return gainDb;
+    int32_t result = (abs_val * gain_scaled) >> 15;
+    return static_cast<uint8_t>(constrain(result, 0, 255));
 }
 
-// OPTIMALIZÁLT fixpontos interpoláció Q15 tömbből (Q15 eredmény) - folytatás
+/**
+ * @brief Q15 → pixel magasság konverzió (RÉGI, lineáris módszer)
+ * @deprecated Használd helyette: q15ToPixelHeightLogarithmic()
+ */
+static inline uint16_t q15ToPixelHeight(q15_t v, int32_t gain_scaled, uint16_t max_height) {
+    int32_t abs_val = q15Abs(v);
+    if (abs_val == 0)
+        return 0;
+
+    int32_t temp = (abs_val * gain_scaled) >> 15; // 0..255 tartomány
+    int32_t result = (temp * max_height) >> 8;    // skálázás max_height-ra
+    return static_cast<uint16_t>(constrain(result, 0, static_cast<int32_t>(max_height)));
+}
+
+// ===== Interpolációs segédfüggvények =====
+
+/**
+ * @brief Fixpontos lineáris interpoláció Q15 tömbből (Q15 eredménnyel)
+ *
+ * Optimalizált verzió: 16 bites frakcionális részű fixpontos számítás.
+ *
+ * @param data Q15 adattömb
+ * @param exactIndex Pontos indexelési pozíció (lehet tört érték)
+ * @param minIdx Minimum index korlát
+ * @param maxIdx Maximum index korlát
+ * @return Interpolált Q15 érték
+ */
 static inline q15_t q15Interpolate(const q15_t *data, float exactIndex, int minIdx, int maxIdx) {
-    int idx_low = (int)exactIndex;
+    int idx_low = static_cast<int>(exactIndex);
     int idx_high = idx_low + 1;
+
     idx_low = constrain(idx_low, minIdx, maxIdx);
     idx_high = constrain(idx_high, minIdx, maxIdx);
 
-    if (idx_low == idx_high)
+    if (idx_low == idx_high) {
         return data[idx_low];
+    }
 
     // Fixpontos lineáris interpoláció (16 bit frakció)
-    uint16_t frac16 = (uint16_t)((exactIndex - idx_low) * 65536.0f);
+    uint16_t frac16 = static_cast<uint16_t>((exactIndex - idx_low) * 65536.0f);
     int32_t low = data[idx_low];
     int32_t high = data[idx_high];
-    return (q15_t)((low * (65536 - frac16) + high * frac16) >> 16);
+
+    return static_cast<q15_t>((low * (65536 - frac16) + high * frac16) >> 16);
 }
 
-// BACKWARD COMPATIBILITY: float visszatérési értékekkel (megtartva a régi interfészt)
+/**
+ * @brief Interpoláció float visszatérési értékkel (backward compatibility)
+ * @deprecated Használd helyette: q15Interpolate()
+ */
 static inline float q15InterpolateFloat(const q15_t *data, float exactIndex, int minIdx, int maxIdx) {
-    return (float)q15Interpolate(data, exactIndex, minIdx, maxIdx);
+    return static_cast<float>(q15Interpolate(data, exactIndex, minIdx, maxIdx));
+}
+
+// ===== Gain számítási segédfüggvények =====
+
+/**
+ * @brief RMS alapú gain számítás konstansok
+ */
+namespace GainCalculation {
+constexpr float TARGET_RMS_VALUE = 120.0f;   ///< Célzott RMS érték auto-gain módban
+constexpr float MIN_RMS_THRESHOLD = 8.0f;    ///< Minimum RMS küszöb
+constexpr float MIN_GAIN_LINEAR = 12.0f;     ///< Minimum lineáris gain érték
+constexpr float DEFAULT_GAIN_LINEAR = 30.0f; ///< Alapértelmezett gain érték
+constexpr float SMOOTHING_FACTOR = 0.98f;    ///< Simítási faktor (98% régi + 2% új)
+constexpr float MIN_GAIN_LIMIT = 15.0f;      ///< Lineáris gain alsó korlátja
+constexpr float MAX_GAIN_LIMIT = 200.0f;     ///< Lineáris gain felső korlátja
+} // namespace GainCalculation
+
+/**
+ * @brief Közös gain számítás minden vizualizációs módhoz
+ *
+ * RMS (Root Mean Square) alapú automatikus erősítés számítás hosszú távú átlagolással.
+ * Az RMS méréséből számolt gain stabilabb, mint a maximum alapú számítás, mert
+ * egy-egy csúcs nem tudja teljesen elnyomni a többi jelet.
+ *
+ * @param magnitudeData FFT magnitude adatok (Q15 tömb)
+ * @param minBin Minimum bin index (tartomány kezdete)
+ * @param maxBin Maximum bin index (tartomány vége)
+ * @param isAutoGain Automatikus gain mód aktív-e
+ * @param manualGainDb Manuális gain érték dB-ben (ha nem auto)
+ * @return Gain érték DECIBELBEN
+ *
+ * @note Az auto-gain ~50 frame időállandóval simít (98% régi + 2% új)
+ */
+static inline float calculateDisplayGainDb(const q15_t *magnitudeData, uint16_t minBin, uint16_t maxBin, bool isAutoGain, int8_t manualGainDb) {
+    if (!isAutoGain) {
+        // Manuális gain: beállított érték közvetlen használata
+        return static_cast<float>(manualGainDb);
+    }
+
+    // Auto-gain: RMS alapú számítás
+    uint32_t sumOfSquares = 0;
+    uint16_t count = 0;
+
+    for (uint16_t i = minBin; i <= maxBin; i++) {
+        int32_t absVal = q15Abs(magnitudeData[i]);
+        sumOfSquares += (absVal * absVal);
+        count++;
+    }
+
+    float rms = 0.0f;
+    if (count > 0) {
+        rms = sqrtf(static_cast<float>(sumOfSquares) / count);
+    }
+
+    // Gain számítás RMS alapján
+    float gainLinear;
+    if (rms > GainCalculation::MIN_RMS_THRESHOLD) {
+        gainLinear = GainCalculation::TARGET_RMS_VALUE / rms;
+        gainLinear = std::max(gainLinear, GainCalculation::MIN_GAIN_LINEAR);
+    } else {
+        gainLinear = GainCalculation::DEFAULT_GAIN_LINEAR;
+    }
+
+    // Hosszú távú exponenciális simítás (~50 frame időállandó)
+    static float smoothedGainAuto = GainCalculation::DEFAULT_GAIN_LINEAR;
+    smoothedGainAuto = GainCalculation::SMOOTHING_FACTOR * smoothedGainAuto + (1.0f - GainCalculation::SMOOTHING_FACTOR) * gainLinear;
+
+    // Korlátok alkalmazása és dB konverzió
+    gainLinear = constrain(smoothedGainAuto, GainCalculation::MIN_GAIN_LIMIT, GainCalculation::MAX_GAIN_LIMIT);
+
+    return 20.0f * log10f(gainLinear);
 }
 
 /**
@@ -461,7 +589,7 @@ void UICompSpectrumVis::updateBarBasedGain(float currentBarMaxValue) {
             float targetHeight = static_cast<float>(getGraphHeight()) * GRAPH_TARGET_HEIGHT_UTILIZATION;
             float idealGain = targetHeight / averageMax;
             float newGain = AGC_SMOOTH_FACTOR * idealGain + (1.0f - AGC_SMOOTH_FACTOR) * barAgcGainFactor_;
-            barAgcGainFactor_ = constrain(newGain, AGC_GENERIC_MIN_GAIN_VALUE, AGC_GENERIC_MAX_GAIN_VALUE);
+            barAgcGainFactor_ = constrain(newGain, AGC_MIN_GAIN, AGC_MAX_GAIN);
         }
 
         barAgcLastUpdateTime_ = millis();
@@ -521,20 +649,23 @@ float UICompSpectrumVis::calculateMagnitudeAgcGain(const float *history, uint8_t
     return calculateAgcGainGeneric(history, historySize, currentGainFactor, targetHeight);
 }
 
-//
 /**
- * @brief Általános AGC gain számítás, mindkét AGC típushoz
- * @param history History buffer (bar magasságok pixelben vagy magnitude értékek
+ * @brief Általános AGC gain számítás (privát, közös mag)
+ *
+ * Mindkét AGC típushoz (bar-alapú és magnitude-alapú) használt általános logika.
+ * History buffer alapján számítja ki az új gain értéket.
+ *
+ * @param history History buffer (bar magasságok vagy magnitude értékek)
  * @param historySize History buffer mérete
- * @param currentGainFactor Jelenlegi gain faktor
- * @param targetValue Célérték (pixel magasság vagy magnitude érték)
- * @return Új gain faktor
+ * @param currentGainFactor Aktuális gain faktor
+ * @param targetValue Célérték (pixel magasság vagy magnitude)
+ * @return Új gain faktor (korlátozva AGC_MIN_GAIN és AGC_MAX_GAIN között)
  */
 float UICompSpectrumVis::calculateAgcGainGeneric(const float *history, uint8_t historySize, float currentGainFactor, float targetValue) const {
-
-    // History átlag számítása (stabil érték több frame alapján)
+    // History átlag számítása (csak érvényes értékekből)
     float sum = 0.0f;
     uint8_t validCount = 0;
+
     for (uint8_t i = 0; i < historySize; ++i) {
         if (history[i] > AGC_MIN_SIGNAL_THRESHOLD) {
             sum += history[i];
@@ -543,62 +674,65 @@ float UICompSpectrumVis::calculateAgcGainGeneric(const float *history, uint8_t h
     }
 
     if (validCount == 0) {
-        return currentGainFactor; // Nincs elég jel, megtartjuk a jelenlegi gain-t
+        return currentGainFactor; // Nincs elég jel → megtartjuk a jelenlegi gain-t
     }
 
+    // Átlag alapú ideális gain számítás
     float averageMax = sum / validCount;
     float idealGain = targetValue / averageMax;
 
-    // Simított átmenet az új gain-hez
+    // Simított átmenet (exponenciális simítás)
     float newGainSuggested = AGC_SMOOTH_FACTOR * idealGain + (1.0f - AGC_SMOOTH_FACTOR) * currentGainFactor;
 
-    // Biztonsági korlátok
-    float newgainLimited = constrain(newGainSuggested, AGC_GENERIC_MIN_GAIN_VALUE, AGC_GENERIC_MAX_GAIN_VALUE);
+    // Biztonsági korlátok alkalmazása
+    float newGainLimited = constrain(newGainSuggested, AGC_MIN_GAIN, AGC_MAX_GAIN);
+
 #ifdef __DEBUG
     if (this->isAutoGainMode()) {
-        static long lastAgcGeneritLogTime = 0;
-        if (Utils::timeHasPassed(lastAgcGeneritLogTime, 2000)) {
-            UISPECTRUM_DEBUG(
-                "UICompSpectrumVis [AGC Általános]: átlagMax=%.4f ideálisErősítés=%.4f javasoltÚjErősítés=%.4f (min=%.4f max=%.4f), limitáltÚjErősítés=%.3f\n",
-                averageMax, idealGain, newGainSuggested, AGC_GENERIC_MIN_GAIN_VALUE, AGC_GENERIC_MAX_GAIN_VALUE, newgainLimited);
-            lastAgcGeneritLogTime = millis();
+        static long lastAgcGenericLogTime = 0;
+        if (Utils::timeHasPassed(lastAgcGenericLogTime, 2000)) {
+            UISPECTRUM_DEBUG("[AGC] átlag=%.2f ideális=%.2f javasolt=%.2f (min=%.4f max=%.2f) → limitált=%.2f\n", averageMax, idealGain, newGainSuggested,
+                             AGC_MIN_GAIN, AGC_MAX_GAIN, newGainLimited);
+            lastAgcGenericLogTime = millis();
         }
     }
 #endif
 
-    return newgainLimited;
+    return newGainLimited;
 }
 
 /**
  * @brief Bar-alapú AGC scale lekérése
+ *
  * @param baseConstant Alap érzékenységi konstans
- * @return Skálázási faktor
+ * @return Skálázási faktor (baseConstant * AGC gain vagy manual gain)
  */
 float UICompSpectrumVis::getBarAgcScale(float baseConstant) {
     if (isAutoGainMode()) {
         return baseConstant * barAgcGainFactor_;
     }
 
-    // Manual gain mód: dB -> lineáris konverzió
-    int8_t gainCfg = this->radioMode_ == RadioMode::AM ? config.data.audioFftGainConfigAm : config.data.audioFftGainConfigFm;
-    float gainDb = static_cast<float>(gainCfg);
+    // Manual gain: dB → lineáris konverzió
+    int8_t gainDb = (radioMode_ == RadioMode::AM) ? config.data.audioFftGainConfigAm : config.data.audioFftGainConfigFm;
+
     float gainLinear = powf(10.0f, gainDb / 20.0f);
     return baseConstant * gainLinear;
 }
 
 /**
  * @brief Magnitude-alapú AGC scale lekérése
+ *
  * @param baseConstant Alap érzékenységi konstans
- * @return Skálázási faktor
+ * @return Skálázási faktor (baseConstant * AGC gain vagy manual gain)
  */
 float UICompSpectrumVis::getMagnitudeAgcScale(float baseConstant) {
     if (isAutoGainMode()) {
         return baseConstant * magnitudeAgcGainFactor_;
     }
 
-    // Manual gain mód: dB -> lineáris konverzió
-    int8_t gainCfg = this->radioMode_ == RadioMode::AM ? config.data.audioFftGainConfigAm : config.data.audioFftGainConfigFm;
-    float gainDb = static_cast<float>(gainCfg);
+    // Manual gain: dB → lineáris konverzió
+    int8_t gainDb = (radioMode_ == RadioMode::AM) ? config.data.audioFftGainConfigAm : config.data.audioFftGainConfigFm;
+
     float gainLinear = powf(10.0f, gainDb / 20.0f);
     return baseConstant * gainLinear;
 }

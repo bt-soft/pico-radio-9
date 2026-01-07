@@ -14,7 +14,7 @@
  * 	Egyetlen feltétel:                                                                                                 *
  * 		a licencet és a szerző nevét meg kell tartani a forrásban!                                                       *
  * -----                                                                                                               *
- * Last Modified: 2025.12.21, Sunday  03:59:51                                                                         *
+ * Last Modified: 2026.01.07, Wednesday  06:25:41                                                                      *
  * Modified By: BT-Soft                                                                                                *
  * -----                                                                                                               *
  * HISTORY:                                                                                                            *
@@ -185,58 +185,84 @@ class UICompSpectrumVis : public UIComponent {
     uint32_t lastFrameTime_; // FPS limitáláshoz
     uint16_t maxDisplayFrequencyHz_;
 
-    static constexpr uint8_t BAR_GAP_PIXELS = 1; // lowres bar-ok közötti hézag pixelek száma
-    static constexpr uint8_t LOW_RES_BANDS = 24; // lowres sávok száma
+    // ===== Vizualizációs konstansok =====
 
-    // ===== KÖZÖS AGC KONSTANSOK =====
-    static constexpr uint32_t AGC_UPDATE_INTERVAL_MS = 500; // Időalapú AGC frissítés (ms)
-    static constexpr float AGC_SMOOTH_FACTOR = 0.2f;        // Simítási faktor (közös)
-    static constexpr float AGC_MIN_SIGNAL_THRESHOLD = 0.1f; // Minimum jel küszöb (közös)
-    static constexpr uint8_t AGC_HISTORY_SIZE = 40;         // History buffer méret (közös) - per-frame history (~30-40 frames)
+    /** @brief Low-res sávok közötti hézag (pixelben) */
+    static constexpr uint8_t BAR_GAP_PIXELS = 1;
 
-    // ===== BAR-ALAPÚ AGC (Spektrum módok: LowRes, HighRes) =====
-    // Spektrum bar-ok magasságát méri, nem a nyers magnitude-ot
-    float barAgcHistory_[AGC_HISTORY_SIZE] = {0}; // Bar max magasságok története
-    uint8_t barAgcHistoryIndex_ = 0;              // Circular buffer index
-    float barAgcGainFactor_ = 0.02f;              // Bar-alapú gain faktor
-    uint32_t barAgcLastUpdateTime_ = 0;           // Utolsó frissítés időpontja
-    float barAgcRunningSum_ = 0.0f;               // Futó összeg (O(1) AGC számításhoz)
-    uint8_t barAgcValidCount_ = 0;                // Érvényes minták száma a history bufferben
+    /** @brief Low-res sávok száma */
+    static constexpr uint8_t LOW_RES_BANDS = 24;
 
-    // ===== MAGNITUDE-ALAPÚ AGC (Jel-alapú módok: Envelope, Waterfall, Oszcilloszkóp) =====
-    // Nyers FFT magnitude maximum-ot méri
-    float magnitudeAgcHistory_[AGC_HISTORY_SIZE] = {0}; // Magnitude max értékek története
-    uint8_t magnitudeAgcHistoryIndex_ = 0;              // Circular buffer index
-    float magnitudeAgcGainFactor_ = 0.02f;              // Magnitude-alapú gain faktor
-    uint32_t magnitudeAgcLastUpdateTime_ = 0;           // Utolsó frissítés időpontja
-    float magnitudeAgcRunningSum_ = 0.0f;               // Futó összeg (O(1) AGC számításhoz)
-    uint8_t magnitudeAgcValidCount_ = 0;                // Érvényes minták száma a history bufferben
+    // ===== AGC (Automatic Gain Control) konstansok =====
 
-    // Sprite handling
-    TFT_eSprite *sprite_;
-    uint8_t indicatorFontHeight_;
+    /** @brief AGC frissítési időköz (milliszekundum) */
+    static constexpr uint32_t AGC_UPDATE_INTERVAL_MS = 500;
 
-    // Peak buffer a LowRes módhoz
-    uint8_t Rpeak_[LOW_RES_BANDS];
-    uint8_t bar_height_[LOW_RES_BANDS]; // Bar magasságok csillapodáshoz
+    /** @brief AGC simítási faktor (0.0 = nincs simítás, 1.0 = teljes simítás) */
+    static constexpr float AGC_SMOOTH_FACTOR = 0.2f;
 
-    // HighRes simítási puffer a képkockák közötti villogás csökkentésére
+    /** @brief Minimum jel küszöb AGC számításhoz */
+    static constexpr float AGC_MIN_SIGNAL_THRESHOLD = 0.1f;
+
+    /** @brief AGC history buffer mérete (frame-ek száma, ~30-40 frame) */
+    static constexpr uint8_t AGC_HISTORY_SIZE = 40;
+
+    // ===== Bar-alapú AGC (Spektrum módok: LowRes, HighRes) =====
+    /**
+     * @brief Bar-alapú AGC a spektrum bar magasságokat méri (nem a nyers magnitude-ot)
+     * Használat: LowRes és HighRes spektrum megjelenítési módokban
+     */
+    float barAgcHistory_[AGC_HISTORY_SIZE] = {0}; ///< Bar max magasságok története
+    uint8_t barAgcHistoryIndex_ = 0;              ///< Circular buffer index
+    float barAgcGainFactor_ = 0.02f;              ///< Bar-alapú gain faktor
+    uint32_t barAgcLastUpdateTime_ = 0;           ///< Utolsó frissítés időpontja
+    float barAgcRunningSum_ = 0.0f;               ///< Futó összeg (O(1) AGC számításhoz)
+    uint8_t barAgcValidCount_ = 0;                ///< Érvényes minták száma
+
+    // ===== Magnitude-alapú AGC (Jel-alapú módok: Envelope, Waterfall, Oszcilloszkóp) =====
+    /**
+     * @brief Magnitude-alapú AGC a nyers FFT magnitude maximum-ot méri
+     * Használat: Envelope, Waterfall, Oszcilloszkóp megjelenítési módokban
+     */
+    float magnitudeAgcHistory_[AGC_HISTORY_SIZE] = {0}; ///< Magnitude max értékek története
+    uint8_t magnitudeAgcHistoryIndex_ = 0;              ///< Circular buffer index
+    float magnitudeAgcGainFactor_ = 0.02f;              ///< Magnitude-alapú gain faktor
+    uint32_t magnitudeAgcLastUpdateTime_ = 0;           ///< Utolsó frissítés időpontja
+    float magnitudeAgcRunningSum_ = 0.0f;               ///< Futó összeg (O(1) AGC számításhoz)
+    uint8_t magnitudeAgcValidCount_ = 0;                ///< Érvényes minták száma
+
+    // ===== Sprite kezelés =====
+    TFT_eSprite *sprite_;         ///< TFT sprite objektum
+    uint8_t indicatorFontHeight_; ///< Indikátor font magassága
+
+    // ===== Peak buffer és simítás (LowRes mód) =====
+    uint8_t Rpeak_[LOW_RES_BANDS];      ///< Peak értékek LowRes módhoz
+    uint8_t bar_height_[LOW_RES_BANDS]; ///< Bar magasságok csillapodáshoz
+
+    // ===== HighRes simítási puffer =====
+    /**
+     * @brief HighRes simítási buffer a képkockák közötti villogás csökkentésére
+     * Időbeli (temporal) simítás alkalmazása
+     */
     std::vector<float> highresSmoothedCols;
-    // HighRes időbeli (temporal) simítás mértéke (0.0 = nincs simítás, 1.0 = lefagyasztás)
+
+    /** @brief HighRes időbeli simítási mérték (0.0 = nincs, 1.0 = lefagyasztás) */
     static constexpr float HIGHRES_SMOOTH_ALPHA = 0.7f;
 
-    // CW/RTTY hangolási segéd változók
-    TuningAidType currentTuningAidType_;
-    uint16_t currentTuningAidMinFreqHz_;
-    uint16_t currentTuningAidMaxFreqHz_;
+    // ===== CW/RTTY hangolási segéd =====
+    TuningAidType currentTuningAidType_; ///< Aktuális hangolási segéd típus
+    uint16_t currentTuningAidMinFreqHz_; ///< Hangolási segéd minimum frekvencia
+    uint16_t currentTuningAidMaxFreqHz_; ///< Hangolási segéd maximum frekvencia
 
-    // Envelope és Waterfall buffer - körkörös 1D buffer (optimalizált)
-    std::vector<uint8_t> wabuf_; // 1D buffer (width * height)
-    uint16_t wabufWriteCol_ = 0; // Körkörös írási pozíció (oszlop index)
-
+    // ===== Envelope és Waterfall buffer =====
     /**
-     * @brief Jelenlegi sávszélesség (Hz)
+     * @brief Körkörös 1D buffer (optimalizált): width * height méretű
+     * Envelope és waterfall megjelenítéshez használt circular buffer
      */
+    std::vector<uint8_t> wabuf_;
+    uint16_t wabufWriteCol_ = 0; ///< Körkörös írási pozíció (oszlop index)
+
+    /** @brief Aktuális sávszélesség (Hz) */
     uint32_t currentBandwidthHz_;
 
     /**
@@ -264,14 +290,19 @@ class UICompSpectrumVis : public UIComponent {
     // Általános AGC segédfüggvény (privát, statikus) - összevonja a bar/magnitude AGC logikát
     float calculateAgcGainGeneric(const float *history, uint8_t historySize, float currentGainFactor, float targetValue) const;
 
-    // Cache-elt grafikun és mód (CW/RTTY/FM/AM, stb) típustól függő erősítés dB-ben (bázis érték, AGC korrekció nélkül)
-    float cachedGainDb_ = 0.0f;
-    float cachedGainLinear_ = 1.0f; // Lineáris gain (előre konvertálva dB-ből, powf kiküszöbölésére)
-    int32_t cachedGainScaled_ = 0;  // Gain * 255 (max ~25k, 32-bit nativ muveletek)
+    // ===== Gain cache változók =====
+    /**
+     * @brief Előre kiszámított gain értékek (gyorsítótár)
+     * Ezek a sávszélesség és mód alapján előre számított értékek,
+     * hogy ne kelljen minden frame-nél újraszámolni őket
+     */
+    float cachedGainDb_ = 0.0f;     ///< Gain dB-ben (AGC korrekció nélkül)
+    float cachedGainLinear_ = 1.0f; ///< Lineáris gain (dB-ből konvertálva, powf elkerülése)
+    int32_t cachedGainScaled_ = 0;  ///< Gain * 255 (max ~25k, 32-bit műveletekhez)
 
-    // Zajszűrő/silence detektáláshoz simított RMS értékek
-    float oscRmsSmoothed_ = 0.0f; // Oszcilloszkóp zaj/silence detektáláshoz
-    float magRmsSmoothed_ = 0.0f; // RMS simítás spektrum/envelope/waterfall célokra
+    // ===== Zaj/silence szűréshez simított RMS értékek =====
+    float oscRmsSmoothed_ = 0.0f; ///< Oszcilloszkóp zaj/silence detektáláshoz
+    float magRmsSmoothed_ = 0.0f; ///< Spektrum/envelope/waterfall RMS simítás
 
     /**
      * @brief Kiszámolja a rövidtávú RMS-et a magnitude (q15) tömb adott bin tartományán
@@ -331,10 +362,14 @@ class UICompSpectrumVis : public UIComponent {
     float getBarAgcScale(float baseConstant);
     void resetBarAgc();
 
-    // AGC logging helper values (for consolidated debug output)
-    float lastBarAgcMaxForLog_ = 0.0f;   // cached latest bar max for logging
-    float lastBarAgcGainForLog_ = 1.0f;  // cached latest bar gain for logging
-    uint32_t lastAgcSummaryLogTime_ = 0; // last time consolidated AGC log was emitted
+    // ===== AGC logging segédváltozók =====
+    /**
+     * @brief Cached értékek a konszolídált AGC debug kimenethez
+     * Ezek csak __DEBUG módban használódnak a logging optimalizálásához
+     */
+    float lastBarAgcMaxForLog_ = 0.0f;   ///< Utolsó bar maximum (logging)
+    float lastBarAgcGainForLog_ = 1.0f;  ///< Utolsó bar gain (logging)
+    uint32_t lastAgcSummaryLogTime_ = 0; ///< Utolsó AGC log időpontja
 
     // Magnitude-alapú AGC (Jel-alapú módok: Envelope, Waterfall, Oszcilloszkóp)
     void updateMagnitudeBasedGain(float currentMagnitudeMaxValue);
