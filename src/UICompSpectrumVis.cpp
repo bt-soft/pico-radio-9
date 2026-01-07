@@ -60,7 +60,7 @@ static constexpr float GRAPH_TARGET_HEIGHT_UTILIZATION = 0.85f;
 constexpr float LOWRES_BASELINE_GAIN_DB = 0.0f;       // Low-res spektrum
 constexpr float HIGHRES_BASELINE_GAIN_DB = 0.0f;      // High-res spektrum
 constexpr float ENVELOPE_BASELINE_GAIN_DB = 3.0f;     // Burkológörbe
-constexpr float WATERFALL_BASELINE_GAIN_DB = -10.0f;    // Vízesés
+constexpr float WATERFALL_BASELINE_GAIN_DB = -10.0f;  // Vízesés
 constexpr float OSCILLOSCOPE_BASELINE_GAIN_DB = 0.0f; // Oszcilloszkóp
 
 /**
@@ -1637,79 +1637,39 @@ void UICompSpectrumVis::renderFrequencyRangeLabels(uint16_t minDisplayFrequencyH
     tft.setTextSize(1);
     tft.setTextColor(TFT_SILVER, TFT_BLACK);
 
-    // Waterfall módban alul/felül középre igazított a freki címkék elrendezése
-    if (currentMode_ == DisplayMode::Waterfall) {
-        // Min frekvencia a spektrum alatt középen
-        tft.setTextDatum(BC_DATUM); // Alsó-középre igazítás
-        tft.drawString(Utils::formatFrequencyString(minDisplayFrequencyHz), bounds.x + bounds.width / 2, indicatorY + indicatorH);
-
-        // Max frekvencia a spektrum felett középen - csak a címke mögötti kis területet töröljük,
-        // hogy ne töröljük a teljes felső keretet.
-        String topLabel = Utils::formatFrequencyString(maxDisplayFrequencyHz);
-        tft.setTextDatum(TC_DATUM);            // Felső-középre igazítás
-        constexpr uint8_t approxCharWidth = 6; // jó közelítés a setTextSize(1) esetén
-        int16_t textWidth = topLabel.length() * approxCharWidth;
-
-        // Kis margó a szöveg körül
-        constexpr uint8_t bgMargin = 4;
-        int16_t centerX = bounds.x + bounds.width / 2;
-        int16_t rectX = centerX - (textWidth / 2) - bgMargin;
-        int16_t rectW = textWidth + bgMargin * 2;
-
-        // Clamp a téglalapot a komponens területére
-        if (rectX < bounds.x) {
-            rectX = bounds.x;
-        }
-        if (rectX + rectW > bounds.x + bounds.width) {
-            rectW = (bounds.x + bounds.width) - rectX;
+    // MINDEN módban (Spektrum, Waterfall, Tuning aid) balra/jobbra vízszintes frekvencia skála
+    // Min/Max + köztes frekvencia címkék összesen 5 darabban
+    constexpr uint8_t LABEL_NUMS = 5;
+    for (uint8_t i = 0; i < LABEL_NUMS; ++i) {
+        float frac = (float)i / (LABEL_NUMS - 1);
+        float freq = minDisplayFrequencyHz + frac * (maxDisplayFrequencyHz - minDisplayFrequencyHz);
+        uint16_t x;
+        if (i == 0) {
+            tft.setTextDatum(TL_DATUM); // Bal igazítás
+            x = bounds.x;
+        } else if (i == LABEL_NUMS - 1) {
+            tft.setTextDatum(TR_DATUM); // Jobb igazítás
+            x = bounds.x + bounds.width - 1;
+        } else {
+            tft.setTextDatum(TC_DATUM); // Középre igazítás
+            x = bounds.x + (int)(frac * (bounds.width - 1));
         }
 
-        // Emeljük a címkét 2 pixellel magasabbra a kérés szerint.
-        int16_t rectY = bounds.y - 16; // háttér téglalap kezdete kicsit fentebb
-
-        // Clamp rectY hogy ne lépjen ki túl messze a komponens fölé
-        if (rectY < bounds.y - 20) {
-            rectY = bounds.y - 20;
-        }
-        tft.fillRect(rectX, rectY, rectW, 14, TFT_BLACK);
-
-        tft.drawString(topLabel, centerX, bounds.y - 12); // eredeti -10 helyett -12
-
-    } else {
-        // Spektrum és tuning aid módokban balra/jobbra igazított a freki címkék elrendezése
-        // Min/Max + köztes frekvencia címkék összesen 5 darabban
-        constexpr uint8_t LABEL_NUMS = 5;
-        for (uint8_t i = 0; i < LABEL_NUMS; ++i) {
-            float frac = (float)i / (LABEL_NUMS - 1);
-            float freq = minDisplayFrequencyHz + frac * (maxDisplayFrequencyHz - minDisplayFrequencyHz);
-            uint16_t x;
-            if (i == 0) {
-                tft.setTextDatum(TL_DATUM);
-                x = bounds.x;
-            } else if (i == LABEL_NUMS - 1) {
-                tft.setTextDatum(TR_DATUM);
-                x = bounds.x + bounds.width - 1;
+        char buf[8];
+        if (freq < 1000) {
+            sprintf(buf, "%d", (int)roundf(freq));
+        } else {
+            float kfreq = freq / 1000.0f;
+            uint16_t kint = (uint16_t)kfreq;
+            float frac = kfreq - kint;
+            uint8_t decimal = (uint8_t)(frac * 10.0f);
+            if (decimal == 0) {
+                sprintf(buf, "%dk", kint);
             } else {
-                tft.setTextDatum(TC_DATUM);
-                x = bounds.x + (int)(frac * (bounds.width - 1));
+                sprintf(buf, "%d.%dk", kint, decimal);
             }
-
-            char buf[8];
-            if (freq < 1000) {
-                sprintf(buf, "%d", (int)roundf(freq));
-            } else {
-                float kfreq = freq / 1000.0f;
-                uint16_t kint = (uint16_t)kfreq;
-                float frac = kfreq - kint;
-                uint8_t decimal = (uint8_t)(frac * 10.0f);
-                if (decimal == 0) {
-                    sprintf(buf, "%dk", kint);
-                } else {
-                    sprintf(buf, "%d.%dk", kint, decimal);
-                }
-            }
-            tft.drawString(buf, x, indicatorY);
         }
+        tft.drawString(buf, x, indicatorY);
     }
 
     flags_.frequencyLabelsDrawn = false;
