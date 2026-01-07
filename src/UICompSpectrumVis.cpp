@@ -2195,9 +2195,11 @@ void UICompSpectrumVis::renderEnvelope() {
 
     if (pixelHeight > 1) {
         uint16_t halfHeight = pixelHeight / 2;
-        // Megakadályozza a komponens függőleges határainak túllépését
-        if (halfHeight >= yCenter) {
-            halfHeight = yCenter - 1;
+
+        // Biztonsági határ: ne lépje túl a grafikon széleit
+        // De engedélyezzük a TELJES magasság használatát!
+        if (halfHeight > yCenter) {
+            halfHeight = yCenter; // Most már elérheti a teljes magasságot
         }
 
         uint16_t yUpper = yCenter - halfHeight;
