@@ -50,11 +50,11 @@ static constexpr float GRAPH_TARGET_HEIGHT_UTILIZATION = 0.85f; // grafikon kit�
 
 //--- Baseline erősítés konstansok spektrum megjelenítéshez (dB) ---
 // Újrakalibrálva a dBFS-alapú számításhoz (20*log10(mag/32767))
-constexpr float LOWRES_BASELINE_GAIN_DB = 0.0f;   
-constexpr float HIGHRES_BASELINE_GAIN_DB = 0.0f;   
-constexpr float ENVELOPE_BASELINE_GAIN_DB = 0.0f; // Eredeti: -60.0f, a felhasználó kérésére 0.0f-ra állítva, a kompenzáció a calculateDisplayGainDb-ben történik.
-constexpr float WATERFALL_BASELINE_GAIN_DB = 0.0f;  // Waterfall alaperősítés (0dB = nincs változtatás)
-constexpr float OSCILLOSCOPE_BASELINE_GAIN_DB = 0.0f; // Oszcilloszkóp alaperősítés (kezdetben 0dB)  
+constexpr float LOWRES_BASELINE_GAIN_DB = 0.0f;
+constexpr float HIGHRES_BASELINE_GAIN_DB = 0.0f;
+constexpr float ENVELOPE_BASELINE_GAIN_DB = 0.0f;
+constexpr float WATERFALL_BASELINE_GAIN_DB = 0.0f;    // Waterfall alaperősítés (0dB = nincs változtatás)
+constexpr float OSCILLOSCOPE_BASELINE_GAIN_DB = 0.0f; // Oszcilloszkóp alaperősítés (kezdetben 0dB)
 
 // CW/RTTY tuning aid baseline erősítések (dB)
 constexpr float CW_WATERFALL_BASELINE_GAIN_DB = -20.0f;   // CW Waterfall alaperősítés (-20dB = 0.1x csillapítás)
@@ -91,7 +91,7 @@ constexpr BandwidthScaleConfig BANDWIDTH_GAIN_TABLE[] = {
     {RTTY_AF_BANDWIDTH_HZ, NOAMP, NOAMP, NOAMP, NOAMP, NOAMP, -8.0f, -8.0f}, // 3kHz: RTTY mód (csak tuning aid)
     {AM_AF_BANDWIDTH_HZ, -10.0f, -10.0f, -10.0f, 5.0f, 10.0f, NOAMP, NOAMP}, // 6kHz: AM mód (tuning aid nem elérhető)
     {WEFAX_SAMPLE_RATE_HZ, NOAMP, NOAMP, NOAMP, NOAMP, NOAMP, NOAMP, NOAMP}, // 11025Hz: WEFAX mód
-    {FM_AF_BANDWIDTH_HZ, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, NOAMP, NOAMP},       // 15kHz: FM mód (tuning aid nem elérhető)
+    {FM_AF_BANDWIDTH_HZ, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, NOAMP, NOAMP},        // 15kHz: FM mód (tuning aid nem elérhető)
 };
 constexpr size_t BANDWIDTH_GAIN_TABLE_SIZE = ARRAY_ITEM_COUNT(BANDWIDTH_GAIN_TABLE);
 
@@ -558,8 +558,9 @@ float UICompSpectrumVis::calculateAgcGainGeneric(const float *history, uint8_t h
     if (this->isAutoGainMode()) {
         static long lastAgcGeneritLogTime = 0;
         if (Utils::timeHasPassed(lastAgcGeneritLogTime, 2000)) {
-            UISPECTRUM_DEBUG("UICompSpectrumVis [AGC Általános]: átlagMax=%.4f ideálisErősítés=%.4f javasoltÚjErősítés=%.4f (min=%.4f max=%.4f), limitáltÚjErősítés=%.3f\n",
-                             averageMax, idealGain, newGainSuggested, AGC_GENERIC_MIN_GAIN_VALUE, AGC_GENERIC_MAX_GAIN_VALUE, newgainLimited);
+            UISPECTRUM_DEBUG(
+                "UICompSpectrumVis [AGC Általános]: átlagMax=%.4f ideálisErősítés=%.4f javasoltÚjErősítés=%.4f (min=%.4f max=%.4f), limitáltÚjErősítés=%.3f\n",
+                averageMax, idealGain, newGainSuggested, AGC_GENERIC_MIN_GAIN_VALUE, AGC_GENERIC_MAX_GAIN_VALUE, newgainLimited);
             lastAgcGeneritLogTime = millis();
         }
     }
@@ -1924,7 +1925,7 @@ void UICompSpectrumVis::renderOscilloscope() {
     // --- Gain Calculation ---
     float baseline_osc_lin_factor = powf(10.0f, OSCILLOSCOPE_BASELINE_GAIN_DB / 20.0f);
     float final_gain_lin = cachedGainLinear_ * baseline_osc_lin_factor;
-    
+
     if (isAutoGainMode()) {
         uint16_t maxPixelHeight = q15ToPixelHeight(max_abs, (int32_t)(final_gain_lin * 255.0f), graphH / 4);
         if (maxPixelHeight == 0 && max_abs > 0)
@@ -2009,8 +2010,8 @@ void UICompSpectrumVis::renderEnvelope() {
     uint16_t actualFftSize = 0;
     float currentBinWidthHz = 0.0f;
     uint16_t current_height = 0;
-	int32_t max_mag = 0;
-	float totalGainDb = 0;
+    int32_t max_mag = 0;
+    float totalGainDb = 0;
 
     if (getCore1SpectrumData(&magnitudeData, &actualFftSize, &currentBinWidthHz) && magnitudeData && currentBinWidthHz > 0) {
         const uint16_t min_bin = std::max(2, static_cast<int>(std::round(MIN_AUDIO_FREQUENCY_HZ / currentBinWidthHz)));
@@ -2039,18 +2040,18 @@ void UICompSpectrumVis::renderEnvelope() {
         }
     }
 
-    // Időbeli simítás eltávolítva a felhasználó kérésére a gyorsabb reakció érdekében.
+    // Időbeli simítás eltávolítva
     uint16_t pixelHeight = current_height;
 
-    // Diagnosztikai naplózás
-    static long lastEnvelopeLogTime = 0;
-    if (Utils::timeHasPassed(lastEnvelopeLogTime, 500)) { // 500ms-enként naplóz
-        UISPECTRUM_DEBUG("Envelope: totalGain=%.1fdB, max_mag=%d, height=%d\n", 
-            totalGainDb, max_mag, pixelHeight);
-        lastEnvelopeLogTime = millis();
-    }
+    // // Diagnosztikai naplózás
+    // static long lastEnvelopeLogTime = 0;
+    // if (Utils::timeHasPassed(lastEnvelopeLogTime, 500)) { // 500ms-enként naplóz
+    //     UISPECTRUM_DEBUG("Envelope: totalGain=%.1fdB, max_mag=%d, height=%d\n",
+    //         totalGainDb, max_mag, pixelHeight);
+    //     lastEnvelopeLogTime = millis();
+    // }
 
-    // --- Rajzolási logika (Visszaállítva a felhasználó kérésére, szimmetrikus) ---
+    // --- Rajzolási logika ---
     sprite_->scroll(-1, 0); // Görgetés balra
 
     uint16_t lastColX = bounds.width - 1;
