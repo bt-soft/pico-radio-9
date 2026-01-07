@@ -184,7 +184,6 @@ class UICompSpectrumVis : public UIComponent {
     uint32_t lastTouchTime_;
     uint32_t lastFrameTime_; // FPS limitáláshoz
     uint16_t maxDisplayFrequencyHz_;
-    float envelopeLastSmoothedValue_;
 
     static constexpr uint8_t BAR_GAP_PIXELS = 1; // lowres bar-ok közötti hézag pixelek száma
     static constexpr uint8_t LOW_RES_BANDS = 24; // lowres sávok száma
