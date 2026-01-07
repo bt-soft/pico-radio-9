@@ -52,8 +52,9 @@ static constexpr float GRAPH_TARGET_HEIGHT_UTILIZATION = 0.85f; // grafikon kit�
 // Újrakalibrálva a dBFS-alapú számításhoz (20*log10(mag/32767))
 constexpr float LOWRES_BASELINE_GAIN_DB = 0.0f;   
 constexpr float HIGHRES_BASELINE_GAIN_DB = 0.0f;   
-constexpr float ENVELOPE_BASELINE_GAIN_DB = 15.0f;  
-constexpr float WATERFALL_BASELINE_GAIN_DB = -18.0f;  
+constexpr float ENVELOPE_BASELINE_GAIN_DB = 0.0f; // Eredeti: -60.0f, a felhasználó kérésére 0.0f-ra állítva, a kompenzáció a calculateDisplayGainDb-ben történik.
+constexpr float WATERFALL_BASELINE_GAIN_DB = 0.0f;  // Waterfall alaperősítés (0dB = nincs változtatás)
+constexpr float OSCILLOSCOPE_BASELINE_GAIN_DB = 0.0f; // Oszcilloszkóp alaperősítés (kezdetben 0dB)  
 
 // CW/RTTY tuning aid baseline erősítések (dB)
 constexpr float CW_WATERFALL_BASELINE_GAIN_DB = -20.0f;   // CW Waterfall alaperősítés (-20dB = 0.1x csillapítás)
@@ -1921,7 +1922,9 @@ void UICompSpectrumVis::renderOscilloscope() {
     const int32_t half_h = graphH / 2 - 1;
 
     // --- Gain Calculation ---
-    float final_gain_lin = cachedGainLinear_; // Cache-elt lineris gain (powf eliminlva!)
+    float baseline_osc_lin_factor = powf(10.0f, OSCILLOSCOPE_BASELINE_GAIN_DB / 20.0f);
+    float final_gain_lin = cachedGainLinear_ * baseline_osc_lin_factor;
+    
     if (isAutoGainMode()) {
         uint16_t maxPixelHeight = q15ToPixelHeight(max_abs, (int32_t)(final_gain_lin * 255.0f), graphH / 4);
         if (maxPixelHeight == 0 && max_abs > 0)
@@ -2017,8 +2020,8 @@ void UICompSpectrumVis::renderEnvelope() {
         int8_t gainCfg = (radioMode_ == RadioMode::AM) ? config.data.audioFftGainConfigAm : config.data.audioFftGainConfigFm;
         totalGainDb = calculateDisplayGainDb(magnitudeData, min_bin, max_bin, isAutoGainMode(), gainCfg);
 
-        // Alap és sávszélesség-specifikus erősítések hozzáadása
-        totalGainDb += ENVELOPE_BASELINE_GAIN_DB + cachedGainDb_;
+        // Alap és sávszélesség-specifikus erősítések hozzáadása, plusz kompenzáció a baseline gain miatt
+        totalGainDb += ENVELOPE_BASELINE_GAIN_DB + cachedGainDb_ + 12.0f;
 
         // A spektrum CSÚCS magnitúdójának megkeresése, nem az átlag. Így reszponszívabb.
         for (uint16_t i = min_bin; i <= max_bin; i++) {
