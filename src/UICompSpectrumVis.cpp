@@ -59,8 +59,8 @@ static constexpr float GRAPH_TARGET_HEIGHT_UTILIZATION = 0.85f;
  */
 constexpr float LOWRES_BASELINE_GAIN_DB = 0.0f;       // Low-res spektrum
 constexpr float HIGHRES_BASELINE_GAIN_DB = 0.0f;      // High-res spektrum
-constexpr float ENVELOPE_BASELINE_GAIN_DB = 0.0f;     // Burkológörbe
-constexpr float WATERFALL_BASELINE_GAIN_DB = 0.0f;    // Vízesés
+constexpr float ENVELOPE_BASELINE_GAIN_DB = 3.0f;     // Burkológörbe
+constexpr float WATERFALL_BASELINE_GAIN_DB = -10.0f;    // Vízesés
 constexpr float OSCILLOSCOPE_BASELINE_GAIN_DB = 0.0f; // Oszcilloszkóp
 
 /**
