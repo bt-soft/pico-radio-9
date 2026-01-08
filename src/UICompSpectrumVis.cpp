@@ -67,7 +67,7 @@ constexpr float OSCILLOSCOPE_BASELINE_GAIN_DB = 0.0f; // Oszcilloszkóp
  * @brief CW/RTTY hangolási segéd baseline erősítések (dB)
  * Negatív érték = csillapítás a túl erős jelekhez
  */
-constexpr float CW_WATERFALL_BASELINE_GAIN_DB = -20.0f;   // CW vízesés
+constexpr float CW_WATERFALL_BASELINE_GAIN_DB = -24.0f;   // CW vízesés
 constexpr float CW_SNRCURVE_BASELINE_GAIN_DB = -24.0f;    // CW SNR görbe
 constexpr float RTTY_WATERFALL_BASELINE_GAIN_DB = -24.0f; // RTTY vízesés
 constexpr float RTTY_SNRCURVE_BASELINE_GAIN_DB = -24.0f;  // RTTY SNR görbe
@@ -103,8 +103,8 @@ struct BandwidthScaleConfig {
  */
 constexpr BandwidthScaleConfig BANDWIDTH_GAIN_TABLE[] = {
     // bandwidthHz,          lowRes, highRes, osc,    env,   water,  tuningW, tuningSNR
-    {CW_AF_BANDWIDTH_HZ, NOAMP, NOAMP, NOAMP, NOAMP, NOAMP, -8.0f, -8.0f},   // 1.5kHz CW
-    {RTTY_AF_BANDWIDTH_HZ, NOAMP, NOAMP, NOAMP, NOAMP, NOAMP, -8.0f, -8.0f}, // 3kHz RTTY
+    {CW_AF_BANDWIDTH_HZ, NOAMP, NOAMP, NOAMP, NOAMP, NOAMP, 0.0f, 0.0f},   // 1.5kHz CW
+    {RTTY_AF_BANDWIDTH_HZ, NOAMP, NOAMP, NOAMP, NOAMP, NOAMP, 0.0f, 0.0f}, // 3kHz RTTY
     {AM_AF_BANDWIDTH_HZ, -10.0f, -10.0f, -10.0f, 5.0f, 10.0f, NOAMP, NOAMP}, // 6kHz AM
     {WEFAX_SAMPLE_RATE_HZ, NOAMP, NOAMP, NOAMP, NOAMP, NOAMP, NOAMP, NOAMP}, // 11025Hz WEFAX
     {FM_AF_BANDWIDTH_HZ, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, NOAMP, NOAMP},        // 15kHz FM
@@ -1699,7 +1699,7 @@ void UICompSpectrumVis::renderTuningAidFrequencyLabels(float min_freq, float max
 
     constexpr int8_t PADDING = 3; // 3px padding minden irányban (felül, alul, bal, jobb)
 
-    // Lambda helper: egy frekvencia címke kirajzolása fekete háttérrel
+    // Lambda helper: egy frekvencia címke kirajzolása fekete háttérrel + függőleges vonallal
     auto drawLabelWithBackground = [&](uint16_t freq, const char *prefix = nullptr) {
         if (freq < min_freq || freq > max_freq) {
             return; // Címke kívül esik a tartományon
@@ -1707,6 +1707,9 @@ void UICompSpectrumVis::renderTuningAidFrequencyLabels(float min_freq, float max
 
         // X pozíció számítása a frekvencia alapján
         int16_t x_pos = round(((freq - min_freq) / freq_range) * (bounds.width - 1));
+
+        // Függőleges vonal rajzolása a teljes grafikon magasságában
+        sprite_->drawFastVLine(x_pos, 0, graphH, TFT_YELLOW);
 
         // Formázott szöveg készítése (prefix opcionális: "M:" vagy "S:")
         char buf[16];
