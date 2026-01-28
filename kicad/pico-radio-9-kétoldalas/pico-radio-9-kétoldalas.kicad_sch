@@ -6,7 +6,7 @@
 	(paper "A4")
 	(title_block
 		(title "Pico radio-9 (kétoldalas panel)")
-		(date "2025-08-04")
+		(date "2026-01-28")
 	)
 	(lib_symbols
 		(symbol "Amplifier_Operational:MCP6004"
@@ -6237,6 +6237,16 @@
 	)
 	(wire
 		(pts
+			(xy 71.12 148.59) (xy 92.71 148.59)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "346404ae-355f-4973-bbff-90516fc5a077")
+	)
+	(wire
+		(pts
 			(xy 71.12 148.59) (xy 57.15 148.59)
 		)
 		(stroke
@@ -6665,16 +6675,6 @@
 		)
 		(uuid "65a5eb34-1332-4bd4-ba26-22f078954074")
 	)
-	(wire
-		(pts
-			(xy 71.12 148.59) (xy 104.14 148.59)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "65dcc5e7-e682-45bc-bcf8-891c2d4dae25")
-	)
 	(bus
 		(pts
 			(xy 99.06 73.66) (xy 104.14 73.66)
@@ -6847,6 +6847,16 @@
 	)
 	(wire
 		(pts
+			(xy 100.33 148.59) (xy 104.14 148.59)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "78c73902-9a51-42b2-ba2b-a43c796e30e4")
+	)
+	(wire
+		(pts
 			(xy 153.67 71.12) (xy 165.1 71.12)
 		)
 		(stroke
@@ -6997,6 +7007,16 @@
 	)
 	(wire
 		(pts
+			(xy 100.33 171.45) (xy 104.14 171.45)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "8be76773-e12d-4c51-b2dd-810c852555f0")
+	)
+	(wire
+		(pts
 			(xy 86.36 62.23) (xy 86.36 71.12)
 		)
 		(stroke
@@ -7104,6 +7124,16 @@
 			(type default)
 		)
 		(uuid "98b1077e-0455-4d22-aca1-144d7be13220")
+	)
+	(wire
+		(pts
+			(xy 71.12 171.45) (xy 92.71 171.45)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "98f64aee-634c-4cb9-aff2-9c612f372bc9")
 	)
 	(bus
 		(pts
@@ -7594,16 +7624,6 @@
 			(type default)
 		)
 		(uuid "cb4dca1c-1999-408f-8961-5f3f4ba0135e")
-	)
-	(wire
-		(pts
-			(xy 71.12 171.45) (xy 104.14 171.45)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "cc65b21e-3218-4ab9-80b7-fa49f1b01891")
 	)
 	(wire
 		(pts
@@ -8615,7 +8635,7 @@
 				)
 			)
 		)
-		(property "Value" "100k"
+		(property "Value" "47k"
 			(at 142.24 144.78 90)
 			(effects
 				(font
@@ -10226,6 +10246,75 @@
 		)
 	)
 	(symbol
+		(lib_id "Device:C")
+		(at 96.52 171.45 270)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "4c1c157e-8cb8-4467-89c0-f145787bad44")
+		(property "Reference" "C14"
+			(at 91.694 167.64 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "100nF"
+			(at 97.028 167.386 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "Capacitor_THT:C_Disc_D5.0mm_W2.5mm_P2.50mm"
+			(at 92.71 172.4152 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 96.52 171.45 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" "Unpolarized capacitor"
+			(at 96.52 171.45 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "d9a7af23-d060-4599-8ab2-5b313f64d7f6")
+		)
+		(pin "2"
+			(uuid "e43297e9-747e-450e-872e-81de9b0c189d")
+		)
+		(instances
+			(project "pico-radio-9-kétoldalas"
+				(path "/b9640508-dcc6-4f6b-830f-c53a732dcb5b"
+					(reference "C14")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
 		(lib_id "Device:R")
 		(at 127 176.53 180)
 		(unit 1)
@@ -11573,6 +11662,75 @@
 		)
 	)
 	(symbol
+		(lib_id "Device:C")
+		(at 96.52 148.59 270)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "8029914a-5dc3-465e-bf42-31a6ffe77c99")
+		(property "Reference" "C13"
+			(at 92.456 144.526 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "100nF"
+			(at 97.028 144.272 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "Capacitor_THT:C_Disc_D5.0mm_W2.5mm_P2.50mm"
+			(at 92.71 149.5552 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 96.52 148.59 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" "Unpolarized capacitor"
+			(at 96.52 148.59 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "5e00c016-966d-405f-9148-8284bacab1dc")
+		)
+		(pin "2"
+			(uuid "824be3d7-8643-4096-83a1-ec4994eb0655")
+		)
+		(instances
+			(project "pico-radio-9-kétoldalas"
+				(path "/b9640508-dcc6-4f6b-830f-c53a732dcb5b"
+					(reference "C13")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
 		(lib_id "Transistor_BJT:PN2222A")
 		(at 54.61 187.96 0)
 		(unit 1)
@@ -12889,7 +13047,7 @@
 		(dnp no)
 		(uuid "b5e75f02-1788-4ea9-a021-9e9e0855f9b4")
 		(property "Reference" "C7"
-			(at 95.25 153.924 90)
+			(at 90.932 162.814 90)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -13247,7 +13405,7 @@
 				)
 			)
 		)
-		(property "Footprint" "Resistor_THT:R_Axial_DIN0207_L6.3mm_D2.5mm_P10.16mm_Horizontal"
+		(property "Footprint" "Resistor_THT:R_Axial_DIN0207_L6.3mm_D2.5mm_P2.54mm_Vertical"
 			(at 107.95 169.672 90)
 			(effects
 				(font
@@ -13851,7 +14009,7 @@
 				)
 			)
 		)
-		(property "Footprint" "Resistor_THT:R_Axial_DIN0207_L6.3mm_D2.5mm_P10.16mm_Horizontal"
+		(property "Footprint" "Resistor_THT:R_Axial_DIN0207_L6.3mm_D2.5mm_P2.54mm_Vertical"
 			(at 107.95 146.812 90)
 			(effects
 				(font
@@ -14509,7 +14667,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "100nF"
+		(property "Value" "470nF"
 			(at 176.784 120.142 0)
 			(effects
 				(font

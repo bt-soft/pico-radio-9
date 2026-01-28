@@ -6978,6 +6978,16 @@
 	)
 	(wire
 		(pts
+			(xy 71.12 148.59) (xy 92.71 148.59)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "40bccf98-f1fa-43f2-a28b-848c1f44bfe2")
+	)
+	(wire
+		(pts
 			(xy 182.88 102.87) (xy 185.42 102.87)
 		)
 		(stroke
@@ -6995,6 +7005,16 @@
 			(type default)
 		)
 		(uuid "4233492d-e4c7-445e-afca-9330e9c6e709")
+	)
+	(wire
+		(pts
+			(xy 100.33 171.45) (xy 104.14 171.45)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "4375b4cd-414b-4c0b-83eb-62906c0b5005")
 	)
 	(wire
 		(pts
@@ -7115,6 +7135,16 @@
 			(type default)
 		)
 		(uuid "4ec40a14-8cc4-4c70-b4ba-86afef83ac0a")
+	)
+	(wire
+		(pts
+			(xy 71.12 171.45) (xy 92.71 171.45)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "5228f996-d3bb-4017-a3b2-73db428fece0")
 	)
 	(wire
 		(pts
@@ -7295,16 +7325,6 @@
 			(type default)
 		)
 		(uuid "65a5eb34-1332-4bd4-ba26-22f078954074")
-	)
-	(wire
-		(pts
-			(xy 71.12 148.59) (xy 104.14 148.59)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "65dcc5e7-e682-45bc-bcf8-891c2d4dae25")
 	)
 	(bus
 		(pts
@@ -8278,16 +8298,6 @@
 	)
 	(wire
 		(pts
-			(xy 71.12 171.45) (xy 104.14 171.45)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "cc65b21e-3218-4ab9-80b7-fa49f1b01891")
-	)
-	(wire
-		(pts
 			(xy 93.98 62.23) (xy 93.98 71.12)
 		)
 		(stroke
@@ -8595,6 +8605,16 @@
 			(type default)
 		)
 		(uuid "f60a7c67-e7f4-4063-9262-551cbedd8e81")
+	)
+	(wire
+		(pts
+			(xy 100.33 148.59) (xy 104.14 148.59)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "f802edc8-7a95-4e9d-876a-5dc2a210a044")
 	)
 	(wire
 		(pts
@@ -9326,7 +9346,7 @@
 				)
 			)
 		)
-		(property "Value" "100k"
+		(property "Value" "47k"
 			(at 142.24 144.78 90)
 			(effects
 				(font
@@ -13880,7 +13900,7 @@
 		(dnp no)
 		(uuid "b5e75f02-1788-4ea9-a021-9e9e0855f9b4")
 		(property "Reference" "C7"
-			(at 95.25 153.924 90)
+			(at 91.186 162.56 90)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -14418,6 +14438,75 @@
 			(project "pico-radio-9"
 				(path "/b9640508-dcc6-4f6b-830f-c53a732dcb5b"
 					(reference "Q3")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "Device:C")
+		(at 96.52 148.59 270)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "bc1beebb-f6c3-4ca1-8c69-3e348bc449e7")
+		(property "Reference" "C13"
+			(at 90.932 145.034 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "100nF"
+			(at 97.282 144.78 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "Capacitor_THT:C_Disc_D7.0mm_W2.5mm_P5.00mm"
+			(at 92.71 149.5552 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 96.52 148.59 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" "Unpolarized capacitor"
+			(at 96.52 148.59 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "564fb3cd-2814-4b80-a1c6-cc1f4abef1de")
+		)
+		(pin "2"
+			(uuid "468c1aa1-f6b7-41d8-b686-cfb3b404f310")
+		)
+		(instances
+			(project "pico-radio-9"
+				(path "/b9640508-dcc6-4f6b-830f-c53a732dcb5b"
+					(reference "C13")
 					(unit 1)
 				)
 			)
@@ -15929,6 +16018,75 @@
 			(project ""
 				(path "/b9640508-dcc6-4f6b-830f-c53a732dcb5b"
 					(reference "U1")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "Device:C")
+		(at 96.52 171.45 270)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "ecd2c442-11e6-4168-b821-be5d340f3339")
+		(property "Reference" "C14"
+			(at 91.186 167.894 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "100nF"
+			(at 97.282 167.64 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "Capacitor_THT:C_Disc_D7.0mm_W2.5mm_P5.00mm"
+			(at 92.71 172.4152 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 96.52 171.45 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" "Unpolarized capacitor"
+			(at 96.52 171.45 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "5d674495-ea02-4dd5-be1f-7b15b56c4bc0")
+		)
+		(pin "2"
+			(uuid "90f63367-acf7-4474-b39a-2f8b49fb98eb")
+		)
+		(instances
+			(project "pico-radio-9"
+				(path "/b9640508-dcc6-4f6b-830f-c53a732dcb5b"
+					(reference "C14")
 					(unit 1)
 				)
 			)
